@@ -4,10 +4,12 @@
 -- built-in look.
 --
 -- Paths are relative to the add-on's Media\Art\ folder, without extension.
---   sprites[id] = { file, w, h, cw, ch, cols, foot, anims = { name = { first, count } }, facing }
+--   sprites[id] = { file, w, h, cw, ch, cols, foot, anims = { name = { first, count } }, facing, game }
 --       frames sit left to right, top to bottom in cells of cw x ch pixels;
 --       frame k (0-based) is at column k % cols, row floor(k / cols);
 --       foot = distance from a cell's bottom edge to the feet, as a fraction of ch
+--       game = what the drawing is for, from tools/asset_spec.py (class/faction/
+--              sex, form, mech, skill, pet, monsters = { ids }, boss, theme)
 --   fx[id]      = { file, w, h, cw, ch, cols, n }
 --   bg[theme]   = { far = { file, w, h }, near = { file, w, h } }
 --   ui[id]      = { file, w, h, slice }      slice = 9-slice margin in pixels (nil for plain images)

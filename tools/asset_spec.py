@@ -57,7 +57,12 @@ SUMMON_ROWS = [("idle", 4), ("attack", 4)]
 CRITTER_ROWS = [("idle", 4), ("walk", 4)]
 
 # Output cell sizes (pixels per frame in the packed game texture)
-CELL_UNIT = 170   # 6 x 6 cells fit a 1024 x 1024 texture
+CELL_UNIT = 170   # square cells (6 x 6 fit a 1024 x 1024 texture)
+# Characters get wide cells so a big weapon swung forward does not force the
+# whole character to be drawn smaller: 4 columns x 6 rows of 256 x 170 fit
+# 1024 x 1024 (24 frames: idle 4, walk 6, attack 4, cast 4, hit 2, death 4).
+CELL_WIDE = (256, 170)
+WIDE_COLS = 4
 CELL_SMALL = 128
 
 # ---------------------------------------------------------------------------
@@ -189,7 +194,7 @@ for cls in CLASS_ORDER:
                           f"{SHEET_RULES} {BG_TRANSPARENT} {CLEAN}", rows=HERO_ROWS_B,
                           note=f"{aid}_A.png 를 함께 첨부하세요(같은 캐릭터로 그리게 하려고)."),
                 ]
-            asset(aid, "영웅", 1, title, "sprite", sheets, cell=CELL_UNIT, facing="right",
+            asset(aid, "영웅", 1, title, "sprite", sheets, cell=CELL_WIDE, cols=WIDE_COLS, facing="right",
                   game={"class": cls.upper(), "faction": fac.upper(), "sex": sex.upper(), "race": race.upper()})
 
 # 2. Druid forms ----------------------------------------------------------------
@@ -223,7 +228,7 @@ for form, (ftitle, looks, moves) in FORMS.items():
             sheet(aid + "_B", f"첨부한 이미지와 똑같은 {look}의 전투 동작 스프라이트 시트. {STYLE} {moves}. {FACING['right']} "
                   f"가로로 넓은 캔버스에 4줄로 배치: {rows_text(HERO_ROWS_B)}. {SHEET_RULES} {BG_TRANSPARENT} {CLEAN}",
                   rows=HERO_ROWS_B, note=f"{aid}_A.png 를 함께 첨부하세요."),
-        ], cell=CELL_UNIT, facing="right", game={"form": form.upper(), "faction": fac.upper()})
+        ], cell=CELL_WIDE, cols=WIDE_COLS, facing="right", game={"form": form.upper(), "faction": fac.upper()})
 
 # 3. Tinker battle mechs (the mech tank spec rides one) -------------------------
 MECHS = {
@@ -242,7 +247,7 @@ for fac, look in MECHS.items():
               f"공격: 집게나 톱날 팔로 내려침 / 기술: 로켓 주먹을 발사하거나 화염을 뿜음. {FACING['right']} "
               f"가로로 넓은 캔버스에 4줄로 배치: {rows_text(HERO_ROWS_B)}(사망은 불꽃과 연기를 내며 주저앉음). "
               f"{SHEET_RULES} {BG_TRANSPARENT} {CLEAN}", rows=HERO_ROWS_B, note=f"{aid}_A.png 를 함께 첨부하세요."),
-    ], cell=CELL_UNIT, facing="right", game={"mech": fac.upper()})
+    ], cell=CELL_WIDE, cols=WIDE_COLS, facing="right", game={"mech": fac.upper()})
 
 # 4. Summons (skills that call something onto the battlefield) ------------------
 SUMMONS = [
@@ -340,7 +345,7 @@ for aid, title, look, users in MONSTERS:
         sheet(aid, f"{STYLE} 게임 몬스터 스프라이트 시트. {look}. 무섭기보다 귀엽고 개성 있게. {FACING['left']} "
               f"가로로 넓은 캔버스에 {len(MOB_ROWS)}줄로 배치: {rows_text(MOB_ROWS)}. {SHEET_RULES} {BG_TRANSPARENT} {CLEAN}",
               rows=MOB_ROWS, note="게임 안에서 색을 입혀 비슷한 몬스터 여럿에 함께 씁니다."),
-    ], cell=CELL_UNIT, facing="left", game={"monsters": users.split()})
+    ], cell=CELL_WIDE, cols=WIDE_COLS, facing="left", game={"monsters": users.split()})
 
 # 7. Raid bosses (the last zone of each act) ------------------------------------
 BOSSES = [
@@ -362,7 +367,7 @@ for aid, title, look in BOSSES:
         sheet(aid, f"{STYLE} 게임 보스 몬스터 스프라이트 시트. {look}. 위압감 있게 크게. {FACING['left']} "
               f"가로로 넓은 캔버스에 {len(MOB_ROWS)}줄로 배치: {rows_text(MOB_ROWS)}. {SHEET_RULES} {BG_TRANSPARENT} {CLEAN}",
               rows=MOB_ROWS),
-    ], cell=CELL_UNIT, facing="left", game={"boss": aid[5:]})
+    ], cell=CELL_WIDE, cols=WIDE_COLS, facing="left", game={"boss": aid[5:]})
 
 # 8. Effects -------------------------------------------------------------------
 FX_SETS = [
@@ -429,7 +434,8 @@ for tid, tname, look in THEMES:
     asset(aid, "전투 배경", 1 if tid in ("forest", "desert", "snow", "lava", "shadow", "ruins") else 2,
           f"전투 배경 · {tname}", "background", [
               sheet(aid + "_far", f"가로로 매우 긴 횡스크롤 게임의 먼 배경, 손으로 칠한 판타지 모바일 게임 스타일. {look}. "
-                    f"땅바닥은 그리지 말고 하늘과 먼 풍경만, 아래쪽 1/4은 비슷한 색의 먼 풍경으로 채움. "
+                    f"땅바닥은 그리지 말고 하늘과 먼 풍경만. 지평선과 먼 산·건물은 그림 높이의 가운데(위에서 40%~70% 사이)에 오게 하고, "
+                    f"그 위는 하늘, 아래는 비슷한 색의 먼 풍경으로 자연스럽게 채움. "
                     f"왼쪽 끝과 오른쪽 끝이 자연스럽게 이어지도록(이어 붙여도 경계가 안 보이게, seamless). 캐릭터 없음. {CLEAN}",
                     canvas="1536x1024"),
               sheet(aid + "_near", f"가로로 매우 긴 횡스크롤 게임의 가까운 바닥 층, 손으로 칠한 판타지 모바일 게임 스타일. {look}의 땅바닥: "
@@ -461,7 +467,7 @@ UI = [
     ("ui_bar_frame", "막대 틀", "생명력·경험치 막대를 담는 가로로 긴 틀(가운데는 투명)", (256, 32), 12),
     ("ui_bar_fill", "막대 채움", "막대 안을 채우는 흰색 광택 띠(게임에서 색을 입힘)", (256, 32), 8),
     ("ui_boss_bar", "우두머리 체력 막대 틀", "해골과 날개 장식이 달린 화려한 가로 막대 틀(가운데는 투명)", (512, 64), 40),
-    ("ui_pill", "알약 모양 칸", "숫자를 넣는 가로로 긴 알약 모양 칸, 어두운 바탕과 얇은 테두리", (128, 48), 22),
+    ("ui_pill", "알약 모양 칸", "숫자를 넣는 가로로 긴 알약 모양 칸, 어두운 바탕과 얇은 테두리", (128, 64), 28),
     ("ui_battle_frame", "전투 창 테두리", "가로로 아주 긴 전투 화면을 감싸는 금속 테두리, 위쪽 가운데에 작은 장식(가운데는 투명)", (512, 128), 40),
 ]
 for aid, title, what, size, margin in UI:

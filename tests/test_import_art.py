@@ -424,7 +424,7 @@ def main():
         ok("partial  hero_paladin_alliance_m" in text, "--check: hero_paladin partial")
         ok("missing  hero_mage_horde_f" in text, "--check: missing assets listed")
         ok("hero_warior_alliance_m_A.png   (did you mean hero_warrior_alliance_m_A.png?)" in text, "--check: unexpected typo file with hint")
-        ok("notes.txt" in text and "2 unexpected files" in text, "--check: unexpected count")
+        ok("notes.txt" not in text and "1 unexpected file" in text, "--check: only image files can be unexpected (notes are ignored)")
 
         # full import
         rc, text = run("--src", src, "--out", out, "--preview", PREVIEW)
@@ -450,7 +450,7 @@ def main():
         ok(w.get("anims") == {"idle": [0, 4], "walk": [4, 6], "attack": [10, 4], "cast": [14, 4], "hit": [18, 2], "death": [20, 4]},
            "warrior anims %s" % w.get("anims"))
         ok((w.get("file"), w.get("w"), w.get("h"), w.get("cw"), w.get("ch"), w.get("cols"), w.get("facing")) ==
-           ("hero_warrior_alliance_m", 1024, 1024, 170, 170, 6, "right"), "warrior geometry")
+           ("hero_warrior_alliance_m", 1024, 1024, 256, 170, 4, "right"), "warrior geometry (wide cells, 4 per row)")
         ok(w.get("game") == {"class": "WARRIOR", "faction": "ALLIANCE", "sex": "M", "race": "DWARF"}, "warrior game hints %s" % w.get("game"))
         p = sp.get("hero_paladin_alliance_m", {})
         ok(p.get("anims") == {"idle": [0, 4], "walk": [4, 6]} and (p.get("w"), p.get("h")) == (1024, 512), "paladin A-only: anims and 1024x512")
@@ -508,14 +508,15 @@ def main():
         op = p_tex[..., 3] >= 128
         bgish = op & (np.abs(p_tex[..., :3].astype(int) - np.array(OFFWHITE)).max(axis=2) < 20)
         ok(bgish.sum() <= 0.01 * op.sum(), "off-white background gone (%d px left)" % bgish.sum())
-        ok(not p_tex[340:, :, 3].any(), "paladin: rows below the two cell rows are empty (TGA orientation)")
+        ok(p_tex.shape[0] == 512 and not p_tex[510:, :, 3].any() and p_tex[340:510, :512, 3].any(),
+           "paladin: 10 frames fill three rows of four (TGA orientation)")
 
         # raw TGA layout: type 2, 32 bpp, descriptor 8 (8 alpha bits, bottom-left origin)
         with open(os.path.join(media, "hero_paladin_alliance_m.tga"), "rb") as f:
             raw = f.read()
         ok(raw[2] == 2 and raw[16] == 32 and raw[17] == 8 and raw[0] == 0, "TGA header: uncompressed, 32 bpp, bottom-left origin")
         rawpx = np.frombuffer(raw[18:], np.uint8).reshape(512, 1024, 4)
-        ok(not rawpx[:100, :, 3].any() and rawpx[-170:, :, 3].any(), "TGA stores the bottom row first")
+        ok(np.array_equal(rawpx[::-1, :, 3], p_tex[..., 3]) and not rawpx[:2, :, 3].any(), "TGA stores the bottom row first")
 
         # effects
         fx = art.get("fx", {})

@@ -642,7 +642,6 @@ def find_frames(alpha, rows, where, log, kind):
         typical_gap = float(max(H, W))
     med_h = float(np.median([f.ch for f in frames])) if frames else 0.0
     attach_lim = max(2 * r + 1, min(0.45 * typical_gap, 0.5 * med_h))
-    dropped = 0
     for i in rest:
         if frames:
             g = _gaps(box[i], np.array([f.core for f in frames], np.float64))
@@ -650,10 +649,8 @@ def find_frames(alpha, rows, where, log, kind):
             if g[k] <= attach_lim:
                 frames[k].attach(box[i], i)
                 continue
-        if area[i] >= keep_f * ref:
+        if area[i] >= keep_f * ref:          # smaller, far from everything: a speck, dropped
             frames.append(Frame(box[i], int(area[i]), i))
-        else:
-            dropped += 1
     full = [f.core[2] - f.core[0] for f in frames if f.area >= 0.5 * ref]
     ref_w = float(np.median(full)) if full else 0.0
     groups = _group_rows(frames, rows, H, ref, where, log)
@@ -783,9 +780,12 @@ def _sheet_path(src, sh):
 
 def process_sprite(a, src, log):
     cell = a["cell"]
-    cw = ch = cell
+    if isinstance(cell, (tuple, list)):
+        cw, ch = int(cell[0]), int(cell[1])   # wide cells leave room for weapons
+    else:
+        cw = ch = cell
     foot_px = int(round(FOOT * ch))
-    cols = max(n for s in a["sheets"] for _, n in s["rows"])
+    cols = a.get("cols") or max(n for s in a["sheets"] for _, n in s["rows"])
     crops, anim_of, anims = [], [], []
     sheet_heights = []
     for si, sh in enumerate(a["sheets"]):
@@ -1434,7 +1434,9 @@ def cmd_check(src):
                     print("    partial  %-28s have %s; missing %s" % (a["id"], " ".join(got), " ".join(miss)))
                 else:
                     print("    missing  %-28s %s" % (a["id"], " ".join(miss)))
-    unexpected = sorted(present - expected)
+    # only image files can be misnamed art; notes such as README.md are fine
+    unexpected = sorted(f for f in present - expected
+                        if os.path.splitext(f)[1].lower() in (".png", ".jpg", ".jpeg", ".webp", ".tga", ".bmp"))
     if unexpected:
         print("\nunexpected files in %s (no spec name matches):" % src)
         lower = {f.lower(): f for f in expected}
@@ -1514,9 +1516,9 @@ def cmd_import(args):
         except Exception as e:  # keep going: one broken image must not stop the others
             if args.debug:
                 raise
-            tb = traceback.extract_tb(e.__traceback__)[-1]
-            log.warn(a["id"], "failed: %s: %s (line %d; --debug for details)%s"
-                     % (type(e).__name__, e, tb.lineno, "; the previous import is kept" if any(
+            here = [f for f in traceback.extract_tb(e.__traceback__) if os.path.abspath(f.filename) == os.path.abspath(__file__)]
+            log.warn(a["id"], "failed: %s: %s (import_art.py line %d; --debug for details)%s"
+                     % (type(e).__name__, e, here[-1].lineno if here else 0, "; the previous import is kept" if any(
                          k in old[sec] for sec, k in manifest_keys(a)) else ""))
             failed.add(a["id"])
             continue
