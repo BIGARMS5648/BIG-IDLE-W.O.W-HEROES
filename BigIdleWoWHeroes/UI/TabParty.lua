@@ -605,10 +605,24 @@ end
 ------------------------------------------------------------------------
 -- Screen
 ------------------------------------------------------------------------
+-- Selection: a hero (page.selHero) or an empty slot (page.slotSel). The action
+-- bar under the lineup always acts on the current selection.
 local function selectSlot(page, slot)
-	if page.slotSel == slot then slot = nil end
 	page.slotSel = slot
+	page.selHero = nil
 	page.filter = slot and ns.PARTY_ROLES[slot] or nil
+	Main.Refresh()
+end
+
+local function selectHero(page, id)
+	if page.selHero == id and page.lastPick and GetTime() - page.lastPick < 0.4 then
+		Main.SelectHero(id)
+		Main.ShowTab("hero")
+		return
+	end
+	page.lastPick = GetTime()
+	page.selHero = id
+	Main.SelectHero(id)
 	Main.Refresh()
 end
 
@@ -620,10 +634,15 @@ local function nextCommandRune()
 	end
 end
 
+local LINE_Y, LINE_H = -40, 168     -- lineup cards
+local BAR_Y, BAR_H = -214, 46       -- action bar
+local ROSTER_Y = -296               -- roster cards
+local TALL_W, TALL_H = 66, 170
+
 local function buildSlotCard(page, slot, x)
 	local card = CreateFrame("Button", nil, page)
-	card:SetSize(CARD_W, CARD_H)
-	card:SetPoint("TOPLEFT", page, "TOPLEFT", x, -46)
+	card:SetSize(CARD_W, LINE_H)
+	card:SetPoint("TOPLEFT", page, "TOPLEFT", x, LINE_Y)
 	card.bg = UI.Slice(card, "card", "BACKGROUND")
 	card.slot = slot
 	local role = ns.PARTY_ROLES[slot]
@@ -631,25 +650,25 @@ local function buildSlotCard(page, slot, x)
 	card.roleBar = card:CreateTexture(nil, "BORDER")
 	card.roleBar:SetPoint("TOPLEFT", card, "TOPLEFT", 4, -4)
 	card.roleBar:SetPoint("TOPRIGHT", card, "TOPRIGHT", -4, -4)
-	card.roleBar:SetHeight(22)
+	card.roleBar:SetHeight(20)
 	UI.Fill(card.roleBar, r * 0.45, g * 0.45, b * 0.45, 0.9)
-	card.roleIcon = UI.Glyph(card, ns.ROLE[role].art, 16, r, g, b)
+	card.roleIcon = UI.Glyph(card, ns.ROLE[role].art, 14, r, g, b)
 	card.roleIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 9, -7)
-	card.roleText = UI.Text(card, 12, ns.N(ns.ROLE[role].name))
+	card.roleText = UI.Text(card, 11, ns.N(ns.ROLE[role].name))
 	card.roleText:SetPoint("LEFT", card.roleIcon, "RIGHT", 5, 0)
 	card.sel = UI.Art(card, "frame", "OVERLAY", 1, 0.85, 0.35)
 	card.sel:SetPoint("TOPLEFT", card, "TOPLEFT", -3, 3)
 	card.sel:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 3, -3)
 	card.sel:Hide()
-	card.portrait = heroFigure(card, 68)
-	card.portrait:SetPoint("TOP", card, "TOP", 0, -34)
+	card.portrait = heroFigure(card, 66)
+	card.portrait:SetPoint("TOP", card, "TOP", 0, -30)
 	card.portrait:EnableMouse(false)
 	card.plus = UI.Glyph(card, "plus", 40, 0.55, 0.62, 0.8)
-	card.plus:SetPoint("TOP", card, "TOP", 0, -48)
+	card.plus:SetPoint("TOP", card, "TOP", 0, -44)
 	card.lock = UI.Glyph(card, "lock", 36, 0.75, 0.65, 0.45)
-	card.lock:SetPoint("TOP", card, "TOP", 0, -50)
+	card.lock:SetPoint("TOP", card, "TOP", 0, -46)
 	card.name = UI.Text(card, 13)
-	card.name:SetPoint("TOP", card, "TOP", 0, -110)
+	card.name:SetPoint("TOP", card, "TOP", 0, -104)
 	card.name:SetWidth(CARD_W - 12)
 	card.name:SetJustifyH("CENTER")
 	card.name:SetWordWrap(false)
@@ -659,25 +678,16 @@ local function buildSlotCard(page, slot, x)
 	card.spec:SetJustifyH("CENTER")
 	UI.Color(card.spec, UI.C.sub)
 	card.stat = UI.Text(card, 10)
-	card.stat:SetPoint("TOP", card.spec, "BOTTOM", 0, -3)
+	card.stat:SetPoint("TOP", card.spec, "BOTTOM", 0, -4)
 	card.stat:SetJustifyH("CENTER")
-	card.action = UI.Button(card, CARD_W - 14, 24, "", nil, "dark")
-	card.action:SetPoint("BOTTOM", card, "BOTTOM", 0, 7)
 	card:RegisterForClicks("LeftButtonUp")
 	card:SetScript("OnClick", function(self)
 		ns.Sound("click")
 		local id = ns.db.party[self.slot]
 		if id then
-			if Main.SelectedHero() == id and self.lastClick and GetTime() - self.lastClick < 0.4 then
-				Main.ShowTab("hero")
-				return
-			end
-			self.lastClick = GetTime()
-			Main.SelectHero(id)
-			page.slotSel, page.filter = nil, nil
-			Main.Refresh()
+			selectHero(page, id)
 		elseif H.PartyCount() < ns.PartyLimit() then
-			selectSlot(page, self.slot)
+			selectSlot(page, page.slotSel ~= self.slot and self.slot or nil)
 		else
 			Main.ShowTab("runes", { rune = nextCommandRune() })
 		end
@@ -689,101 +699,201 @@ local function buildSlotCard(page, slot, x)
 			return UI.SimpleTip("잠긴 자리", "룬 화면의 '지휘의 룬'을 배우면 파티 자리가 하나씩 열립니다. 클릭하면 룬 화면으로 갑니다.")
 		end
 		return UI.SimpleTip(ns.N(ns.ROLE[ns.PARTY_ROLES[self.slot]].name) .. " 자리",
-			"클릭하면 아래 목록에서 이 역할의 영웅만 보여 줍니다. 대기 중인 영웅의 '출전'을 누르세요.")
+			"클릭하면 아래 목록에서 이 역할의 영웅만 보여 줍니다. 영웅을 고르고 '출전'을 누르세요.\n자리는 전투 창과 같은 순서입니다: 왼쪽이 뒤(힐러), 오른쪽이 맨 앞(탱커).")
 	end)
+	return card
+end
+
+local function buildRosterCard(page, i)
+	local card = CreateFrame("Button", nil, page)
+	card:SetSize(TALL_W, TALL_H)
+	card:SetPoint("TOPLEFT", page, "TOPLEFT", (i - 1) * (TALL_W + 5.45), ROSTER_Y)
+	card.bg = UI.Slice(card, "card", "BACKGROUND")
+	card.band = card:CreateTexture(nil, "BORDER")
+	card.band:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 4, 4)
+	card.band:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -4, 4)
+	card.band:SetHeight(46)
+	card.sel = UI.Art(card, "frame", "OVERLAY", 1, 0.85, 0.35)
+	card.sel:SetPoint("TOPLEFT", card, "TOPLEFT", -2, 2)
+	card.sel:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 2, -2)
+	card.sel:Hide()
+	card.portrait = heroFigure(card, 52)
+	card.portrait:SetPoint("TOP", card, "TOP", 0, -14)
+	card.portrait:EnableMouse(false)
+	card.role = UI.Glyph(card, "role_tank", 14)
+	card.role:SetPoint("TOPLEFT", card, "TOPLEFT", 5, -5)
+	card.state = UI.Pill(card, 40, 15, 0.2, 0.6, 0.3, 1)
+	card.state:SetPoint("TOP", card, "TOP", 0, -86)
+	card.name = UI.Text(card, 12)
+	card.name:SetPoint("BOTTOM", card, "BOTTOM", 0, 30)
+	card.name:SetWidth(TALL_W - 6)
+	card.name:SetJustifyH("CENTER")
+	card.name:SetWordWrap(false)
+	card.spec = UI.Text(card, 9)
+	card.spec:SetPoint("BOTTOM", card, "BOTTOM", 0, 13)
+	card.spec:SetWidth(TALL_W - 6)
+	card.spec:SetJustifyH("CENTER")
+	card.spec:SetWordWrap(false)
+	UI.Color(card.spec, UI.C.sub)
+	card:RegisterForClicks("LeftButtonUp")
+	card:SetScript("OnClick", function(self)
+		if not self.heroId then return end
+		ns.Sound("click")
+		selectHero(page, self.heroId)
+	end)
+	UI.Tip(card, function(self) return self.heroId and heroTip(self.heroId) end, "TOP")
 	return card
 end
 
 local function build(page)
 	page.filter = nil
 	page.title = UI.Title(page, "", 18)
-	page.title:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -8)
+	page.title:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -6)
 	page.quota = UI.Text(page, 12)
 	page.quota:SetPoint("LEFT", page.title, "RIGHT", 14, -1)
-	page.front = UI.Text(page, 10, "전투 창과 같은 순서: 왼쪽이 뒤(힐러), 오른쪽이 맨 앞(탱커)")
-	page.front:SetPoint("TOP", page, "TOP", 0, -239)
-	UI.Color(page.front, UI.C.dim)
-
 	page.create = UI.Button(page, 190, 32, "", function()
-		local role = ns.Guide.MissingRole()
-		create.open(nil, role)
+		create.open(nil, ns.Guide.MissingRole())
 	end, "primary")
-	page.create:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, -2)
+	page.create:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, 0)
 	page.auto = UI.Button(page, 100, 32, "자동 편성", autoForm, "blue")
 	page.auto:SetPoint("RIGHT", page.create, "LEFT", -8, 0)
 	UI.Tip(page.auto, function() return UI.SimpleTip("자동 편성", "빈 자리마다 그 역할의 대기 영웅 중 가장 강한 영웅을 넣습니다. 이미 출전한 영웅은 바꾸지 않습니다.") end)
-	page.petsBtn = UI.Button(page, 90, 32, "동료", openPets, "dark")
+	page.petsBtn = UI.Button(page, 80, 32, "동료", openPets, "dark")
 	page.petsBtn:SetPoint("RIGHT", page.auto, "LEFT", -8, 0)
 
+	-- lineup, in battle order
 	page.slots = {}
 	for k, slot in ipairs(LANE_ORDER) do
 		page.slots[slot] = buildSlotCard(page, slot, 2 + (k - 1) * (CARD_W + 10))
 	end
 
-	-- roster
+	-- action bar for the selection
+	local bar = UI.Panel(page, 848, BAR_H, "inset")
+	bar:SetPoint("TOPLEFT", page, "TOPLEFT", 0, BAR_Y)
+	page.bar = bar
+	bar.icon = UI.Portrait(bar, 36)
+	bar.icon:SetPoint("LEFT", bar, "LEFT", 8, 0)
+	bar.icon:EnableMouse(false)
+	bar.icon.lvl:Hide()
+	bar.text = UI.Text(bar, 13)
+	bar.text:SetPoint("LEFT", bar, "LEFT", 54, 7)
+	bar.text:SetWidth(440)
+	bar.text:SetWordWrap(false)
+	bar.sub = UI.Text(bar, 10)
+	bar.sub:SetPoint("LEFT", bar, "LEFT", 54, -9)
+	bar.sub:SetWidth(440)
+	bar.sub:SetWordWrap(false)
+	UI.Color(bar.sub, UI.C.sub)
+	bar.main = UI.Button(bar, 170, 34, "", nil, "primary")
+	bar.main:SetPoint("RIGHT", bar, "RIGHT", -6, 0)
+	bar.main.clickWhenOff = true
+	bar.second = UI.Button(bar, 110, 34, "", nil, "dark")
+	bar.second:SetPoint("RIGHT", bar.main, "LEFT", -8, 0)
+	bar.second.clickWhenOff = true
+
+	-- roster: tall cards, filtered by role
 	page.rosterTitle = UI.Title(page, "", 14)
-	page.rosterTitle:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -258)
+	page.rosterTitle:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -270)
 	page.filters = {}
 	for i, f in ipairs(ROLE_FILTER) do
-		local chip = UI.Chip(page, 64, 24, f[2], function()
+		local chip = UI.Chip(page, 64, 22, f[2], function()
 			page.filter = f[1]
 			page.slotSel = nil
 			Main.Refresh()
 		end)
-		chip:SetPoint("TOPRIGHT", page, "TOPRIGHT", -(#ROLE_FILTER - i) * 70, -252)
+		chip:SetPoint("TOPRIGHT", page, "TOPRIGHT", -(#ROLE_FILTER - i) * 70, -266)
 		chip.role = f[1]
 		page.filters[i] = chip
 	end
 	page.roster = {}
-	for i = 1, ns.ROSTER_MAX do
-		local card = CreateFrame("Button", nil, page)
-		card:SetSize(R_W, R_H)
-		card:SetPoint("TOPLEFT", page, "TOPLEFT", ((i - 1) % 6) * (R_W + 8), -284 - floor((i - 1) / 6) * (R_H + 8))
-		card.bg = UI.Slice(card, "card", "BACKGROUND")
-		card.sel = UI.Art(card, "frame", "OVERLAY", 1, 0.85, 0.35)
-		card.sel:SetAllPoints(card)
-		card.sel:Hide()
-		card.portrait = heroFigure(card, 42)
-		card.portrait:SetPoint("TOPLEFT", card, "TOPLEFT", 6, -8)
-		card.portrait:EnableMouse(false)
-		card.name = UI.Text(card, 12)
-		card.name:SetPoint("TOPLEFT", card, "TOPLEFT", 54, -8)
-		card.name:SetWidth(R_W - 58)
-		card.name:SetWordWrap(false)
-		card.spec = UI.Text(card, 10)
-		card.spec:SetPoint("TOPLEFT", card, "TOPLEFT", 54, -24)
-		card.spec:SetWidth(R_W - 58)
-		card.spec:SetWordWrap(false)
-		UI.Color(card.spec, UI.C.sub)
-		card.state = UI.Pill(card, 40, 15, 0.2, 0.6, 0.3, 1)
-		card.state:SetPoint("TOPLEFT", card, "TOPLEFT", 54, -39)
-		card.action = UI.Button(card, R_W - 12, 22, "", nil, "dark")
-		card.action:SetPoint("BOTTOM", card, "BOTTOM", 0, 6)
-		card.action.clickWhenOff = true
-		card:RegisterForClicks("LeftButtonUp")
-		card:SetScript("OnClick", function(self)
-			if not self.heroId then return end
-			ns.Sound("click")
-			if Main.SelectedHero() == self.heroId and self.lastClick and GetTime() - self.lastClick < 0.4 then
-				Main.ShowTab("hero")
-				return
-			end
-			self.lastClick = GetTime()
-			Main.SelectHero(self.heroId)
-		end)
-		UI.Tip(card, function(self) return self.heroId and heroTip(self.heroId) end)
-		page.roster[i] = card
-	end
+	for i = 1, ns.ROSTER_MAX do page.roster[i] = buildRosterCard(page, i) end
 	page.empty = UI.Text(page, 13, "아직 보유한 영웅이 없습니다.\n오른쪽 위 '영웅 만들기'로 첫 영웅을 무료로 만드세요!")
-	page.empty:SetPoint("TOP", page, "TOP", 0, -330)
+	page.empty:SetPoint("TOP", page, "TOP", 0, -340)
 	page.empty:SetJustifyH("CENTER")
+end
+
+-- What the action bar shows and does for the current selection.
+local function refreshBar(page)
+	local db = ns.db
+	local bar = page.bar
+	local id = page.selHero and db.heroes[page.selHero] and page.selHero
+	bar.second:Show()
+	bar.main:Show()
+	if id then
+		local h = db.heroes[id]
+		bar.icon:SetHero(id)
+		UI.SetHeroIcon(bar.icon.icon, id)
+		bar.icon.lvl:Hide()
+		bar.icon:Show()
+		bar.text:SetText(U.col(ns.CLASSES[ns.SPECS[h.spec].class].hex, H.Name(id)) .. U.col("aab3c8", "   Lv " .. h.level .. " · " .. ns.SpecLabel(h.spec)))
+		bar.second:SetLabel("영웅 보기")
+		bar.second:SetStyle("dark")
+		bar.second:SetOff(false)
+		bar.second.onClick = function() Main.SelectHero(id) Main.ShowTab("hero") end
+		local slot = H.PartySlot(id)
+		if slot then
+			bar.sub:SetText("출전 중 · " .. roleStat(id) .. U.col("8a90a2", "   (두 번 누르면 영웅 화면)"))
+			bar.main:SetLabel("휴식")
+			bar.main:SetStyle("dark")
+			bar.main:SetOff(H.PartyCount() <= 1)
+			bar.main.onClick = function()
+				if H.PartyCount() <= 1 then UI.Try(false, "마지막 출전 영웅은 쉬게 할 수 없습니다.") return end
+				UI.Try(H.Withdraw(id))
+			end
+		else
+			local act, s = fieldAction(id)
+			bar.main:SetStyle("primary")
+			if act == "swap" then
+				bar.sub:SetText(string.format("대기 중 · %s 자리가 가득 차 있습니다", ns.N(ns.ROLE[H.Role(id)].name)))
+				bar.main:SetLabel("교체 출전: " .. H.ShortName(db.party[s]))
+				bar.main:SetOff(false)
+				bar.main.onClick = function() field(id) end
+			elseif act == "deploy" then
+				bar.sub:SetText("대기 중 · " .. roleStat(id))
+				bar.main:SetLabel("출전")
+				bar.main:SetOff(false)
+				bar.main.onClick = function() field(id) end
+			else
+				bar.sub:SetText(U.col("ff9a7a", string.format("%s 자리가 없습니다. '지휘의 룬'으로 파티 인원을 늘리세요.", ns.N(ns.ROLE[H.Role(id)].name))))
+				bar.main:SetLabel("출전 (자리 없음)")
+				bar.main:SetOff(true)
+				bar.main.onClick = function() UI.Try(false, "자리가 없습니다. '지휘의 룬'으로 파티 인원을 늘리세요.") end
+			end
+		end
+		return
+	end
+	bar.icon:Hide()
+	if page.slotSel then
+		local role = ns.PARTY_ROLES[page.slotSel]
+		local rn = ns.N(ns.ROLE[role].name)
+		bar.text:SetText(U.col("ffd24a", rn .. " 자리") .. U.col("aab3c8", " 를 골랐습니다"))
+		bar.sub:SetText("아래 목록에서 " .. rn .. " 영웅을 누르고 '출전'을 누르세요. 영웅이 없으면 새로 만드세요.")
+		bar.second:SetLabel("선택 취소")
+		bar.second:SetStyle("dark")
+		bar.second:SetOff(false)
+		bar.second.onClick = function() selectSlot(page, nil) end
+		bar.main:SetLabel(rn .. " 만들기")
+		bar.main:SetStyle("primary")
+		bar.main:SetOff(H.Count() >= ns.ROSTER_MAX)
+		bar.main.onClick = function() create.open(nil, role) end
+		return
+	end
+	bar.text:SetText("영웅이나 빈 자리를 누르세요")
+	bar.sub:SetText("고른 영웅을 여기서 출전·교체·휴식시키고, 두 번 누르면 영웅 화면으로 갑니다.")
+	bar.second:Hide()
+	-- only when a role is missing; a full party already has '자동 편성' at the top
+	local role = ns.Guide.MissingRole()
+	bar.main:SetShown(role ~= nil)
+	bar.main:SetLabel(role and (ns.N(ns.ROLE[role].name) .. " 자리 채우기") or "")
+	bar.main:SetStyle("primary")
+	bar.main:SetOff(false)
+	bar.main.onClick = function() if role then autoForm() end end
 end
 
 local function refresh(page)
 	local db = ns.db
 	local count, limit = H.PartyCount(), ns.PartyLimit()
 	page.title:SetText(string.format("출전 파티  %d / %d", count, limit))
-	-- role quota: filled / open within the limit
 	local have = { TANK = 0, DPS = 0, HEALER = 0 }
 	local want = { TANK = 0, DPS = 0, HEALER = 0 }
 	for i = 1, ns.PARTY_SIZE do
@@ -797,7 +907,7 @@ local function refresh(page)
 		parts[#parts + 1] = U.col(col, string.format("%s %d/%d", ns.N(ns.ROLE[role].name), have[role], want[role]))
 	end
 	page.quota:SetText(table.concat(parts, "   "))
-	local sel = Main.SelectedHero()
+	if page.selHero and not db.heroes[page.selHero] then page.selHero = nil end
 
 	for slot, card in pairs(page.slots) do
 		local id = db.party[slot]
@@ -806,7 +916,7 @@ local function refresh(page)
 		card.plus:Hide()
 		card.lock:Hide()
 		card.stat:SetText("")
-		card.sel:SetShown((id and id == sel) or page.slotSel == slot)
+		card.sel:SetShown((id and id == page.selHero) or page.slotSel == slot)
 		if id and db.heroes[id] then
 			local h = db.heroes[id]
 			local sp = ns.SPECS[h.spec]
@@ -815,49 +925,22 @@ local function refresh(page)
 			card.portrait:SetBadge(ns.Guide.HeroNeeds(id))
 			card.portrait:Show()
 			card.name:SetText(U.col(ns.CLASSES[sp.class].hex, H.Name(id)))
-			card.spec:SetText(string.format("Lv %d  ·  %s", h.level, ns.SpecLabel(h.spec)))
+			card.spec:SetText(ns.SpecLabel(h.spec))
 			card.stat:SetText(roleStat(id))
-			card.action:SetLabel("휴식")
-			card.action:SetStyle("dark")
-			card.action:SetOff(count <= 1)
-			card.action.onClick = function() UI.Try(H.Withdraw(id)) end
 		elseif count >= limit then
 			card.bg:SetColor(0.26, 0.27, 0.32, 1)
 			card.lock:Show()
 			card.name:SetText(U.col("9a8f78", "잠긴 자리"))
 			card.spec:SetText("지휘의 룬으로 열립니다")
-			card.action:SetLabel("룬 보러 가기")
-			card.action:SetStyle("blue")
-			card.action:SetOff(false)
-			card.action.onClick = function() Main.ShowTab("runes", { rune = nextCommandRune() }) end
 		else
 			card.bg:SetColor(0.30, 0.33, 0.44, 1)
 			card.plus:Show()
-			local role = ns.PARTY_ROLES[slot]
 			card.name:SetText(U.col("b8c0d8", "빈 자리"))
-			card.spec:SetText(string.format("%s 영웅을 넣으세요", ns.N(ns.ROLE[role].name)))
-			local bench, bp
-			for _, hid in ipairs(H.List()) do
-				if not H.PartySlot(hid) and H.Role(hid) == role then
-					local p = ns.Stats.Power(hid)
-					if not bp or p > bp then bench, bp = hid, p end
-				end
-			end
-			if bench then
-				card.action:SetLabel("출전: " .. H.ShortName(bench))
-				card.action:SetStyle("green")
-				card.action:SetOff(false)
-				card.action.onClick = function() UI.Try(H.Deploy(bench, slot)) end
-			else
-				card.action:SetLabel(ns.N(ns.ROLE[role].name) .. " 만들기")
-				card.action:SetStyle("green")
-				card.action:SetOff(H.Count() >= ns.ROSTER_MAX)
-				card.action.onClick = function() create.open(nil, role) end
-			end
+			card.spec:SetText("눌러서 영웅 넣기")
 		end
 	end
+	refreshBar(page)
 
-	-- roster
 	local all = H.List()
 	local list = {}
 	for _, id in ipairs(all) do
@@ -878,55 +961,23 @@ local function refresh(page)
 		if id then
 			local h = db.heroes[id]
 			local sp = ns.SPECS[h.spec]
+			local r, g, b = U.rgb(ns.CLASSES[sp.class].hex)
+			UI.Fill(card.band, r * 0.35, g * 0.35, b * 0.35, 0.9)
 			card.portrait:SetHeroFigure(id)
 			card.portrait:SetBadge(H.PartySlot(id) ~= nil and ns.Guide.HeroNeeds(id))
-			card.name:SetText(U.col(ns.CLASSES[sp.class].hex, H.Name(id)))
-			card.spec:SetText(ns.SpecLabel(h.spec))
-			card.sel:SetShown(id == sel)
+			card.role:SetTexture(UI.Tex(ns.ROLE[sp.role].art))
+			card.role:SetVertexColor(U.rgb(ns.ROLE[sp.role].hex))
+			card.name:SetText(U.col(ns.CLASSES[sp.class].hex, H.ShortName(id)))
+			card.spec:SetText(ns.N(sp.name) .. " " .. ns.N(ns.CLASSES[sp.class].name))
+			card.sel:SetShown(id == page.selHero)
 			if H.PartySlot(id) then
 				card.bg:SetColor(0.40, 0.50, 0.48, 1)
 				card.state:SetColor(0.2, 0.55, 0.3, 1)
 				card.state:SetLabel("출전")
-				card.action:SetLabel("휴식")
-				card.action:SetStyle("dark")
-				card.action:SetOff(H.PartyCount() <= 1)
-				card.action.onClick = function()
-					if H.PartyCount() <= 1 then
-						UI.Try(false, "마지막 출전 영웅은 쉬게 할 수 없습니다.")
-					else
-						UI.Try(H.Withdraw(id))
-					end
-				end
 			else
 				card.bg:SetColor(0.34, 0.37, 0.50, 1)
 				card.state:SetColor(0.3, 0.33, 0.42, 1)
 				card.state:SetLabel("대기")
-				local target = page.slotSel and ns.PARTY_ROLES[page.slotSel] == H.Role(id) and page.slotSel
-				local act, s = fieldAction(id)
-				if target then
-					local who = db.party[target]
-					card.action:SetLabel(who and ("교체: " .. H.ShortName(who)) or "여기에 출전")
-					card.action:SetStyle("green")
-					card.action:SetOff(false)
-					card.action.onClick = function() field(id, target) page.slotSel = nil Main.Refresh() end
-				elseif act == "swap" then
-					card.action:SetLabel("교체: " .. H.ShortName(db.party[s]))
-					card.action:SetStyle("green")
-					card.action:SetOff(false)
-					card.action.onClick = function() field(id) end
-				elseif act == "deploy" then
-					card.action:SetLabel("출전")
-					card.action:SetStyle("green")
-					card.action:SetOff(false)
-					card.action.onClick = function() field(id) end
-				else
-					card.action:SetLabel("출전 (자리 없음)")
-					card.action:SetStyle("dark")
-					card.action:SetOff(true)
-					card.action.onClick = function()
-						UI.Try(false, string.format("%s 자리가 없습니다. '지휘의 룬'으로 파티 인원을 늘리세요.", ns.N(ns.ROLE[H.Role(id)].name)))
-					end
-				end
 			end
 			card:Show()
 		else

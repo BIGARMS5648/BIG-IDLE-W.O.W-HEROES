@@ -209,8 +209,21 @@ function builders.fuse(panel)
 	UI.Tip(panel.catBtn, function() return UI.SimpleTip("재료 종류", "클릭: 무기·방어구 ↔ 액세서리\n결과도 같은 종류에서 무작위 부위로 나옵니다.") end)
 	panel.have = UI.Text(panel, 12)
 	panel.have:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -34)
+	-- the nine items that the next fusion will use, an arrow, the result
+	panel.inputs = {}
+	for i = 1, ns.Forge.FUSE_COUNT do
+		local b = UI.IconButton(panel, 42)
+		b:SetPoint("TOPLEFT", panel, "TOPLEFT", (i - 1) * 46, -58)
+		UI.Tip(b, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end)
+		panel.inputs[i] = b
+	end
+	panel.arrow = UI.Glyph(panel, "arrow", 22, 1, 0.82, 0.3)
+	panel.arrow:SetPoint("TOPLEFT", panel, "TOPLEFT", 9 * 46 + 6, -68)
+	panel.out = UI.IconButton(panel, 52)
+	panel.out:SetPoint("TOPLEFT", panel, "TOPLEFT", 9 * 46 + 38, -53)
+	panel.out.mark:SetText("?")
 	panel.odds = UI.Text(panel, 11)
-	panel.odds:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -56)
+	panel.odds:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -116)
 	panel.odds:SetWidth(PW)
 	local function fuse(all)
 		local last, n, great
@@ -241,14 +254,14 @@ function builders.fuse(panel)
 		Main.Refresh()
 	end
 	panel.go = UI.Button(panel, 170, 34, "융합", function() fuse(false) end, "primary")
-	panel.go:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -92)
+	panel.go:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, -306)
 	panel.goAll = UI.Button(panel, 190, 34, "가능한 만큼 융합", nil, "blue")
 	armButton(panel.goAll, "가능한 만큼 융합", "정말? 한 번 더 누르세요", function() fuse(true) end)
 	armed[#armed + 1] = panel.goAll
-	panel.goAll:SetPoint("LEFT", panel.go, "RIGHT", 6, 0)
-	addResult(panel, 0, -132)
+	panel.goAll:SetPoint("RIGHT", panel.go, "LEFT", -8, 0)
+	addResult(panel, 0, -144)
 	panel.note = UI.Text(panel, 10, "가장 낮은 레벨의 장비부터 씁니다. 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 쓰지 않습니다(가방에서 Alt+클릭으로 보호).\n결과의 레벨은 재료 9개의 평균 레벨 부근이고, 부위는 같은 종류 안에서 무작위입니다. 영웅 등급부터는 등급이 오르지 않을 수도 있습니다. 재료(광석 등) 융합은 '가방 > 재료'에서 합니다.")
-	panel.note:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -196)
+	panel.note:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -200)
 	panel.note:SetWidth(PW)
 	panel.note:SetTextColor(0.7, 0.7, 0.7)
 
@@ -269,6 +282,22 @@ function builders.fuse(panel)
 		panel.odds:SetText("결과 확률: " .. qualityOdds(weights))
 		panel.go:SetOff(n < ns.Forge.FUSE_COUNT)
 		panel.goAll:SetOff(n < ns.Forge.FUSE_COUNT)
+		local pick = ns.Forge.PickForFusion(panel.q, panel.cat)
+		for i, b in ipairs(panel.inputs) do
+			local it = pick and pick[i]
+			if it then
+				b:SetIconName(ns.Items.Icon(it))
+				b:SetQuality(it.q)
+				b:SetCount(tostring(it.l))
+				b.data = it
+			else
+				b:Clear()
+				b:SetQuality(panel.q)
+				b:SetDim(true)
+			end
+		end
+		panel.out:SetQuality(math.min(ns.MAX_QUALITY, panel.q + 1))
+		panel.out:SetDim(pick == nil)
 	end
 end
 

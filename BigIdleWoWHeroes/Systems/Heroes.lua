@@ -35,7 +35,7 @@ function Heroes.Name(id)
 	return h and ns.N(h.name) or "?"
 end
 
--- Given name only ("티란데 브리즈팽" -> "티란데"), for tight spots.
+-- Given name only ("빅암즈 브리즈팽" -> "빅암즈"), for tight spots.
 function Heroes.ShortName(id)
 	return ns.Names.Short(Heroes.Name(id))
 end

@@ -1041,8 +1041,9 @@ local function placeToast()
 	toast:ClearAllPoints()
 	local main = ns.Main.Frame()
 	if main and main:IsShown() then
+		-- on the window's top edge, over the title: never over a button
 		toast:SetScale(main:GetScale())
-		toast:SetPoint("BOTTOM", main, "BOTTOM", 0, 84) -- just above the bottom bar
+		toast:SetPoint("BOTTOM", main, "TOP", 0, -13)
 	elseif frame and frame:IsShown() then
 		toast:SetScale(frame:GetScale())
 		toast:SetPoint("BOTTOM", frame, "TOP", 0, 6)

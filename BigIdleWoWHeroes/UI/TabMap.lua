@@ -96,14 +96,32 @@ local function build(page)
 		page.worlds[d] = w
 	end
 
+	-- acts as chapter cards: name, progress, lock
 	page.acts = {}
 	for a = 1, 3 do
-		local c = UI.Chip(page, 170, 26, "", function()
-			page.act = a
-			page.idx = (a - 1) * ns.STAGES_PER_ACT + 1
+		local c = CreateFrame("Button", nil, page)
+		c:SetSize(170, 34)
+		c:SetPoint("TOPLEFT", page, "TOPLEFT", (a - 1) * 176, -72)
+		c.bg = UI.Slice(c, "card", "BACKGROUND")
+		c.label = UI.Text(c, 12)
+		c.label:SetPoint("TOPLEFT", c, "TOPLEFT", 10, -5)
+		c.label:SetWidth(112)
+		c.label:SetWordWrap(false)
+		c.count = UI.Text(c, 11)
+		c.count:SetPoint("TOPRIGHT", c, "TOPRIGHT", -9, -6)
+		c.count:SetJustifyH("RIGHT")
+		c.bar = UI.Bar(c, 150, 4, 1, 0.8, 0.3)
+		c.bar:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 10, 6)
+		c.lockG = UI.Glyph(c, "lock", 14, 0.75, 0.65, 0.45)
+		c.lockG:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, -5)
+		c.a = a
+		c:RegisterForClicks("LeftButtonUp")
+		c:SetScript("OnClick", function(self)
+			ns.Sound("click")
+			page.act = self.a
+			page.idx = (self.a - 1) * ns.STAGES_PER_ACT + 1
 			Main.Refresh()
 		end)
-		c:SetPoint("TOPLEFT", page, "TOPLEFT", (a - 1) * 176, -76)
 		page.acts[a] = c
 	end
 
@@ -278,8 +296,21 @@ local function refresh(page)
 	end
 	local acts = ns.DIFFS[page.diff].acts
 	for a, c in ipairs(page.acts) do
-		c:SetLabel(string.format("%d막  %s", a, ns.N(acts[a])))
-		c:SetOn(a == page.act)
+		local first = (a - 1) * ns.STAGES_PER_ACT
+		local done = U.clamp((db.prog[page.diff] or 0) - first, 0, ns.STAGES_PER_ACT)
+		local open = ns.Combat.CanTravel(page.diff, first + 1)
+		c.label:SetText(string.format("%d막 %s", a, ns.N(acts[a])))
+		c.count:SetText(open and (done .. "/" .. ns.STAGES_PER_ACT) or "")
+		c.lockG:SetShown(not open)
+		c.bar:SetValue(done / ns.STAGES_PER_ACT)
+		c.bar:SetRGB(done >= ns.STAGES_PER_ACT and 0.35 or 1, done >= ns.STAGES_PER_ACT and 0.9 or 0.8, done >= ns.STAGES_PER_ACT and 0.4 or 0.3)
+		if a == page.act then
+			c.bg:SetColor(0.95, 0.78, 0.35, 1)
+			UI.Color(c.label, UI.C.gold)
+		else
+			c.bg:SetColor(open and 0.40 or 0.26, open and 0.44 or 0.28, open and 0.58 or 0.34, 1)
+			if open then UI.Color(c.label, UI.C.text) else UI.Color(c.label, UI.C.dim) end
+		end
 	end
 	if ns.StageAct(page.idx) ~= page.act then page.idx = (page.act - 1) * ns.STAGES_PER_ACT + 1 end
 

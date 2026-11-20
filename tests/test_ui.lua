@@ -158,21 +158,24 @@ end
 ------------------------------------------------------------------------
 -- walkthroughs
 ------------------------------------------------------------------------
--- party: bench hero swaps in, rest a hero, field again
+-- party: pick a card, then act from the bar: swap in, rest, field again
 do
 	Main.ShowTab("party")
+	local pp = Main.Page("party")
 	local bench
 	for _, id in ipairs(H.List()) do
 		if not H.PartySlot(id) and H.Role(id) == "TANK" then bench = id end
 	end
 	local tankBefore = ns.db.party[1]
 	local card
-	for _, c in ipairs(Main.Page("party").roster) do
+	for _, c in ipairs(pp.roster) do
 		if c.heroId == bench then card = c end
 	end
-	if card then try("swap", card.action.Click, card.action, "LeftButton") end
+	if card then try("pick bench tank", card.Click, card, "LeftButton") end
+	Main.Refresh()
+	if not (pp.bar.main.label.__text or ""):find("교체 출전", 1, true) then fail("the action bar should offer to swap the bench tank in") end
+	try("swap", pp.bar.main.Click, pp.bar.main, "LeftButton")
 	if ns.db.party[1] ~= bench or tankBefore == bench then fail("swapping a bench tank in did not work") end
-	local pp = Main.Page("party")
 	if pp.slots[1] and pp.slots[5] then
 		local x1 = select(4, pp.slots[1]:GetPoint(1))
 		local x5 = select(4, pp.slots[5]:GetPoint(1))
@@ -182,12 +185,20 @@ do
 	click("companions", labelIs("동료"))
 	hoverAll()
 	Main.CloseModal()
-	local slot5 = Main.Page("party").slots[5]
-	try("rest healer", slot5.action.Click, slot5.action, "LeftButton")
+	local healer = ns.db.party[5]
+	try("pick healer", pp.slots[5].Click, pp.slots[5], "LeftButton")
+	Main.Refresh()
+	try("rest healer", pp.bar.main.Click, pp.bar.main, "LeftButton")
 	if ns.db.party[5] then fail("resting the healer did not free slot 5") end
 	frames(2)
-	try("field from empty slot", slot5.action.Click, slot5.action, "LeftButton")
-	if not ns.db.party[5] then fail("the empty slot's button should field the bench healer") end
+	try("pick empty slot", pp.slots[5].Click, pp.slots[5], "LeftButton")
+	if pp.filter ~= "HEALER" then fail("picking an empty slot should show its role in the roster") end
+	for _, c in ipairs(pp.roster) do
+		if c.heroId == healer then try("pick healer card", c.Click, c, "LeftButton") end
+	end
+	Main.Refresh()
+	try("field healer", pp.bar.main.Click, pp.bar.main, "LeftButton")
+	if not ns.db.party[5] then fail("the action bar should field the picked healer") end
 end
 
 -- hero: talents, auto-assign, skills, gear
@@ -208,7 +219,7 @@ do
 	if find(function(b) return b.tier and b.n and b.n > 2 end) then fail("the talent tree must not show skills") end
 	click("auto-assign", labelIs("자동 배분"))
 	if H.PointsFree(id) ~= 0 then fail("auto-assign should spend every talent point") end
-	for _, c in ipairs(hp.R.tabs) do
+	for _, c in ipairs(hp.menu) do
 		if c.key == "skills" then try("skills chip", c.Click, c, "LeftButton") end
 	end
 	if hp.sub ~= "skills" then fail("the skills chip did not switch the sub-page") end
@@ -216,7 +227,7 @@ do
 	ns.db.heroes[id].skills = { H.SkillList(id)[1] }
 	Main.Refresh()
 	local second = H.SkillList(id)[2]
-	click("select skill 2", function(b) return b.sid == second and b.tag end)
+	click("select skill 2", function(b) return b.sid == second and b.state end)
 	click("learn skill", labelIs("배우기 (1점)"))
 	if H.SkillPoints(id, second) ~= 1 then fail("learning a skill from the skills page did not work") end
 	Main.Refresh()
@@ -232,13 +243,13 @@ do
 	Main.Refresh()
 	click("auto skills", labelIs("자동 배분"))
 	if H.SkillPointsFree(id) ~= 0 then fail("auto skills should spend every skill point") end
-	for _, c in ipairs(hp.R.tabs) do
+	for _, c in ipairs(hp.menu) do
 		if c.key == "gear" then try("gear chip", c.Click, c, "LeftButton") end
 	end
 	click("slot ring", function(b) return b.slot == "ring" end)
 	if hp.slot ~= "ring" then fail("clicking an equipment slot should show it on the right") end
 	click("equip best", labelIs("일괄 장착"))
-	click("equip party", labelIs("파티 전원 일괄 장착"))
+	click("equip party", labelIs("파티 전원 장착"))
 	local oldName = ns.db.heroes[id].name
 	click("rename", labelIs("이름 바꾸기"))
 	click("rename reroll", labelIs("다시"))
@@ -282,7 +293,7 @@ do
 	if not junk.lock then fail("the lock button should lock the item") end
 	try("to bank", bp.detail.b4.Click, bp.detail.b4, "LeftButton")
 	if ns.db.bank[1] ~= junk then fail("the bank button should move the item to the bank") end
-	click("bank view", function(b) return b.key == "bank" end)
+	click("bank view", function(b) return b.view == "bank" and b.mark end)
 	click("select banked", function(b) return b.data == junk end)
 	try("from bank", bp.detail.b1.Click, bp.detail.b1, "LeftButton")
 	if not ns.Items.IndexInBag(junk) then fail("taking an item out of the bank did not work") end
@@ -313,8 +324,8 @@ do
 	if #ns.db.bag == n0 and #ns.Forge.PickByQuality(ns.MAX_QUALITY) > 0 then fail("the second click should smelt") end
 	enrich(3)
 	Main.Refresh()
-	for i, c in ipairs(bp.filters) do try("filter " .. i, c.Click, c, "LeftButton") end
-	click("materials", function(b) return b.key == "mats" end)
+	for i, c in ipairs(bp.rail) do try("rail " .. i, c.Click, c, "LeftButton") end
+	click("materials", function(b) return b.view == "mats" and b.mark end)
 	local bars = ns.MatCount("bar1")
 	click("select bars", function(b) return b.data == "bar1" end)
 	try("fuse 9", bp.detail.b1.Click, bp.detail.b1, "LeftButton")

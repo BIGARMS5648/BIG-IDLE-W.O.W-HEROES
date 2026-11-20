@@ -605,8 +605,8 @@ end
 function UI.IconButton(parent, size, onClick)
 	local b = CreateFrame("Button", nil, parent)
 	b:SetSize(size, size)
-	b.slot = UI.Art(b, "slot", "BACKGROUND")
-	b.slot:SetAllPoints(b)
+	b.slotBg = UI.Art(b, "slot", "BACKGROUND")
+	b.slotBg:SetAllPoints(b)
 	local pad = max(2, floor(size * 0.07))
 	b.icon = b:CreateTexture(nil, "ARTWORK")
 	b.icon:SetPoint("TOPLEFT", b, "TOPLEFT", pad, -pad)
@@ -653,12 +653,16 @@ function UI.IconButton(parent, size, onClick)
 		UI.SetClassIcon(self.icon, classId)
 		self.icon:Show()
 	end
+	-- the quality colours both the frame and, softly, the card behind the icon
 	function b:SetQuality(q)
 		if q and ns.QUALITY[q] then
-			self.frame:SetVertexColor(ns.U.rgb(ns.QUALITY[q].hex))
+			local r, g, bl = ns.U.rgb(ns.QUALITY[q].hex)
+			self.frame:SetVertexColor(r, g, bl)
 			self.frame:Show()
+			self.slotBg:SetVertexColor(0.35 + r * 0.5, 0.35 + g * 0.5, 0.35 + bl * 0.5)
 		else
 			self.frame:Hide()
+			self.slotBg:SetVertexColor(1, 1, 1)
 		end
 	end
 	function b:SetBorderRGB(r, g, bl)

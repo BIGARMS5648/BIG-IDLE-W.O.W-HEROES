@@ -218,6 +218,15 @@ do
 	local names = {}
 	for _ = 1, 200 do names[ns.Names.Roll("ORC", "M")] = true end
 	check(ns.U.count(names) > 150, "names are varied")
+	local clash
+	for _, race in ipairs({ "HUMAN", "BLOODELF", "GNOME", "GOBLIN", "NIGHTELF", "TAUREN", "ORC", "TROLL" }) do
+		for _ = 1, 300 do
+			for part in ns.Names.Roll(race, (_ % 2 == 0) and "F" or "M"):gmatch("%S+") do
+				if ns.Names.BLOCKED[part] then clash = part end
+			end
+		end
+	end
+	check(not clash, "no rolled name is a game word or a famous name (" .. tostring(clash) .. ")")
 	local okF, f = ns.Heroes.Create("PRIEST_SHADOW", "F")
 	check(okF and db.heroes[f].sex == "F" and ns.Heroes.Sex(f) == "F", "create a female hero")
 	local okN, n = ns.Heroes.Create("PRIEST_SHADOW", "M", "테스트 이름")

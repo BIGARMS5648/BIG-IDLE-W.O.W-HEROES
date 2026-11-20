@@ -1,7 +1,11 @@
--- Hero screen (영웅): a strip with every hero; on the left the selected hero
--- with the ten equipment slots around them; on the right three sub-pages:
--- 장비 (stats and the chosen slot), 기술 (skills, own points) and 특성
--- (passive talent tree, talent points).
+-- Hero screen (영웅), laid out like the character screens of current mobile
+-- RPGs (see docs/UI_RESEARCH.md): a column of hero portraits on the far left,
+-- a vertical menu of the hero's pages next to it, then the page itself.
+--   장비: the hero in the middle with the ten equipment slots around them;
+--         on the right the stats, or the chosen slot and what could go there.
+--   기술: the chosen skill in detail on the left, the skill list on the right.
+--   특성: the passive talent tree.
+-- The page's main action is the gold button at the bottom right.
 local _, ns = ...
 
 local floor, max, min = math.floor, math.max, math.min
@@ -9,15 +13,21 @@ local UI, U = ns.UI, ns.U
 local Main = ns.Main
 local H = ns.Heroes
 
-local LEFT_W, RIGHT_X, RIGHT_W = 392, 404, 444
-local TOP = -54
-local SLOT_SIZE = 48
+local PAGE_H = 468
+local STRIP_W = 44             -- hero portraits
+local MENU_X, MENU_W = 52, 116 -- page menu
+local CX = 176                 -- content starts here
+local CW = 848 - CX            -- content width (672)
+local FIG_W = 332              -- 장비: hero + slots
+local SIDE_X = CX + FIG_W + 8  -- 장비: right panel
+local SIDE_W = 848 - SIDE_X    -- 332
+local SLOT_SIZE = 46
 local LEFT_SLOTS = { "mh", "head", "chest", "hands", "feet" }
 local RIGHT_SLOTS = { "oh", "wrist", "neck", "ring", "trinket" }
 local SUBS = {
-	{ key = "gear", name = "장비" },
-	{ key = "skills", name = "기술" },
-	{ key = "tree", name = "특성" },
+	{ key = "gear", name = "장비", hint = "장비 10칸과 능력치" },
+	{ key = "skills", name = "기술", hint = "기술 점수로 배우고 강화" },
+	{ key = "tree", name = "특성", hint = "특성 점수로 능력치 강화" },
 }
 
 -- Which rune opens each skill slot (slot 1 is always open).
@@ -187,105 +197,209 @@ local function openSheet(id)
 end
 
 ------------------------------------------------------------------------
--- Left: the hero with the equipment around them
+-- 장비: the hero with the slots around them, stats or slot on the right
 ------------------------------------------------------------------------
-local function buildLeft(page)
-	local L = UI.Panel(page, LEFT_W, 414, "card")
-	L:SetPoint("TOPLEFT", page, "TOPLEFT", 0, TOP)
-	page.L = L
-	L.name = UI.Text(L, 18)
-	L.name:SetPoint("TOP", L, "TOP", 0, -10)
-	L.name:SetJustifyH("CENTER")
-	L.spec = UI.Text(L, 11)
-	L.spec:SetPoint("TOP", L.name, "BOTTOM", 0, -3)
-	L.spec:SetJustifyH("CENTER")
-	UI.Color(L.spec, UI.C.sub)
-	L.level = UI.Text(L, 12)
-	L.level:SetPoint("TOP", L.spec, "BOTTOM", 0, -6)
-	L.level:SetJustifyH("CENTER")
-	L.xp = UI.Bar(L, 200, 8, 0.55, 0.40, 1)
-	L.xp:SetPoint("TOP", L.level, "BOTTOM", 0, -4)
-	UI.Tip(L.xp, function()
-		local id = heroOf()
-		local h = id and ns.db.heroes[id]
-		if not h then return nil end
-		if h.level >= ns.HERO_MAX_LEVEL then return UI.SimpleTip("경험치", "최고 레벨입니다.") end
-		return UI.SimpleTip("경험치", string.format("%s / %s\n출전해서 싸우면 경험치를 얻습니다. 지역 레벨이 영웅보다 너무 낮으면 적게 얻습니다.",
-			U.fmt(h.xp), U.fmt(ns.XPForLevel(h.level))))
-	end)
+local KEY_STATS = {
+	{ "atk", "공격력", function(s) return U.fmt(s.atk) end },
+	{ "aspd", "공격 속도", function(s) return U.num(s.aspd, 2) .. "/초" end },
+	{ "crit", "치명타", function(s) return U.num(s.crit, 1) .. "% · " .. U.num(s.critdmg, 0) .. "%" end },
+	{ "multi", "초당 피해", function(s) return U.fmt(ns.Stats.DPS(s)) end },
+	{ "hp", "생명력", function(s) return U.fmt(s.hp) end },
+	{ "armor", "방어도", function(s) return U.fmt(s.armor) .. " (" .. U.num(ns.Stats.ArmorDR(s.armor, s.level) * 100, 0) .. "%)" end },
+	{ "dodge", "회피 · 막기", function(s) return U.num(s.dodge, 1) .. "% · " .. U.num(s.block, 1) .. "%" end },
+	{ "cdr", "재사용 감소", function(s) return U.num(s.cdr, 1) .. "%" end },
+}
 
-	L.stage = UI.Art(L, "glow", "BORDER", 1, 0.85, 0.5, 0.18)
-	L.stage:SetSize(220, 120)
-	L.stage:SetPoint("CENTER", L, "TOP", 0, -270)
-	L.figure = UI.HeroFigure(L, 104)
-	L.figure:SetPoint("TOP", L, "TOP", 0, -150)
-	L.figure:EnableMouse(false)
-	L.figure.lvl:Hide()
+local function buildGear(page)
+	local p = CreateFrame("Frame", nil, page)
+	p:SetAllPoints(page)
+	page.gear = p
 
-	L.slots = {}
+	-- the hero and the slots
+	local fig = CreateFrame("Frame", nil, p)
+	fig:SetSize(FIG_W, PAGE_H)
+	fig:SetPoint("TOPLEFT", p, "TOPLEFT", CX, 0)
+	p.fig = fig
+	fig.name = UI.Text(fig, 18)
+	fig.name:SetPoint("TOP", fig, "TOP", 0, -4)
+	fig.name:SetJustifyH("CENTER")
+	fig.spec = UI.Text(fig, 11)
+	fig.spec:SetPoint("TOP", fig.name, "BOTTOM", 0, -3)
+	fig.spec:SetJustifyH("CENTER")
+	UI.Color(fig.spec, UI.C.sub)
+	fig.stage = UI.Art(fig, "glow", "BORDER", 1, 0.85, 0.5, 0.20)
+	fig.stage:SetSize(230, 120)
+	fig.stage:SetPoint("CENTER", fig, "TOP", 0, -330)
+	fig.hero = UI.HeroFigure(fig, 112)
+	fig.hero:SetPoint("TOP", fig, "TOP", 0, -150)
+	fig.hero:EnableMouse(false)
+	fig.hero.lvl:Hide()
+	p.slots = {}
 	local function slotButton(slot, x, y)
-		local b = UI.IconButton(L, SLOT_SIZE, function(self)
-			page.slot = self.slot
-			page.sub = "gear"
+		local b = UI.IconButton(fig, SLOT_SIZE, function(self)
+			page.slot = (page.slot ~= self.slot) and self.slot or nil
 			Main.Refresh()
 		end)
 		b.slot = slot
-		b:SetPoint("TOPLEFT", L, "TOPLEFT", x, y)
+		b:SetPoint("TOPLEFT", fig, "TOPLEFT", x, y)
 		b.label = UI.Text(b, 9, ns.N(ns.SLOT[slot].name))
 		b.label:SetPoint("CENTER", b, "CENTER", 0, 0)
 		b.label:SetJustifyH("CENTER")
 		UI.Color(b.label, UI.C.dim)
-		b.up = UI.Text(b, 12, nil, "OUTLINE")
+		b.up = UI.Text(b, 13, nil, "OUTLINE")
 		b.up:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 3, 2)
 		b.up:SetTextColor(0.3, 1, 0.3)
 		UI.Tip(b, slotTip)
-		L.slots[slot] = b
+		p.slots[slot] = b
 	end
-	for i, slot in ipairs(LEFT_SLOTS) do slotButton(slot, 12, -94 - (i - 1) * 56) end
-	for i, slot in ipairs(RIGHT_SLOTS) do slotButton(slot, LEFT_W - 12 - SLOT_SIZE, -94 - (i - 1) * 56) end
+	for i, slot in ipairs(LEFT_SLOTS) do slotButton(slot, 4, -62 - (i - 1) * 56) end
+	for i, slot in ipairs(RIGHT_SLOTS) do slotButton(slot, FIG_W - 4 - SLOT_SIZE, -62 - (i - 1) * 56) end
+	fig.hint = UI.Text(fig, 10, "칸을 누르면 오른쪽에 그 칸의 장비와 바꿀 장비가 나옵니다.")
+	fig.hint:SetPoint("BOTTOM", fig, "BOTTOM", 0, 52)
+	fig.hint:SetWidth(FIG_W - 20)
+	fig.hint:SetJustifyH("CENTER")
+	UI.Color(fig.hint, UI.C.dim)
+	fig.power = UI.Text(fig, 12)
+	fig.power:SetPoint("BOTTOM", fig, "BOTTOM", 0, 24)
+	fig.power:SetJustifyH("CENTER")
 
-	L.equip = UI.Button(L, 180, 32, "일괄 장착", function()
+	-- right panel
+	local side = UI.Panel(p, SIDE_W, PAGE_H - 50, "card")
+	side:SetPoint("TOPLEFT", p, "TOPLEFT", SIDE_X, 0)
+	p.side = side
+	side.level = UI.Text(side, 20)
+	side.level:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -12)
+	side.xpText = UI.Text(side, 10)
+	side.xpText:SetPoint("TOPRIGHT", side, "TOPRIGHT", -14, -20)
+	side.xpText:SetJustifyH("RIGHT")
+	UI.Color(side.xpText, UI.C.sub)
+	side.xp = UI.Bar(side, SIDE_W - 28, 6, 0.55, 0.40, 1)
+	side.xp:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -40)
+
+	-- stats mode
+	side.stats = CreateFrame("Frame", nil, side)
+	side.stats:SetAllPoints(side)
+	side.rows = {}
+	for i, st in ipairs(KEY_STATS) do
+		local row = CreateFrame("Frame", nil, side.stats)
+		row:SetSize(SIDE_W - 28, 26)
+		row:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -58 - (i - 1) * 28)
+		row.icon = row:CreateTexture(nil, "ARTWORK")
+		row.icon:SetSize(18, 18)
+		row.icon:SetPoint("LEFT", row, "LEFT", 0, 0)
+		UI.SetIcon(row.icon, UI.STAT_ICON[st[1]] or "INV_Misc_QuestionMark")
+		row.l = UI.Text(row, 12, st[2])
+		row.l:SetPoint("LEFT", row, "LEFT", 26, 0)
+		UI.Color(row.l, UI.C.sub)
+		row.v = UI.Text(row, 13)
+		row.v:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+		row.v:SetJustifyH("RIGHT")
+		row.line = UI.Line(row, SIDE_W - 28, 0.4, 0.45, 0.6, 0.25)
+		row.line:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+		row.fn = st[3]
+		side.rows[i] = row
+	end
+	side.more = UI.Button(side.stats, 140, 24, "상세 능력치", function() if heroOf() then openSheet(heroOf()) end end, "dark")
+	side.more:SetPoint("TOPRIGHT", side, "TOPRIGHT", -14, -290)
+	side.ups = UI.Text(side.stats, 11)
+	side.ups:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -326)
+	side.ups:SetWidth(SIDE_W - 28)
+
+	-- slot mode
+	side.slotView = CreateFrame("Frame", nil, side)
+	side.slotView:SetAllPoints(side)
+	local sv = side.slotView
+	sv.title = UI.Title(sv, "", 14)
+	sv.title:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -56)
+	sv.back = UI.Button(sv, 90, 22, "능력치 보기", function() page.slot = nil Main.Refresh() end, "dark")
+	sv.back:SetPoint("TOPRIGHT", side, "TOPRIGHT", -14, -54)
+	sv.worn = UI.IconButton(sv, 40)
+	sv.worn:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -82)
+	UI.Tip(sv.worn, function()
 		local id = heroOf()
-		if id then
-			local n = ns.Items.AutoEquip(id)
-			ns.Toast(n > 0 and string.format("%s: 장비 %d개를 바꿨습니다.", H.ShortName(id), n) or "가방에 더 좋은 장비가 없습니다.")
-		end
-	end, "blue")
-	L.equip:SetPoint("BOTTOMLEFT", L, "BOTTOMLEFT", 12, 12)
-	UI.Tip(L.equip, function() return UI.SimpleTip("일괄 장착", "가방에서 이 영웅에게 더 좋은 장비를 모든 칸에 장착합니다. 빼낸 장비는 가방으로 돌아갑니다.") end)
-	L.equipAll = UI.Button(L, 180, 32, "파티 전원 일괄 장착", function()
+		local it = id and page.slot and ns.db.heroes[id].gear[page.slot]
+		return it and ns.Items.Tooltip(it, id) or nil
+	end)
+	sv.wornName = UI.Text(sv, 12)
+	sv.wornName:SetPoint("TOPLEFT", side, "TOPLEFT", 62, -84)
+	sv.wornName:SetWidth(SIDE_W - 150)
+	sv.wornName:SetWordWrap(false)
+	sv.wornSub = UI.Text(sv, 10)
+	sv.wornSub:SetPoint("TOPLEFT", side, "TOPLEFT", 62, -102)
+	UI.Color(sv.wornSub, UI.C.sub)
+	sv.unequip = UI.Button(sv, 60, 24, "해제", function()
+		local id = heroOf()
+		if id and page.slot then UI.Try(ns.Items.Unequip(id, page.slot)) end
+	end, "dark")
+	sv.unequip:SetPoint("TOPRIGHT", side, "TOPRIGHT", -14, -90)
+	sv.listTitle = UI.Text(sv, 11)
+	sv.listTitle:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -134)
+	UI.Color(sv.listTitle, UI.C.sub)
+	sv.cands = {}
+	for i = 1, 6 do
+		local row = CreateFrame("Frame", nil, sv)
+		row:SetSize(SIDE_W - 28, 36)
+		row:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -152 - (i - 1) * 38)
+		row.bg = UI.Slice(row, "inset", "BACKGROUND")
+		row.icon = UI.IconButton(row, 30)
+		row.icon:SetPoint("LEFT", row, "LEFT", 3, 0)
+		UI.Tip(row.icon, function(self) return self.data and ns.Items.Tooltip(self.data, heroOf()) or nil end)
+		row.name = UI.Text(row, 11)
+		row.name:SetPoint("LEFT", row, "LEFT", 40, 6)
+		row.name:SetWidth(SIDE_W - 140)
+		row.name:SetWordWrap(false)
+		row.gain = UI.Text(row, 10)
+		row.gain:SetPoint("LEFT", row, "LEFT", 40, -8)
+		row.go = UI.Button(row, 60, 24, "장착", nil, "green")
+		row.go:SetPoint("RIGHT", row, "RIGHT", -5, 0)
+		sv.cands[i] = row
+	end
+	sv.none = UI.Text(sv, 11, "가방에 이 칸에 맞는 장비가 없습니다.")
+	sv.none:SetPoint("TOPLEFT", side, "TOPLEFT", 16, -158)
+	UI.Color(sv.none, UI.C.dim)
+	sv.toBag = UI.Button(sv, 120, 22, "가방에서 보기", function() Main.ShowTab("bag", { slot = page.slot }) end, "dark")
+	sv.toBag:SetPoint("BOTTOMRIGHT", side, "BOTTOMRIGHT", -14, 12)
+
+	-- main actions, bottom right
+	p.equipAll = UI.Button(p, 140, 38, "파티 전원 장착", function()
 		local n = 0
 		for i = 1, ns.PARTY_SIZE do
 			local pid = ns.db.party[i]
 			if pid then n = n + ns.Items.AutoEquip(pid) end
 		end
 		ns.Toast(n > 0 and string.format("파티 전원: 장비 %d개를 바꿨습니다.", n) or "가방에 더 좋은 장비가 없습니다.")
-	end, "dark")
-	L.equipAll:SetPoint("BOTTOMRIGHT", L, "BOTTOMRIGHT", -12, 12)
-	L.statLine = UI.Text(L, 11)
-	L.statLine:SetPoint("BOTTOM", L, "BOTTOM", 0, 52)
-	L.statLine:SetJustifyH("CENTER")
+	end, "blue")
+	p.equipAll:SetPoint("BOTTOMRIGHT", p, "BOTTOMRIGHT", -196, 0)
+	UI.Tip(p.equipAll, function() return UI.SimpleTip("파티 전원 장착", "출전 중인 영웅 모두에게 가방 속 더 좋은 장비를 장착합니다.") end)
+	p.equip = UI.Button(p, 188, 38, "일괄 장착", function()
+		local id = heroOf()
+		if id then
+			local n = ns.Items.AutoEquip(id)
+			ns.Toast(n > 0 and string.format("%s: 장비 %d개를 바꿨습니다.", H.ShortName(id), n) or "가방에 더 좋은 장비가 없습니다.")
+		end
+	end, "primary")
+	p.equip:SetPoint("BOTTOMRIGHT", p, "BOTTOMRIGHT", 0, 0)
+	UI.Tip(p.equip, function() return UI.SimpleTip("일괄 장착", "가방에서 이 영웅에게 더 좋은 장비를 모든 칸에 장착합니다. 빼낸 장비는 가방으로 돌아갑니다.") end)
 end
 
-local function refreshLeft(page, id)
-	local L = page.L
+local function refreshGear(page, id)
+	local p = page.gear
 	local h = ns.db.heroes[id]
 	local sp = ns.SPECS[h.spec]
 	local cls = ns.CLASSES[sp.class]
 	local race = ns.RACES[H.Race(id)]
-	L.name:SetText(U.col(cls.hex, H.Name(id)))
-	L.spec:SetText(string.format("%s  ·  %s  ·  %s %s", ns.SpecLabel(h.spec), ns.N(ns.ROLE[sp.role].name), race.name, ns.SEX[H.Sex(id)].name))
-	L.level:SetText("레벨 " .. h.level)
-	L.xp:SetValue(h.level >= ns.HERO_MAX_LEVEL and 1 or h.xp / ns.XPForLevel(h.level))
-	L.figure:SetHeroFigure(id)
-	L.figure:SetBadge(false)
 	local s = ns.Stats.Get(id)
-	L.statLine:SetText(string.format("공격력 %s   ·   생명력 %s   ·   초당 피해 %s",
-		U.col("ffd24a", U.fmt(s.atk)), U.col("ffd24a", U.fmt(s.hp)), U.col("ffd24a", U.fmt(ns.Stats.DPS(s)))))
+	local fig = p.fig
+	fig.name:SetText(U.col(cls.hex, H.Name(id)))
+	fig.spec:SetText(string.format("%s  ·  %s  ·  %s %s", ns.SpecLabel(h.spec), ns.N(ns.ROLE[sp.role].name), race.name, ns.SEX[H.Sex(id)].name))
+	fig.hero:SetHeroFigure(id)
+	fig.hero:SetBadge(false)
+	fig.power:SetText(string.format("초당 피해 %s   ·   생명력 %s", U.col("ffd24a", U.fmt(ns.Stats.DPS(s))), U.col("ffd24a", U.fmt(s.hp))))
 	local ups = ns.Guide.UpgradeHeroes()[id]
-	for slot, b in pairs(L.slots) do
+	local upSlots = 0
+	for slot, b in pairs(p.slots) do
 		local it = h.gear[slot]
-		b:SetSelected(page.sub == "gear" and page.slot == slot)
+		b:SetSelected(page.slot == slot)
 		if it then
 			b:SetIconName(ns.Items.Icon(it))
 			b:SetQuality(it.q)
@@ -299,201 +413,148 @@ local function refreshLeft(page, id)
 		end
 		local better = false
 		if ups then
-			for _, c in ipairs(candidates(id, slot)) do
-				if c.r > 1.01 then better = true end
-				break
-			end
+			local c = candidates(id, slot)[1]
+			better = c ~= nil and c.r > 1.01
 		end
+		if better then upSlots = upSlots + 1 end
 		b.up:SetText(better and "+" or "")
 	end
-end
 
-------------------------------------------------------------------------
--- Right: 장비 sub-page
-------------------------------------------------------------------------
-local KEY_STATS = {
-	{ "공격력", function(s) return U.fmt(s.atk) end },
-	{ "공격 속도", function(s) return U.num(s.aspd, 2) .. "/초" end },
-	{ "치명타", function(s) return U.num(s.crit, 1) .. "% · " .. U.num(s.critdmg, 0) .. "%" end },
-	{ "초당 피해", function(s) return U.fmt(ns.Stats.DPS(s)) end },
-	{ "생명력", function(s) return U.fmt(s.hp) end },
-	{ "방어도", function(s) return U.fmt(s.armor) .. " (" .. U.num(ns.Stats.ArmorDR(s.armor, s.level) * 100, 0) .. "%)" end },
-	{ "회피 · 막기", function(s) return U.num(s.dodge, 1) .. "% · " .. U.num(s.block, 1) .. "%" end },
-	{ "재사용 감소", function(s) return U.num(s.cdr, 1) .. "%" end },
-}
-
-local function buildGear(R)
-	local p = CreateFrame("Frame", nil, R)
-	p:SetAllPoints(R)
-	R.gear = p
-	p.rows = {}
-	for i, st in ipairs(KEY_STATS) do
-		local col, row = (i - 1) % 2, floor((i - 1) / 2)
-		local box = CreateFrame("Frame", nil, p)
-		box:SetSize(212, 22)
-		box:SetPoint("TOPLEFT", p, "TOPLEFT", 8 + col * 218, -44 - row * 24)
-		box.bg = box:CreateTexture(nil, "BACKGROUND")
-		box.bg:SetAllPoints(box)
-		UI.Fill(box.bg, 1, 1, 1, 0.05)
-		box.l = UI.Text(box, 11, st[1])
-		box.l:SetPoint("LEFT", box, "LEFT", 6, 0)
-		UI.Color(box.l, UI.C.sub)
-		box.v = UI.Text(box, 12)
-		box.v:SetPoint("RIGHT", box, "RIGHT", -6, 0)
-		box.v:SetJustifyH("RIGHT")
-		box.fn = st[2]
-		p.rows[i] = box
-	end
-	p.more = UI.Button(p, 120, 24, "상세 능력치", function() if heroOf() then openSheet(heroOf()) end end, "dark")
-	p.more:SetPoint("TOPRIGHT", p, "TOPRIGHT", -8, -142)
-
-	p.slotTitle = UI.Title(p, "", 13)
-	p.slotTitle:SetPoint("TOPLEFT", p, "TOPLEFT", 8, -146)
-	p.worn = UI.IconButton(p, 44)
-	p.worn:SetPoint("TOPLEFT", p, "TOPLEFT", 8, -172)
-	UI.Tip(p.worn, function()
-		local id = heroOf()
-		local it = id and ns.db.heroes[id].gear[p.slot]
-		return it and ns.Items.Tooltip(it, id) or nil
-	end)
-	p.wornName = UI.Text(p, 12)
-	p.wornName:SetPoint("TOPLEFT", p, "TOPLEFT", 60, -174)
-	p.wornName:SetWidth(240)
-	p.wornName:SetWordWrap(false)
-	p.wornSub = UI.Text(p, 10)
-	p.wornSub:SetPoint("TOPLEFT", p, "TOPLEFT", 60, -192)
-	UI.Color(p.wornSub, UI.C.sub)
-	p.unequip = UI.Button(p, 70, 26, "해제", function()
-		local id = heroOf()
-		if id then UI.Try(ns.Items.Unequip(id, p.slot)) end
-	end, "dark")
-	p.unequip:SetPoint("TOPRIGHT", p, "TOPRIGHT", -8, -178)
-
-	p.listTitle = UI.Text(p, 11)
-	p.listTitle:SetPoint("TOPLEFT", p, "TOPLEFT", 8, -226)
-	UI.Color(p.listTitle, UI.C.sub)
-	p.cands = {}
-	for i = 1, 4 do
-		local row = CreateFrame("Frame", nil, p)
-		row:SetSize(428, 38)
-		row:SetPoint("TOPLEFT", p, "TOPLEFT", 8, -244 - (i - 1) * 40)
-		row.bg = UI.Slice(row, "inset", "BACKGROUND")
-		row.icon = UI.IconButton(row, 32)
-		row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
-		UI.Tip(row.icon, function(self)
-			local id = heroOf()
-			return self.data and ns.Items.Tooltip(self.data, id) or nil
-		end)
-		row.name = UI.Text(row, 12)
-		row.name:SetPoint("LEFT", row, "LEFT", 44, 6)
-		row.name:SetWidth(250)
-		row.name:SetWordWrap(false)
-		row.gain = UI.Text(row, 10)
-		row.gain:SetPoint("LEFT", row, "LEFT", 44, -8)
-		row.go = UI.Button(row, 72, 26, "장착", nil, "green")
-		row.go:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-		p.cands[i] = row
-	end
-	p.none = UI.Text(p, 11, "가방에 이 칸에 맞는 장비가 없습니다.")
-	p.none:SetPoint("TOPLEFT", p, "TOPLEFT", 14, -252)
-	UI.Color(p.none, UI.C.dim)
-	p.toBag = UI.Button(p, 140, 24, "가방에서 보기", function() Main.ShowTab("bag", { slot = p.slot }) end, "dark")
-	p.toBag:SetPoint("BOTTOMRIGHT", p, "BOTTOMRIGHT", -8, 8)
-end
-
-local function refreshGear(page, id)
-	local p = page.R.gear
-	local s = ns.Stats.Get(id)
-	for _, box in ipairs(p.rows) do box.v:SetText(box.fn(s)) end
-	local h = ns.db.heroes[id]
-	-- default slot: first one with an upgrade, else the main hand
-	if not page.slot then
-		page.slot = "mh"
-		for _, slot in ipairs(ns.SLOTS) do
-			local c = candidates(id, slot)[1]
-			if c and c.r > 1.01 then page.slot = slot break end
-		end
-	end
-	p.slot = page.slot
-	p.slotTitle:SetText(ns.N(ns.SLOT[page.slot].name) .. " 칸")
-	local it = h.gear[page.slot]
-	if it then
-		p.worn:SetIconName(ns.Items.Icon(it))
-		p.worn:SetQuality(it.q)
-		p.wornName:SetText(U.col(ns.QUALITY[it.q].hex, ns.Items.Name(it)))
-		p.wornSub:SetText(string.format("%s · 아이템 레벨 %d", ns.N(ns.QUALITY[it.q].name), it.l))
-		p.unequip:Show()
+	local side = p.side
+	if h.level >= ns.HERO_MAX_LEVEL then
+		side.level:SetText(U.col("ffd24a", "레벨 " .. h.level) .. U.col("8a90a2", " / " .. ns.HERO_MAX_LEVEL))
+		side.xp:SetValue(1)
+		side.xpText:SetText("최고 레벨")
 	else
-		p.worn:Clear()
-		p.wornName:SetText(U.col("8a90a2", "비어 있음"))
-		p.wornSub:SetText("")
-		p.unequip:Hide()
+		side.level:SetText(U.col("ffd24a", "레벨 " .. h.level) .. U.col("8a90a2", " / " .. ns.HERO_MAX_LEVEL))
+		side.xp:SetValue(h.xp / ns.XPForLevel(h.level))
+		side.xpText:SetText(string.format("경험치 %s / %s", U.fmt(h.xp), U.fmt(ns.XPForLevel(h.level))))
 	end
-	local list = candidates(id, page.slot)
-	p.listTitle:SetText(#list > 0 and string.format("가방에서 바꿀 수 있는 장비 %d개 (좋은 순)", #list) or "")
-	p.none:SetShown(#list == 0)
-	for i, row in ipairs(p.cands) do
-		local c = list[i]
-		if c then
-			row.icon:SetIconName(ns.Items.Icon(c.it))
-			row.icon:SetQuality(c.it.q)
-			row.icon:SetLocked(c.it.lock)
-			row.icon.data = c.it
-			row.name:SetText(U.col(ns.QUALITY[c.it.q].hex, ns.Items.Name(c.it)) .. U.col("8a90a2", "  Lv " .. c.it.l))
-			local pct = (c.r - 1) * 100
-			if pct > 0.2 then
-				row.gain:SetText(U.col("40ff40", string.format("전투력 +%s%%", U.num(pct, 1))))
-			elseif pct < -0.2 then
-				row.gain:SetText(U.col("ff6060", string.format("전투력 %s%%", U.num(pct, 1))))
-			else
-				row.gain:SetText(U.col("aab3c8", "비슷함"))
-			end
-			row.go:SetStyle(pct > 0.2 and "green" or "dark")
-			local item = c.it
-			row.go.onClick = function()
-				local idx = ns.Items.IndexInBag(item)
-				if idx then UI.Try(ns.Items.Equip(id, idx)) end
-			end
-			row:Show()
+	side.stats:SetShown(page.slot == nil)
+	side.slotView:SetShown(page.slot ~= nil)
+	if not page.slot then
+		for _, row in ipairs(side.rows) do row.v:SetText(row.fn(s)) end
+		side.ups:SetText(upSlots > 0 and U.col("60e070", string.format("가방에 더 좋은 장비가 있는 칸: %d개 (+ 표시)", upSlots))
+			or U.col("8a90a2", "가방에 더 좋은 장비가 없습니다."))
+	else
+		local sv = side.slotView
+		sv.title:SetText(ns.N(ns.SLOT[page.slot].name) .. " 칸")
+		local it = h.gear[page.slot]
+		if it then
+			sv.worn:SetIconName(ns.Items.Icon(it))
+			sv.worn:SetQuality(it.q)
+			sv.wornName:SetText(U.col(ns.QUALITY[it.q].hex, ns.Items.Name(it)))
+			sv.wornSub:SetText(string.format("%s · 아이템 레벨 %d · 착용 중", ns.N(ns.QUALITY[it.q].name), it.l))
+			sv.unequip:Show()
 		else
-			row:Hide()
+			sv.worn:Clear()
+			sv.wornName:SetText(U.col("8a90a2", "비어 있음"))
+			sv.wornSub:SetText("")
+			sv.unequip:Hide()
+		end
+		local list = candidates(id, page.slot)
+		sv.listTitle:SetText(#list > 0 and string.format("가방에서 바꿀 수 있는 장비 %d개 (좋은 순)", #list) or "")
+		sv.none:SetShown(#list == 0)
+		for i, row in ipairs(sv.cands) do
+			local c = list[i]
+			if c then
+				row.icon:SetIconName(ns.Items.Icon(c.it))
+				row.icon:SetQuality(c.it.q)
+				row.icon:SetLocked(c.it.lock)
+				row.icon.data = c.it
+				row.name:SetText(U.col(ns.QUALITY[c.it.q].hex, ns.Items.Name(c.it)) .. U.col("8a90a2", "  Lv " .. c.it.l))
+				local pct = (c.r - 1) * 100
+				if pct > 0.2 then
+					row.gain:SetText(U.col("40ff40", string.format("전투력 +%s%%", U.num(pct, 1))))
+				elseif pct < -0.2 then
+					row.gain:SetText(U.col("ff6060", string.format("전투력 %s%%", U.num(pct, 1))))
+				else
+					row.gain:SetText(U.col("aab3c8", "비슷함"))
+				end
+				row.go:SetStyle(pct > 0.2 and "green" or "dark")
+				local item = c.it
+				row.go.onClick = function()
+					local idx = ns.Items.IndexInBag(item)
+					if idx then UI.Try(ns.Items.Equip(id, idx)) end
+				end
+				row:Show()
+			else
+				row:Hide()
+			end
 		end
 	end
+	p.equip:SetBadge(ups and true or nil)
 end
 
 ------------------------------------------------------------------------
--- Right: 기술 sub-page
+-- 기술: detail on the left, list and slots on the right
 ------------------------------------------------------------------------
-local function buildSkills(R, page)
-	local p = CreateFrame("Frame", nil, R)
-	p:SetAllPoints(R)
-	R.skills = p
-	p.points = UI.Pill(p, 120, 26, 0.10, 0.30, 0.15, 1)
-	p.points:SetPoint("TOPLEFT", p, "TOPLEFT", 8, -42)
+local DETAIL_W = 380
+local LIST_X = CX + DETAIL_W + 10
+local LIST_W = 848 - LIST_X
+
+local function buildSkills(page)
+	local p = CreateFrame("Frame", nil, page)
+	p:SetAllPoints(page)
+	page.skills = p
+
+	-- detail
+	local d = UI.Panel(p, DETAIL_W, PAGE_H, "card")
+	d:SetPoint("TOPLEFT", p, "TOPLEFT", CX, 0)
+	p.detail = d
+	d.icon = UI.IconButton(d, 64)
+	d.icon:EnableMouse(false)
+	d.icon:SetPoint("TOPLEFT", d, "TOPLEFT", 16, -16)
+	d.name = UI.Text(d, 18)
+	d.name:SetPoint("TOPLEFT", d, "TOPLEFT", 92, -18)
+	d.level = UI.Text(d, 13)
+	d.level:SetPoint("TOPLEFT", d, "TOPLEFT", 92, -42)
+	d.act = UI.Text(d, 11)
+	d.act:SetPoint("TOPLEFT", d, "TOPLEFT", 92, -62)
+	UI.Color(d.act, UI.C.sub)
+	d.line = UI.Line(d, DETAIL_W - 32)
+	d.line:SetPoint("TOPLEFT", d, "TOPLEFT", 16, -94)
+	d.nowTitle = UI.Text(d, 11, "지금")
+	d.nowTitle:SetPoint("TOPLEFT", d, "TOPLEFT", 16, -106)
+	UI.Color(d.nowTitle, UI.C.gold)
+	d.now = UI.Text(d, 13)
+	d.now:SetPoint("TOPLEFT", d, "TOPLEFT", 16, -124)
+	d.now:SetWidth(DETAIL_W - 32)
+	d.now:SetJustifyV("TOP")
+	d.nextTitle = UI.Text(d, 11, "다음 단계")
+	d.nextTitle:SetPoint("TOPLEFT", d, "TOPLEFT", 16, -196)
+	UI.Color(d.nextTitle, UI.C.gold)
+	d.next = UI.Text(d, 13)
+	d.next:SetPoint("TOPLEFT", d, "TOPLEFT", 16, -214)
+	d.next:SetWidth(DETAIL_W - 32)
+	d.next:SetJustifyV("TOP")
+	d.req = UI.Pill(d, DETAIL_W - 32, 30, 0.45, 0.22, 0.12, 0.95)
+	d.req:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 16, 64)
+	d.equip = UI.Button(d, 140, 40, "", nil, "blue")
+	d.equip:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 16, 14)
+	d.equip.clickWhenOff = true
+	d.learn = UI.Button(d, 196, 40, "", nil, "primary")
+	d.learn:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -16, 14)
+	d.learn.clickWhenOff = true
+
+	-- list side
+	p.points = UI.Pill(p, 130, 28, 0.10, 0.30, 0.15, 1)
+	p.points:SetPoint("TOPLEFT", p, "TOPLEFT", LIST_X, -2)
 	UI.Tip(p.points, function() return UI.SimpleTip("기술 점수", "레벨 1에 1점, 그 뒤 4레벨마다 1점씩 생깁니다. 기술을 배우거나(1점) 한 단계 올리는 데(1점) 씁니다. 특성 점수와는 따로입니다.") end)
-	p.auto = UI.Button(p, 110, 26, "자동 배분", function()
+	p.auto = UI.Button(p, 100, 28, "자동 배분", function()
 		local id = heroOf()
 		if id then
 			local n = H.AutoSkills(id)
 			ns.Toast(n > 0 and string.format("기술 점수 %d점을 썼습니다.", n) or "쓸 수 있는 기술 점수가 없습니다.")
 		end
-	end, "primary")
-	p.auto:SetPoint("LEFT", p.points, "RIGHT", 8, 0)
-	p.reset = UI.Button(p, 150, 26, "", nil, "red")
-	p.reset:SetPoint("TOPRIGHT", p, "TOPRIGHT", -8, -42)
-	armed(p.reset, "", "정말 초기화? 한 번 더", function()
-		local id = heroOf()
-		if id then UI.Try(H.ResetSkills(id)) end
-	end)
-	UI.Tip(p.reset, function() return UI.SimpleTip("기술 초기화", "첫 기술을 뺀 모든 기술 점수를 돌려받습니다. 골드가 듭니다.") end)
-
-	p.slotsTitle = UI.Text(p, 11, "장착 칸 (전투에서 쓰는 기술 3개)")
-	p.slotsTitle:SetPoint("TOPLEFT", p, "TOPLEFT", 8, -76)
+	end, "dark")
+	p.auto:SetPoint("TOPRIGHT", p, "TOPRIGHT", 0, -2)
+	p.slotsTitle = UI.Text(p, 11, "전투에서 쓰는 기술 (장착 칸)")
+	p.slotsTitle:SetPoint("TOPLEFT", p, "TOPLEFT", LIST_X, -40)
 	UI.Color(p.slotsTitle, UI.C.sub)
 	p.slots = {}
 	for i = 1, 3 do
-		local b = UI.IconButton(p, 38, function(self)
-			local id = heroOf()
+		local b = UI.IconButton(p, 44, function(self)
 			if self.locked then
 				Main.ShowTab("runes", { rune = SLOT_RUNE[i] })
 			elseif self.sid then
@@ -501,15 +562,14 @@ local function buildSkills(R, page)
 				Main.Refresh()
 			end
 		end)
-		b:SetPoint("TOPLEFT", p, "TOPLEFT", 214 + (i - 1) * 76, -66)
+		b:SetPoint("TOPLEFT", p, "TOPLEFT", LIST_X + (i - 1) * (LIST_W / 3), -58)
 		b.num = UI.Text(b, 10, tostring(i), "OUTLINE")
 		b.num:SetPoint("TOPLEFT", b, "TOPLEFT", 3, -2)
 		b.lockText = UI.Text(p, 9)
-		b.lockText:SetPoint("LEFT", b, "RIGHT", 3, 0)
-		b.lockText:SetWidth(34)
+		b.lockText:SetPoint("LEFT", b, "RIGHT", 4, 0)
+		b.lockText:SetWidth(LIST_W / 3 - 50)
 		UI.Color(b.lockText, UI.C.dim)
 		UI.Tip(b, function(self)
-			local id = heroOf()
 			if self.locked then
 				local rune = ns.Runes.byId[SLOT_RUNE[i]]
 				local step = ns.Runes.NextStepTo(SLOT_RUNE[i])
@@ -519,31 +579,34 @@ local function buildSkills(R, page)
 				end
 				return UI.SimpleTip("잠긴 기술 칸", body .. "\n클릭: 룬 화면에서 보기")
 			end
-			if self.sid then return skillLines(id, self.sid) end
-			return UI.SimpleTip("빈 기술 칸", "아래 목록에서 배운 기술을 고르고 '장착'을 누르세요.")
+			if self.sid then return skillLines(heroOf(), self.sid) end
+			return UI.SimpleTip("빈 기술 칸", "배운 기술을 고르고 '장착'을 누르세요.")
 		end)
 		p.slots[i] = b
 	end
-
+	p.listTitle = UI.Text(p, 11, "이 전문화의 기술")
+	p.listTitle:SetPoint("TOPLEFT", p, "TOPLEFT", LIST_X, -112)
+	UI.Color(p.listTitle, UI.C.sub)
 	p.rows = {}
 	for i = 1, 6 do
 		local row = CreateFrame("Button", nil, p)
-		row:SetSize(428, 33)
-		row:SetPoint("TOPLEFT", p, "TOPLEFT", 8, -110 - (i - 1) * 35)
+		row:SetSize(LIST_W, 40)
+		row:SetPoint("TOPLEFT", p, "TOPLEFT", LIST_X, -130 - (i - 1) * 43)
 		row.bg = UI.Slice(row, "inset", "BACKGROUND")
-		row.icon = UI.IconButton(row, 30)
+		row.icon = UI.IconButton(row, 32)
 		row.icon:EnableMouse(false)
-		row.icon:SetPoint("LEFT", row, "LEFT", 3, 0)
+		row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
 		row.name = UI.Text(row, 12)
-		row.name:SetPoint("LEFT", row, "LEFT", 40, 0)
-		row.tag = UI.Pill(row, 46, 16, 0.2, 0.25, 0.4, 1)
-		row.tag:SetPoint("LEFT", row, "LEFT", 176, 0)
-		row.state = UI.Text(row, 11)
-		row.state:SetPoint("RIGHT", row, "RIGHT", -10, 0)
-		row.state:SetJustifyH("RIGHT")
+		row.name:SetPoint("TOPLEFT", row, "TOPLEFT", 44, -5)
+		row.name:SetWidth(LIST_W - 50)
+		row.name:SetWordWrap(false)
+		row.state = UI.Text(row, 10)
+		row.state:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 44, 5)
+		row.eq = UI.Pill(row, 46, 16, 0.15, 0.5, 0.25, 1)
+		row.eq:SetPoint("RIGHT", row, "RIGHT", -6, 0)
 		row.dot = UI.Badge(row, 12)
 		row.dot:ClearAllPoints()
-		row.dot:SetPoint("TOPLEFT", row, "TOPLEFT", 26, -2)
+		row.dot:SetPoint("TOPLEFT", row, "TOPLEFT", 28, -2)
 		row:RegisterForClicks("LeftButtonUp")
 		row:SetScript("OnClick", function(self)
 			ns.Sound("click")
@@ -553,42 +616,24 @@ local function buildSkills(R, page)
 		UI.Tip(row, function(self) return self.sid and skillLines(heroOf(), self.sid) or nil end)
 		p.rows[i] = row
 	end
-
-	local d = UI.Panel(p, 428, 92, "card")
-	d:SetPoint("TOPLEFT", p, "TOPLEFT", 8, -316)
-	p.detail = d
-	d.name = UI.Text(d, 12)
-	d.name:SetPoint("TOPLEFT", d, "TOPLEFT", 10, -7)
-	d.act = UI.Text(d, 10)
-	d.act:SetPoint("TOPLEFT", d, "TOPLEFT", 10, -23)
-	UI.Color(d.act, UI.C.sub)
-	d.now = UI.Text(d, 10)
-	d.now:SetPoint("TOPLEFT", d, "TOPLEFT", 10, -37)
-	d.now:SetWidth(278)
-	d.now:SetJustifyV("TOP")
-	if d.now.SetMaxLines then d.now:SetMaxLines(2) end
-	d.next = UI.Text(d, 10)
-	d.next:SetPoint("TOPLEFT", d, "TOPLEFT", 10, -63)
-	d.next:SetWidth(278)
-	d.next:SetJustifyV("TOP")
-	if d.next.SetMaxLines then d.next:SetMaxLines(2) end
-	d.learn = UI.Button(d, 122, 32, "", nil, "green")
-	d.learn:SetPoint("TOPRIGHT", d, "TOPRIGHT", -8, -8)
-	d.learn.clickWhenOff = true
-	d.equip = UI.Button(d, 122, 32, "", nil, "blue")
-	d.equip:SetPoint("TOPRIGHT", d.learn, "BOTTOMRIGHT", 0, -6)
-	d.equip.clickWhenOff = true
+	p.reset = UI.Button(p, LIST_W, 26, "", nil, "red")
+	p.reset:SetPoint("BOTTOMLEFT", p, "BOTTOMLEFT", LIST_X, 0)
+	armed(p.reset, "", "정말 초기화? 한 번 더", function()
+		local id = heroOf()
+		if id then UI.Try(H.ResetSkills(id)) end
+	end)
+	UI.Tip(p.reset, function() return UI.SimpleTip("기술 초기화", "첫 기술을 뺀 모든 기술 점수를 돌려받습니다. 골드가 듭니다.") end)
 end
 
 local function refreshSkills(page, id)
-	local p = page.R.skills
+	local p = page.skills
 	local h = ns.db.heroes[id]
 	local list = H.SkillList(id)
 	local free = H.SkillPointsFree(id)
 	p.points:SetLabel(string.format("기술 점수 %d", free))
-	p.points:SetColor(free > 0 and 0.12 or 0.12, free > 0 and 0.45 or 0.15, free > 0 and 0.2 or 0.22, 1)
+	p.points:SetColor(0.12, free > 0 and 0.45 or 0.15, free > 0 and 0.2 or 0.22, 1)
 	p.auto:SetOff(free == 0)
-	p.reset:SetBase("초기화 " .. U.fmt(H.SkillResetCost(id)) .. " G")
+	p.reset:SetBase("기술 초기화  " .. U.fmt(H.SkillResetCost(id)) .. " G")
 	p.reset:SetOff(H.SkillPointsSpent(id) <= 1 or not ns.CanAfford(H.SkillResetCost(id)))
 	local slots = ns.SkillSlots()
 	for i, b in ipairs(p.slots) do
@@ -599,17 +644,17 @@ local function refreshSkills(page, id)
 			b.icon:Hide()
 			b:SetLocked(true)
 			b:SetQuality(nil)
-			b.lockText:SetText("룬으로\n열기")
+			b.lockText:SetText("룬 필요")
 		elseif sid then
 			b:SetIconName(ns.SKILLS[sid].icon)
 			b:SetLocked(false)
 			b:SetQuality(5)
-			b.lockText:SetText("")
+			b.lockText:SetText(ns.N(ns.SKILLS[sid].name))
 		else
 			b.icon:Hide()
 			b:SetLocked(false)
 			b:SetQuality(nil)
-			b.lockText:SetText("비어\n있음")
+			b.lockText:SetText("비어 있음")
 		end
 	end
 	if not page.skill or not H.SkillUnlockLevel(id, page.skill) then page.skill = list[1] end
@@ -621,39 +666,53 @@ local function refreshSkills(page, id)
 		local open = H.SkillUnlocked(id, sid)
 		row.icon:SetIconName(sk.icon)
 		row.icon:SetDim(not open)
+		row.icon:SetLocked(not open)
 		row.name:SetText(open and ns.N(sk.name) or U.col("8a90a2", ns.N(sk.name)))
-		row.tag:SetLabel(ns.SkillTag(sid))
 		local eq = H.IsSkillEquipped(id, sid)
 		if not open then
-			row.state:SetText(U.col("8a8070", string.format("영웅 Lv %d에 열림", ns.SKILL_UNLOCK[i])))
+			row.state:SetText(U.col("9a8f78", string.format("영웅 Lv %d에 열림", ns.SKILL_UNLOCK[i])))
 		elseif pts == 0 then
 			row.state:SetText(U.col("ffd24a", "배울 수 있음"))
 		else
-			row.state:SetText(string.format("%sLv %d/%d", eq and U.col("60e070", "장착 " .. eq .. "번  ") or "", pts, ns.SKILL_MAX))
+			row.state:SetText(string.format("Lv %d / %d  ·  %s", pts, ns.SKILL_MAX, ns.SkillTag(sid)))
 		end
-		row.dot:Set(open and free > 0 and pts < ns.SKILL_MAX and (pts == 0))
+		row.eq:SetShown(eq ~= nil)
+		if eq then row.eq:SetLabel(eq .. "번 칸") end
+		row.dot:Set(open and free > 0 and pts == 0)
 		if sid == page.skill then row.bg:SetColor(0.95, 0.8, 0.4, 1) else row.bg:SetColor(1, 1, 1, 1) end
 	end
-	-- detail
+
 	local d = p.detail
 	local sid = page.skill
 	local sk = ns.SKILLS[sid]
 	local pts = H.SkillPoints(id, sid)
 	local lvl = max(1, H.SkillLevel(id, sid))
-	d.name:SetText(U.col("ffd24a", ns.N(sk.name)) .. string.format("  Lv %d/%d", pts, ns.SKILL_MAX))
-	d.act:SetText(ns.SkillTag(sid) .. " · " .. ns.SkillActText(sid, lvl))
-	d.now:SetText((pts > 0 and "지금: " or "Lv 1: ") .. ns.SkillDesc(sid, lvl))
+	d.icon:SetIconName(sk.icon)
+	d.icon:SetDim(not H.SkillUnlocked(id, sid))
+	d.name:SetText(U.col("ffd24a", ns.N(sk.name)))
+	d.level:SetText(pts > 0 and string.format("레벨 %d / %d", pts, ns.SKILL_MAX) or U.col("8a90a2", "아직 배우지 않음"))
+	d.act:SetText(ns.SkillTag(sid) .. "  ·  " .. ns.SkillActText(sid, lvl))
+	d.nowTitle:SetText(pts > 0 and "지금" or "레벨 1")
+	d.now:SetText(ns.SkillDesc(sid, lvl))
 	if pts > 0 and pts < ns.SKILL_MAX then
-		d.next:SetText(U.col("60e070", "다음: " .. ns.SkillDesc(sid, H.SkillLevel(id, sid) + 1)))
+		d.nextTitle:Show()
+		d.next:SetText(U.col("60e070", ns.SkillDesc(sid, H.SkillLevel(id, sid) + 1)))
 	else
-		d.next:SetText("")
+		d.nextTitle:Hide()
+		d.next:SetText(pts >= ns.SKILL_MAX and U.col("ffd24a", "최대 레벨입니다.") or "")
 	end
 	local ok, why = H.CanLearnSkill(id, sid)
+	if ok then
+		d.req:Hide()
+	else
+		d.req:SetLabel(why or "")
+		d.req:Show()
+	end
 	d.learn:SetLabel(pts == 0 and "배우기 (1점)" or (pts >= ns.SKILL_MAX and "최대 레벨" or "강화 (1점)"))
 	d.learn:SetOff(not ok)
 	d.learn.onClick = function()
-		if UI.Try(H.LearnSkill(id, sid)) then return end
-		if not ok then UI.Try(false, why) end
+		if not ok then UI.Try(false, why) return end
+		UI.Try(H.LearnSkill(id, sid))
 	end
 	local eq = H.IsSkillEquipped(id, sid)
 	if eq then
@@ -663,14 +722,14 @@ local function refreshSkills(page, id)
 		d.equip.onClick = function() H.UnequipSkill(id, sid) end
 	else
 		local full = #h.skills >= ns.SkillSlots()
-		d.equip:SetLabel(pts == 0 and "장착 (먼저 배우기)" or (full and "장착 (칸 가득)" or "장착"))
+		d.equip:SetLabel("장착")
 		d.equip:SetStyle("blue")
 		d.equip:SetOff(pts == 0 or full)
 		d.equip.onClick = function()
 			if pts == 0 then
 				UI.Try(false, "먼저 기술을 배우세요.")
 			elseif full then
-				UI.Try(false, "기술 칸이 가득 찼습니다. 위의 장착 칸에서 기술을 골라 해제하거나, 룬으로 칸을 늘리세요.")
+				UI.Try(false, "기술 칸이 가득 찼습니다. 장착 칸의 기술을 골라 해제하거나, 룬으로 칸을 늘리세요.")
 			else
 				UI.Try(H.EquipSkill(id, sid))
 			end
@@ -679,7 +738,7 @@ local function refreshSkills(page, id)
 end
 
 ------------------------------------------------------------------------
--- Right: 특성 sub-page
+-- 특성: the passive talent tree
 ------------------------------------------------------------------------
 local function nodeTip(self)
 	local id = heroOf()
@@ -699,57 +758,44 @@ local function nodeTip(self)
 	return lines
 end
 
-local function buildTree(R)
-	local p = CreateFrame("Frame", nil, R)
-	p:SetAllPoints(R)
-	R.tree = p
-	p.points = UI.Pill(p, 120, 26, 0.10, 0.30, 0.15, 1)
-	p.points:SetPoint("TOPLEFT", p, "TOPLEFT", 8, -42)
-	UI.Tip(p.points, function() return UI.SimpleTip("특성 점수", "레벨이 오를 때마다 1점씩 생깁니다. 능력치를 올리는 데만 쓰입니다(기술은 '기술' 탭).") end)
-	p.auto = UI.Button(p, 110, 26, "자동 배분", function()
-		local id = heroOf()
-		if id then
-			local n = H.AutoSpend(id)
-			ns.Toast(n > 0 and string.format("특성 점수 %d점을 썼습니다.", n) or "쓸 수 있는 특성 점수가 없습니다.")
-		end
-	end, "primary")
-	p.auto:SetPoint("LEFT", p.points, "RIGHT", 8, 0)
-	p.reset = UI.Button(p, 150, 26, "", nil, "red")
-	p.reset:SetPoint("TOPRIGHT", p, "TOPRIGHT", -8, -42)
-	armed(p.reset, "", "정말 초기화? 한 번 더", function()
-		local id = heroOf()
-		if id then UI.Try(H.ResetTree(id)) end
-	end)
-	UI.Tip(p.reset, function() return UI.SimpleTip("특성 초기화", "쓴 특성 점수를 모두 돌려받습니다. 골드가 듭니다.") end)
-	p.help = UI.Text(p, 10, string.format("아래 단계는 특성 점수를 %d점씩 더 쓰면 열립니다.", ns.TREE_TIER_POINTS))
-	p.help:SetPoint("TOPLEFT", p, "TOPLEFT", 8, -74)
-	UI.Color(p.help, UI.C.dim)
+local NODE_W = floor((CW - 56 - 8) / 2)
+
+local function buildTree(page)
+	local p = CreateFrame("Frame", nil, page)
+	p:SetAllPoints(page)
+	page.tree = p
+	p.points = UI.Pill(p, 130, 28, 0.10, 0.30, 0.15, 1)
+	p.points:SetPoint("TOPLEFT", p, "TOPLEFT", CX, -2)
+	UI.Tip(p.points, function() return UI.SimpleTip("특성 점수", "레벨이 오를 때마다 1점씩 생깁니다. 능력치를 올리는 데만 쓰입니다(기술은 '기술' 메뉴).") end)
+	p.help = UI.Text(p, 11, string.format("한 단계에 특성 점수를 %d점 쓸 때마다 다음 단계가 열립니다. 칸을 누르면 1점을 씁니다.", ns.TREE_TIER_POINTS))
+	p.help:SetPoint("LEFT", p.points, "RIGHT", 12, 0)
+	UI.Color(p.help, UI.C.sub)
 	p.tiers = {}
 	for t = 1, 8 do
-		local y = -88 - (t - 1) * 40
+		local y = -40 - (t - 1) * 46
 		local tier = {}
-		tier.label = UI.Text(p, 10)
-		tier.label:SetPoint("TOPLEFT", p, "TOPLEFT", 8, y - 8)
-		tier.label:SetWidth(44)
+		tier.label = UI.Text(p, 11)
+		tier.label:SetPoint("TOPLEFT", p, "TOPLEFT", CX, y - 8)
+		tier.label:SetWidth(52)
 		tier.nodes = {}
 		for n = 1, 2 do
 			local b = CreateFrame("Button", nil, p)
-			b:SetSize(188, 37)
-			b:SetPoint("TOPLEFT", p, "TOPLEFT", 56 + (n - 1) * 192, y)
+			b:SetSize(NODE_W, 42)
+			b:SetPoint("TOPLEFT", p, "TOPLEFT", CX + 56 + (n - 1) * (NODE_W + 8), y)
 			b.bg = UI.Slice(b, "inset", "BACKGROUND")
-			b.icon = UI.IconButton(b, 30)
+			b.icon = UI.IconButton(b, 34)
 			b.icon:EnableMouse(false)
 			b.icon:SetPoint("LEFT", b, "LEFT", 4, 0)
-			b.name = UI.Text(b, 11)
-			b.name:SetPoint("TOPLEFT", b, "TOPLEFT", 40, -4)
-			b.name:SetWidth(142)
+			b.name = UI.Text(b, 12)
+			b.name:SetPoint("TOPLEFT", b, "TOPLEFT", 46, -5)
+			b.name:SetWidth(NODE_W - 110)
 			b.name:SetWordWrap(false)
-			b.val = UI.Text(b, 10)
-			b.val:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 40, 4)
-			b.val:SetWidth(104)
+			b.val = UI.Text(b, 11)
+			b.val:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 46, 5)
+			b.val:SetWidth(NODE_W - 110)
 			b.val:SetWordWrap(false)
-			b.lv = UI.Text(b, 11)
-			b.lv:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -5, 4)
+			b.lv = UI.Text(b, 14)
+			b.lv:SetPoint("RIGHT", b, "RIGHT", -10, 0)
 			b.lv:SetJustifyH("RIGHT")
 			b.tier, b.n = t, n
 			b:RegisterForClicks("LeftButtonUp")
@@ -765,37 +811,52 @@ local function buildTree(R)
 		end
 		p.tiers[t] = tier
 	end
+	p.reset = UI.Button(p, 160, 38, "", nil, "red")
+	p.reset:SetPoint("BOTTOMRIGHT", p, "BOTTOMRIGHT", -196, 0)
+	armed(p.reset, "", "정말? 한 번 더", function()
+		local id = heroOf()
+		if id then UI.Try(H.ResetTree(id)) end
+	end)
+	UI.Tip(p.reset, function() return UI.SimpleTip("특성 초기화", "쓴 특성 점수를 모두 돌려받습니다. 골드가 듭니다.") end)
+	p.auto = UI.Button(p, 188, 38, "자동 배분", function()
+		local id = heroOf()
+		if id then
+			local n = H.AutoSpend(id)
+			ns.Toast(n > 0 and string.format("특성 점수 %d점을 썼습니다.", n) or "쓸 수 있는 특성 점수가 없습니다.")
+		end
+	end, "primary")
+	p.auto:SetPoint("BOTTOMRIGHT", p, "BOTTOMRIGHT", 0, 0)
 end
 
 local function refreshTree(page, id)
-	local p = page.R.tree
+	local p = page.tree
 	local tree = H.Tree(id)
 	local free = H.PointsFree(id)
 	p.points:SetLabel(string.format("특성 점수 %d", free))
+	p.points:SetColor(0.12, free > 0 and 0.45 or 0.15, free > 0 and 0.2 or 0.22, 1)
 	p.auto:SetOff(free == 0)
-	p.reset:SetBase("초기화 " .. U.fmt(H.ResetCost(id)) .. " G")
+	p.reset:SetBase("초기화  " .. U.fmt(H.ResetCost(id)) .. " G")
 	p.reset:SetOff(H.PointsSpent(id) == 0 or not ns.CanAfford(H.ResetCost(id)))
 	local spent = H.PointsSpent(id)
 	for t, tier in ipairs(p.tiers) do
 		local open = H.TierOpen(id, t)
 		local need = (t - 1) * ns.TREE_TIER_POINTS - spent
-		tier.label:SetText(open and (t .. "단계") or U.col("8a8070", need .. "점\n더"))
+		tier.label:SetText(open and U.col("ffd24a", t .. "단계") or U.col("9a8f78", need .. "점 더"))
 		for n, b in ipairs(tier.nodes) do
 			local node = tree[t][n]
 			local a = ns.AFFIX[node.p]
 			local lvl = H.NodeLevel(id, t, n)
 			b.icon:SetIconName(UI.STAT_ICON[node.p] or "INV_Misc_QuestionMark")
 			b.icon:SetDim(not open)
+			b.icon:SetLocked(not open)
 			b.name:SetText(open and ns.N(a.n) or U.col("8a90a2", ns.N(a.n)))
-			-- the stat name is on the line above: show just the number here
 			local num = "+" .. ns.Stats.FormatValue(node.p, node.v * max(1, lvl))
 			b.val:SetText(lvl > 0 and U.col("60e070", num) or U.col("8a90a2", "점당 +" .. ns.Stats.FormatValue(node.p, node.v)))
 			local col = lvl >= node.max and "ffd24a" or (lvl > 0 and "ffffff" or "8a90a2")
 			b.lv:SetText(U.col(col, lvl .. "/" .. node.max))
-			local can = open and free > 0 and lvl < node.max
 			if lvl >= node.max then
 				b.bg:SetColor(1, 0.85, 0.45, 1)
-			elseif can then
+			elseif open and free > 0 then
 				b.bg:SetColor(0.6, 1, 0.65, 1)
 			else
 				b.bg:SetColor(1, 1, 1, 1)
@@ -805,7 +866,7 @@ local function refreshTree(page, id)
 end
 
 ------------------------------------------------------------------------
--- Screen
+-- Screen: hero column, page menu, page
 ------------------------------------------------------------------------
 local function heroOrder()
 	local out, seen = {}, {}
@@ -821,34 +882,70 @@ end
 
 local function build(page)
 	page.sub = "gear"
-	-- hero strip
+	-- hero portraits, party first
 	page.strip = {}
 	for i = 1, ns.ROSTER_MAX do
-		local b = UI.Portrait(page, 40, function(self)
-			if self.heroId then
-				Main.SelectHero(self.heroId)
-			end
+		local b = UI.Portrait(page, 36, function(self)
+			if self.heroId then Main.SelectHero(self.heroId) end
 		end)
-		b:SetPoint("TOPLEFT", page, "TOPLEFT", (i - 1) * 46, -4)
+		b:SetPoint("TOPLEFT", page, "TOPLEFT", 2, -(i - 1) * 39)
 		b.lvl:Hide()
-		b.out = UI.Text(b, 9, nil, "OUTLINE")
-		b.out:SetPoint("BOTTOM", b, "BOTTOM", 0, -2)
 		UI.Tip(b, function(self)
 			if not self.heroId or not ns.db.heroes[self.heroId] then return nil end
-			local lines = { { H.Name(self.heroId), "Lv " .. ns.db.heroes[self.heroId].level, 1, 0.82, 0.3 },
-				{ ns.SpecLabel(ns.db.heroes[self.heroId].spec), H.PartySlot(self.heroId) and "출전" or "대기", 0.75, 0.8, 0.9 } }
+			local hh = ns.db.heroes[self.heroId]
+			local lines = { { H.Name(self.heroId), "Lv " .. hh.level, 1, 0.82, 0.3 },
+				{ ns.SpecLabel(hh.spec), H.PartySlot(self.heroId) and "출전" or "대기", 0.75, 0.8, 0.9 } }
 			if ns.Guide.HeroNeeds(self.heroId) then lines[#lines + 1] = { "할 일이 있습니다 (점수 또는 더 좋은 장비)", nil, 0.4, 1, 0.4 } end
 			return lines
-		end)
+		end, "RIGHT")
 		page.strip[i] = b
 	end
-	page.renameB = UI.Button(page, 96, 28, "이름 바꾸기", function()
+	local div = UI.Line(page, 1, 0.4, 0.45, 0.6, 0.3)
+	div:SetSize(1, PAGE_H)
+	div:SetPoint("TOPLEFT", page, "TOPLEFT", STRIP_W + 2, 0)
+
+	-- page menu
+	page.menu = {}
+	for i, s in ipairs(SUBS) do
+		local b = CreateFrame("Button", nil, page)
+		b:SetSize(MENU_W, 46)
+		b:SetPoint("TOPLEFT", page, "TOPLEFT", MENU_X, -4 - (i - 1) * 50)
+		b.mark = b:CreateTexture(nil, "ARTWORK")
+		b.mark:SetSize(3, 30)
+		b.mark:SetPoint("LEFT", b, "LEFT", 0, 0)
+		UI.Fill(b.mark, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3], 1)
+		b.glow = UI.Art(b, "grad_h", "BACKGROUND", 1, 0.8, 0.3, 0.18)
+		b.glow:SetAllPoints(b)
+		b.label = UI.Text(b, 16, s.name)
+		b.label:SetPoint("TOPLEFT", b, "TOPLEFT", 12, -6)
+		b.hint = UI.Text(b, 9, s.hint)
+		b.hint:SetPoint("TOPLEFT", b, "TOPLEFT", 12, -28)
+		b.hint:SetWidth(MENU_W - 14)
+		b.hint:SetWordWrap(false)
+		UI.Color(b.hint, UI.C.dim)
+		b.badge = UI.Badge(b, 14)
+		b.badge:ClearAllPoints()
+		b.badge:SetPoint("TOPRIGHT", b, "TOPRIGHT", -4, -6)
+		b.key = s.key
+		b:RegisterForClicks("LeftButtonUp")
+		b:SetScript("OnClick", function(self)
+			ns.Sound("click")
+			page.sub = self.key
+			Main.Refresh()
+		end)
+		b.onEnter = function(self) self.hover = true Main.Refresh() end
+		b.onLeave = function(self) self.hover = false Main.Refresh() end
+		b:SetScript("OnEnter", function(self) self.onEnter(self) end)
+		b:SetScript("OnLeave", function(self) self.onLeave(self) end)
+		page.menu[i] = b
+	end
+	page.renameB = UI.Button(page, MENU_W, 28, "이름 바꾸기", function()
 		local id = heroOf()
 		if id then openRename(id) end
 	end, "dark")
-	page.renameB:SetPoint("TOPRIGHT", page, "TOPRIGHT", -112, -8)
-	page.dismiss = UI.Button(page, 104, 28, "떠나보내기", nil, "red")
-	page.dismiss:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, -8)
+	page.renameB:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", MENU_X, 34)
+	page.dismiss = UI.Button(page, MENU_W, 28, "떠나보내기", nil, "red")
+	page.dismiss:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", MENU_X, 0)
 	armed(page.dismiss, "떠나보내기", "정말요? 한 번 더", function()
 		local id = heroOf()
 		if id and UI.Try(H.Dismiss(id)) then
@@ -857,24 +954,9 @@ local function build(page)
 	end)
 	UI.Tip(page.dismiss, function() return UI.SimpleTip("떠나보내기", "영웅이 영영 떠납니다. 장착한 장비는 가방으로 돌아옵니다. 되돌릴 수 없습니다.") end)
 
-	buildLeft(page)
-
-	local R = UI.Panel(page, RIGHT_W, 414, "card")
-	R:SetPoint("TOPLEFT", page, "TOPLEFT", RIGHT_X, TOP)
-	page.R = R
-	R.tabs = {}
-	for i, s in ipairs(SUBS) do
-		local chip = UI.Chip(R, 140, 28, s.name, function()
-			page.sub = s.key
-			Main.Refresh()
-		end)
-		chip:SetPoint("TOPLEFT", R, "TOPLEFT", 8 + (i - 1) * 146, -8)
-		chip.key = s.key
-		R.tabs[i] = chip
-	end
-	buildGear(R)
-	buildSkills(R, page)
-	buildTree(R)
+	buildGear(page)
+	buildSkills(page)
+	buildTree(page)
 
 	page.empty = UI.Text(page, 14, "영웅이 없습니다. '편성'에서 첫 영웅을 만드세요.")
 	page.empty:SetPoint("CENTER", page, "CENTER", 0, 0)
@@ -884,10 +966,6 @@ local function refresh(page)
 	local id = heroOf()
 	local order = heroOrder()
 	page.empty:SetShown(id == nil)
-	page.L:SetShown(id ~= nil)
-	page.R:SetShown(id ~= nil)
-	page.renameB:SetShown(id ~= nil)
-	page.dismiss:SetShown(id ~= nil)
 	for i, b in ipairs(page.strip) do
 		local hid = order[i]
 		b.heroId = hid
@@ -903,27 +981,37 @@ local function refresh(page)
 			b:Hide()
 		end
 	end
-	if not id then return end
+	for _, b in ipairs(page.menu) do b:SetShown(id ~= nil) end
+	page.renameB:SetShown(id ~= nil)
+	page.dismiss:SetShown(id ~= nil)
+	if not id then
+		page.gear:Hide()
+		page.skills:Hide()
+		page.tree:Hide()
+		return
+	end
 	if page.heroShown ~= id then
 		page.heroShown = id
 		page.slot = nil
 		page.skill = nil
 	end
 	page.dismiss:SetOff(H.Count() <= 1)
-	refreshLeft(page, id)
-	local R = page.R
 	local badges = {
 		gear = ns.Guide.UpgradeHeroes()[id] and true or nil,
 		skills = H.SkillPointsFree(id) > 0 and H.SkillPointsFree(id) or nil,
 		tree = H.PointsFree(id) > 0 and H.PointsFree(id) or nil,
 	}
-	for _, chip in ipairs(R.tabs) do
-		chip:SetOn(chip.key == page.sub)
-		chip:SetBadge(badges[chip.key])
+	for _, b in ipairs(page.menu) do
+		local on = b.key == page.sub
+		b.mark:SetShown(on)
+		b.glow:SetShown(on or b.hover)
+		b.glow:SetAlpha(on and 1 or 0.5)
+		if on then UI.Color(b.label, UI.C.gold) else UI.Color(b.label, UI.C.text) end
+		b.badge:Set(badges[b.key])
 	end
-	R.gear:SetShown(page.sub == "gear")
-	R.skills:SetShown(page.sub == "skills")
-	R.tree:SetShown(page.sub == "tree")
+	page.gear:SetShown(page.sub == "gear")
+	page.skills:SetShown(page.sub == "skills")
+	page.tree:SetShown(page.sub == "tree")
 	if page.sub == "gear" then
 		refreshGear(page, id)
 	elseif page.sub == "skills" then
@@ -935,10 +1023,8 @@ end
 
 local function tick(page)
 	if page.dismiss then page.dismiss:Disarm() end
-	if page.R then
-		page.R.skills.reset:Disarm()
-		page.R.tree.reset:Disarm()
-	end
+	if page.skills then page.skills.reset:Disarm() end
+	if page.tree then page.tree.reset:Disarm() end
 end
 
 local function open(page, opts)

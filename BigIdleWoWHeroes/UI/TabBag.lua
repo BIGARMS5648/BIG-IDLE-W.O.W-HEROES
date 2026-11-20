@@ -8,8 +8,19 @@ local UI, U = ns.UI, ns.U
 local Main = ns.Main
 
 local COLS, ROWS, CELL, GAP = 10, 7, 46, 4
-local GRID_Y = -40
-local DETAIL_X, DETAIL_W = 516, 332
+local GRID_Y = -34
+local GRID_X = 54                     -- right of the category rail
+local DETAIL_X, DETAIL_W = 564, 284
+
+-- Category rail on the left: { view, filter index, label, icon }
+local RAIL = {
+	{ "bag", 1, "전체", "INV_Misc_Bag_10" },
+	{ "bag", 2, "무기", "INV_Sword_04" },
+	{ "bag", 3, "방어구", "INV_Chest_Plate03" },
+	{ "bag", 4, "액세서리", "INV_Jewelry_Ring_03" },
+	{ "mats", 1, "재료", "INV_Ore_Copper_01" },
+	{ "bank", 1, "은행", "INV_Box_02" },
+}
 
 local FILTERS = {
 	{ key = "all",  name = "전체" },
@@ -60,6 +71,11 @@ local function buildDetail(page)
 	local d = UI.Panel(page, DETAIL_W, Main.PAGE_H + GRID_Y, "card")
 	d:SetPoint("TOPLEFT", page, "TOPLEFT", DETAIL_X, GRID_Y)
 	page.detail = d
+	d.band = d:CreateTexture(nil, "BORDER")
+	d.band:SetPoint("TOPLEFT", d, "TOPLEFT", 4, -4)
+	d.band:SetPoint("TOPRIGHT", d, "TOPRIGHT", -4, -4)
+	d.band:SetHeight(76)
+	d.band:Hide()
 	d.icon = UI.IconButton(d, 56)
 	d.icon:SetPoint("TOPLEFT", d, "TOPLEFT", 14, -14)
 	d.name = UI.Text(d, 15)
@@ -77,7 +93,7 @@ local function buildDetail(page)
 		d.lines[i] = fs
 	end
 	d.targetLabel = UI.Text(d, 11, "착용 대상")
-	d.targetLabel:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 16, 112)
+	d.targetLabel:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 16, 118)
 	UI.Color(d.targetLabel, UI.C.sub)
 	d.targets = {}
 	for i = 1, ns.PARTY_SIZE do
@@ -87,24 +103,25 @@ local function buildDetail(page)
 				Main.Refresh()
 			end
 		end)
-		b:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 16 + (i - 1) * 40, 70)
+		b:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 16 + (i - 1) * 40, 76)
 		b.lvl:Hide()
 		d.targets[i] = b
 	end
-	d.compare = UI.Text(d, 12)
-	d.compare:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 220, 82)
-	d.compare:SetWidth(100)
+	d.compare = UI.Text(d, 11)
+	d.compare:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -14, 118)
+	d.compare:SetWidth(DETAIL_W - 100)
 	d.compare:SetJustifyH("RIGHT")
 
-	d.b1 = UI.Button(d, 148, 32, "", nil, "primary")
-	d.b1:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 14, 30)
-	d.b2 = UI.Button(d, 148, 32, "", nil, "red")
+	local half = floor((DETAIL_W - 34) / 2)
+	d.b1 = UI.Button(d, half, 32, "", nil, "primary")
+	d.b1:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 14, 36)
+	d.b2 = UI.Button(d, half, 32, "", nil, "red")
 	d.b2.clickWhenOff = true
-	d.b2:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -14, 30)
-	d.b3 = UI.Button(d, 148, 22, "", nil, "dark")
-	d.b3:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 14, 4)
-	d.b4 = UI.Button(d, 148, 22, "", nil, "dark")
-	d.b4:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -14, 4)
+	d.b2:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -14, 36)
+	d.b3 = UI.Button(d, half, 24, "", nil, "dark")
+	d.b3:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 14, 8)
+	d.b4 = UI.Button(d, half, 24, "", nil, "dark")
+	d.b4:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -14, 8)
 	d.hint = UI.Text(d, 12, "아이템을 누르면 여기에서 자세히 보고 장착하거나 분해할 수 있습니다.")
 	d.hint:SetPoint("CENTER", d, "CENTER", 0, 30)
 	d.hint:SetWidth(DETAIL_W - 60)
@@ -136,6 +153,7 @@ local function refreshDetail(page)
 	d.compare:SetShown(showItem and page.view == "bag")
 	for _, b in ipairs(d.targets) do b:Hide() end
 	for _, fs in ipairs(d.lines) do fs:SetText("") end
+	d.band:Hide()
 	if not showItem and not mat then
 		d.name:SetText("")
 		d.kind:SetText("")
@@ -147,6 +165,11 @@ local function refreshDetail(page)
 		local m = ns.MATS[mat]
 		d.icon:SetIconName(m.icon)
 		d.icon:SetQuality(m.q)
+		do
+			local br, bg, bb = U.rgb(ns.QUALITY[m.q].hex)
+			UI.Fill(d.band, br * 0.38, bg * 0.38, bb * 0.38, 0.9)
+			d.band:Show()
+		end
 		d.icon:SetCount(U.fmt(ns.MatCount(mat)))
 		local r, g, b = U.rgb(ns.QUALITY[m.q].hex)
 		d.name:SetText(ns.N(m.name))
@@ -191,6 +214,11 @@ local function refreshDetail(page)
 	local id = Main.SelectedHero()
 	d.icon:SetIconName(ns.Items.Icon(it))
 	d.icon:SetQuality(it.q)
+	do
+		local br, bg, bb = U.rgb(ns.QUALITY[it.q].hex)
+		UI.Fill(d.band, br * 0.38, bg * 0.38, bb * 0.38, 0.9)
+		d.band:Show()
+	end
 	d.icon:SetCount(tostring(it.l))
 	d.icon:SetLocked(it.lock)
 	local r, g, b = U.rgb(ns.QUALITY[it.q].hex)
@@ -247,20 +275,20 @@ local function refreshDetail(page)
 		if rr then
 			local pct = (rr - 1) * 100
 			if pct > 0.2 then
-				d.compare:SetText(who .. "\n" .. U.col("6af07a", "전투력 +" .. U.num(pct, 1) .. "%"))
+				d.compare:SetText(who .. " " .. U.col("6af07a", "전투력 +" .. U.num(pct, 1) .. "%"))
 			elseif pct < -0.2 then
-				d.compare:SetText(who .. "\n" .. U.col("ff6a5a", "전투력 " .. U.num(pct, 1) .. "%"))
+				d.compare:SetText(who .. " " .. U.col("ff6a5a", "전투력 " .. U.num(pct, 1) .. "%"))
 			else
-				d.compare:SetText(who .. "\n" .. U.col("aab3c8", "비슷함"))
+				d.compare:SetText(who .. " " .. U.col("aab3c8", "비슷함"))
 			end
 		else
-			d.compare:SetText(who .. "\n" .. U.col("ff6a5a", ns.Items.CanUse(id, it) and "레벨 부족" or "착용 불가"))
+			d.compare:SetText(who .. " " .. U.col("ff6a5a", ns.Items.CanUse(id, it) and "레벨 부족" or "착용 불가"))
 		end
 	end
 	local gold = ns.Items.SmeltGold(it)
 	local canEquip = id and ns.Items.CanEquip(id, it)
 	setButtons(d, {
-		{ id and ("장착: " .. ns.Heroes.Name(id)) or "장착", function()
+		{ id and ("장착: " .. ns.Heroes.ShortName(id)) or "장착", function()
 			local idx = indexIn(ns.db.bag, it)
 			if idx and UI.Try(ns.Items.Equip(id, idx)) then page.selItem = nil end
 			Main.Refresh()
@@ -279,7 +307,7 @@ local function refreshDetail(page)
 			end
 			Main.Refresh()
 		end, it.lock or not ns.Forge.Unlocked("smelt") },
-		{ it.lock and "보호 풀기" or "보호하기 (Alt+클릭)", function() ns.Items.ToggleLock(it) Main.Refresh() end },
+		{ it.lock and "보호 풀기" or "보호하기", function() ns.Items.ToggleLock(it) Main.Refresh() end },
 		{ "은행에 보관", function()
 			local idx = indexIn(ns.db.bag, it)
 			if idx and UI.Try(ns.Items.ToBank(idx)) then page.selItem = nil end
@@ -294,31 +322,44 @@ end
 local function build(page)
 	page.view, page.filter = "bag", 1
 
-	page.views = {}
-	for i, v in ipairs({ "bag", "bank", "mats" }) do
-		local c = UI.Chip(page, 112, 28, "", function()
-			page.view = v
+	page.rail = {}
+	for i, r in ipairs(RAIL) do
+		local b = CreateFrame("Button", nil, page)
+		b:SetSize(46, 58)
+		b:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -(i - 1) * 62)
+		b.bg = UI.Slice(b, "card", "BACKGROUND")
+		b.icon = b:CreateTexture(nil, "ARTWORK")
+		b.icon:SetSize(28, 28)
+		b.icon:SetPoint("TOP", b, "TOP", 0, -6)
+		UI.SetIcon(b.icon, r[4])
+		b.label = UI.Text(b, 10, r[3])
+		b.label:SetPoint("BOTTOM", b, "BOTTOM", 0, 5)
+		b.label:SetJustifyH("CENTER")
+		b.mark = b:CreateTexture(nil, "OVERLAY")
+		b.mark:SetSize(3, 40)
+		b.mark:SetPoint("RIGHT", b, "RIGHT", 1, 0)
+		UI.Fill(b.mark, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3], 1)
+		b.badge = UI.Badge(b, 13)
+		b.view, b.filter = r[1], r[2]
+		b:RegisterForClicks("LeftButtonUp")
+		b:SetScript("OnClick", function(self)
+			ns.Sound("click")
+			page.view, page.filter = self.view, self.filter
 			page.selItem, page.selMat = nil, nil
 			Main.Refresh()
 		end)
-		c.key = v
-		c:SetPoint("TOPLEFT", page, "TOPLEFT", (i - 1) * 118, 0)
-		page.views[i] = c
+		page.rail[i] = b
 	end
-	page.filters = {}
-	for i, f in ipairs(FILTERS) do
-		local c = UI.Chip(page, 66, 24, ns.N(f.name), function()
-			page.filter = i
-			Main.Refresh()
-		end)
-		c:SetPoint("TOPLEFT", page, "TOPLEFT", 362 + (i - 1) * 70, -2)
-		page.filters[i] = c
-	end
+	page.cap = UI.Title(page, "", 14)
+	page.cap:SetPoint("TOPLEFT", page, "TOPLEFT", GRID_X, -6)
+	page.capHint = UI.Text(page, 10, "Alt+클릭: 보호  ·  우클릭: 분해")
+	page.capHint:SetPoint("LEFT", page.cap, "RIGHT", 12, -1)
+	UI.Color(page.capHint, UI.C.dim)
 	page.sort = UI.Button(page, 80, 26, "정리", function()
 		if page.view == "bank" then ns.Items.Sort(ns.db.bank) else ns.Items.Sort(ns.db.bag) end
 		Main.Refresh()
 	end, "dark")
-	page.sort:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, -1)
+	page.sort:SetPoint("TOPRIGHT", page, "TOPLEFT", DETAIL_X - 14, -2)
 
 	page.cells = {}
 	for i = 1, COLS * ROWS do
@@ -346,7 +387,7 @@ local function build(page)
 			Main.Refresh()
 		end)
 		local col, row = (i - 1) % COLS, floor((i - 1) / COLS)
-		b:SetPoint("TOPLEFT", page, "TOPLEFT", col * (CELL + GAP), GRID_Y - row * (CELL + GAP))
+		b:SetPoint("TOPLEFT", page, "TOPLEFT", GRID_X + col * (CELL + GAP), GRID_Y - row * (CELL + GAP))
 		UI.Tip(b, function(self)
 			if not self.data then return nil end
 			if page.view == "mats" then return ns.Items.MatTooltip(self.data) end
@@ -362,9 +403,9 @@ local function build(page)
 	page.emptyLayer:SetAllPoints(page)
 	page.emptyLayer:SetFrameLevel(page:GetFrameLevel() + 20)
 	page.emptyBox = UI.Panel(page.emptyLayer, 440, 60, "card")
-	page.emptyBox:SetPoint("CENTER", page, "TOPLEFT", (COLS * (CELL + GAP)) / 2, GRID_Y - 160)
+	page.emptyBox:SetPoint("CENTER", page, "TOPLEFT", GRID_X + (COLS * (CELL + GAP)) / 2, GRID_Y - 160)
 	page.empty = UI.Text(page.emptyLayer, 12)
-	page.empty:SetPoint("CENTER", page, "TOPLEFT", (COLS * (CELL + GAP)) / 2, GRID_Y - 160)
+	page.empty:SetPoint("CENTER", page, "TOPLEFT", GRID_X + (COLS * (CELL + GAP)) / 2, GRID_Y - 160)
 	page.empty:SetJustifyH("CENTER")
 	page.empty:SetWidth(440)
 	UI.Color(page.empty, UI.C.sub)
@@ -375,7 +416,7 @@ local function build(page)
 		ns.Loot.OpenAll()
 		Main.Refresh()
 	end, "primary")
-	page.open:SetPoint("TOPLEFT", page, "TOPLEFT", 0, barY)
+	page.open:SetPoint("TOPLEFT", page, "TOPLEFT", GRID_X, barY)
 	page.smeltGo = UI.Button(page, 170, 38, "", nil, "red")
 	page.smeltGo.clickWhenOff = true
 	confirmButton(page.smeltGo, function()
@@ -426,17 +467,22 @@ end
 local function refresh(page)
 	local db = ns.db
 	local labels = {
-		bag = string.format("가방 %d/%d", #db.bag, ns.BagSize()),
-		bank = string.format("은행 %d/%d", #db.bank, ns.BankSize()),
+		bag = string.format("가방  %d / %d", #db.bag, ns.BagSize()),
+		bank = string.format("은행  %d / %d", #db.bank, ns.BankSize()),
 		mats = "재료",
 	}
-	for _, c in ipairs(page.views) do
-		c:SetLabel(labels[c.key])
-		c:SetOn(c.key == page.view)
-	end
-	for i, c in ipairs(page.filters) do
-		c:SetOn(i == page.filter)
-		c:SetShown(page.view ~= "mats")
+	page.cap:SetText(labels[page.view])
+	page.capHint:SetShown(page.view == "bag")
+	for _, b in ipairs(page.rail) do
+		local on = b.view == page.view and (b.view ~= "bag" or b.filter == page.filter)
+		b.mark:SetShown(on)
+		if on then
+			b.bg:SetColor(0.95, 0.78, 0.35, 1)
+			UI.Color(b.label, UI.C.gold)
+		else
+			b.bg:SetColor(0.40, 0.44, 0.58, 1)
+			UI.Color(b.label, UI.C.sub)
+		end
 	end
 	page.sort:SetShown(page.view ~= "mats")
 

@@ -90,18 +90,33 @@ local function pick(t)
 	return t[math.random(1, #t)]
 end
 
+-- Parts can join into a word the game already uses ("레" + "벨" = "레벨",
+-- "자리", "오라") or into a famous character's name; those are rolled again.
+local BLOCKED = {}
+for _, w in ipairs({ "레벨", "마나", "마리", "바로", "오라", "자리", "가로쉬", "일리단", "티란데", "에드윈", "그론",
+	"헬스크림", "선스트라이더", "스톰레이지" }) do
+	BLOCKED[w] = true
+end
+ns.Names.BLOCKED = BLOCKED
+
 -- Given name only (no family name).
 function ns.Names.Given(pool, sex)
-	return pick(pool.head) .. pick(pool[sex] or pool.M)
+	local name
+	for _ = 1, 20 do
+		name = pick(pool.head) .. pick(pool[sex] or pool.M)
+		if not BLOCKED[name] then break end
+	end
+	return name
 end
 
 function ns.Names.Family(pool)
-	local a, b = pick(pool.pre), pick(pool.suf)
-	for _ = 1, 4 do
-		if a ~= b then break end
-		b = pick(pool.suf)
+	local name
+	for _ = 1, 20 do
+		local a, b = pick(pool.pre), pick(pool.suf)
+		name = a .. b
+		if a ~= b and not BLOCKED[name] then break end
 	end
-	return a .. b
+	return name
 end
 
 -- raceId: a key of ns.RACES (or nil for the human pool); sex: "M" or "F"
@@ -118,7 +133,7 @@ function ns.Names.Roll(raceId, sex, taken)
 	return name
 end
 
--- "티란데 브리즈팽" -> "티란데"
+-- "빅암즈 브리즈팽" -> "빅암즈"
 function ns.Names.Short(full)
 	if type(full) ~= "string" then return "?" end
 	return full:match("^(%S+)") or full
