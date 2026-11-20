@@ -71,13 +71,17 @@ if not ns.db then
 end
 if not Main.IsShown() then fail("the menu should open by itself for a new player") end
 if Main.Current() ~= "party" then fail("a new player should land on the party screen") end
-if not find(function(b) return b.cid == "WARRIOR" end) then fail("the hero creation dialog should be open for a new player") end
+if ns.db.faction then fail("a new player has no faction yet") end
+click("choose Horde", labelIs("호드로 시작"))
+if ns.db.faction ~= "HORDE" then fail("the faction choice was not saved") end
+if not find(function(b) return b.cid == "WARRIOR" end) then fail("the hero creation dialog should open after the faction choice") end
 if not SlashCmdList.BIGIDLEWOWHEROES then fail("slash command missing") end
 if type(BigIdleWoWHeroes_OnAddonCompartmentClick) ~= "function" then fail("addon compartment function missing") end
 local goal = ns.Guide.Current()
 if not (goal.create and goal.tab == "party") then fail("the first goal should be to create a hero") end
 
 local tabs = { "party", "hero", "bag", "forge", "runes", "map", "options" }
+if #Main.Frame().nav ~= 6 then fail("the bottom bar should have six screens (settings is in the header)") end
 
 -- every screen must render with no hero at all
 Main.CloseModal()
@@ -93,16 +97,19 @@ frames(20)
 try("show party", Main.ShowTab, "party")
 local page = Main.Page("party")
 try("open create dialog", page.create.Click, page.create, "LeftButton")
+click("class Tinker", function(b) return b.cid == "TINKER" end)
 click("class Hunter", function(b) return b.cid == "HUNTER" end)
 click("spec Marksmanship", function(b) return b.sid == "HUNTER_MM" end)
-click("create", function(b) return label(b) == "영웅 만들기" and b.__h == 38 end)
+click("female", function(b) return b.sex == "F" end)
+click("reroll name", labelIs("다시"))
+click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 220 end)
 if H.Count() ~= 1 then fail("creating through the dialog did not make a hero") end
 local first = H.List()[1]
 if first and ns.db.heroes[first].spec ~= "HUNTER_MM" then fail("the hero has the wrong specialization") end
+if first and ns.db.heroes[first].sex ~= "F" then fail("the chosen gender was not kept") end
+if first and H.Race(first) ~= "TROLL" then fail("a Horde hunter should be a troll") end
 if first and H.PartySlot(first) ~= 2 then fail("the first damage dealer should join slot 2") end
-click("reroll name", labelIs("이름 다시 뽑기"))
-click("ok", function(b) return label(b) == "확인" and b.__w == 160 end)
-if first and (type(ns.db.heroes[first].name) ~= "string" or ns.db.heroes[first].name == "") then fail("hero name missing") end
+if first and not tostring(ns.db.heroes[first].name):find("^%S+ %S+$") then fail("hero name should be given + family name") end
 frames(300)
 if ns.db.stat.kills == 0 then fail("the battle should run once a hero exists") end
 
@@ -165,6 +172,16 @@ do
 	end
 	if card then try("swap", card.action.Click, card.action, "LeftButton") end
 	if ns.db.party[1] ~= bench or tankBefore == bench then fail("swapping a bench tank in did not work") end
+	local pp = Main.Page("party")
+	if pp.slots[1] and pp.slots[5] then
+		local x1 = select(4, pp.slots[1]:GetPoint(1))
+		local x5 = select(4, pp.slots[5]:GetPoint(1))
+		if not (x1 and x5 and x1 > x5) then fail("the tank card should be drawn in front (right of the healer)") end
+	end
+	click("auto form", labelIs("자동 편성"))
+	click("companions", labelIs("동료"))
+	hoverAll()
+	Main.CloseModal()
 	local slot5 = Main.Page("party").slots[5]
 	try("rest healer", slot5.action.Click, slot5.action, "LeftButton")
 	if ns.db.party[5] then fail("resting the healer did not free slot 5") end
@@ -184,26 +201,49 @@ do
 	ns.Stats.Invalidate(id)
 	Main.Refresh()
 	local free = H.PointsFree(id)
-	click("talent node", function(b) return b.tier == 1 and b.n == 3 end)
+	local skillFree = H.SkillPointsFree(id)
+	click("talent node", function(b) return b.tier == 1 and b.n == 1 end)
 	if H.PointsFree(id) ~= free - 1 then fail("clicking a talent should spend a point") end
+	if H.SkillPointsFree(id) ~= skillFree then fail("talents must not use skill points") end
+	if find(function(b) return b.tier and b.n and b.n > 2 end) then fail("the talent tree must not show skills") end
 	click("auto-assign", labelIs("자동 배분"))
-	if H.PointsFree(id) ~= 0 then fail("auto-assign should spend every point") end
-	for _, c in ipairs(hp.card.chips) do
+	if H.PointsFree(id) ~= 0 then fail("auto-assign should spend every talent point") end
+	for _, c in ipairs(hp.R.tabs) do
 		if c.key == "skills" then try("skills chip", c.Click, c, "LeftButton") end
 	end
 	if hp.sub ~= "skills" then fail("the skills chip did not switch the sub-page") end
+	ns.db.heroes[id].sk = { [H.SkillList(id)[1]] = 1 }
+	ns.db.heroes[id].skills = { H.SkillList(id)[1] }
+	Main.Refresh()
+	local second = H.SkillList(id)[2]
+	click("select skill 2", function(b) return b.sid == second and b.tag end)
+	click("learn skill", labelIs("배우기 (1점)"))
+	if H.SkillPoints(id, second) ~= 1 then fail("learning a skill from the skills page did not work") end
+	Main.Refresh()
+	click("raise skill", labelIs("강화 (1점)"))
+	if H.SkillPoints(id, second) ~= 2 then fail("raising a skill did not work") end
+	Main.Refresh()
 	local active = #H.ActiveSkills(id)
 	click("remove skill", labelIs("해제"))
-	if #H.ActiveSkills(id) ~= active - 1 then fail("removing a skill from its card did not work") end
+	if #H.ActiveSkills(id) ~= active - 1 then fail("removing a skill did not work") end
 	Main.Refresh()
 	click("equip skill", labelIs("장착"))
-	if #H.ActiveSkills(id) ~= active then fail("equipping a skill from its card did not work") end
-	for _, c in ipairs(hp.card.chips) do
+	if #H.ActiveSkills(id) ~= active then fail("equipping a skill did not work") end
+	Main.Refresh()
+	click("auto skills", labelIs("자동 배분"))
+	if H.SkillPointsFree(id) ~= 0 then fail("auto skills should spend every skill point") end
+	for _, c in ipairs(hp.R.tabs) do
 		if c.key == "gear" then try("gear chip", c.Click, c, "LeftButton") end
 	end
+	click("slot ring", function(b) return b.slot == "ring" end)
+	if hp.slot ~= "ring" then fail("clicking an equipment slot should show it on the right") end
 	click("equip best", labelIs("일괄 장착"))
 	click("equip party", labelIs("파티 전원 일괄 장착"))
-	click("rename", labelIs("이름 변경"))
+	local oldName = ns.db.heroes[id].name
+	click("rename", labelIs("이름 바꾸기"))
+	click("rename reroll", labelIs("다시"))
+	click("rename keep", labelIs("이 이름으로"))
+	if not tostring(ns.db.heroes[id].name):find("^%S+ %S+$") then fail("renaming should keep the given + family name form") end
 	-- dismiss a bench hero: two clicks
 	local benchId
 	for _, hid in ipairs(H.List()) do
@@ -215,7 +255,7 @@ do
 	click("dismiss", labelIs("떠나보내기"))
 	if H.Count() ~= n then fail("one click must not dismiss a hero") end
 	Main.Refresh()
-	click("dismiss confirm", labelIs("정말요?"))
+	click("dismiss confirm", labelIs("정말요? 한 번 더"))
 	if H.Count() ~= n - 1 or ns.db.heroes[benchId] then fail("two clicks should dismiss the hero") end
 	hoverAll()
 end
@@ -257,6 +297,22 @@ do
 	Main.Refresh()
 	try("smelt one", bp.detail.b2.Click, bp.detail.b2, "LeftButton")
 	if #ns.db.bag ~= before - 1 then fail("the smelt button should smelt the item") end
+	local alt = ns.db.bag[#ns.db.bag]
+	local wasLocked = alt.lock
+	Mock.alt = true
+	click("alt-click", function(b) return b.data == alt end)
+	Mock.alt = false
+	if (alt.lock and true or false) == (wasLocked and true or false) then fail("Alt+click should protect / unprotect an item") end
+	ns.Items.ToggleLock(alt)
+	ns.db.ui.smeltQ = ns.MAX_QUALITY
+	Main.Refresh()
+	local n0 = #ns.db.bag
+	try("bulk smelt (arm)", bp.smeltGo.Click, bp.smeltGo, "LeftButton")
+	if #ns.db.bag ~= n0 then fail("one click on bulk smelt must not smelt anything") end
+	try("bulk smelt (confirm)", bp.smeltGo.Click, bp.smeltGo, "LeftButton")
+	if #ns.db.bag == n0 and #ns.Forge.PickByQuality(ns.MAX_QUALITY) > 0 then fail("the second click should smelt") end
+	enrich(3)
+	Main.Refresh()
 	for i, c in ipairs(bp.filters) do try("filter " .. i, c.Click, c, "LeftButton") end
 	click("materials", function(b) return b.key == "mats" end)
 	local bars = ns.MatCount("bar1")
@@ -274,13 +330,22 @@ end
 do
 	local F = ns.Forge
 	for _, op in ipairs(ns.FORGE_OPS) do if not F.Unlocked(op.key) then F.Unlock(op.key) end end
+	-- give the party better heads so that the test items are not upgrades
+	for i = 1, ns.PARTY_SIZE do
+		local pid = ns.db.party[i]
+		if pid then
+			ns.db.heroes[pid].gear.head = ns.Items.New("head", 100, 8)
+			ns.Stats.Invalidate(pid)
+		end
+	end
 	ns.db.bag = {}
 	for _ = 1, 27 do ns.Items.AddToBag(ns.Items.New("head", 20, 2)) end
 	Main.ShowTab("forge", { sub = "fuse" })
 	local before = #ns.db.bag
 	click("fuse", function(b) return label(b) == "융합" and b.__w == 170 end)
 	if #ns.db.bag ~= before - 8 then fail("fusing through the forge should turn 9 items into 1") end
-	click("fuse all", labelIs("가능한 만큼 융합"))
+	click("fuse all (arm)", labelIs("가능한 만큼 융합"))
+	click("fuse all (confirm)", labelIs("정말? 한 번 더 누르세요"))
 	if #ns.db.bag ~= 3 then fail("fuse-all should leave 3 items, got " .. #ns.db.bag) end
 	click("craft tile", function(b) return b.key == "craft" end)
 	before = #ns.db.bag
@@ -297,7 +362,8 @@ do
 	end
 	click("extraction tile", function(b) return b.key == "remove" end)
 	click("item to clear", function(b) return b.data == epic end)
-	click("extract", function(b) return b.kind and b.index end)
+	click("extract (arm)", function(b) return b.kind and b.index end)
+	click("extract (confirm)", function(b) return b.kind and b.index and b.armT > 0 end)
 	if (#(epic.g or {}) + #(epic.e or {}) + #(epic.i or {})) ~= 2 then fail("extraction should clear one stat") end
 	click("seal tile", function(b) return b.key == "seal" end)
 	before = #ns.db.bag
@@ -351,7 +417,14 @@ do
 		ns.Guide.Invalidate()
 		Main.Toggle(false)
 		try("goal", bar.goal.Click, bar.goal, "LeftButton")
-		if not (Main.IsShown() and Main.Current() == "hero") then fail("the goal button should open the hero screen for skill points") end
+		if not (Main.IsShown() and Main.Current() == "hero") then fail("the goal button should open the hero screen for talent points") end
+		ns.db.ui.locked = false
+		try("grip down", bar.grip.__scripts.OnMouseDown, bar.grip, "LeftButton")
+		try("grip move", bar.grip.__scripts.OnUpdate, bar.grip, 0.1)
+		try("grip up", bar.grip.__scripts.OnMouseUp, bar.grip, "LeftButton")
+		if not ns.db.ui.barScale then fail("resizing with the corner grip should save the size") end
+		try("grip reset", bar.grip.__scripts.OnMouseUp, bar.grip, "RightButton")
+		if ns.db.ui.barScale ~= 1 then fail("right-clicking the grip should restore the size") end
 		try("drag start", bar.__scripts.OnDragStart, bar)
 		try("drag stop", bar.__scripts.OnDragStop, bar)
 		try("bar right-click", bar.__scripts.OnMouseUp, bar, "RightButton")

@@ -30,11 +30,16 @@ do
 	local seenSkill = {}
 	for _, cid in ipairs(ns.CLASS_ORDER) do
 		local c = ns.CLASSES[cid]
-		check(ns.CLASS_ICON_COORD[cid], cid .. ": no class icon")
+		check(ns.CLASS_ICON_COORD[cid] or ns.CLASS_ICON_SQUARE[cid], cid .. ": no class icon")
+		for _, f in ipairs(ns.FACTION_ORDER) do
+			local race = ns.ClassRace(cid, f)
+			check(race and ns.RACES[race] and ns.RACES[race].faction == f, cid .. ": no " .. f .. " race")
+		end
 		check(#c.specs >= 3, cid .. ": every class needs at least three specializations")
 		for _, sid in ipairs(c.specs) do check(ns.SPECS[sid] and ns.SPECS[sid].class == cid, cid .. ": bad spec " .. sid) end
 	end
-	check(#ns.SPEC_ORDER == 28, "expected 28 specializations, got " .. #ns.SPEC_ORDER)
+	check(#ns.CLASS_ORDER == 10, "expected 10 classes, got " .. #ns.CLASS_ORDER)
+	check(#ns.SPEC_ORDER == 31, "expected 31 specializations, got " .. #ns.SPEC_ORDER)
 	for _, sid in ipairs(ns.SPEC_ORDER) do
 		local sp = ns.SPECS[sid]
 		check(ns.ROLE[sp.role], sid .. ": unknown role")
@@ -42,26 +47,25 @@ do
 		check(ns.SCHOOL[sp.school], sid .. ": unknown school")
 		check(#sp.tree == 8, sid .. ": tree must have 8 tiers")
 		check(type(ns.SpecLabel(sid)) == "string", sid .. ": label")
-		local actives = 0
 		for _, tier in ipairs(sp.tree) do
+			check(#tier == 2, sid .. ": every talent tier has two passives")
 			for _, node in ipairs(tier) do
-				if node.s then
-					actives = actives + 1
-					check(ns.SKILLS[node.s], sid .. ": unknown skill " .. tostring(node.s))
-					seenSkill[node.s] = true
-				else
-					check(ns.AFFIX[node.p], sid .. ": unknown passive stat " .. tostring(node.p))
-				end
+				check(node.p and not node.s and ns.AFFIX[node.p], sid .. ": talent nodes are passives only (" .. tostring(node.p) .. ")")
 			end
 		end
-		check(actives == 6, sid .. ": expected 6 active skills, got " .. actives)
-		check(sp.tree[1][3].s, sid .. ": tier 1 must start with an active skill")
+		check(#sp.skills == 6 and #ns.SKILL_UNLOCK == 6, sid .. ": expected 6 active skills, got " .. #sp.skills)
+		for _, sk in ipairs(sp.skills) do
+			check(ns.SKILLS[sk], sid .. ": unknown skill " .. tostring(sk))
+			seenSkill[sk] = true
+		end
 		for _, t in ipairs(sp.mh) do check(ns.WTYPE[t] and ns.WTYPE[t].slot == "mh", sid .. ": bad main hand type " .. t) end
 		for _, t in ipairs(sp.oh) do check(ns.WTYPE[t] and ns.WTYPE[t].slot == "oh", sid .. ": bad off hand type " .. t) end
 	end
 	check(roles.TANK >= 3 and roles.DPS >= 15 and roles.HEALER >= 4, "role spread: " .. roles.TANK .. "/" .. roles.DPS .. "/" .. roles.HEALER)
 	check(#ns.PARTY_ROLES == 5 and ns.PARTY_ROLES[1] == "TANK" and ns.PARTY_ROLES[5] == "HEALER", "party must be tank / 3 damage / healer")
-	-- the examples from the request
+	-- the examples from the request, and the tinker in all three roles
+	check(ns.SPECS.TINKER_MECH.role == "TANK" and ns.SPECS.TINKER_TURRET.role == "DPS" and ns.SPECS.TINKER_MEDIC.role == "HEALER", "tinker covers tank, damage and healing")
+	check(ns.ClassRace("TINKER", "ALLIANCE") == "GNOME" and ns.ClassRace("TINKER", "HORDE") == "GOBLIN", "gnome / goblin tinkers")
 	for _, sid in ipairs({ "DRUID_FERAL", "DRUID_GUARDIAN", "DRUID_RESTO", "SHAMAN_ENH", "SHAMAN_ELE", "SHAMAN_RESTO" }) do
 		check(ns.SPECS[sid], "missing specialization " .. sid)
 	end
@@ -166,7 +170,8 @@ section("hero creation, names and party roles")
 check(ns.Heroes.CreateCost() == 0, "first hero is free")
 local okc, firstId = ns.Heroes.Create("HUNTER_MM")
 check(okc and db.heroes[firstId], "create starter")
-check(type(db.heroes[firstId].name) == "string" and #db.heroes[firstId].name > 0, "a new hero gets a name")
+check(type(db.heroes[firstId].name) == "string" and db.heroes[firstId].name:find("^%S+ %S+$"), "a new hero gets a given and a family name: " .. tostring(db.heroes[firstId].name))
+check(db.heroes[firstId].sex == "M" or db.heroes[firstId].sex == "F", "a new hero has a gender")
 check(ns.Heroes.PartySlot(firstId) == 2, "damage dealer goes to slot 2")
 check(ns.Heroes.CreateCost() == ns.HERO_COST[2], "later heroes cost gold")
 check(not ns.Heroes.Create("PRIEST_HOLY"), "cannot create without gold")
@@ -211,8 +216,17 @@ do
 	local bag0 = #db.bag
 	check(ns.Heroes.Dismiss(b) and not db.heroes[b] and #db.bag == bag0 + 1, "dismissing returns gear to the bags")
 	local names = {}
-	for _ = 1, 200 do names[ns.Names.Roll()] = true end
-	check(ns.U.count(names) > 120, "names are varied")
+	for _ = 1, 200 do names[ns.Names.Roll("ORC", "M")] = true end
+	check(ns.U.count(names) > 150, "names are varied")
+	local okF, f = ns.Heroes.Create("PRIEST_SHADOW", "F")
+	check(okF and db.heroes[f].sex == "F" and ns.Heroes.Sex(f) == "F", "create a female hero")
+	local okN, n = ns.Heroes.Create("PRIEST_SHADOW", "M", "테스트 이름")
+	check(okN and db.heroes[n].name == "테스트 이름" and ns.Heroes.ShortName(n) == "테스트", "create with a chosen name")
+	ns.Heroes.Dismiss(f)
+	ns.Heroes.Dismiss(n)
+	for _, pool in pairs(ns.NAME_POOLS) do
+		for _, k in ipairs({ "head", "M", "F", "pre", "suf" }) do check(#pool[k] >= 10, "name pool part " .. k) end
+	end
 end
 do
 	local n = ns.Heroes.Count()
@@ -229,21 +243,31 @@ local H = hero("HUNTER_MM")
 local before = db.heroes[H].level
 ns.Heroes.AddXP(H, 5000000)
 check(db.heroes[H].level > before + 15, "experience grants levels")
-check(ns.Heroes.PointsFree(H) == db.heroes[H].level - 1, "one point per level (one pre-spent)")
+check(ns.Heroes.PointsFree(H) == db.heroes[H].level, "one talent point per level, all free")
+check(ns.Heroes.SkillPointsFree(H) == ns.Heroes.SkillPointsTotal(H) - 1, "skill points are separate (the first skill is pre-learned)")
 check(not ns.Heroes.SpendPoint(H, 2, 1), "tier 2 locked before 10 points")
 for _ = 1, 3 do check(ns.Heroes.SpendPoint(H, 1, 2), "spend on passive") end
-check(ns.Heroes.SpendPoint(H, 1, 4), "learn second active")
-for _ = 1, 8 do ns.Heroes.SpendPoint(H, 1, 1) end
+for _ = 1, 7 do ns.Heroes.SpendPoint(H, 1, 1) end
 check(ns.Heroes.TierOpen(H, 2), "tier 2 opens after 10 points")
-check(ns.Heroes.SpendPoint(H, 2, 3), "learn tier 2 skill")
+check(ns.Heroes.SkillPointsFree(H) == ns.Heroes.SkillPointsTotal(H) - 1, "talents do not use skill points")
+local sp2 = ns.Heroes.SkillList(H)[2]
+check(ns.Heroes.LearnSkill(H, sp2), "learn second skill")
+check(ns.Heroes.LearnSkill(H, sp2) and ns.Heroes.SkillPoints(H, sp2) == 2, "raise a skill")
 check(#ns.Heroes.ActiveSkills(H) == 2, "two skills active with two slots")
-check(ns.Heroes.UnequipSkill(H, "aimed_shot"), "unequip skill")
-check(ns.Heroes.EquipSkill(H, "arcane_shot"), "equip another skill")
+do
+	local ok, why = ns.Heroes.CanLearnSkill(H, ns.Heroes.SkillList(H)[6])
+	check(db.heroes[H].level >= 40 or (not ok and why:find("40")), "level-locked skill says when it opens")
+end
+check(ns.Heroes.UnequipSkill(H, sp2), "unequip skill")
+check(ns.Heroes.LearnSkill(H, ns.Heroes.SkillList(H)[3]) and ns.Heroes.IsSkillEquipped(H, ns.Heroes.SkillList(H)[3]), "a newly learned skill is slotted")
 ns.Heroes.AddXP(H, 1e12)
 check(db.heroes[H].level == ns.HERO_MAX_LEVEL, "level cap is 100")
 local sBefore = ns.Stats.Get(H).aspd
 check(ns.Heroes.ResetTree(H), "reset tree")
 check(ns.Heroes.PointsSpent(H) == 0 and ns.Stats.Get(H).aspd < sBefore, "reset refunds points and removes passives")
+check(ns.Heroes.AutoSkills(H) > 0 and ns.Heroes.SkillPointsFree(H) == 0, "auto skills spends every skill point")
+check(#ns.Heroes.ActiveSkills(H) == ns.SkillSlots(), "auto skills fills the slots")
+check(ns.Heroes.ResetSkills(H) and ns.Heroes.SkillPointsSpent(H) == 1, "skill reset keeps only the first skill")
 
 ------------------------------------------------------------------------
 section("items")
@@ -365,6 +389,9 @@ check(ok and gold > 0 and db.gold == g0 + gold and #db.bag == 0, "smelting pays 
 check(db.forge.xp > 0 or db.forge.level > 1, "smelting grants forge experience")
 db.bag = {}
 for _ = 1, 9 do ns.Items.AddToBag(ns.Items.New("head", 12, 2)) end
+check(F.PickForFusion(2, "gear") == nil or not ns.Items.PartyUpgrade(db.bag[1]), "upgrades for the party are never fused")
+local savedParty = db.party
+db.party = { false, false, false, false, false } -- nobody to upgrade: everything may be fused
 local list = F.PickForFusion(2, "gear")
 check(list and #list == 9, "pick nine for fusion")
 local okf, result = F.Fuse(list)
@@ -386,6 +413,7 @@ do
 	end
 	check(same > 100 and up > 80, "epic fusion can fail or succeed (" .. same .. "/" .. up .. ")")
 end
+db.party = savedParty
 db.mats = {}
 ns.AddMat("bar1", 9)
 local okm, nextId = F.FuseMat("bar1")
@@ -437,11 +465,7 @@ local bySpec = {}
 for _, sid in ipairs(ns.SPEC_ORDER) do
 	local h = ns.Heroes.NewRecord(sid)
 	h.level = 40
-	for t = 1, 5 do
-		for n = 1, #ns.SPECS[sid].tree[t] do
-			if ns.SPECS[sid].tree[t][n].s then h.tree[t * 10 + n] = 2 end
-		end
-	end
+	for _, sk in ipairs(ns.SPECS[sid].skills) do h.sk[sk] = 2 end
 	bySpec[sid] = h.id
 end
 ns.Stats.Invalidate()
@@ -564,12 +588,12 @@ BigIdleWoWHeroesDB = {
 }
 ns.InitDB()
 db = ns.db
-check(db.v == 2 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
+check(db.v == 3 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
 do
 	local m, w = hero("MAGE_FIRE"), hero("WARRIOR_PROT")
 	check(m and w, "old heroes become heroes of the matching specialization")
 	check(db.heroes[m].level == 12 and db.heroes[m].gear.mh and db.heroes[m].gear.mh.t == "staff", "level and gear survive")
-	check(ns.Heroes.PointsFree(m) == 11, "talent points are refunded")
+	check(ns.Heroes.PointsFree(m) == 12, "talent points are refunded")
 	check(db.party[1] == w and db.party[2] == m, "the party survives")
 	check(type(db.heroes[m].name) == "string", "migrated heroes get a name")
 	check(db.prog[1] == 12, "progress survives")
@@ -581,10 +605,25 @@ check(ns.db.heroSeq >= 3 and type(ns.db.heroes.h3.name) == "string" and ns.db.he
 ns.Heroes.ValidateParty()
 check(ns.db.party[1] == false and ns.Heroes.PartySlot("h3") == 2, "a hero in the wrong role slot is moved")
 check(ns.db.forge.level == 1 and ns.db.opt.auto == true, "missing fields get defaults")
--- version 2.0 stored names as { korean, english }
+-- version 2.0 stored names as { korean, english }, without family names
 BigIdleWoWHeroesDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 5, name = { "아르단", "Ardan" } } }, party = { false, "h1" } }
 ns.InitDB()
-check(ns.db.heroes.h1.name == "아르단", "two-spelling names from 2.0 keep the Korean one")
+check(ns.db.heroes.h1.name:find("^아르단 %S+$"), "2.0 names keep the Korean given name and get a family name: " .. ns.db.heroes.h1.name)
+check(ns.db.heroes.h1.sex == "M" or ns.db.heroes.h1.sex == "F", "old heroes get a gender")
+check(ns.db.faction == nil, "old saves still choose a faction")
+-- version 2.0 kept skills in the talent tree
+BigIdleWoWHeroesDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 22, name = "가 나",
+	tree = { [11] = 8, [12] = 2, [13] = 3, [14] = 1, [23] = 2, [33] = 1 }, skills = { "fireball", "pyroblast" } } }, party = { false, "h1" } }
+ns.InitDB()
+do
+	local h = ns.db.heroes.h1
+	local sk = ns.SPECS.MAGE_FIRE.skills
+	check(h.tree[13] == nil and h.tree[23] == nil and h.tree[11] == 8 and h.tree[12] == 2, "skill nodes leave the talent tree, passives stay")
+	check(h.sk[sk[1]] and h.sk[sk[2]] and h.sk[sk[3]] and h.sk[sk[4]], "learned skills are kept")
+	check(ns.Heroes.SkillPointsSpent("h1") <= ns.Heroes.SkillPointsTotal("h1"), "skill ranks fit the new budget")
+	check(ns.Heroes.PointsFree("h1") == 22 - 10, "talent points not used by passives are free again")
+	for _, sid in ipairs(h.skills) do check(h.sk[sid], "equipped skills are learned") end
+end
 
 if failures == 0 then print("  systems: all checks passed") end
 return failures == 0

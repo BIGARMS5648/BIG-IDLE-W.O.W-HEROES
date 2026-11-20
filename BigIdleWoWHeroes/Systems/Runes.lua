@@ -66,6 +66,21 @@ function Runes.Available(id)
 	return Runes.Level(prev) > 0
 end
 
+-- The rune to buy next on the way to `id` (id itself when it is available),
+-- and the gold the whole remaining chain costs.
+function Runes.NextStepTo(id)
+	local chain = {}
+	local cur = id
+	while cur and Runes.Level(cur) == 0 do
+		table.insert(chain, 1, cur)
+		cur = Runes.prev[cur]
+	end
+	if #chain == 0 then return nil, 0 end
+	local total = 0
+	for _, rid in ipairs(chain) do total = total + (Runes.NextCost(rid) or 0) end
+	return chain[1], total
+end
+
 function Runes.NextCost(id)
 	local node = Runes.byId[id]
 	local lvl = Runes.Level(id)

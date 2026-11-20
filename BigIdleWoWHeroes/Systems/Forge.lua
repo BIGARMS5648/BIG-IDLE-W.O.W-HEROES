@@ -102,7 +102,7 @@ function Forge.Smelt(items)
 			n = n + 1
 		end
 	end
-	if n == 0 then return false, "용해할 아이템이 없습니다." end
+	if n == 0 then return false, "분해할 아이템이 없습니다." end
 	gold = floor(gold * (1 + ns.Bonus("smeltGold") / 100))
 	ns.AddGold(gold)
 	Forge.AddXP(xp)
@@ -110,15 +110,27 @@ function Forge.Smelt(items)
 	return true, gold, n
 end
 
--- Every unlocked bag item at or below a quality.
+-- Every bag item at or below a quality that is safe to break down: not
+-- protected, without gems, and not an upgrade for anyone in the party.
+-- Also returns how many matching items were kept back as upgrades.
 function Forge.PickByQuality(maxQuality)
-	local out = {}
+	local out, kept = {}, 0
 	for _, it in ipairs(ns.db.bag) do
 		if not it.lock and it.q <= maxQuality and not ns.Items.HasSockets(it) then
-			out[#out + 1] = it
+			if ns.Items.PartyUpgrade(it) then
+				kept = kept + 1
+			else
+				out[#out + 1] = it
+			end
 		end
 	end
-	return out
+	return out, kept
+end
+
+-- Gold for breaking down n of a material, bonuses included.
+function Forge.MatSmeltGold(id, n)
+	local gold = ns.MatValue(id)
+	return floor(gold * (n or 1) * (1 + ns.Bonus("smeltGold") / 100))
 end
 
 function Forge.SmeltMat(id, n)
@@ -126,8 +138,8 @@ function Forge.SmeltMat(id, n)
 	if not ok then return false, why end
 	n = min(n, ns.MatCount(id))
 	if n <= 0 then return false end
-	local gold, fxp = ns.MatValue(id)
-	gold = floor(gold * n * (1 + ns.Bonus("smeltGold") / 100))
+	local _, fxp = ns.MatValue(id)
+	local gold = Forge.MatSmeltGold(id, n)
 	ns.AddMat(id, -n)
 	ns.AddGold(gold)
 	Forge.AddXP(fxp * n)
@@ -142,7 +154,7 @@ function Forge.AutoSmelt()
 	if #list == 0 then return false end
 	local ok, gold, n = Forge.Smelt(list)
 	if ok then
-		ns.Log(string.format("자동 용해: %d개 → %s 골드", n, U.fmt(gold)))
+		ns.Log(string.format("자동 분해: %d개 → %s 골드", n, U.fmt(gold)))
 	end
 	return ok and ns.Items.BagFree() > 0
 end
@@ -199,7 +211,8 @@ end
 function Forge.PickForFusion(quality, cat)
 	local pool = {}
 	for _, it in ipairs(ns.db.bag) do
-		if not it.lock and it.q == quality and ns.Items.FuseCat(it) == cat and not ns.Items.HasSockets(it) then
+		if not it.lock and it.q == quality and ns.Items.FuseCat(it) == cat and not ns.Items.HasSockets(it)
+			and not ns.Items.PartyUpgrade(it) then
 			pool[#pool + 1] = it
 		end
 	end

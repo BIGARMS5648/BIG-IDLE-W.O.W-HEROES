@@ -20,24 +20,32 @@ end
 
 -- Heroes in the party who would gain from an item in the bags. Comparing
 -- gear is not free, so the answer is kept until the bags or gear change.
-local upCache
+local upCache, upHeroes
 
-function Guide.UpgradeCount()
-	if upCache then return upCache end
-	local n = 0
+function Guide.UpgradeHeroes()
+	if upHeroes then return upHeroes end
+	upHeroes = {}
 	for _, id in ipairs(partyHeroes()) do
 		for _, it in ipairs(ns.db.bag) do
-			if not it.lock then
-				local r = ns.Items.Compare(id, it)
-				if r and r > 1.01 then
-					n = n + 1
-					break
-				end
+			local r = ns.Items.Compare(id, it)
+			if r and r > 1.01 then
+				upHeroes[id] = true
+				break
 			end
 		end
 	end
-	upCache = n
-	return n
+	return upHeroes
+end
+
+function Guide.UpgradeCount()
+	if upCache then return upCache end
+	upCache = ns.U.count(Guide.UpgradeHeroes())
+	return upCache
+end
+
+-- Does this hero have something to do (points to spend or a better item)?
+function Guide.HeroNeeds(id)
+	return ns.Heroes.PointsFree(id) > 0 or ns.Heroes.SkillPointsFree(id) > 0 or Guide.UpgradeHeroes()[id] == true
 end
 
 local function cheapestRune()
@@ -59,100 +67,145 @@ local function nextCommandRune()
 	end
 end
 
-
--- Returns { text = string, tab = key, hero = id, sub = key, act = fn, done = bool }
-local function compute()
+-- A role the party still has an open slot for (within the party limit).
+local function missingRole()
 	local db = ns.db
+	if ns.Heroes.PartyCount() >= ns.PartyLimit() then return nil end
+	for i = 1, ns.PARTY_SIZE do
+		if not db.party[i] then return ns.PARTY_ROLES[i] end
+	end
+end
+Guide.MissingRole = missingRole
+
+-- Candidate goals in order of usefulness. A goal with wait = true is shown
+-- only when nothing actionable comes after it.
+-- Goal: { text, tab, hero, sub, act = fn, create = role|true, rune, wait, done }
+local function candidates()
+	local db = ns.db
+	local out = {}
+	local function add(g) out[#out + 1] = g end
 	local heroes = ns.Heroes.Count()
 	if heroes == 0 then
-		return { text = "첫 영웅을 만드세요 (무료)", tab = "party", create = true }
+		add({ text = "첫 영웅을 만드세요 (무료)", tab = "party", create = true })
+		return out
 	end
 	for _, id in ipairs(partyHeroes()) do
 		local free = ns.Heroes.PointsFree(id)
 		if free > 0 then
-			return { text = string.format("%s: 기술 점수 %d점 사용", ns.Heroes.Name(id), free),
-				tab = "hero", hero = id, sub = "tree" }
+			add({ text = string.format("%s: 특성 점수 %d점 쓰기", ns.Heroes.ShortName(id), free),
+				tab = "hero", hero = id, sub = "tree" })
+			break
+		end
+	end
+	for _, id in ipairs(partyHeroes()) do
+		local free = ns.Heroes.SkillPointsFree(id)
+		if free > 0 then
+			add({ text = string.format("%s: 기술 점수 %d점 쓰기", ns.Heroes.ShortName(id), free),
+				tab = "hero", hero = id, sub = "skills" })
+			break
 		end
 	end
 	local chests = ns.Loot.Count()
 	if chests >= 3 and ns.Items.BagFree() > 0 then
-		return { text = string.format("상자 %d개 열기", chests), tab = "bag",
-			act = function() ns.Loot.OpenAll() end }
+		add({ text = string.format("상자 %d개 열기", chests), tab = "bag", act = function() ns.Loot.OpenAll() end })
 	end
-	if ns.Items.BagFree() <= 3 and ns.Forge.Unlocked("smelt") then
-		return { text = "가방이 가득 찼어요: 일괄 분해", tab = "bag" }
+	if ns.Items.BagFree() <= 3 then
+		if not ns.Forge.Unlocked("smelt") then
+			add({ text = "가방이 가득 찼어요: 용광로 '분해' 해금 (10 G)", tab = "forge", sub = "smelt", wait = not ns.CanAfford(10) })
+		elseif #ns.Forge.PickByQuality(db.opt.smeltQ or 1) > 0 then
+			add({ text = "가방이 가득 찼어요: 일괄 분해", tab = "bag", bulk = true })
+		else
+			add({ text = "가방이 가득 찼어요: 분해 기준 등급 올리기", tab = "bag", bulk = true })
+		end
 	end
 	if Guide.UpgradeCount() > 0 then
-		return { text = "더 좋은 장비가 있어요: 일괄 장착", tab = "hero",
+		add({ text = "더 좋은 장비가 있어요: 일괄 장착",
 			act = function()
 				for _, id in ipairs(partyHeroes()) do ns.Items.AutoEquip(id) end
-			end }
+			end })
 	end
-	if not ns.Forge.Unlocked("smelt") and db.gold >= 10 then
-		return { text = "용광로의 '용해' 해금 (10 G)", tab = "forge", sub = "smelt" }
+	if not ns.Forge.Unlocked("smelt") then
+		add({ text = "용광로 '분해' 해금 (10 G)", tab = "forge", sub = "smelt", wait = not ns.CanAfford(10) })
 	end
 	local limit = ns.PartyLimit()
-	if ns.Heroes.PartyCount() < limit then
+	local role = missingRole()
+	if role then
 		-- a bench hero could fill the slot
+		local bench
 		for _, id in ipairs(ns.Heroes.List()) do
-			if not ns.Heroes.PartySlot(id) and ns.Heroes.FreeSlot(ns.Heroes.Role(id)) then
-				return { text = ns.Heroes.Name(id) .. " 출전시키기", tab = "party",
-					act = function() ns.Heroes.Deploy(id) end }
-			end
+			if not ns.Heroes.PartySlot(id) and ns.Heroes.FreeSlot(ns.Heroes.Role(id)) then bench = id break end
 		end
-		if heroes < ns.ROSTER_MAX then
+		if bench then
+			add({ text = ns.Heroes.ShortName(bench) .. " 출전시키기", tab = "party", act = function() ns.Heroes.Deploy(bench) end })
+		elseif heroes < ns.ROSTER_MAX then
 			local cost = ns.Heroes.CreateCost()
-			local role
-			for i = 1, ns.PARTY_SIZE do
-				if not db.party[i] then role = ns.PARTY_ROLES[i] break end
-			end
-			local rn = role and ns.ROLE[role].name or "영웅"
-			return { text = string.format("%s 영웅 만들기 (%s G)", rn, ns.U.fmt(cost)),
-				tab = "party", create = true, wait = not ns.CanAfford(cost) }
+			add({ text = string.format("%s 영웅 만들기 (%s G)", ns.ROLE[role].name, ns.U.fmt(cost)),
+				tab = "party", create = role, wait = not ns.CanAfford(cost) })
 		end
 	end
 	local cmd = nextCommandRune()
 	if cmd and limit < ns.PARTY_SIZE then
-		local cost = ns.Runes.NextCost(cmd.id)
-		return { text = string.format("지휘의 룬: 파티 %d명으로 (%s G)", limit + 1, ns.U.fmt(cost)),
-			tab = "runes", rune = cmd.id, wait = not (ns.Runes.Available(cmd.id) and ns.CanAfford(cost)) }
+		local step, total = ns.Runes.NextStepTo(cmd.id)
+		if step then
+			local cost = ns.Runes.NextCost(step)
+			local text
+			if step == cmd.id then
+				text = string.format("%s: 파티 %d명으로 (%s G)", ns.N(cmd.name), limit + 1, ns.U.fmt(cost))
+			else
+				text = string.format("파티 %d명까지: 먼저 %s (%s G, 모두 %s G)", limit + 1,
+					ns.N(ns.Runes.byId[step].name), ns.U.fmt(cost), ns.U.fmt(total))
+			end
+			add({ text = text, tab = "runes", rune = step, wait = not ns.CanAfford(cost) })
+		end
 	end
 	for _, op in ipairs(ns.FORGE_OPS) do
-		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and ns.CanAfford(op.cost) then
-			return { text = string.format("용광로 '%s' 해금", ns.N(op.name)), tab = "forge", sub = op.key }
+		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level then
+			add({ text = string.format("용광로 '%s' 해금 (%s G)", ns.N(op.name), ns.U.fmt(op.cost)), tab = "forge", sub = op.key,
+				wait = not ns.CanAfford(op.cost) })
+			break
 		end
 	end
 	local rid, rcost = cheapestRune()
 	if rid and ns.CanAfford(rcost) then
-		local n = ns.Runes.byId[rid].name
-		return { text = "룬 배우기: " .. ns.N(n), tab = "runes", rune = rid }
+		add({ text = string.format("룬 배우기: %s (%s G)", ns.N(ns.Runes.byId[rid].name), ns.U.fmt(rcost)), tab = "runes", rune = rid })
 	end
-	local st = ns.Combat.state
 	local stg = ns.Stage(db.stage.diff, db.stage.idx)
 	if stg.raid then
-		return { text = "공격대 우두머리 처치: " .. ns.N(stg.boss.name), tab = "map", done = true }
+		add({ text = "공격대 우두머리 처치: " .. ns.N(stg.boss.name), tab = "map", done = true })
+	else
+		add({ text = "다음 지역으로: " .. ns.N(stg.name), tab = "map", done = true })
 	end
-	return { text = "다음 지역으로: " .. ns.N(stg.name), tab = "map", done = true, phase = st.phase }
+	return out
+end
+
+local function compute()
+	local list = candidates()
+	for _, g in ipairs(list) do
+		if not g.wait and not g.done then return g end
+	end
+	for _, g in ipairs(list) do
+		if g.wait then return g end
+	end
+	return list[#list]
 end
 
 local function computeBadges()
 	local db = ns.db
 	local b = {}
 	-- party: an empty slot that could be filled right now
-	if ns.Heroes.PartyCount() < ns.PartyLimit() then
+	if missingRole() then
 		local can = ns.Heroes.Count() < ns.ROSTER_MAX and ns.CanAfford(ns.Heroes.CreateCost())
 		for _, id in ipairs(ns.Heroes.List()) do
 			if not ns.Heroes.PartySlot(id) and ns.Heroes.FreeSlot(ns.Heroes.Role(id)) then can = true end
 		end
 		b.party = can or nil
 	end
-	-- hero: skill points or upgrades for someone in the party
-	local pts = 0
+	-- hero: party heroes with points to spend or a better item, each counted once
+	local n = 0
 	for _, id in ipairs(partyHeroes()) do
-		if ns.Heroes.PointsFree(id) > 0 then pts = pts + 1 end
+		if Guide.HeroNeeds(id) then n = n + 1 end
 	end
-	local up = Guide.UpgradeCount()
-	if pts + up > 0 then b.hero = pts + up end
+	if n > 0 then b.hero = n end
 	-- bags: chests waiting
 	local chests = ns.Loot.Count()
 	if chests > 0 then b.bag = chests end
@@ -189,9 +242,9 @@ function Guide.Badges()
 	return badges
 end
 
-for _, ev in ipairs({ "HEROES", "PARTY", "LEVEL", "TREE", "BAG", "GEAR", "CHESTS", "RUNES", "FORGE", "PROGRESS", "RESET" }) do
+for _, ev in ipairs({ "HEROES", "PARTY", "LEVEL", "TREE", "SKILLS", "BAG", "GEAR", "CHESTS", "RUNES", "FORGE", "PROGRESS", "RESET" }) do
 	ns.On(ev, Guide.Invalidate)
 end
-for _, ev in ipairs({ "HEROES", "PARTY", "LEVEL", "BAG", "GEAR", "RESET" }) do
-	ns.On(ev, function() upCache = nil end)
+for _, ev in ipairs({ "HEROES", "PARTY", "LEVEL", "BAG", "GEAR", "RESET", "STATS" }) do
+	ns.On(ev, function() upCache, upHeroes = nil, nil end)
 end

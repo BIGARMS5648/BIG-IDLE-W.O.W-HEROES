@@ -81,9 +81,20 @@ local function onLogin()
 	local report = ns.Offline.Claim(time())
 	ready = true
 	if report then showOffline(report) end
-	if ns.Heroes.Count() == 0 then
+	local function afterFaction()
+		if ns.Heroes.Count() == 0 then
+			ns.Main.ShowTab("party", { create = true })
+		end
+	end
+	if not ns.Faction() then
+		-- first start (or a save from before factions): choose a side first
 		ns.Main.Toggle(true)
-		ns.Main.ShowTab("party", { create = true })
+		ns.Main.ShowTab("party")
+		ns.PickFaction(afterFaction)
+		ns.Print("환영합니다! 먼저 진영을 고르고, 첫 영웅을 무료로 만드세요. (/biwh 로 메뉴를 엽니다)")
+	elseif ns.Heroes.Count() == 0 then
+		ns.Main.Toggle(true)
+		afterFaction()
 		ns.Print("환영합니다! 첫 영웅은 무료입니다. 직업과 전문화를 골라 만들어 보세요. (/biwh 로 메뉴를 엽니다)")
 	else
 		ns.Print("불러왔습니다. /biwh 로 메뉴를 엽니다.")

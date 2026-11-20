@@ -32,6 +32,16 @@ local st = Combat.state
 ------------------------------------------------------------------------
 -- Visual events (consumed by the battle bar; capped so they never pile up)
 ------------------------------------------------------------------------
+-- Visual events for the battle window's effects (shots and impacts). Only
+-- drawn when effect art exists; the window empties the list every frame.
+Combat.vfx = {}
+local function vfx(e)
+	local list = Combat.vfx
+	if #list >= 30 then table.remove(list, 1) end
+	list[#list + 1] = e
+end
+Combat.VFX = vfx
+
 local function fx(x, text, r, g, b, big, side)
 	if #fxList >= 40 then table.remove(fxList, 1) end
 	fxList[#fxList + 1] = { x = x, text = text, r = r, g = g, b = b, big = big, side = side }
@@ -282,13 +292,13 @@ local function killReward(m, killer)
 
 	if m.boss then
 		local chest = st.raid and 3 or 2
-		ns.Loot.AddChest(chest, st.level, st.diff)
+		if not ns.Loot.AddChest(chest, st.level, st.diff) then ns.Loot.Lost(chest) end
 		if random() * 100 < ns.Bonus("bossChest") then
-			ns.Loot.AddChest(2, st.level, st.diff)
+			if not ns.Loot.AddChest(2, st.level, st.diff) then ns.Loot.Lost(2) end
 		end
 	elseif not m.summoned then
 		if random() * 100 < 12 + ns.Bonus("chestChance") then
-			ns.Loot.AddChest(1, st.level, st.diff)
+			if not ns.Loot.AddChest(1, st.level, st.diff) then ns.Loot.Lost(1) end
 		end
 	end
 
@@ -688,6 +698,9 @@ local function cast(u, sid, target)
 			applyStatus(m, sk.status, nil, dps, sk.dur, sk.school)
 			if m.st[sk.status] then m.st[sk.status].src = u end
 		end
+	elseif kind == "field" and sk.heal then
+		if lowestAlly(sk.when and sk.when.ally or 1) == nil then return false end
+		fields[#fields + 1] = { src = u, sk = sk, mult = v / 100, t = sk.dur, tickT = 0 }
 	elseif kind == "field" then
 		if not target then return false end
 		fields[#fields + 1] = { src = u, sk = sk, mult = v / 100, t = sk.dur, tickT = 0 }
@@ -851,15 +864,24 @@ local function stepHero(u)
 		end
 	end
 
-	-- companions attack whatever is closest, wherever the hero stands
-	if target then
-		for _, pet in pairs(u.pets) do
-			pet.t = pet.t - STEP
-			if pet.t <= 0 then
-				pet.t = pet.sk.tick
-				if not target.dead then heroHit(u, target, pet.mult, pet.sk.school) end
+	-- companions attack whatever is closest, wherever the hero stands;
+	-- healing companions mend the most wounded ally instead
+	for _, pet in pairs(u.pets) do
+		pet.t = pet.t - STEP
+		if pet.t <= 0 then
+			pet.t = pet.sk.tick
+			if pet.sk.heal then
+				local t = lowestAlly(0.999)
+				if t then
+					heal(u, t, t.maxhp * pet.mult)
+					pet.anim = 0.3
+				end
+			elseif target and not target.dead then
+				heroHit(u, target, pet.mult, pet.sk.school)
+				pet.anim = 0.3
 			end
 		end
+		if pet.anim then pet.anim = max(0, pet.anim - STEP) end
 	end
 
 	-- cooldown skills (support skills work without an enemy in range)
@@ -888,7 +910,11 @@ local function stepHero(u)
 		u.atkT = u.atkT + 1 / s.aspd
 		if u.atkT < 0 then u.atkT = 0 end
 		u.anim = 0.15
+		if u.ranged then
+			vfx({ k = "shot", x1 = u.x, x2 = target.x, school = u.school, gun = u.gun })
+		end
 		heroHit(u, target, 1, u.school)
+		vfx({ k = "hit", x = target.x, school = u.school, mob = true })
 		if s.hph > 0 then heal(nil, u, s.hph) end
 		if s.multi > 0 and random() * 100 < s.multi and not target.dead then
 			heroHit(u, target, 0.5, u.school)
@@ -915,7 +941,12 @@ local function stepFields()
 		f.t = f.t - STEP
 		f.tickT = f.tickT - STEP
 		local u = f.src
-		if f.tickT <= 0 and not u.dead then
+		if f.tickT <= 0 and not u.dead and f.sk.heal then
+			f.tickT = f.sk.tick
+			for k = 1, #heroes do
+				heal(u, heroes[k], heroes[k].maxhp * f.mult, true)
+			end
+		elseif f.tickT <= 0 and not u.dead then
 			f.tickT = f.sk.tick
 			local first = nearestMob()
 			if first then
@@ -979,6 +1010,7 @@ function Combat.StartStage()
 			local c = ns.SPECS[db.heroes[id].spec]
 			heroes[#heroes + 1] = {
 				hero = true, id = id, slot = slot, role = c.role, class = c.class, spec = c.id, name = db.heroes[id].name,
+				gun = c.mh[1] == "gun",
 				ranged = c.ranged or false, range = c.range, school = c.school, x = 0, homeX = 0, atkT = 0.2 + random() * 0.4,
 				buffs = {}, st = {}, hots = {}, pets = {}, skills = {}, slv = {},
 				shield = 0, shieldT = 0, flash = 0, anim = 0, dead = false, reviveT = 0,
@@ -1069,9 +1101,9 @@ local function victory()
 		db.prog[st.diff] = st.idx
 		local bonus = floor(ns.MobGold(40, st.level))
 		ns.AddGold(bonus)
-		ns.Loot.AddChest(2, st.level, st.diff)
-		ns.Toast(string.format("첫 공략! %s (+%s 골드, 궤짝 1개)",
-			ns.StageLabel(st.diff, st.idx), U.fmt(bonus)))
+		local got = ns.Loot.AddChest(2, st.level, st.diff)
+		ns.Toast(string.format("첫 공략! %s (+%s 골드, %s)",
+			ns.StageLabel(st.diff, st.idx), U.fmt(bonus), got and "궤짝 1개" or "궤짝 보관함이 가득 차 궤짝을 받지 못함"))
 		if st.idx == ns.STAGE_COUNT and st.diff < #ns.DIFFS then
 			ns.Toast(string.format("새 난이도 개방: %s", ns.N(ns.DIFFS[st.diff + 1].name)))
 		end

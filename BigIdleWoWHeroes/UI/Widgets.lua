@@ -58,9 +58,62 @@ function UI.SetIcon(tex, name)
 end
 
 function UI.SetClassIcon(tex, classId)
+	local art = classId and UI.ArtIcon("icon_" .. classId:lower())
+	if art then
+		tex:SetTexture(art)
+		tex:SetTexCoord(0, 1, 0, 1)
+		return
+	end
+	local sq = ns.CLASS_ICON_SQUARE and ns.CLASS_ICON_SQUARE[classId]
+	if sq then
+		tex:SetTexture(sq)
+		tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+		return
+	end
 	local c = ns.CLASS_ICON_COORD[classId]
 	tex:SetTexture(ns.CLASS_ICON_FILE)
 	if c then tex:SetTexCoord(c[1], c[2], c[3], c[4]) end
+end
+
+-- Imported art (Data/Art.lua): path of an icon, or nil.
+function UI.ArtIcon(id)
+	local icons = ns.ART and ns.ART.icons
+	local e = icons and icons[id]
+	return e and (UI.MEDIA .. "Art\\" .. e.file) or nil
+end
+
+-- An icon from the imported art if there is one, else a game icon.
+function UI.SetArtOrIcon(tex, artId, iconName)
+	local art = artId and UI.ArtIcon(artId)
+	if art then
+		tex:SetTexture(art)
+		tex:SetTexCoord(0, 1, 0, 1)
+	else
+		UI.SetIcon(tex, iconName)
+	end
+end
+
+-- Hero face: the head of the hero's own sprite when the art exists (first
+-- idle frame), otherwise the class circle. Returns true for the sprite.
+function UI.SetHeroIcon(tex, heroId)
+	local Sprite = ns.Sprite
+	local id = Sprite and Sprite.ForHero(heroId, false)
+	local e = id and Sprite.Get(id)
+	if e and e.anims.idle then
+		tex:SetTexture(Sprite.PATH .. e.file)
+		local l, r, t, b = Sprite.CellCoords(e, e.anims.idle[1], false)
+		local fw, fh = r - l, b - t
+		-- the head sits in the upper part of the body: a square around it
+		local top = t + fh * 0.06
+		local size = fh * 0.42
+		local cx = l + fw * 0.5
+		local half = size * e.h / e.w / 2
+		tex:SetTexCoord(cx - half, cx + half, top, top + size)
+		return true
+	end
+	local h = ns.db and ns.db.heroes[heroId]
+	UI.SetClassIcon(tex, h and ns.SPECS[h.spec].class)
+	return false
 end
 
 -- A texture from Media/, optionally tinted.
@@ -110,11 +163,37 @@ local ART = {
 	shadow = { w = 64, h = 64, e = 24, d = 22 },
 }
 
+-- Imported interface art replaces these built-in textures when present.
+UI.ART_OVERRIDE = { panel = "ui_window", card = "ui_card", inset = "ui_inset", slot = "ui_slot", pill = "ui_pill" }
+
+local function artOverride(id)
+	local ui = ns.ART and ns.ART.ui
+	local e = id and ui and ui[id]
+	if e and e.slice then return e end
+end
+UI.ArtUI = artOverride
+
 local Slice = {}
 Slice.__index = Slice
 
 function Slice:SetColor(r, g, b, a)
+	if self.art then r, g, b = 1, 1, 1 end -- painted art keeps its own colours
 	for i = 1, 9 do self[i]:SetVertexColor(r, g, b, a or 1) end
+end
+
+-- Switch to another texture (imported art entry { file, w, h, slice }).
+function Slice:SetArt(e)
+	self.art = e
+	local ex, ey = e.slice / e.w, e.slice / e.h
+	local us = { { 0, ex }, { ex, 1 - ex }, { 1 - ex, 1 } }
+	local vs = { { 0, ey }, { ey, 1 - ey }, { 1 - ey, 1 } }
+	for r = 1, 3 do
+		for c = 1, 3 do
+			local t = self[(r - 1) * 3 + c]
+			t:SetTexture(UI.MEDIA .. "Art\\" .. e.file)
+			t:SetTexCoord(us[c][1], us[c][2], vs[r][1], vs[r][2])
+		end
+	end
 end
 
 function Slice:SetShown(v)
@@ -127,6 +206,10 @@ end
 -- d = displayed edge size; 0 means "half the frame height" (capsules).
 function UI.Slice(frame, art, layer, d, out)
 	local a = ART[art]
+	local over = artOverride(UI.ART_OVERRIDE[art])
+	if over then
+		a = { w = over.w, h = over.h, e = over.slice, d = floor(a.d * 1.5) }
+	end
 	d = d or a.d
 	if d == 0 then d = floor(frame:GetHeight() / 2) end
 	local w, h = frame:GetWidth(), frame:GetHeight()
@@ -136,7 +219,8 @@ function UI.Slice(frame, art, layer, d, out)
 	local us = { { 0, ex }, { ex, 1 - ex }, { 1 - ex, 1 } }
 	local vs = { { 0, ey }, { ey, 1 - ey }, { 1 - ey, 1 } }
 	local s = setmetatable({}, Slice)
-	local path = UI.Tex(art)
+	s.art = over
+	local path = over and (UI.MEDIA .. "Art\\" .. over.file) or UI.Tex(art)
 	for r = 1, 3 do
 		for c = 1, 3 do
 			local t = frame:CreateTexture(nil, layer or "BACKGROUND")
@@ -335,7 +419,25 @@ end
 ------------------------------------------------------------------------
 -- Buttons
 ------------------------------------------------------------------------
+-- button style -> imported button art
+UI.BUTTON_ART = { primary = "ui_btn_primary", blue = "ui_btn_secondary", dark = "ui_btn_neutral",
+	red = "ui_btn_danger", green = "ui_btn_confirm", purple = "ui_btn_secondary" }
+
 local function paint(b)
+	local over = artOverride(UI.BUTTON_ART[b.style])
+	if over then
+		if b.bg.art ~= over then b.bg:SetArt(over) end
+		local k = b.off and 0.45 or ((b.hover and 1.12 or 1) * (b.on and 1.15 or 1))
+		for i = 1, 9 do
+			b.bg[i]:SetVertexColor(min(1, k), min(1, k), min(1, k), 1)
+			if b.bg[i].SetDesaturated then b.bg[i]:SetDesaturated(b.off and true or false) end
+		end
+		b.label:SetTextColor(b.off and 0.6 or 1, b.off and 0.6 or 1, b.off and 0.62 or 1)
+		if b.ring then
+			if b.on then b.ring:Show() else b.ring:Hide() end
+		end
+		return
+	end
 	local c
 	if b.off then
 		c = UI.STYLE.off

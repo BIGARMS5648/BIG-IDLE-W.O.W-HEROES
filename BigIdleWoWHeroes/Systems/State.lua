@@ -1,7 +1,7 @@
 -- Saved data: defaults, migration, repair of missing fields and the gold purse.
 local _, ns = ...
 
-local DB_VERSION = 2
+local DB_VERSION = 3
 
 local function fill(t, defaults)
 	for k, v in pairs(defaults) do
@@ -18,7 +18,8 @@ end
 
 local DEFAULTS = {
 	gold = 0,
-	heroes = {},                 -- [heroId] = { id, spec, name, level, xp, tree = {}, skills = {}, gear = {} }
+	-- faction = "ALLIANCE" | "HORDE", chosen on first start (nil until then)
+	heroes = {},                 -- [heroId] = { id, spec, sex, name, level, xp, tree = {}, sk = {}, skills = {}, gear = {} }
 	heroSeq = 0,
 	party = { false, false, false, false, false },
 	bag = {},                    -- array of item tables
@@ -47,6 +48,64 @@ local V1_SPEC = {
 	WARLOCK = "WARLOCK_DESTRO", SHAMAN = "SHAMAN_ELE", PRIEST = "PRIEST_HOLY", PALADIN = "PALADIN_HOLY",
 }
 
+-- Version 2 kept skills inside the talent tree (nodes 3 and 4 of tier 1, node
+-- 3 of tiers 2-5). They move to the hero's own skill ranks; points beyond what
+-- the new skill-point budget allows are taken back from the highest ranks.
+local V2_SKILL_NODE = { [13] = 1, [14] = 2, [23] = 3, [33] = 4, [43] = 5, [53] = 6 }
+
+local function migrateV2Hero(h)
+	local sp = ns.SPECS[h.spec]
+	h.sk = h.sk or {}
+	for key, i in pairs(V2_SKILL_NODE) do
+		local pts = h.tree[key]
+		if pts then
+			if type(pts) == "number" and pts > 0 and sp.skills[i] then h.sk[sp.skills[i]] = math.min(ns.SKILL_MAX, pts) end
+			h.tree[key] = nil
+		end
+	end
+end
+
+local function clampHero(h)
+	local sp = ns.SPECS[h.spec]
+	-- talent nodes that no longer exist, or more talent points than levels
+	local spent = 0
+	for key, v in pairs(h.tree) do
+		local t, n = math.floor(key / 10), key % 10
+		if not (sp.tree[t] and sp.tree[t][n]) or type(v) ~= "number" or v <= 0 then
+			h.tree[key] = nil
+		else
+			h.tree[key] = math.min(v, sp.tree[t][n].max)
+			spent = spent + h.tree[key]
+		end
+	end
+	if spent > h.level then h.tree = {} end
+	-- skills of another specialization, skills above the hero's level
+	local own = {}
+	for i, sid in ipairs(sp.skills) do own[sid] = i end
+	for sid, v in pairs(h.sk) do
+		if not own[sid] or type(v) ~= "number" or v <= 0 or h.level < ns.SKILL_UNLOCK[own[sid]] then h.sk[sid] = nil end
+	end
+	h.sk[sp.skills[1]] = math.max(1, h.sk[sp.skills[1]] or 0)
+	local budget = 1 + math.floor(h.level / 4)
+	local function total()
+		local n = 0
+		for _, v in pairs(h.sk) do n = n + v end
+		return n
+	end
+	for i = #sp.skills, 1, -1 do -- lower ranks first, latest skills first
+		local sid = sp.skills[i]
+		while total() > budget and (h.sk[sid] or 0) > 1 do h.sk[sid] = h.sk[sid] - 1 end
+	end
+	for i = #sp.skills, 2, -1 do -- then forget the latest skills
+		if total() > budget then h.sk[sp.skills[i]] = nil end
+	end
+	local eq = {}
+	for _, sid in ipairs(h.skills) do
+		if h.sk[sid] and #eq < 3 then eq[#eq + 1] = sid end
+	end
+	h.skills = eq
+end
+
 local function migrateV1(db)
 	local old = db.heroes or {}
 	local oldParty = db.party or {}
@@ -61,8 +120,8 @@ local function migrateV1(db)
 			db.heroSeq = db.heroSeq + 1
 			local id = "h" .. db.heroSeq
 			local h = {
-				id = id, spec = specId, name = ns.Names.Roll(), level = o.level or 1, xp = o.xp or 0,
-				tree = { [13] = 1 }, skills = { sp.tree[1][3].s }, gear = type(o.gear) == "table" and o.gear or {},
+				id = id, spec = specId, level = o.level or 1, xp = o.xp or 0,
+				tree = {}, sk = { [sp.skills[1]] = 1 }, skills = { sp.skills[1] }, gear = type(o.gear) == "table" and o.gear or {},
 			}
 			-- gear the new specialization cannot wield goes back to the bag
 			for _, slot in ipairs({ "mh", "oh" }) do
@@ -91,7 +150,8 @@ function ns.InitDB()
 		BigIdleWoWHeroesDB = {}
 	end
 	local db = BigIdleWoWHeroesDB
-	if (db.v or DB_VERSION) < 2 and type(db.heroes) == "table" then
+	local from = db.v or DB_VERSION
+	if from < 2 and type(db.heroes) == "table" then
 		migrateV1(db)
 	end
 	fill(db, DEFAULTS)
@@ -116,11 +176,25 @@ function ns.InitDB()
 			h.tree = h.tree or {}
 			h.skills = h.skills or {}
 			h.gear = h.gear or {}
+			if from < 3 then migrateV2Hero(h) end
+			h.sk = h.sk or {}
+			clampHero(h)
+			if h.sex ~= "M" and h.sex ~= "F" then h.sex = math.random() < 0.5 and "M" or "F" end
 			if type(h.name) == "table" then h.name = h.name[1] end -- version 2.0 kept two spellings
-			if type(h.name) ~= "string" or h.name == "" then h.name = ns.Names.Roll() end
+			if type(h.name) ~= "string" or h.name == "" then
+				h.name = nil -- named below, once every other name is known
+			elseif not h.name:find(" ") then -- before 2.1 heroes had no family name
+				local race = ns.RACES[ns.ClassRace(ns.SPECS[h.spec].class, db.faction)]
+				h.name = h.name .. " " .. ns.Names.Family(ns.NAME_POOLS[race.names])
+			end
 			local n = tonumber(tostring(id):sub(2)) or 0
 			if n > db.heroSeq then db.heroSeq = n end
 		end
+	end
+	if db.faction ~= "ALLIANCE" and db.faction ~= "HORDE" then db.faction = nil end
+	ns.db = db
+	for _, h in pairs(db.heroes) do
+		if not h.name then h.name = ns.Heroes.RollName(h.spec, h.sex) end
 	end
 	for i = 1, ns.PARTY_SIZE do
 		local id = db.party[i]
@@ -139,7 +213,7 @@ function ns.ResetDB()
 	local ui = ns.db and ns.db.ui
 	BigIdleWoWHeroesDB = {}
 	local db = ns.InitDB()
-	if ui then db.ui = ui end
+	if ui then db.ui = ui end -- keeps window settings; the faction is chosen again
 	ns.Fire("RESET")
 end
 

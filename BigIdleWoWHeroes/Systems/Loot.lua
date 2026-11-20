@@ -86,6 +86,19 @@ function Loot.Count(chestType)
 	return n
 end
 
+-- A chest dropped while its storage was full: counted, and the player is told
+-- (at most once a minute per chest type) so it never vanishes unnoticed.
+local lostWarned = {}
+function Loot.Lost(chestType)
+	local db = ns.db
+	db.stat.lost = (db.stat.lost or 0) + 1
+	local now = GetTime and GetTime() or 0
+	if not lostWarned[chestType] or now - lostWarned[chestType] > 60 then
+		lostWarned[chestType] = now
+		ns.Toast(string.format("%s 보관함이 가득 차 새 상자를 받지 못했습니다. 상자를 여세요.", ns.N(ns.CHEST[chestType].name)))
+	end
+end
+
 function Loot.AddChest(chestType, level, diff)
 	if Loot.Count(chestType) >= ns.ChestCap(chestType) then
 		return false

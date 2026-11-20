@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import run  # noqa: E402
 
 SCENES = [
-    "bar", "party", "create", "created", "hero", "hero_tree", "hero_skills", "bag", "bag_tooltip",
+    "bar", "faction", "party", "create", "create_druid", "pets", "hero", "hero_tree", "hero_skills", "bag", "bag_tooltip",
     "forge_fuse", "forge_craft", "forge_gem", "forge_locked", "runes", "map", "map_heroic", "options",
 ]
 

@@ -20,7 +20,10 @@ local MAX_PIPS = 10
 
 local frame
 local heroFrames, mobFrames, floats, pips = {}, {}, {}, {}
-local toastT, infoT = 0, 0
+local infoT = 0
+local dt = 0 -- seconds since the last drawn frame
+local HERO_FIG, MOB_FIG = 74, 70 -- sprite cell heights on screen
+local Sprite = ns.Sprite
 
 local function laneX(x)
 	return x / 1000 * SCENE_W
@@ -79,6 +82,7 @@ local function newHero(parent)
 	u.cast:SetSize(16, 16)
 	u.cast:SetPoint("BOTTOM", u, "TOP", 0, 3)
 	u.cast:Hide()
+	u.sprite = Sprite.New(parent, HERO_FIG)
 	u:Hide()
 	return u
 end
@@ -108,8 +112,31 @@ local function newMob(parent)
 	u.crown:Hide()
 	u.hp = UI.Bar(u, MOB, 4, 0.9, 0.2, 0.15)
 	u.hp:SetPoint("TOP", u, "BOTTOM", 0, -2)
+	u.sprite = Sprite.New(parent, MOB_FIG)
+	u.sprite:SetFacing("left")
 	u:Hide()
 	return u
+end
+
+-- Picks the animation for a unit, letting a started attack, skill or hit
+-- finish before idling or walking again.
+local ONESHOT = { attack = true, cast = true, hit = true }
+local function animate(sp, want)
+	local cur, done = sp:Playing()
+	if ONESHOT[cur] and not done and (want == "idle" or want == "walk") then
+		sp:Step(dt)
+		return
+	end
+	sp:Play(want, ONESHOT[want] and cur ~= want)
+	sp:Step(dt)
+end
+
+-- A soft colour per monster so monsters sharing one drawing look different.
+local function tintFor(key)
+	local h = 0
+	for i = 1, #key do h = (h * 31 + key:byte(i)) % 997 end
+	local k = h / 997
+	return 0.78 + 0.22 * k, 0.78 + 0.22 * ((k * 7) % 1), 0.78 + 0.22 * ((k * 13) % 1)
 end
 
 ------------------------------------------------------------------------
@@ -124,8 +151,15 @@ local function spawnFloat(e)
 	slot.active = true
 	slot.t = 0
 	slot.life = e.big and 1.2 or 0.9
-	slot.x = U.clamp(laneX(e.x) + math.random(-8, 8), 14, SCENE_W - 14)
-	slot.y = FEET + (e.side == "hero" and 40 or 36)
+	-- numbers that pop up close together climb in steps instead of piling up
+	local now = GetTime()
+	local lane = e.side == "hero" and 1 or 2
+	floats.recent = floats.recent or { { t = 0, n = 0 }, { t = 0, n = 0 } }
+	local r = floats.recent[lane]
+	if now - r.t < 0.35 then r.n = (r.n + 1) % 4 else r.n = 0 end
+	r.t = now
+	slot.x = U.clamp(laneX(e.x) + math.random(-14, 14), 14, SCENE_W - 14)
+	slot.y = FEET + (e.side == "hero" and 40 or 36) + r.n * 11
 	slot.fs:SetFont(ns.FONT, e.big and 14 or 11, "OUTLINE")
 	slot.fs:SetText(e.text)
 	slot.fs:SetTextColor(e.r or 1, e.g or 1, e.b or 1)
@@ -185,8 +219,35 @@ local function drawHeroes(now)
 				f.ring:SetVertexColor(U.rgb(ns.ROLE[u.role].hex))
 			end
 			local px = spread[i]
-			if u.anim > 0 then px = px + 4 end
-			local bob = (not u.dead and ns.Combat.state.phase == "travel") and (sin(now * 10 + i) * 1.5) or 0
+			local moving = f.prevX and math.abs(u.x - f.prevX) > 0.01
+			f.prevX = u.x
+			local sid = Sprite.ForHero(u.id, true)
+			if sid and f.sprite:SetSprite(sid) then
+				if f.spriteFor ~= u.id then
+					f.spriteFor = u.id
+					f.sprite:SetHeight2(HERO_FIG * Sprite.HeroScale(u.id))
+				end
+				local want = "idle"
+				if u.dead then want = "death"
+				elseif (u.castT or 0) > 0.6 then want = "cast"
+				elseif u.anim > 0 then want = "attack"
+				elseif u.flash > 0.05 then want = "hit"
+				elseif ns.Combat.state.phase == "travel" or moving then want = "walk" end
+				animate(f.sprite, want)
+				f.sprite:PlaceFeet(frame.scene, px + UNIT / 2, FEET + 2)
+				f.sprite:SetAlpha(u.dead and 0.6 or 1)
+				f.sprite:Show()
+				f.disc:Hide()
+				f.icon:Hide()
+				f.ring:Hide()
+			else
+				f.sprite:Hide()
+				f.disc:Show()
+				f.icon:Show()
+				f.ring:Show()
+				if u.anim > 0 then px = px + 4 end
+			end
+			local bob = (not u.dead and ns.Combat.state.phase == "travel" and not f.sprite:IsShown()) and (sin(now * 10 + i) * 1.5) or 0
 			place(f, px, FEET + bob)
 			if not backX or u.x < backX then backX = u.x end
 			if u.dead then
@@ -230,6 +291,7 @@ local function drawHeroes(now)
 			f:Show()
 		else
 			f:Hide()
+			f.sprite:Hide()
 			f.shownId = nil
 		end
 	end
@@ -242,11 +304,53 @@ local function drawHeroes(now)
 		end
 		local minX = laneX(backX) - UNIT / 2
 		for i = 1, #list do if spread[i] and spread[i] < minX then minX = spread[i] end end
-		place(frame.pet, max(2, minX - 26), FEET + 2 + sin(now * 5) * 2)
-		frame.pet:Show()
+		local psid = Sprite.ForPet(pet.id)
+		if psid and frame.petSprite:SetSprite(psid) then
+			animate(frame.petSprite, ns.Combat.state.phase == "travel" and "walk" or "idle")
+			frame.petSprite:PlaceFeet(frame.scene, max(14, minX - 14), FEET + 2)
+			frame.petSprite:Show()
+			frame.pet:Hide()
+		else
+			frame.petSprite:Hide()
+			place(frame.pet, max(2, minX - 26), FEET + 2 + sin(now * 5) * 2)
+			frame.pet:Show()
+		end
 	else
 		frame.pet:Hide()
+		frame.petSprite:Hide()
 	end
+	-- summoned creatures, turrets and drones (only drawn with art)
+	local k = 0
+	for i = 1, #list do
+		local u = list[i]
+		if not u.dead and spread[i] then
+			for sid, pt in pairs(u.pets) do
+				local art = Sprite.ForSkill(sid)
+				if art and k < #frame.summons then
+					k = k + 1
+					local sp = frame.summons[k]
+					if sp:SetSprite(art) then
+						animate(sp, (pt.anim or 0) > 0 and "attack" or "idle")
+						local fly = ns.SKILLS[sid].heal and 34 or 0
+						sp:PlaceFeet(frame.scene, spread[i] + UNIT / 2 + 18, FEET + fly + (fly > 0 and sin(now * 3 + i) * 3 or 0))
+						sp:Show()
+					end
+				end
+			end
+		end
+	end
+	for _, f in ipairs(ns.Combat.fields) do
+		local art = f.sk.summon and Sprite.Get(f.sk.summon) and f.sk.summon
+		if art and k < #frame.summons and not f.src.dead then
+			k = k + 1
+			local sp = frame.summons[k]
+			sp:SetSprite(art)
+			animate(sp, (f.tickT or 0) > f.sk.tick - 0.25 and "attack" or "idle")
+			sp:PlaceFeet(frame.scene, laneX(f.src.x) + 34, FEET)
+			sp:Show()
+		end
+	end
+	for i = k + 1, #frame.summons do frame.summons[i]:Hide() end
 end
 
 local function drawMobs()
@@ -272,7 +376,36 @@ local function drawMobs()
 				end
 			end
 			local px = laneX(m.x) - size / 2
-			if m.anim > 0 then px = px - 4 end
+			local sid = Sprite.ForMonster(m.def and m.def.id, m.boss and Sprite.BossKey(m.name), m.boss and m.type)
+			if sid and f.sprite:SetSprite(sid) then
+				if f.spriteMob ~= m then
+					f.spriteMob = m
+					f.sprite:SetHeight2(MOB_FIG * (m.boss and 1.4 or 1))
+					local tr, tg, tb = tintFor((m.def and m.def.id) or ns.N(m.name) or "?")
+					f.sprite.tex:SetVertexColor(tr, tg, tb)
+					f.sprite.prevX = nil
+				end
+				local moving = f.sprite.prevX and math.abs(m.x - f.sprite.prevX) > 0.01
+				f.sprite.prevX = m.x
+				local want = "idle"
+				if m.dead then want = "death"
+				elseif m.anim > 0 then want = "attack"
+				elseif m.flash > 0.05 then want = "hit"
+				elseif moving then want = "walk" end
+				animate(f.sprite, want)
+				f.sprite:PlaceFeet(frame.scene, px + size / 2, FEET + (m.boss and 0 or (m.off / 12) * 3))
+				f.sprite:SetAlpha(m.dead and max(0, (m.fade or 0) / 0.4) or 1)
+				f.sprite:Show()
+				f.back:Hide()
+				f.icon:Hide()
+				f.edge:Hide()
+			else
+				f.sprite:Hide()
+				f.back:Show()
+				f.icon:Show()
+				f.edge:Show()
+				if m.anim > 0 then px = px - 4 end
+			end
 			place(f, px, FEET + (m.boss and 0 or (m.off / 12) * 3))
 			if m.dead then
 				f:SetAlpha(max(0, (m.fade or 0) / 0.4))
@@ -294,6 +427,8 @@ local function drawMobs()
 			f:Show()
 		else
 			f:Hide()
+			f.sprite:Hide()
+			f.spriteMob = nil
 			f.shownIcon = nil
 		end
 	end
@@ -313,12 +448,12 @@ local function drawPips(now)
 	local st = ns.Combat.state
 	local n = max(1, min(MAX_PIPS, st.waves or 10))
 	local wave = st.wave or 0
-	local x0 = -(n - 1) * 8
+	local x0 = 418 - (n - 1) * 8 -- centred between the zone banner and the gold
 	for i = 1, MAX_PIPS do
 		local p = pips[i]
 		if i <= n then
 			p:ClearAllPoints()
-			p:SetPoint("CENTER", frame.scene, "TOP", x0 + (i - 1) * 16, -15)
+			p:SetPoint("CENTER", frame.scene, "TOPLEFT", x0 + (i - 1) * 16, -17)
 			local isBoss = i == n
 			p.dot:SetTexture(UI.Tex(isBoss and "skull" or "circle"))
 			local size = isBoss and 16 or 9
@@ -367,8 +502,21 @@ local function updateInfo()
 	if stg.raid then zone = zone .. "  " .. U.col("ff9326", "공격대") end
 	frame.zone:SetText(zone)
 	frame.zoneLv:SetText("Lv " .. ns.StageLevel(diff, idx))
-	local zw = frame.zone:GetStringWidth() + frame.zoneLv:GetStringWidth() + 96
-	frame.banner:SetWidth(min(330, zw))
+	-- the banner never reaches the wave dots: long names are cut short
+	local room = 250 - 70 - frame.zoneLv:GetStringWidth()
+	frame.zone:SetWidth(min(room, frame.zone:GetStringWidth() + 2))
+	frame.banner:SetWidth(min(250, frame.zone:GetWidth() + frame.zoneLv:GetStringWidth() + 80))
+
+	-- scenery: imported two-layer background, else the tinted built-in one
+	if frame.bgTheme ~= stg.theme then
+		frame.bgTheme = stg.theme
+		if frame.bg:SetTheme(stg.theme) then
+			frame.sky:Hide()
+		else
+			frame.bg:Hide()
+			frame.sky:Show()
+		end
+	end
 
 	frame.gold:SetLabel(U.fmt(db.gold))
 
@@ -418,8 +566,69 @@ local function updateInfo()
 	for _, mb in ipairs(frame.menu) do mb:SetBadge(badges[mb.key]) end
 end
 
+local function drawEffects(elapsed)
+	local list = ns.Combat.vfx
+	if not frame.fxOn then
+		for i = #list, 1, -1 do list[i] = nil end
+		return
+	end
+	for i = 1, #list do
+		local e = list[i]
+		list[i] = nil
+		local w
+		for _, cand in ipairs(frame.fxPool) do
+			if not cand.active then w = cand break end
+		end
+		if w then
+			if e.k == "shot" then
+				local id = Sprite.Projectile(e.school, e.gun)
+				if id and w:Start(id, 26, 26, 0.25, 16) then
+					w.x1, w.x2, w.y = laneX(e.x1) + 10, laneX(e.x2), FEET + 30
+				end
+			elseif e.k == "hit" then
+				local id = Sprite.Impact(e.school)
+				if id and w:Start(id, 44, 44, nil, 18) then
+					w.x1, w.x2, w.y = laneX(e.x) + math.random(-6, 6), nil, FEET + 22 + math.random(0, 10)
+				end
+			end
+		end
+	end
+	for _, w in ipairs(frame.fxPool) do
+		if w.active and w:Step(elapsed) then
+			local x = w.x1
+			if w.x2 then x = w.x1 + (w.x2 - w.x1) * math.min(1, w.t / w.life) end
+			w:ClearAllPoints()
+			w:SetPoint("CENTER", frame.scene, "BOTTOMLEFT", x, w.y)
+		end
+	end
+	-- ground effects of area skills
+	local n = 0
+	for _, f in ipairs(ns.Combat.fields) do
+		local id = not f.sk.summon and Sprite.Field(f.sk.id, f.sk.school)
+		if id and n < #frame.fieldFx then
+			n = n + 1
+			local w = frame.fieldFx[n]
+			if w.field ~= f then
+				w.field = f
+				w:Start(id, 150, 75, 999, 12)
+			end
+			w:Step(elapsed)
+			local target = ns.Combat.mobs[1]
+			local x = target and laneX(target.x) or SCENE_W * 0.75
+			w:ClearAllPoints()
+			w:SetPoint("BOTTOM", frame.scene, "BOTTOMLEFT", x, FEET - 8)
+		end
+	end
+	for i = n + 1, #frame.fieldFx do
+		frame.fieldFx[i].field = nil
+		frame.fieldFx[i]:Stop()
+	end
+end
+
 local function onUpdate(self, elapsed)
 	local now = GetTime()
+	dt = elapsed
+	if ns.Combat.state.phase == "travel" then frame.bg:Scroll(elapsed * 80) end
 	drawHeroes(now)
 	drawMobs()
 	drawPips(now)
@@ -431,14 +640,7 @@ local function onUpdate(self, elapsed)
 		end
 	end
 	updateFloats(elapsed)
-	if toastT > 0 then
-		toastT = toastT - elapsed
-		if toastT <= 0 then
-			frame.toast:Hide()
-		else
-			frame.toast:SetAlpha(min(1, toastT))
-		end
-	end
+	drawEffects(elapsed)
 	infoT = infoT - elapsed
 	if infoT <= 0 then
 		infoT = 0.25
@@ -477,15 +679,94 @@ function Bar.SavePosition()
 	if p then ns.db.ui.barPos = { p, rp or p, x or 0, y or 0 } end
 end
 
+Bar.MIN_SCALE, Bar.MAX_SCALE = 0.5, 2.0
+
+function Bar.Scale()
+	return U.clamp(ns.db.ui.barScale or 1, Bar.MIN_SCALE, Bar.MAX_SCALE)
+end
+
 function Bar.ApplyPosition()
 	frame:ClearAllPoints()
+	frame:SetScale(Bar.Scale())
 	local pos = ns.db.ui.barPos
 	if pos and pos[1] then
 		frame:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
 	else
 		frame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 150)
 	end
-	frame:SetScale(ns.db.ui.scale or 1)
+end
+
+-- Corner grip: dragging it scales the whole battle window, keeping its
+-- proportions and its top-left corner where it is.
+local function cursorUI()
+	local x, y = GetCursorPosition()
+	local s = UIParent:GetEffectiveScale()
+	return x / s, y / s
+end
+
+local function startResize()
+	if ns.db.ui.locked then return end
+	local scale = frame:GetScale()
+	local left, top = frame:GetLeft() * scale, frame:GetTop() * scale -- in UIParent units
+	frame.resizing = { left = left, top = top }
+	frame:ClearAllPoints()
+	frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left / scale, top / scale)
+end
+
+local function stepResize()
+	local r = frame.resizing
+	if not r then return end
+	local cx = cursorUI()
+	local scale = U.clamp((cx - r.left) / W, Bar.MIN_SCALE, Bar.MAX_SCALE)
+	scale = floor(scale * 100 + 0.5) / 100
+	if scale ~= frame:GetScale() then
+		frame:SetScale(scale)
+		frame:ClearAllPoints()
+		frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", r.left / scale, r.top / scale)
+	end
+end
+
+local function stopResize()
+	if not frame.resizing then return end
+	frame.resizing = nil
+	ns.db.ui.barScale = frame:GetScale()
+	Bar.SavePosition()
+end
+
+function Bar.SetScale(scale)
+	ns.db.ui.barScale = U.clamp(scale, Bar.MIN_SCALE, Bar.MAX_SCALE)
+	if not frame then return end
+	local old = frame:GetScale()
+	local left, top = frame:GetLeft() * old, frame:GetTop() * old
+	frame:SetScale(Bar.Scale())
+	frame:ClearAllPoints()
+	frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left / Bar.Scale(), top / Bar.Scale())
+	Bar.SavePosition()
+end
+
+local function newGrip()
+	local g = CreateFrame("Button", nil, frame)
+	g:SetSize(18, 18)
+	g:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -3, 3)
+	g:SetFrameLevel(frame:GetFrameLevel() + 30)
+	g:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+	g:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+	g:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+	g:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	g:SetScript("OnMouseDown", function(_, button)
+		if button == "LeftButton" then startResize() end
+	end)
+	g:SetScript("OnMouseUp", function(_, button)
+		stopResize()
+		if button == "RightButton" and not ns.db.ui.locked then Bar.SetScale(1) end
+	end)
+	g:SetScript("OnHide", stopResize)
+	g:SetScript("OnUpdate", stepResize)
+	UI.Tip(g, function()
+		return UI.SimpleTip("크기 조절", ns.db.ui.locked and "전투 창이 잠겨 있습니다. 설정에서 잠금을 풀 수 있습니다."
+			or string.format("끌어서 전투 창 크기를 바꿉니다 (지금 %d%%).\n우클릭: 원래 크기로", floor(frame:GetScale() * 100 + 0.5)))
+	end)
+	return g
 end
 
 function Bar.ApplyCompact()
@@ -529,6 +810,7 @@ function Bar.Create()
 	frame:SetScript("OnMouseUp", function(_, button)
 		if button == "RightButton" then ns.Main.Toggle() end
 	end)
+	frame.grip = newGrip()
 
 	-- scene -------------------------------------------------------------
 	local scene = CreateFrame("Frame", nil, frame)
@@ -539,6 +821,7 @@ function Bar.Create()
 	frame.sky = scene:CreateTexture(nil, "BACKGROUND")
 	frame.sky:SetAllPoints(scene)
 	frame.sky:SetTexture(UI.Tex("scene_hills"))
+	frame.bg = Sprite.NewBackground(scene, SCENE_W, SCENE_H)
 	local topShade = UI.Art(scene, "grad_v", "BORDER", 0, 0, 0, 0.6)
 	topShade:SetPoint("TOPLEFT", scene, "TOPLEFT", 0, 0)
 	topShade:SetPoint("TOPRIGHT", scene, "TOPRIGHT", 0, 0)
@@ -553,6 +836,9 @@ function Bar.Create()
 	frame.pet.icon = frame.pet:CreateTexture(nil, "ARTWORK")
 	frame.pet.icon:SetAllPoints(frame.pet)
 	frame.pet:Hide()
+	frame.petSprite = Sprite.New(scene, 40)
+	frame.summons = {}
+	for i = 1, 8 do frame.summons[i] = Sprite.New(scene, 52) end
 
 	-- everything drawn above the units lives on an overlay layer
 	local over = CreateFrame("Frame", nil, scene)
@@ -602,6 +888,12 @@ function Bar.Create()
 	frame.result:SetJustifyH("CENTER")
 	frame.result:Hide()
 
+	frame.fxPool = {}
+	for i = 1, 14 do frame.fxPool[i] = Sprite.NewFX(over) end
+	frame.fieldFx = {}
+	for i = 1, 3 do frame.fieldFx[i] = Sprite.NewFX(scene, "BORDER") end
+	frame.fxOn = next((ns.ART and ns.ART.fx) or {}) ~= nil
+
 	for i = 1, MAX_FLOATS do
 		local fs = UI.Text(over, 11, nil, "OUTLINE")
 		fs:SetJustifyH("CENTER")
@@ -623,12 +915,14 @@ function Bar.Create()
 	goal.star = UI.Glyph(goal, "star", 22, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3])
 	goal.star:SetPoint("LEFT", goal, "LEFT", 10, 0)
 	goal.head = UI.Text(goal, 10, "다음 목표")
-	goal.head:SetPoint("TOPLEFT", goal, "TOPLEFT", 40, -7)
+	goal.head:SetPoint("TOPLEFT", goal, "TOPLEFT", 40, -5)
 	UI.Color(goal.head, UI.C.gold)
-	goal.text = UI.Text(goal, 12)
-	goal.text:SetPoint("TOPLEFT", goal, "TOPLEFT", 40, -22)
-	goal.text:SetWidth(206)
-	goal.text:SetWordWrap(false)
+	goal.text = UI.Text(goal, 11)
+	goal.text:SetPoint("TOPLEFT", goal, "TOPLEFT", 40, -18)
+	goal.text:SetWidth(208)
+	goal.text:SetHeight(26)
+	goal.text:SetJustifyV("TOP")
+	if goal.text.SetMaxLines then goal.text:SetMaxLines(2) end
 	goal.arrow = UI.Glyph(goal, "arrow", 14, 0.7, 0.75, 0.9)
 	goal.arrow:SetPoint("RIGHT", goal, "RIGHT", -8, 0)
 	goal:RegisterForClicks("LeftButtonUp")
@@ -693,13 +987,6 @@ function Bar.Create()
 		frame.menu[i] = mb
 	end
 
-	-- toast floating above the HUD
-	frame.toast = UI.Pill(frame, 460, 26, 0.02, 0.03, 0.06, 0.85)
-	frame.toast:SetPoint("BOTTOM", frame, "TOP", 0, 6)
-	frame.toast.text:SetWidth(440)
-	frame.toast.text:SetWordWrap(false)
-	frame.toast:Hide()
-
 	frame:SetScript("OnUpdate", onUpdate)
 	Bar.ApplyPosition()
 	Bar.ApplyCompact()
@@ -740,13 +1027,75 @@ end
 
 function Bar.ResetPosition()
 	ns.db.ui.barPos = nil
+	ns.db.ui.barScale = nil
 	if frame then Bar.ApplyPosition() end
 end
 
+------------------------------------------------------------------------
+-- Toasts: short messages stacked above everything (dialog strata), next to
+-- the menu window while it is open, otherwise above the battle window.
+------------------------------------------------------------------------
+local toast
+
+local function placeToast()
+	toast:ClearAllPoints()
+	local main = ns.Main.Frame()
+	if main and main:IsShown() then
+		toast:SetScale(main:GetScale())
+		toast:SetPoint("BOTTOM", main, "BOTTOM", 0, 84) -- just above the bottom bar
+	elseif frame and frame:IsShown() then
+		toast:SetScale(frame:GetScale())
+		toast:SetPoint("BOTTOM", frame, "TOP", 0, 6)
+	else
+		toast:SetScale(1)
+		toast:SetPoint("TOP", UIParent, "TOP", 0, -140)
+	end
+end
+
+local function ensureToast()
+	if toast then return toast end
+	toast = CreateFrame("Frame", "BigIdleWoWHeroesToast", UIParent)
+	toast:SetSize(480, 90)
+	toast:SetFrameStrata("DIALOG")
+	toast:EnableMouse(false)
+	toast.rows = {}
+	for i = 1, 3 do
+		local r = UI.Pill(toast, 480, 26, 0.02, 0.03, 0.06, 0.88)
+		r:SetPoint("BOTTOM", toast, "BOTTOM", 0, (i - 1) * 29)
+		r.text:SetWidth(460)
+		r.text:SetWordWrap(false)
+		r.t = 0
+		r:Hide()
+		toast.rows[i] = r
+	end
+	toast:SetScript("OnUpdate", function(self, elapsed)
+		placeToast() -- follow the menu window as it opens and closes
+		local any = false
+		for _, r in ipairs(self.rows) do
+			if r.t > 0 then
+				r.t = r.t - elapsed
+				if r.t <= 0 then r:Hide() else r:SetAlpha(min(1, r.t)) any = true end
+			end
+		end
+		if not any then self:Hide() end
+	end)
+	return toast
+end
+
 ns.On("TOAST", function(msg)
-	if not frame then return end
-	frame.toast:SetLabel(msg)
-	frame.toast:SetAlpha(1)
-	frame.toast:Show()
-	toastT = 5
+	ensureToast()
+	local rows = toast.rows
+	-- newest on top: shift the others down
+	for i = #rows, 2, -1 do
+		local a, b = rows[i], rows[i - 1]
+		a.text:SetText(b.text:GetText() or "")
+		a.t = b.t
+		if b.t > 0 then a:Show() a:SetAlpha(min(1, b.t)) else a:Hide() end
+	end
+	rows[1]:SetLabel(msg)
+	rows[1].t = 5
+	rows[1]:SetAlpha(1)
+	rows[1]:Show()
+	placeToast()
+	toast:Show()
 end)

@@ -85,9 +85,13 @@ ns.WTYPE = {
 		icons = { "INV_Misc_Idol_01", "INV_Misc_Idol_02", "INV_Misc_Idol_03", "INV_Misc_Book_09", "INV_Misc_Book_11" } },
 	whetstone = { slot = "oh", name = "숫돌",   base = { atk = 2.0, critdmg = 6 },
 		icons = { "INV_Stone_SharpeningStone_01", "INV_Stone_SharpeningStone_02", "INV_Stone_SharpeningStone_03", "INV_Stone_SharpeningStone_04", "INV_Stone_SharpeningStone_05" } },
+	gun      = { slot = "mh", name = "총",            base = { atk = 5.0, crit = 2 },
+		icons = { "INV_Weapon_Rifle_01", "INV_Weapon_Rifle_02", "INV_Weapon_Rifle_05", "INV_Weapon_Rifle_08", "INV_Weapon_Rifle_10" } },
+	gadget   = { slot = "oh", name = "공학 장치", base = { atk = 1.4, cast = 4 },
+		icons = { "INV_Misc_Gear_01", "INV_Gizmo_02", "INV_Gizmo_05", "INV_Gizmo_06", "INV_Gizmo_08" } },
 }
-ns.WTYPES_MH = { "sword", "axe", "mace", "dagger", "staff", "bow" }
-ns.WTYPES_OH = { "shield", "orb", "quiver", "offblade", "relic", "whetstone" }
+ns.WTYPES_MH = { "sword", "axe", "mace", "dagger", "staff", "bow", "gun" }
+ns.WTYPES_OH = { "shield", "orb", "quiver", "offblade", "relic", "whetstone", "gadget" }
 
 -- Material tier names by item level (one per 10 levels).
 ns.ITEM_TIER = {
@@ -117,7 +121,7 @@ ns.AFFIX = {
 	hpk        = { t = "hpk",   l = "flat", n = "처치 시 생명력", f = "num", s = "H" },
 	leech      = { t = "leech", l = "flat", n = "생명력 흡수",        f = "pct" },
 	dodge      = { t = "dodge", l = "flat", n = "회피 확률",        f = "pct" },
-	block      = { t = "block", l = "flat", n = "방어 확률",        f = "pct" },
+	block      = { t = "block", l = "flat", n = "막기 확률",        f = "pct" },
 	dr         = { t = "dr",    l = "flat", n = "받는 피해 감소", f = "pct" },
 	absorb     = { t = "absorb", l = "flat", n = "피해 흡수",  f = "num", s = "H" },
 	cdr        = { t = "cdr",   l = "flat", n = "재사용 대기시간 감소", f = "pct" },
@@ -247,7 +251,7 @@ mat("scroll3", "scroll", 3, "정교한 룬 주문서", "INV_Scroll_03")
 mat("scroll4", "scroll", 4, "고대 룬 주문서", "INV_Scroll_04")
 mat("scroll5", "scroll", 5, "용의 룬 주문서", "INV_Scroll_05")
 mat("scroll6", "scroll", 6, "티탄 룬 주문서", "INV_Scroll_06")
-mat("seal1", "seal", 1, "낡은 행운의 주화", "INV_Misc_Coin_05")
+mat("seal1", "seal", 1, "낡은 행운의 인장", "INV_Misc_Coin_05")
 mat("seal2", "seal", 2, "용사의 인장", "INV_Misc_Coin_03")
 mat("seal3", "seal", 3, "운명의 인장", "INV_Misc_Coin_02")
 mat("seal4", "seal", 4, "티탄의 인장", "INV_Misc_Coin_01")
@@ -296,11 +300,11 @@ ns.CHEST = {
 ns.CRAFT_GROUPS = {
 	{ key = "mh",    name = "주무기",  slots = { "mh" },    cost = { bar = 6, leather = 2 } },
 	{ key = "oh",    name = "보조장비", slots = { "oh" },    cost = { bar = 4, cloth = 2 } },
-	{ key = "head",  name = "투구",         slots = { "head" },  cost = { leather = 3, cloth = 3 } },
-	{ key = "chest", name = "갑옷",        slots = { "chest" }, cost = { leather = 5, cloth = 4 } },
-	{ key = "hands", name = "장갑",    slots = { "hands" }, cost = { leather = 3, bar = 2 } },
-	{ key = "feet",  name = "장화",        slots = { "feet" },  cost = { leather = 4, cloth = 1 } },
-	{ key = "acc",   name = "장신구류", slots = { "wrist", "neck", "ring", "trinket" }, cost = { bar = 3, cloth = 3 } },
+	{ key = "head",  name = "머리",         slots = { "head" },  cost = { leather = 3, cloth = 3 } },
+	{ key = "chest", name = "가슴",        slots = { "chest" }, cost = { leather = 5, cloth = 4 } },
+	{ key = "hands", name = "손",    slots = { "hands" }, cost = { leather = 3, bar = 2 } },
+	{ key = "feet",  name = "발",        slots = { "feet" },  cost = { leather = 4, cloth = 1 } },
+	{ key = "acc",   name = "액세서리", slots = { "wrist", "neck", "ring", "trinket" }, cost = { bar = 3, cloth = 3 } },
 }
 
 ns.CRAFT_TIERS = {
@@ -315,21 +319,21 @@ ns.CRAFT_TIERS = {
 -- Titan Forge operations: forge level needed and the one-time unlock fee.
 ------------------------------------------------------------------------
 ns.FORGE_OPS = {
-	{ key = "fuse",   name = "융합",          level = 1,  cost = 0,
-		desc = "같은 등급 장비 9개를 더 높은 등급 1개로 융합합니다." },
-	{ key = "smelt",  name = "용해",           level = 1,  cost = 10,
-		desc = "아이템을 녹여 골드와 용광로 경험치를 얻습니다." },
-	{ key = "craft",  name = "제작",           level = 5,  cost = 100,
+	{ key = "fuse",   name = "융합",          level = 1,  cost = 0, short = "장비 9개 → 1개",
+		desc = "같은 등급 장비 9개를 합쳐 장비 1개를 만듭니다. 보통 한 등급 위가 나오고, 영웅 등급부터는 같은 등급에 머물 수도 있습니다." },
+	{ key = "smelt",  name = "분해",           level = 1,  cost = 10, short = "장비 → 골드, 경험치",
+		desc = "아이템을 녹여 골드와 용광로 경험치를 얻습니다. 해금하면 가방에서 분해할 수 있습니다." },
+	{ key = "craft",  name = "제작",           level = 5,  cost = 100, short = "원하는 부위 만들기",
 		desc = "재료로 원하는 부위의 무작위 장비를 만듭니다." },
-	{ key = "gem",    name = "보석 세공", level = 8,  cost = 300,
+	{ key = "gem",    name = "보석 세공", level = 8,  cost = 300, short = "보석 홈 채우기",
 		desc = "장비의 보석 홈에 무작위 능력치를 부여합니다." },
-	{ key = "remove", name = "추출",      level = 10, cost = 1000,
+	{ key = "remove", name = "추출",      level = 10, cost = 1000, short = "부여한 능력치 지우기",
 		desc = "부여된 능력치를 제거해 홈을 비웁니다. 재료는 돌려받지 못합니다." },
-	{ key = "ench",   name = "마법부여",     level = 15, cost = 1000,
+	{ key = "ench",   name = "마법부여",     level = 15, cost = 1000, short = "마법 홈 채우기",
 		desc = "영웅 등급 이상 장비에 마법을 부여합니다." },
-	{ key = "seal",   name = "보너스 굴림", level = 20, cost = 3000,
+	{ key = "seal",   name = "보너스 굴림", level = 20, cost = 3000, short = "인장으로 장비 얻기",
 		desc = "행운의 인장과 골드를 바쳐 무작위 장비를 얻습니다." },
-	{ key = "insc",   name = "룬 각인",  level = 25, cost = 10000,
+	{ key = "insc",   name = "룬 각인",  level = 25, cost = 10000, short = "룬 홈 채우기",
 		desc = "전설 등급 이상 장비에 룬을 새깁니다." },
 }
 ns.FORGE_MAX = 100

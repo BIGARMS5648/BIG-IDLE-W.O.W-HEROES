@@ -1,5 +1,6 @@
--- Bags screen: item grid with filters, a detail card with plain buttons for
--- every action, and an action bar for chests and bulk smelting.
+-- Bags screen (가방): item grid with filters, a detail card with plain buttons
+-- for every action, and an action bar for chests and bulk breaking down.
+-- Shortcuts on an item: Alt+click protects it, right-click breaks it down.
 local _, ns = ...
 
 local floor, max, min = math.floor, math.max, math.min
@@ -14,7 +15,7 @@ local FILTERS = {
 	{ key = "all",  name = "전체" },
 	{ key = "weapon", name = "무기", slots = { mh = true, oh = true } },
 	{ key = "armor", name = "방어구", slots = { head = true, chest = true, hands = true, feet = true } },
-	{ key = "acc", name = "장신구", slots = { wrist = true, neck = true, ring = true, trinket = true } },
+	{ key = "acc", name = "액세서리", slots = { wrist = true, neck = true, ring = true, trinket = true } },
 }
 
 local function smeltQ()
@@ -30,6 +31,20 @@ local function itemList(page)
 		if f.slots[it.s] then out[#out + 1] = it end
 	end
 	return out
+end
+
+-- Two-click confirmation for buttons that cannot be undone.
+local function confirmButton(b, action)
+	b.armT = 0
+	b.onClick = function(self)
+		if self.armT > 0 then
+			self.armT = 0
+			action()
+		else
+			self.armT = 4
+			Main.Refresh()
+		end
+	end
 end
 
 local function indexIn(list, it)
@@ -84,6 +99,7 @@ local function buildDetail(page)
 	d.b1 = UI.Button(d, 148, 32, "", nil, "primary")
 	d.b1:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 14, 30)
 	d.b2 = UI.Button(d, 148, 32, "", nil, "red")
+	d.b2.clickWhenOff = true
 	d.b2:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -14, 30)
 	d.b3 = UI.Button(d, 148, 22, "", nil, "dark")
 	d.b3:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 14, 4)
@@ -144,7 +160,7 @@ local function refreshDetail(page)
 			end
 		end
 		local count = ns.MatCount(mat)
-		local gold = ns.MatValue(mat)
+		local gold = ns.Forge.MatSmeltGold(mat, 1)
 		local canFuse = count >= ns.Forge.FUSE_COUNT and m.tier < ns.MAT_MAX_TIER[m.kind]
 		local smelt = ns.Forge.Unlocked("smelt")
 		setButtons(d, {
@@ -157,11 +173,17 @@ local function refreshDetail(page)
 				UI.Try(ns.Forge.SmeltMat(mat, 1))
 				Main.Refresh()
 			end, not smelt },
-			{ "전부 분해", function()
-				UI.Try(ns.Forge.SmeltMat(mat, ns.MatCount(mat)))
+			{ d.allArmed and d.allArmed > 0 and "정말 전부? 한 번 더" or ("전부 분해 +" .. U.fmt(ns.Forge.MatSmeltGold(mat, count))), function()
+				if (d.allArmed or 0) > 0 then
+					d.allArmed = 0
+					UI.Try(ns.Forge.SmeltMat(mat, ns.MatCount(mat)))
+				else
+					d.allArmed = 4
+				end
 				Main.Refresh()
 			end, not smelt },
 		})
+		d.b3:SetStyle("red")
 		return
 	end
 
@@ -180,7 +202,7 @@ local function refreshDetail(page)
 	for i = 3, #tl do
 		local line = tl[i]
 		local text = line[1] or ""
-		if not text:find("용해 가치", 1, true) and not text:find("잠김", 1, true) then
+		if not text:find("분해 가치", 1, true) and not text:find("보호됨", 1, true) then
 			n = n + 1
 			if d.lines[n] then
 				d.lines[n]:SetText(text .. (line[2] and ("  " .. line[2]) or ""))
@@ -197,8 +219,9 @@ local function refreshDetail(page)
 				Main.Refresh()
 			end },
 			nil,
-			{ it.lock and "잠금 해제" or "잠그기", function() ns.Items.ToggleLock(it) Main.Refresh() end },
+			{ it.lock and "보호 풀기" or "보호하기", function() ns.Items.ToggleLock(it) Main.Refresh() end },
 		})
+		d.b3:SetStyle("dark")
 		return
 	end
 
@@ -219,21 +242,22 @@ local function refreshDetail(page)
 		end
 	end
 	if id then
+		local who = ns.Heroes.ShortName(id)
 		local rr = ns.Items.Compare(id, it)
 		if rr then
 			local pct = (rr - 1) * 100
 			if pct > 0.2 then
-				d.compare:SetText(U.col("6af07a", "+" .. U.num(pct, 1) .. "%"))
+				d.compare:SetText(who .. "\n" .. U.col("6af07a", "전투력 +" .. U.num(pct, 1) .. "%"))
 			elseif pct < -0.2 then
-				d.compare:SetText(U.col("ff6a5a", U.num(pct, 1) .. "%"))
+				d.compare:SetText(who .. "\n" .. U.col("ff6a5a", "전투력 " .. U.num(pct, 1) .. "%"))
 			else
-				d.compare:SetText(U.col("aab3c8", "±0%"))
+				d.compare:SetText(who .. "\n" .. U.col("aab3c8", "비슷함"))
 			end
 		else
-			d.compare:SetText(U.col("ff6a5a", ns.Items.CanUse(id, it) and "레벨 부족" or "사용 불가"))
+			d.compare:SetText(who .. "\n" .. U.col("ff6a5a", ns.Items.CanUse(id, it) and "레벨 부족" or "착용 불가"))
 		end
 	end
-	local gold = floor(ns.Items.Value(it) * (1 + ns.Bonus("smeltGold") / 100))
+	local gold = ns.Items.SmeltGold(it)
 	local canEquip = id and ns.Items.CanEquip(id, it)
 	setButtons(d, {
 		{ id and ("장착: " .. ns.Heroes.Name(id)) or "장착", function()
@@ -242,14 +266,20 @@ local function refreshDetail(page)
 			Main.Refresh()
 		end, not canEquip },
 		{ "분해 +" .. U.fmt(gold) .. " G", function()
-			local ok, g = ns.Forge.Smelt({ it })
-			if UI.Try(ok, g) then
-				ns.Fire("TOAST", string.format("분해: +%s 골드", U.fmt(g)))
-				page.selItem = nil
+			if it.lock then
+				UI.Try(false, "보호된 장비입니다. 먼저 '보호 풀기'를 누르세요.")
+			elseif not ns.Forge.Unlocked("smelt") then
+				UI.Try(false, "용광로에서 '분해'를 먼저 해금하세요.")
+			else
+				local ok, g = ns.Forge.Smelt({ it })
+				if UI.Try(ok, g) then
+					ns.Toast(string.format("분해: +%s 골드", U.fmt(g)))
+					page.selItem = nil
+				end
 			end
 			Main.Refresh()
 		end, it.lock or not ns.Forge.Unlocked("smelt") },
-		{ it.lock and "잠금 해제" or "잠그기 (보호)", function() ns.Items.ToggleLock(it) Main.Refresh() end },
+		{ it.lock and "보호 풀기" or "보호하기 (Alt+클릭)", function() ns.Items.ToggleLock(it) Main.Refresh() end },
 		{ "은행에 보관", function()
 			local idx = indexIn(ns.db.bag, it)
 			if idx and UI.Try(ns.Items.ToBank(idx)) then page.selItem = nil end
@@ -292,9 +322,24 @@ local function build(page)
 
 	page.cells = {}
 	for i = 1, COLS * ROWS do
-		local b = UI.IconButton(page, CELL, function(self)
+		local b = UI.IconButton(page, CELL, function(self, button)
 			if page.view == "mats" then
 				page.selMat, page.selItem = self.data, nil
+			elseif self.data and IsAltKeyDown and IsAltKeyDown() then
+				ns.Items.ToggleLock(self.data)
+				page.selItem, page.selMat = self.data, nil
+			elseif self.data and button == "RightButton" and page.view == "bag" then
+				local it = self.data
+				if it.lock then
+					UI.Try(false, "보호된 장비는 분해되지 않습니다 (Alt+클릭으로 보호 풀기).")
+				elseif not ns.Forge.Unlocked("smelt") then
+					UI.Try(false, "용광로에서 '분해'를 먼저 해금하세요.")
+				elseif ns.Items.PartyUpgrade(it) then
+					UI.Try(false, "파티에게 더 좋은 장비라서 우클릭으로는 분해하지 않습니다. 오른쪽 '분해' 버튼을 쓰세요.")
+				else
+					local ok, g = ns.Forge.Smelt({ it })
+					if UI.Try(ok, g) then ns.Toast(string.format("분해: +%s 골드", U.fmt(g))) end
+				end
 			else
 				page.selItem, page.selMat = self.data, nil
 			end
@@ -305,11 +350,20 @@ local function build(page)
 		UI.Tip(b, function(self)
 			if not self.data then return nil end
 			if page.view == "mats" then return ns.Items.MatTooltip(self.data) end
-			return ns.Items.Tooltip(self.data, Main.SelectedHero())
+			local lines = ns.Items.Tooltip(self.data, Main.SelectedHero())
+			if page.view == "bag" then
+				lines[#lines + 1] = { "클릭: 자세히 · Alt+클릭: 보호 · 우클릭: 분해", nil, 0.45, 0.8, 1 }
+			end
+			return lines
 		end)
 		page.cells[i] = b
 	end
-	page.empty = UI.Text(page, 12)
+	page.emptyLayer = CreateFrame("Frame", nil, page)
+	page.emptyLayer:SetAllPoints(page)
+	page.emptyLayer:SetFrameLevel(page:GetFrameLevel() + 20)
+	page.emptyBox = UI.Panel(page.emptyLayer, 440, 60, "card")
+	page.emptyBox:SetPoint("CENTER", page, "TOPLEFT", (COLS * (CELL + GAP)) / 2, GRID_Y - 160)
+	page.empty = UI.Text(page.emptyLayer, 12)
 	page.empty:SetPoint("CENTER", page, "TOPLEFT", (COLS * (CELL + GAP)) / 2, GRID_Y - 160)
 	page.empty:SetJustifyH("CENTER")
 	page.empty:SetWidth(440)
@@ -322,14 +376,32 @@ local function build(page)
 		Main.Refresh()
 	end, "primary")
 	page.open:SetPoint("TOPLEFT", page, "TOPLEFT", 0, barY)
-	page.smeltGo = UI.Button(page, 170, 38, "", function()
-		local ok, gold, n = ns.Forge.Smelt(ns.Forge.PickByQuality(smeltQ()))
+	page.smeltGo = UI.Button(page, 170, 38, "", nil, "red")
+	page.smeltGo.clickWhenOff = true
+	confirmButton(page.smeltGo, function()
+		local ok, gold, n = ns.Forge.Smelt((ns.Forge.PickByQuality(smeltQ())))
 		if UI.Try(ok, gold) then
-			ns.Fire("TOAST", string.format("%d개 분해: +%s 골드", n, U.fmt(gold)))
+			ns.Toast(string.format("%d개 분해: +%s 골드", n, U.fmt(gold)))
 		end
 		page.selItem = nil
 		Main.Refresh()
-	end, "red")
+	end)
+	local armedClick = page.smeltGo.onClick
+	page.smeltGo.onClick = function(self)
+		if not ns.Forge.Unlocked("smelt") then
+			Main.ShowTab("forge", { sub = "smelt" })
+		elseif self.off then
+			UI.Try(false, "기준 등급 이하인 장비가 없습니다. 기준 등급을 올려 보세요.")
+		else
+			armedClick(self)
+		end
+	end
+	UI.Tip(page.smeltGo, function()
+		local list, kept = ns.Forge.PickByQuality(smeltQ())
+		local body = string.format("기준 등급 이하의 장비 %d개를 골드로 바꿉니다. 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 남깁니다.", #list)
+		if kept > 0 then body = body .. string.format("\n(파티에게 더 좋은 장비 %d개는 남김)", kept) end
+		return UI.SimpleTip("일괄 분해", body .. "\n누른 뒤 한 번 더 눌러야 실행됩니다.")
+	end, "TOP")
 	page.smeltGo:SetPoint("LEFT", page.open, "RIGHT", 8, 0)
 	page.smeltPick = UI.Chip(page, 140, 24, "", function(_, button)
 		local q = smeltQ() + (button == "RightButton" and -1 or 1)
@@ -341,9 +413,9 @@ local function build(page)
 	page.smeltPick:SetPoint("TOPLEFT", page.smeltGo, "TOPRIGHT", 8, 0)
 	UI.Tip(page.smeltPick, function()
 		return UI.SimpleTip("분해 기준 등급",
-			"이 등급 이하이면서 잠기지 않았고 홈에 능력치가 없는 장비가 분해됩니다. 클릭/우클릭으로 바꿉니다.")
+			"일괄 분해와 자동 분해가 이 등급 이하의 장비만 분해합니다. 클릭하면 한 등급 올리고, 우클릭하면 내립니다.")
 	end, "TOP")
-	page.autoSmelt = UI.Check(page, "가방이 차면 자동 분해",
+	page.autoSmelt = UI.Check(page, "가방이 차면 자동 분해 (기준 등급 이하)",
 		function() return (ns.db.opt.autoSmelt or 0) > 0 end,
 		function(v) ns.db.opt.autoSmelt = v and smeltQ() or 0 end)
 	page.autoSmelt:SetPoint("TOPLEFT", page.smeltPick, "BOTTOMLEFT", 0, -2)
@@ -373,16 +445,19 @@ local function refresh(page)
 	page.open:SetOff(chests == 0)
 	page.open:SetBadge(chests > 0 and chests or nil)
 	local q = smeltQ()
-	page.smeltPick:SetLabel(ns.N(ns.QUALITY[q].name) .. " 이하 분해")
+	page.smeltPick:SetLabel("기준: " .. U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하")
 	if ns.Forge.Unlocked("smelt") then
 		local list = ns.Forge.PickByQuality(q)
 		local total = 0
-		for _, it in ipairs(list) do total = total + ns.Items.Value(it) end
-		total = floor(total * (1 + ns.Bonus("smeltGold") / 100))
-		page.smeltGo:SetLabel(string.format("일괄 분해 %d개", #list) .. "\n" .. U.col("ffd24a", "+" .. U.fmt(total) .. " G"))
+		for _, it in ipairs(list) do total = total + ns.Items.SmeltGold(it) end
+		if page.smeltGo.armT > 0 then
+			page.smeltGo:SetLabel(string.format("정말 %d개 분해?\n한 번 더 누르세요", #list))
+		else
+			page.smeltGo:SetLabel(string.format("일괄 분해 %d개", #list) .. "\n" .. U.col("ffd24a", "+" .. U.fmt(total) .. " G"))
+		end
 		page.smeltGo:SetOff(#list == 0)
 	else
-		page.smeltGo:SetLabel("분해 잠김\n(용광로에서 해금)")
+		page.smeltGo:SetLabel("분해 해금하러 가기\n(용광로)")
 		page.smeltGo:SetOff(true)
 	end
 	page.autoSmelt:Refresh()
@@ -407,7 +482,7 @@ local function refresh(page)
 					b:SetIconName(m.icon)
 					b:SetQuality(m.q)
 					b:SetCount(U.fmt(count))
-					b:SetBadge(count >= ns.Forge.FUSE_COUNT and m.tier < ns.MAT_MAX_TIER[m.kind])
+					if count >= ns.Forge.FUSE_COUNT and m.tier < ns.MAT_MAX_TIER[m.kind] then b:SetMark("9+", 0.5, 0.85, 1) end
 					b:SetSelected(page.selMat == id)
 				end
 			end
@@ -443,16 +518,40 @@ local function refresh(page)
 		end
 		if #list == 0 then
 			page.empty:SetText(page.view == "bank" and "은행이 비어 있습니다. 아끼는 장비를 보관해 두세요."
-				or "가방이 비어 있습니다. 상자를 열어 장비를 얻으세요.")
+				or (filtered and "이 종류의 장비가 없습니다." or "가방이 비어 있습니다. 상자를 열어 장비를 얻으세요."))
 		else
 			page.empty:SetText("")
 		end
 	end
+	page.emptyBox:SetShown(page.empty:GetText() ~= nil and page.empty:GetText() ~= "")
 	refreshDetail(page)
+end
+
+local function tick(page)
+	local b = page.smeltGo
+	if b and b.armT > 0 then
+		b.armT = max(0, b.armT - 0.2)
+		if b.armT == 0 then Main.Refresh() end
+	end
+	local d = page.detail
+	if d and (d.allArmed or 0) > 0 then
+		d.allArmed = max(0, d.allArmed - 0.2)
+		if d.allArmed == 0 then Main.Refresh() end
+	end
+end
+
+-- opts.slot: show the filter that holds this equipment slot
+local function open(page, opts)
+	if opts and opts.slot then
+		page.view = "bag"
+		for i, f in ipairs(FILTERS) do
+			if f.slots and f.slots[opts.slot] then page.filter = i end
+		end
+	end
 end
 
 Main.RegisterTab({
 	key = "bag", title = "가방", sub = "상자를 열고 장비를 장착하거나 분해합니다",
-	icon = "INV_Misc_Bag_10", build = build, refresh = refresh,
+	icon = "INV_Misc_Bag_10", art = "icon_bag", build = build, refresh = refresh, tick = tick, open = open,
 	events = { "BAG", "MATS", "CHESTS", "GEAR", "RUNES", "FORGE", "LEVEL", "RESET", "PARTY" },
 })

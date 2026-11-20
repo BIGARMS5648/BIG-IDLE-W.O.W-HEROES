@@ -33,8 +33,12 @@ ns.CLASS_ICON_COORD = {
 	WARLOCK = { 0.7421875, 0.98828125, 0.25, 0.5 },
 	PALADIN = { 0, 0.25, 0.5, 0.75 },
 }
+-- Classes without a circle on that sheet use a square icon instead.
+ns.CLASS_ICON_SQUARE = {
+	TINKER = "Interface\\Icons\\Trade_Engineering",
+}
 
-ns.CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
+ns.CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID", "TINKER" }
 
 ns.CLASSES = {
 	WARRIOR = { name = "전사",     hex = "c79c6e", specs = { "WARRIOR_ARMS", "WARRIOR_FURY", "WARRIOR_PROT" } },
@@ -46,16 +50,17 @@ ns.CLASSES = {
 	MAGE    = { name = "마법사",      hex = "69ccf0", specs = { "MAGE_ARCANE", "MAGE_FIRE", "MAGE_FROST" } },
 	WARLOCK = { name = "흑마법사", hex = "9482c9", specs = { "WARLOCK_AFF", "WARLOCK_DEMO", "WARLOCK_DESTRO" } },
 	DRUID   = { name = "드루이드",   hex = "ff7d0a", specs = { "DRUID_BALANCE", "DRUID_FERAL", "DRUID_GUARDIAN", "DRUID_RESTO" } },
+	TINKER  = { name = "땜장이",     hex = "3ad6c0", specs = { "TINKER_MECH", "TINKER_TURRET", "TINKER_MEDIC" } },
 }
 for id, c in pairs(ns.CLASSES) do c.id = id end
 
 ------------------------------------------------------------------------
--- Talent trees. Every specialization has 8 tiers: two passives per tier and
--- six active skills spread over tiers 1-5. The passive layout comes from the
--- specialization's archetype; the actives are what make each one different.
+-- Talent trees hold passives only: 8 tiers of two stat nodes, one talent point
+-- per hero level. The layout comes from the specialization's archetype.
+-- Active skills are separate: six per specialization, opened by hero level
+-- (ns.SKILL_UNLOCK) and learned and raised with skill points.
 ------------------------------------------------------------------------
 local function P(stat, per, maxLevel) return { p = stat, v = per, max = maxLevel } end
-local function K(id) return { s = id, max = ns.SKILL_MAX } end
 
 -- a = main damage school stat, b = second school stat, g = guard stat (block or dodge)
 local PASSIVES = {
@@ -101,19 +106,15 @@ local PASSIVES = {
 	end,
 }
 
-local function tree(arch, a, b, g, skills)
+local function tree(arch, a, b, g)
 	local p = PASSIVES[arch](a, b, g)
-	return {
-		{ p[1][1], p[1][2], K(skills[1]), K(skills[2]) },
-		{ p[2][1], p[2][2], K(skills[3]) },
-		{ p[3][1], p[3][2], K(skills[4]) },
-		{ p[4][1], p[4][2], K(skills[5]) },
-		{ p[5][1], p[5][2], K(skills[6]) },
-		{ p[6][1], p[6][2] },
-		{ p[7][1], p[7][2] },
-		{ p[8][1], p[8][2] },
-	}
+	local t = {}
+	for i = 1, #p do t[i] = { p[i][1], p[i][2] } end
+	return t
 end
+
+-- Hero level at which each of a specialization's six skills opens.
+ns.SKILL_UNLOCK = { 1, 3, 10, 20, 30, 40 }
 
 ------------------------------------------------------------------------
 -- Specializations
@@ -126,7 +127,7 @@ local function spec(id, class, name, t)
 	t.id = id
 	t.class = class
 	t.name = name
-	t.tree = tree(t.arch, t.a, t.b, t.g, t.skills)
+	t.tree = tree(t.arch, t.a, t.b, t.g)
 	ns.SPECS[id] = t
 	ns.SPEC_ORDER[#ns.SPEC_ORDER + 1] = id
 end
@@ -375,40 +376,69 @@ spec("DRUID_RESTO", "DRUID", "회복", {
 	skills = { "rejuvenation", "healing_touch", "wild_growth", "mark_of_wild", "tranquility", "rebirth" },
 })
 
+-- Tinker ----------------------------------------------------------------
+spec("TINKER_MECH", "TINKER", "기갑", {
+	role = "TANK", school = "phys", range = MELEE, icon = "Ability_Mount_Mechastrider",
+	desc = "직접 만든 전투기계에 올라타 최전선을 막는 탱커. 로켓 주먹과 화염 방사기로 적을 붙잡습니다.",
+	base = { atk = 8, aspd = 0.85, crit = 3, critdmg = 150, hp = 240, armor = 40 },
+	mh = { "mace", "axe" }, oh = { "shield" },
+	arch = "TANK", a = "dmg_fire", g = "block",
+	skills = { "rocket_punch", "flamethrower", "mech_stomp", "defense_protocol", "shield_generator", "emergency_repair" },
+})
+spec("TINKER_TURRET", "TINKER", "포탑", {
+	role = "DPS", school = "phys", range = 680, ranged = true, icon = "INV_Weapon_Rifle_01",
+	desc = "기관총 포탑과 로켓 포탑을 깔아 두고 뒤에서 총을 쏘는 원거리 딜러.",
+	base = { atk = 8.5, aspd = 1.00, crit = 5, critdmg = 155, hp = 145, armor = 20 },
+	mh = { "gun" }, oh = { "gadget" },
+	arch = "RANGED", a = "dmg_phys", b = "dmg_fire",
+	skills = { "gun_turret", "bomb_toss", "net_launcher", "rocket_turret", "overcharge", "goblin_mortar" },
+})
+spec("TINKER_MEDIC", "TINKER", "정비", {
+	role = "HEALER", school = "fire", range = 520, ranged = true, icon = "Ability_Repair",
+	desc = "치유 드론을 띄우고 치유 포탑을 세워 파티를 고치는 힐러. 쓰러진 동료는 점퍼 케이블로 깨웁니다.",
+	base = { atk = 7, aspd = 0.90, crit = 3, critdmg = 150, hp = 160, armor = 22 },
+	mh = { "gun", "mace" }, oh = { "gadget", "relic" },
+	arch = "HEALER", a = "dmg_fire", g = "dodge",
+	skills = { "heal_drone", "repair_beam", "heal_turret", "nanite_shield", "power_amplifier", "jumper_cables" },
+})
+
 ------------------------------------------------------------------------
 -- Balance multipliers found with tests/bench.lua (see README). They scale a
 -- specialization's final attack, final health or healing so that every choice
 -- within a role performs within a narrow band of the others.
 ------------------------------------------------------------------------
 ns.SPEC_TUNE = {
-	WARRIOR_ARMS = { atk = 1.31 },
+	WARRIOR_ARMS = { atk = 1.28 },
 	WARRIOR_FURY = { atk = 0.95 },
-	WARRIOR_PROT = { hp = 0.94 },
-	PALADIN_HOLY = { heal = 0.94 },
-	PALADIN_PROT = { hp = 1.00 },
-	PALADIN_RET = { atk = 1.43 },
-	HUNTER_BM = { atk = 0.87 },
-	HUNTER_MM = { atk = 0.85 },
+	WARRIOR_PROT = { hp = 0.93 },
+	PALADIN_HOLY = { heal = 0.89 },
+	PALADIN_PROT = { hp = 0.99 },
+	PALADIN_RET = { atk = 1.44 },
+	HUNTER_BM = { atk = 0.90 },
+	HUNTER_MM = { atk = 0.86 },
 	HUNTER_SV = { atk = 0.96 },
-	ROGUE_ASSA = { atk = 0.76 },
-	ROGUE_OUTLAW = { atk = 0.74 },
-	ROGUE_SUB = { atk = 0.76 },
-	PRIEST_DISC = { heal = 0.89 },
+	ROGUE_ASSA = { atk = 0.77 },
+	ROGUE_OUTLAW = { atk = 0.73 },
+	ROGUE_SUB = { atk = 0.74 },
+	PRIEST_DISC = { heal = 0.83 },
 	PRIEST_HOLY = { heal = 0.97 },
-	PRIEST_SHADOW = { atk = 1.30 },
-	SHAMAN_ELE = { atk = 0.81 },
-	SHAMAN_ENH = { atk = 1.00 },
-	SHAMAN_RESTO = { heal = 1.15 },
-	MAGE_ARCANE = { atk = 1.11 },
-	MAGE_FIRE = { atk = 0.73 },
-	MAGE_FROST = { atk = 1.15 },
-	WARLOCK_AFF = { atk = 1.22 },
-	WARLOCK_DEMO = { atk = 1.13 },
-	WARLOCK_DESTRO = { atk = 1.14 },
-	DRUID_BALANCE = { atk = 1.19 },
-	DRUID_FERAL = { atk = 0.91 },
+	PRIEST_SHADOW = { atk = 1.26 },
+	SHAMAN_ELE = { atk = 0.79 },
+	SHAMAN_ENH = { atk = 1.01 },
+	SHAMAN_RESTO = { heal = 1.29 },
+	MAGE_ARCANE = { atk = 1.06 },
+	MAGE_FIRE = { atk = 0.68 },
+	MAGE_FROST = { atk = 1.18 },
+	WARLOCK_AFF = { atk = 1.12 },
+	WARLOCK_DEMO = { atk = 1.19 },
+	WARLOCK_DESTRO = { atk = 1.20 },
+	DRUID_BALANCE = { atk = 1.22 },
+	DRUID_FERAL = { atk = 0.92 },
 	DRUID_GUARDIAN = { hp = 1.04 },
-	DRUID_RESTO = { heal = 1.14 },
+	DRUID_RESTO = { heal = 1.28 },
+	TINKER_MECH = { hp = 1.02 },
+	TINKER_TURRET = { atk = 1.05 },
+	TINKER_MEDIC = { heal = 0.87 },
 }
 
 function ns.SpecTune(specId, what)

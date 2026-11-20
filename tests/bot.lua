@@ -10,47 +10,13 @@ Bot.recruit = { "PRIEST_HOLY", "WARRIOR_PROT", "MAGE_FIRE", "ROGUE_OUTLAW", "HUN
 
 function Bot.Start(starter, recruit)
 	if recruit then Bot.recruit = recruit end
+	ns.db.faction = ns.db.faction or "HORDE"
 	ns.Heroes.Create(starter or "HUNTER_MM")
 end
 
 function Bot.SpendPoints(id)
-	local tree = ns.Heroes.Tree(id)
-	local guard = 0
-	while ns.Heroes.PointsFree(id) > 0 and guard < 300 do
-		guard = guard + 1
-		local done = false
-		-- learn every reachable active skill first, then passives, then top up skills
-		for pass = 1, 3 do
-			for t = 1, #tree do
-				if ns.Heroes.TierOpen(id, t) then
-					for n = 1, #tree[t] do
-						local node = tree[t][n]
-						local lvl = ns.Heroes.NodeLevel(id, t, n)
-						local want = false
-						if pass == 1 then want = node.s and lvl == 0 end
-						if pass == 2 then want = node.p and lvl < node.max end
-						if pass == 3 then want = node.s and lvl < node.max end
-						if want and ns.Heroes.SpendPoint(id, t, n) then
-							done = true
-							break
-						end
-					end
-				end
-				if done then break end
-			end
-			if done then break end
-		end
-		if not done then break end
-	end
-	-- fill empty skill slots
-	for t = 1, #tree do
-		for n = 1, #tree[t] do
-			local node = tree[t][n]
-			if node.s and ns.Heroes.NodeLevel(id, t, n) > 0 then
-				ns.Heroes.EquipSkill(id, node.s, true)
-			end
-		end
-	end
+	ns.Heroes.AutoSpend(id)
+	ns.Heroes.AutoSkills(id)
 end
 
 local function buyRunes()

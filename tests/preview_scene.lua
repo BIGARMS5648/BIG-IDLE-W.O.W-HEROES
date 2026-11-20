@@ -10,10 +10,11 @@ Mock.FireEvent("PLAYER_LOGIN")
 ns.Main.CloseModal()
 
 local db = ns.db
+db.faction = "ALLIANCE"
 ns.AddGold(123456789)
-ns.Heroes.Create("WARRIOR_PROT")
+ns.Heroes.Create("TINKER_MECH")
 for _, id in ipairs({ "root", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "w1", "w1", "w2", "g1", "m1", "x1", "e1", "e2", "e3" }) do ns.Runes.Buy(id) end
-for _, sid in ipairs({ "MAGE_FIRE", "ROGUE_SUB", "HUNTER_BM", "PRIEST_DISC", "DRUID_RESTO", "SHAMAN_ENH" }) do ns.Heroes.Create(sid) end
+for _, sid in ipairs({ "MAGE_FIRE", "ROGUE_SUB", "TINKER_TURRET", "PRIEST_DISC", "DRUID_RESTO", "SHAMAN_ENH", "WARRIOR_PROT", "TINKER_MEDIC" }) do ns.Heroes.Create(sid) end
 for id in pairs(db.heroes) do ns.Heroes.AddXP(id, 2.5e6) end
 db.forge.level = 32
 db.forge.xp = 21000
@@ -31,6 +32,7 @@ for slot = 1, ns.PARTY_SIZE do
 	if id then
 		ns.Items.AutoEquip(id)
 		ns.Heroes.AutoSpend(id)
+		ns.Heroes.AutoSkills(id)
 		-- leave a few points so the badges show
 		db.heroes[id].level = db.heroes[id].level + (slot == 2 and 3 or 0)
 	end
@@ -64,14 +66,17 @@ return function(name)
 	ns.Main.SelectHero(sel)
 	if name == "create" then
 		ns.Main.ShowTab("party")
-		ns.CreateHeroDialog("DRUID")
-	elseif name == "created" then
+		ns.CreateHeroDialog("TINKER")
+	elseif name == "create_druid" then
 		ns.Main.ShowTab("party")
-		ns.CreateHeroDialog("SHAMAN")
-		local go = find(function(f) return f.label and f.__w == 200 and f.__h == 38 end)
-		local card = find(function(f) return f.sid == "SHAMAN_ELE" end)
-		if card then card:Click() end
-		if go then go:Click() end
+		ns.CreateHeroDialog("DRUID", "HEALER")
+	elseif name == "faction" then
+		ns.Main.ShowTab("party")
+		ns.PickFaction()
+	elseif name == "pets" then
+		ns.Main.ShowTab("party")
+		local b = find(function(f) return f.label and f.label.__text == "동료" end)
+		if b then b:Click() end
 	elseif name == "hero" or name == "hero_tree" or name == "hero_skills" then
 		local sub = (name == "hero_tree" and "tree") or (name == "hero_skills" and "skills") or "gear"
 		ns.Main.ShowTab("hero", { sub = sub })

@@ -1,5 +1,6 @@
--- Main window: a header with the screen title and gold, the screen itself, and
--- a bottom navigation bar with notification badges.
+-- Main window: a header with the screen title, gold, settings and close; the
+-- screen itself; and a bottom navigation bar of six screens with red dots.
+-- Settings is reached from the header's gear button, not from the bar.
 local _, ns = ...
 
 local UI, U = ns.UI, ns.U
@@ -21,8 +22,9 @@ local dirty = {}
 ------------------------------------------------------------------------
 -- Screen registry (each UI/Tab*.lua file registers itself)
 ------------------------------------------------------------------------
--- def: { key, title, sub, icon, build(page), refresh(page),
---        open(page, opts) optional, tick(page) optional, events = { ... } }
+-- def: { key, title, sub, icon, art (imported icon id), build(page), refresh(page),
+--        open(page, opts) optional, tick(page) optional, events = { ... },
+--        nav = false to keep it off the bottom bar }
 function Main.RegisterTab(def)
 	tabs[#tabs + 1] = def
 	tabByKey[def.key] = def
@@ -67,6 +69,7 @@ function Main.ShowTab(key, opts)
 	local def = tabByKey[key]
 	if not def or not frame then return end
 	current = key
+	if def.nav ~= false then Main.lastNav = key end
 	Main.CloseModal()
 	for _, t in ipairs(tabs) do
 		if t.page then t.page:Hide() end
@@ -80,7 +83,8 @@ function Main.ShowTab(key, opts)
 	frame.title:SetText(ns.N(def.title))
 	frame.sub:SetText(def.sub and ns.N(def.sub) or "")
 	frame.titleIcon:SetShown(def.icon ~= nil)
-	if def.icon then UI.SetIcon(frame.titleIcon, def.icon) end
+	if def.icon then UI.SetArtOrIcon(frame.titleIcon, def.art, def.icon) end
+	frame.gear:SetOn(key == "options")
 	def.page:Show()
 	if def.open then def.open(def.page, opts) end
 	def.refresh(def.page)
@@ -108,15 +112,19 @@ function Main.RefreshNav()
 	local badges = ns.Guide.Badges()
 	for _, b in ipairs(frame.nav) do
 		local on = b.key == current
+		local over = UI.ArtUI(on and "ui_tab_on" or "ui_tab")
+		if over and b.bg.art ~= over then b.bg:SetArt(over) end
 		if on then
 			b.bg:SetColor(1.0, 0.86, 0.45, 1)
 			b.label:SetTextColor(1, 0.86, 0.35)
 			b.glow:Show()
+			b.icon:SetPoint("TOP", b, "TOP", 0, -3)
 		else
 			local k = b.hover and 0.75 or 0.55
 			b.bg:SetColor(k, k * 1.05, k * 1.25, 1)
 			b.label:SetTextColor(0.78, 0.82, 0.92)
 			b.glow:Hide()
+			b.icon:SetPoint("TOP", b, "TOP", 0, -6)
 		end
 		b.badge:Set(badges[b.key])
 	end
@@ -214,8 +222,8 @@ function Main.Create()
 	brand:SetPoint("TOP", frame, "TOP", 0, -8)
 	UI.Color(brand, UI.C.dim)
 
-	frame.gold = UI.Pill(frame, 150, 28, 0.02, 0.03, 0.07, 0.85)
-	frame.gold:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -56, -12)
+	frame.gold = UI.Pill(frame, 160, 30, 0.02, 0.03, 0.07, 0.85)
+	frame.gold:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -100, -11)
 	frame.gold.text:ClearAllPoints()
 	frame.gold.text:SetPoint("RIGHT", frame.gold, "RIGHT", -12, 0)
 	frame.gold.text:SetJustifyH("RIGHT")
@@ -224,12 +232,28 @@ function Main.Create()
 	local coin = frame.gold:CreateTexture(nil, "OVERLAY")
 	coin:SetSize(20, 20)
 	coin:SetPoint("LEFT", frame.gold, "LEFT", 5, 0)
-	UI.SetIcon(coin, "INV_Misc_Coin_01")
+	UI.SetArtOrIcon(coin, "icon_gold", "INV_Misc_Coin_01")
+	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 만들기, 룬, 용광로에 씁니다.") end)
 
 	frame.close = UI.Button(frame, 36, 32, "", function() Main.Toggle(false) end, "red")
 	frame.close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -10)
 	local x = UI.Glyph(frame.close, "close", 16)
 	x:SetPoint("CENTER", frame.close, "CENTER", 0, 0)
+	UI.Tip(frame.close, function() return UI.SimpleTip("닫기", "Esc 키로도 닫힙니다. 전투는 계속됩니다.") end)
+
+	frame.gear = UI.Button(frame, 36, 32, "", function()
+		if current == "options" then
+			Main.ShowTab(Main.lastNav or "party")
+		else
+			Main.ShowTab("options")
+		end
+	end, "dark")
+	frame.gear:SetPoint("RIGHT", frame.close, "LEFT", -6, 0)
+	frame.gear.icon = frame.gear:CreateTexture(nil, "ARTWORK")
+	frame.gear.icon:SetSize(20, 20)
+	frame.gear.icon:SetPoint("CENTER", frame.gear, "CENTER", 0, 0)
+	UI.SetArtOrIcon(frame.gear.icon, "icon_settings", "Trade_Engineering")
+	UI.Tip(frame.gear, function() return UI.SimpleTip("설정", "화면 크기, 진영, 통계, 도움말, 초기화") end)
 
 	-- bottom navigation
 	local navBg = UI.Art(frame, "grad_v", "BORDER", 0, 0, 0, 0.45)
@@ -238,9 +262,13 @@ function Main.Create()
 	navBg:SetHeight(NAV_H)
 	navBg:SetTexCoord(0, 1, 1, 0) -- dark at the bottom
 	frame.nav = {}
-	local n = #tabs
+	local navTabs = {}
+	for _, def in ipairs(tabs) do
+		if def.nav ~= false then navTabs[#navTabs + 1] = def end
+	end
+	local n = #navTabs
 	local bw = math.floor((Main.W - 32 - (n - 1) * 6) / n)
-	for i, def in ipairs(tabs) do
+	for i, def in ipairs(navTabs) do
 		local b = CreateFrame("Button", nil, frame)
 		b:SetSize(bw, NAV_H - 14)
 		b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16 + (i - 1) * (bw + 6), 8)
@@ -250,10 +278,10 @@ function Main.Create()
 		b.glow:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 0, -6)
 		b.bg = UI.Slice(b, "card", "BACKGROUND")
 		b.icon = b:CreateTexture(nil, "ARTWORK")
-		b.icon:SetSize(26, 26)
+		b.icon:SetSize(28, 28)
 		b.icon:SetPoint("TOP", b, "TOP", 0, -6)
-		UI.SetIcon(b.icon, def.icon)
-		b.label = UI.Text(b, 12, ns.N(def.title))
+		UI.SetArtOrIcon(b.icon, def.art, def.icon)
+		b.label = UI.Text(b, 13, ns.N(def.title))
 		b.label:SetPoint("BOTTOM", b, "BOTTOM", 0, 6)
 		b.label:SetJustifyH("CENTER")
 		b.badge = UI.Badge(b, 16)

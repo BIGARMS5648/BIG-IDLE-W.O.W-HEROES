@@ -160,8 +160,20 @@ local function build(page)
 				link:SetSize(NODE_W + 8 - 52, 3)
 				link:SetPoint("TOPLEFT", page, "TOPLEFT", x1, PATH_Y - row * (NODE_H + 8) - 27)
 			else
-				link:SetSize(3, NODE_H + 8 - 52)
-				link:SetPoint("TOPLEFT", page, "TOPLEFT", 4 * (NODE_W + 8) + NODE_W / 2 - 1, PATH_Y - 54)
+				-- from stage 5 down to stage 6: a bracket to the right of the column,
+				-- clear of stage 5's name
+				local cx = 4 * (NODE_W + 8) + NODE_W / 2
+				local y1, y2 = PATH_Y - 28, PATH_Y - (NODE_H + 8) - 28
+				local bx = 4 * (NODE_W + 8) + NODE_W + 4
+				link:SetSize(3, y1 - y2)
+				link:SetPoint("TOPLEFT", page, "TOPLEFT", bx, y1)
+				local top = page:CreateTexture(nil, "BACKGROUND")
+				top:SetSize(bx - cx - 26 + 3, 3)
+				top:SetPoint("TOPLEFT", page, "TOPLEFT", cx + 26, y1 + 1)
+				local bot = page:CreateTexture(nil, "BACKGROUND")
+				bot:SetSize(bx - cx - 26 + 3, 3)
+				bot:SetPoint("TOPLEFT", page, "TOPLEFT", cx + 26, y2 + 1)
+				link.parts = { top, bot }
 			end
 			page.links[n] = link
 		end
@@ -308,7 +320,11 @@ local function refresh(page)
 		b.name:SetTextColor(reachable and 0.92 or 0.5, reachable and 0.94 or 0.52, reachable and 0.98 or 0.58)
 		local link = page.links[n]
 		if link then
-			if cleared then UI.Fill(link, 1, 0.8, 0.3, 0.9) else UI.Fill(link, 0.3, 0.33, 0.42, 0.8) end
+			local parts = { link }
+			for _, t in ipairs(link.parts or {}) do parts[#parts + 1] = t end
+			for _, t in ipairs(parts) do
+				if cleared then UI.Fill(t, 1, 0.8, 0.3, 0.9) else UI.Fill(t, 0.3, 0.33, 0.42, 0.8) end
+			end
 		end
 	end
 
@@ -377,6 +393,6 @@ end
 
 Main.RegisterTab({
 	key = "map", title = "지도", sub = "네 개의 세계, 120개 지역",
-	icon = "INV_Misc_Map_01", build = build, refresh = refresh, open = open,
+	icon = "INV_Misc_Map_01", art = "icon_map", build = build, refresh = refresh, open = open,
 	events = { "STAGE", "PROGRESS", "RESULT", "OPTIONS", "RESET" },
 })

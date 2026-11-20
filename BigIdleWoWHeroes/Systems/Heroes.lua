@@ -35,6 +35,22 @@ function Heroes.Name(id)
 	return h and ns.N(h.name) or "?"
 end
 
+-- Given name only ("티란데 브리즈팽" -> "티란데"), for tight spots.
+function Heroes.ShortName(id)
+	return ns.Names.Short(Heroes.Name(id))
+end
+
+function Heroes.Sex(id)
+	local h = ns.db.heroes[id]
+	return h and h.sex == "F" and "F" or "M"
+end
+
+-- Race the hero is drawn as (follows the player's faction).
+function Heroes.Race(id)
+	local sp = Heroes.Spec(id)
+	return sp and ns.ClassRace(sp.class)
+end
+
 -- "Arden" in class color
 function Heroes.ColorName(id)
 	local c = Heroes.Class(id)
@@ -62,32 +78,43 @@ end
 local function takenNames()
 	local t = {}
 	for _, h in pairs(ns.db.heroes) do
-		t[ns.N(h.name)] = true
+		local n = ns.N(h.name)
+		if n then t[n] = true end
 	end
 	return t
 end
+Heroes.TakenNames = takenNames
+
+-- A name for a hero of this specialization and gender, unique in the roster.
+function Heroes.RollName(specId, sex)
+	local sp = ns.SPECS[specId]
+	return ns.Names.Roll(sp and ns.ClassRace(sp.class), sex, takenNames())
+end
 
 -- Builds the record without charging anything (also used by save migration).
-function Heroes.NewRecord(specId)
+-- sex: "M" or "F" (random when omitted); name: optional pre-rolled name
+function Heroes.NewRecord(specId, sex, name)
 	local sp = ns.SPECS[specId]
 	local db = ns.db
+	if sex ~= "M" and sex ~= "F" then sex = math.random() < 0.5 and "M" or "F" end
 	db.heroSeq = (db.heroSeq or 0) + 1
 	local h = {
-		id = "h" .. db.heroSeq, spec = specId, name = ns.Names.Roll(takenNames()),
-		level = 1, xp = 0, tree = {}, skills = {}, gear = {},
+		id = "h" .. db.heroSeq, spec = specId, sex = sex, name = name or Heroes.RollName(specId, sex),
+		level = 1, xp = 0, tree = {}, sk = {}, skills = {}, gear = {},
 	}
 	-- starter weapon so a fresh hero is never empty-handed
 	h.gear.mh = ns.Items.New("mh", 1, 1, sp.mh[1])
 	-- the first skill is learned and slotted for free
-	h.tree[13] = 1
-	h.skills[1] = sp.tree[1][3].s
+	h.sk[sp.skills[1]] = 1
+	h.skills[1] = sp.skills[1]
 	db.heroes[h.id] = h
 	return h
 end
 
-function Heroes.Create(specId)
+function Heroes.Create(specId, sex, name)
 	local sp = ns.SPECS[specId]
 	if not sp then return false end
+	if name and takenNames()[name] then name = nil end
 	if Heroes.Count() >= ns.ROSTER_MAX then
 		return false, string.format("영웅은 최대 %d명까지 보유할 수 있습니다.", ns.ROSTER_MAX)
 	end
@@ -95,7 +122,7 @@ function Heroes.Create(specId)
 	if cost > 0 and not ns.SpendGold(cost) then
 		return false, "골드가 부족합니다."
 	end
-	local h = Heroes.NewRecord(specId)
+	local h = Heroes.NewRecord(specId, sex, name)
 	ns.Stats.Invalidate(h.id)
 	Heroes.Deploy(h.id) -- joins the party if its role slot is free
 	ns.Fire("HEROES")
@@ -105,7 +132,7 @@ end
 function Heroes.RerollName(id)
 	local h = ns.db.heroes[id]
 	if not h then return false end
-	h.name = ns.Names.Roll(takenNames())
+	h.name = Heroes.RollName(h.spec, h.sex)
 	ns.Fire("HEROES")
 	return true
 end
@@ -175,7 +202,7 @@ function Heroes.XPFactor(heroLevel, stageLevel)
 end
 
 ------------------------------------------------------------------------
--- Talent tree (1 point per level)
+-- Talent tree: passives only, one talent point per level
 ------------------------------------------------------------------------
 function Heroes.Tree(id)
 	return Heroes.Spec(id).tree
@@ -188,7 +215,7 @@ function Heroes.PointsSpent(id)
 end
 
 function Heroes.PointsFree(id)
-	return ns.db.heroes[id].level - Heroes.PointsSpent(id)
+	return max(0, ns.db.heroes[id].level - Heroes.PointsSpent(id))
 end
 
 function Heroes.TierOpen(id, tier)
@@ -203,14 +230,14 @@ function Heroes.CanSpend(id, tier, n)
 	local tree = Heroes.Tree(id)
 	local node = tree[tier] and tree[tier][n]
 	if not node then return false end
-	if Heroes.PointsFree(id) <= 0 then
-		return false, "기술 점수가 없습니다."
-	end
-	if not Heroes.TierOpen(id, tier) then
-		return false, string.format("기술 점수를 %d점 사용해야 열립니다.", (tier - 1) * ns.TREE_TIER_POINTS)
-	end
 	if Heroes.NodeLevel(id, tier, n) >= node.max then
 		return false, "이미 최대 레벨입니다."
+	end
+	if not Heroes.TierOpen(id, tier) then
+		return false, string.format("특성 점수를 %d점 더 써야 열립니다.", (tier - 1) * ns.TREE_TIER_POINTS - Heroes.PointsSpent(id))
+	end
+	if Heroes.PointsFree(id) <= 0 then
+		return false, "특성 점수가 없습니다. 레벨이 오르면 1점씩 생깁니다."
 	end
 	return true
 end
@@ -219,52 +246,36 @@ function Heroes.SpendPoint(id, tier, n)
 	local ok, why = Heroes.CanSpend(id, tier, n)
 	if not ok then return false, why end
 	local h = ns.db.heroes[id]
-	local node = Heroes.Tree(id)[tier][n]
 	local key = tier * 10 + n
-	local lvl = h.tree[key] or 0
-	h.tree[key] = lvl + 1
-	if node.s and lvl == 0 then
-		Heroes.EquipSkill(id, node.s, true) -- newly learned: slot it if there is room
-	end
+	h.tree[key] = (h.tree[key] or 0) + 1
 	ns.Stats.Invalidate(id)
 	ns.Fire("TREE", id)
 	return true
 end
 
--- Spends every free point: first learns each reachable active skill, then
--- raises passives, then raises skills; finally fills empty skill slots.
+-- Spends every free talent point: the lowest open tier first, the node with
+-- the larger remaining room first.
 function Heroes.AutoSpend(id)
 	local tree = Heroes.Tree(id)
 	local spent = 0
 	for _ = 1, 400 do
 		if Heroes.PointsFree(id) <= 0 then break end
 		local done = false
-		for pass = 1, 3 do
-			for t = 1, #tree do
-				if Heroes.TierOpen(id, t) then
-					for n = 1, #tree[t] do
-						local node = tree[t][n]
-						local lvl = Heroes.NodeLevel(id, t, n)
-						local want = (pass == 1 and node.s and lvl == 0) or (pass == 2 and node.p and lvl < node.max)
-							or (pass == 3 and node.s and lvl < node.max)
-						if want and Heroes.SpendPoint(id, t, n) then
-							done = true
-							spent = spent + 1
-							break
-						end
-					end
+		for t = 1, #tree do
+			if Heroes.TierOpen(id, t) then
+				local best, room = nil, 0
+				for n = 1, #tree[t] do
+					local r = tree[t][n].max - Heroes.NodeLevel(id, t, n)
+					if r > room then best, room = n, r end
 				end
-				if done then break end
+				if best and Heroes.SpendPoint(id, t, best) then
+					done = true
+					spent = spent + 1
+					break
+				end
 			end
-			if done then break end
 		end
 		if not done then break end
-	end
-	for t = 1, #tree do
-		for n = 1, #tree[t] do
-			local node = tree[t][n]
-			if node.s and Heroes.NodeLevel(id, t, n) > 0 then Heroes.EquipSkill(id, node.s, true) end
-		end
 	end
 	return spent
 end
@@ -280,28 +291,48 @@ function Heroes.ResetTree(id)
 		return false, "골드가 부족합니다."
 	end
 	h.tree = {}
-	h.skills = {}
 	ns.Stats.Invalidate(id)
 	ns.Fire("TREE", id)
-	ns.Fire("SKILLS", id)
 	return true
 end
 
 ------------------------------------------------------------------------
--- Skills
+-- Skills: six per specialization, opened by hero level, learned and raised
+-- with skill points (one at level 1, then one every 4 levels)
 ------------------------------------------------------------------------
--- Points invested in a skill (0 = not learned).
-function Heroes.SkillPoints(id, skillId)
-	local tree = Heroes.Tree(id)
-	local h = ns.db.heroes[id]
-	for t = 1, #tree do
-		for n = 1, #tree[t] do
-			if tree[t][n].s == skillId then
-				return h.tree[t * 10 + n] or 0
-			end
-		end
+function Heroes.SkillList(id)
+	return Heroes.Spec(id).skills
+end
+
+-- Hero level at which a skill of this hero opens (nil if not its skill).
+function Heroes.SkillUnlockLevel(id, skillId)
+	for i, sid in ipairs(Heroes.SkillList(id)) do
+		if sid == skillId then return ns.SKILL_UNLOCK[i] end
 	end
-	return 0
+end
+
+function Heroes.SkillUnlocked(id, skillId)
+	local lv = Heroes.SkillUnlockLevel(id, skillId)
+	return lv ~= nil and ns.db.heroes[id].level >= lv
+end
+
+function Heroes.SkillPointsTotal(id)
+	return 1 + floor(ns.db.heroes[id].level / 4)
+end
+
+function Heroes.SkillPointsSpent(id)
+	local n = 0
+	for _, v in pairs(ns.db.heroes[id].sk) do n = n + v end
+	return n
+end
+
+function Heroes.SkillPointsFree(id)
+	return max(0, Heroes.SkillPointsTotal(id) - Heroes.SkillPointsSpent(id))
+end
+
+-- Rank learned in a skill (0 = not learned).
+function Heroes.SkillPoints(id, skillId)
+	return ns.db.heroes[id].sk[skillId] or 0
 end
 
 -- Effective level including "+All Skill Levels" gear.
@@ -310,6 +341,84 @@ function Heroes.SkillLevel(id, skillId, stats)
 	if pts <= 0 then return 0 end
 	stats = stats or ns.Stats.Get(id)
 	return min(ns.SKILL_CAP, pts + (stats.skills or 0))
+end
+
+-- Can one skill point go into this skill (learn it, or raise it one rank)?
+function Heroes.CanLearnSkill(id, skillId)
+	local lv = Heroes.SkillUnlockLevel(id, skillId)
+	if not lv then return false end
+	if ns.db.heroes[id].level < lv then
+		return false, string.format("영웅 레벨 %d에 열립니다.", lv)
+	end
+	if Heroes.SkillPoints(id, skillId) >= ns.SKILL_MAX then
+		return false, "이미 최대 레벨입니다."
+	end
+	if Heroes.SkillPointsFree(id) <= 0 then
+		return false, "기술 점수가 없습니다. 4레벨마다 1점씩 생깁니다."
+	end
+	return true
+end
+
+function Heroes.LearnSkill(id, skillId)
+	local ok, why = Heroes.CanLearnSkill(id, skillId)
+	if not ok then return false, why end
+	local h = ns.db.heroes[id]
+	local before = h.sk[skillId] or 0
+	h.sk[skillId] = before + 1
+	if before == 0 then
+		Heroes.EquipSkill(id, skillId, true) -- newly learned: slot it if there is room
+	end
+	ns.Stats.Invalidate(id)
+	ns.Fire("SKILLS", id)
+	return true
+end
+
+-- Spends every free skill point: learn each open skill first, then raise the
+-- equipped skills, then the rest; finally fill empty skill slots.
+function Heroes.AutoSkills(id)
+	local list = Heroes.SkillList(id)
+	local spent = 0
+	for _ = 1, 100 do
+		if Heroes.SkillPointsFree(id) <= 0 then break end
+		local pick
+		for _, sid in ipairs(list) do
+			if Heroes.SkillPoints(id, sid) == 0 and Heroes.CanLearnSkill(id, sid) then pick = sid break end
+		end
+		if not pick then
+			local best
+			for _, sid in ipairs(list) do
+				if Heroes.CanLearnSkill(id, sid) then
+					local score = Heroes.SkillPoints(id, sid) - (Heroes.IsSkillEquipped(id, sid) and 10 or 0)
+					if not best or score < best then pick, best = sid, score end
+				end
+			end
+		end
+		if not pick or not Heroes.LearnSkill(id, pick) then break end
+		spent = spent + 1
+	end
+	for _, sid in ipairs(list) do
+		if Heroes.SkillPoints(id, sid) > 0 then Heroes.EquipSkill(id, sid, true) end
+	end
+	return spent
+end
+
+function Heroes.SkillResetCost(id)
+	return floor(10 * ns.db.heroes[id].level ^ 1.6)
+end
+
+-- Refunds every skill point except the first skill, which stays learned.
+function Heroes.ResetSkills(id)
+	local h = ns.db.heroes[id]
+	local first = Heroes.SkillList(id)[1]
+	if Heroes.SkillPointsSpent(id) <= 1 then return false end
+	if not ns.SpendGold(Heroes.SkillResetCost(id)) then
+		return false, "골드가 부족합니다."
+	end
+	h.sk = { [first] = 1 }
+	h.skills = { first }
+	ns.Stats.Invalidate(id)
+	ns.Fire("SKILLS", id)
+	return true
 end
 
 function Heroes.IsSkillEquipped(id, skillId)

@@ -100,12 +100,18 @@ local function build(page)
 	side.req = UI.Text(side, 11)
 	side.req:SetPoint("TOPLEFT", side.now, "BOTTOMLEFT", 0, -8)
 	side.req:SetWidth(200)
+	side.goPrev = UI.Button(side, 200, 24, "먼저 배울 룬 보기", function()
+		local step = R.NextStepTo(page.sel)
+		if step then page.sel = step end
+		Main.Refresh()
+	end, "blue")
+	side.goPrev:SetPoint("TOP", side, "TOP", 0, -140)
 	side.buy = UI.Button(side, 200, 40, "", function()
 		UI.Try(R.Buy(page.sel))
 		Main.Refresh()
 	end, "primary")
 	side.buy:SetPoint("TOP", side, "TOP", 0, -172)
-	side.totalTitle = UI.Title(side, "보너스 합계", 12)
+	side.totalTitle = UI.Title(side, "배운 룬 보너스 합계", 12)
 	side.totalTitle:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -228)
 	side.total = UI.Text(side, 10)
 	side.total:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -248)
@@ -155,10 +161,14 @@ local function refresh(page)
 	side.per:SetText("레벨당  " .. U.col("ffffff", ns.BonusText(node.stat, node.per)))
 	side.now:SetText(lvl > 0 and ("현재  " .. U.col("6af07a", ns.BonusText(node.stat, node.per * lvl))) or "")
 	if not available then
-		local prev = R.byId[R.prev[page.sel]]
-		side.req:SetText(U.col("ff6a5a", string.format("먼저 '%s'을(를) 배워야 합니다.", ns.N(prev.name))))
+		local step, total = R.NextStepTo(page.sel)
+		local first = R.byId[step]
+		side.req:SetText(U.col("ff6a5a", string.format("먼저 '%s'(%s G)을(를) 배워야 합니다.", ns.N(first.name), U.fmt(R.NextCost(step) or 0)))
+			.. "\n" .. U.col("aab3c8", string.format("여기까지 모두 %s G", U.fmt(total))))
+		side.goPrev:Show()
 	else
 		side.req:SetText("")
+		side.goPrev:Hide()
 	end
 	if cost then
 		side.buy:SetLabel("배우기  " .. U.fmt(cost) .. " G")
@@ -168,15 +178,19 @@ local function refresh(page)
 		side.buy:SetOff(true)
 	end
 
+	-- runes only (companion bonuses are listed under 편성 > 동료)
+	local sums = {}
+	for id, lv in pairs(ns.db.runes) do
+		local n = R.byId[id]
+		if n and lv > 0 then sums[n.stat] = (sums[n.stat] or 0) + n.per * lv end
+	end
 	local keys = {}
-	for k in pairs(R.All()) do keys[#keys + 1] = k end
+	for k in pairs(sums) do keys[#keys + 1] = k end
 	table.sort(keys)
 	local parts = {}
-	for _, k in ipairs(keys) do
-		local v = ns.Bonus(k)
-		if v ~= 0 then parts[#parts + 1] = ns.BonusText(k, v) end
-	end
-	side.total:SetText(#parts > 0 and table.concat(parts, "\n") or "아직 배운 룬이 없습니다.")
+	for _, k in ipairs(keys) do parts[#parts + 1] = ns.BonusText(k, sums[k]) end
+	local petNote = U.col("8a90a2", "\n동료 보너스는 '편성 > 동료'에서 봅니다.")
+	side.total:SetText((#parts > 0 and table.concat(parts, "\n") or "아직 배운 룬이 없습니다.") .. petNote)
 end
 
 local function open(page, opts)
@@ -185,6 +199,6 @@ end
 
 Main.RegisterTab({
 	key = "runes", title = "룬", sub = "골드로 배우는 계정 전체 강화입니다",
-	icon = "INV_Misc_Rune_01", build = build, refresh = refresh, open = open,
+	icon = "INV_Misc_Rune_01", art = "icon_runes", build = build, refresh = refresh, open = open,
 	events = { "RUNES", "RESET", "PETS", "GOLD" },
 })

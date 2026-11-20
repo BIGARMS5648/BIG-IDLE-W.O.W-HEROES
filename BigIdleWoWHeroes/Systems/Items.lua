@@ -365,8 +365,7 @@ function Items.Equip(heroId, bagIndex)
 	local h = db.heroes[heroId]
 	local old = h.gear[it.s]
 	table.remove(db.bag, bagIndex)
-	h.gear[it.s] = it
-	it.lock = nil
+	h.gear[it.s] = it -- a protected item stays protected while worn
 	if old then
 		table.insert(db.bag, bagIndex, old)
 	end
@@ -389,6 +388,25 @@ function Items.Unequip(heroId, slot)
 	ns.Fire("BAG")
 	ns.Fire("GEAR", heroId)
 	return true
+end
+
+-- Gold a player gets for breaking an item down, bonuses included. Every screen
+-- and the forge itself use this, so the number shown is the number paid.
+function Items.SmeltGold(it)
+	return floor(Items.Value(it) * (1 + ns.Bonus("smeltGold") / 100))
+end
+
+-- The party hero this bag item would improve the most (ratio > 1.01), if any.
+function Items.PartyUpgrade(it)
+	local best, bestR
+	for i = 1, ns.PARTY_SIZE do
+		local id = ns.db.party[i]
+		if id and ns.db.heroes[id] then
+			local r = Items.Compare(id, it)
+			if r and r > 1.01 and (not bestR or r > bestR) then best, bestR = id, r end
+		end
+	end
+	return best, bestR
 end
 
 -- Would this bag item be an upgrade for the hero? Returns the power ratio.
@@ -476,10 +494,9 @@ function Items.Tooltip(it, heroId)
 	else
 		add(string.format("요구 레벨 %d", req), nil, 0.8, 0.8, 0.8)
 	end
-	local gold = Items.Value(it)
-	add("용해 가치", U.fmt(gold) .. " G", 1, 0.82, 0)
+	add("분해 가치", U.fmt(Items.SmeltGold(it)) .. " G", 1, 0.82, 0)
 	if it.lock then
-		add("잠김 - 일괄 용해/융합에서 제외", nil, 1, 0.5, 0.2)
+		add("보호됨 - 분해·융합에 쓰이지 않습니다", nil, 1, 0.5, 0.2)
 	end
 	if h and it ~= h.gear[it.s] then
 		local r = Items.Compare(heroId, it)
@@ -522,8 +539,7 @@ function Items.MatTooltip(id)
 	if m.tier < ns.MAT_MAX_TIER[m.kind] then
 		lines[#lines + 1] = { "9개를 융합하면 다음 단계 1개가 됩니다.", nil, 0.6, 0.8, 1, true }
 	end
-	local gold = ns.MatValue(id)
-	lines[#lines + 1] = { "용해 가치", U.fmt(gold) .. " G", 1, 0.82, 0 }
+	lines[#lines + 1] = { "분해 가치 (1개)", U.fmt(ns.Forge.MatSmeltGold(id, 1)) .. " G", 1, 0.82, 0 }
 	lines[#lines + 1] = { "보유", tostring(ns.MatCount(id)), 0.8, 0.8, 0.8 }
 	return lines
 end

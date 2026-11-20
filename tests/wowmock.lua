@@ -189,6 +189,7 @@ function FontString:SetJustifyH(j) check(j == "LEFT" or j == "CENTER" or j == "R
 function FontString:SetJustifyV(j) check(j == "TOP" or j == "MIDDLE" or j == "BOTTOM", "SetJustifyV: bad value " .. tostring(j)) self.__jv = j end
 function FontString:SetWordWrap(v) self.__nowrap = not v end
 function FontString:SetNonSpaceWrap(v) end
+function FontString:SetSpacing(n) check(type(n) == "number", "SetSpacing: number expected") self.__spacing = n end
 function FontString:SetMaxLines(n) end
 function FontString:SetShadowOffset(x, y) end
 function FontString:SetShadowColor(r, g, b, a) end
@@ -286,6 +287,13 @@ function Button:IsEnabled() return not self.__disabled end
 function Button:SetMotionScriptsWhileDisabled(v) end
 function Button:LockHighlight() end
 function Button:UnlockHighlight() end
+for _, key in ipairs({ "Normal", "Pushed", "Highlight", "Disabled" }) do
+	Button["Set" .. key .. "Texture"] = function(self, path, blend)
+		check(type(path) == "string" or (type(path) == "table" and path.__widget), "Set" .. key .. "Texture: path or texture expected")
+		check(blend == nil or blend == "ADD" or blend == "BLEND" or blend == "MOD", "Set" .. key .. "Texture: bad blend mode")
+		self["__" .. key:lower() .. "Tex"] = path
+	end
+end
 
 local ScrollFrame = setmetatable({}, { __index = Frame })
 function ScrollFrame:SetScrollChild(c) check(type(c) == "table" and c.__widget, "SetScrollChild: frame expected") self.__child = c end

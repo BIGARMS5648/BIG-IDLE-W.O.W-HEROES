@@ -1,16 +1,19 @@
 ## Interface: 16001
 ## Title: Big Idle W.O.W Heroes |cff9d9d9d(방치형 영웅단)|r
 ## Notes: 화면 한켠의 전투 창에서 저절로 싸우는 방치형 5인 파티 RPG. /biwh
-## Version: 2.0.0
+## Version: 2.1.0
 ## SavedVariables: BigIdleWoWHeroesDB
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## AddonCompartmentFunc: BigIdleWoWHeroes_OnAddonCompartmentClick
 
 Core\Core.lua
 
+Data\Art.lua
+
 Data\Items.lua
 Data\Skills.lua
 Data\Classes.lua
+Data\Races.lua
 Data\Names.lua
 Data\Monsters.lua
 Data\Stages.lua
@@ -29,6 +32,7 @@ Systems\Offline.lua
 Systems\Guide.lua
 
 UI\Widgets.lua
+UI\Sprite.lua
 UI\Bar.lua
 UI\Main.lua
 UI\TabParty.lua
