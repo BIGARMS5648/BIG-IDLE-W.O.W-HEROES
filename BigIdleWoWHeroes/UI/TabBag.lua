@@ -415,7 +415,7 @@ local function build(page)
 		return UI.SimpleTip("분해 기준 등급",
 			"일괄 분해와 자동 분해가 이 등급 이하의 장비만 분해합니다. 클릭하면 한 등급 올리고, 우클릭하면 내립니다.")
 	end, "TOP")
-	page.autoSmelt = UI.Check(page, "가방이 차면 자동 분해 (기준 등급 이하)",
+	page.autoSmelt = UI.Check(page, "가방이 차면 자동 분해",
 		function() return (ns.db.opt.autoSmelt or 0) > 0 end,
 		function(v) ns.db.opt.autoSmelt = v and smeltQ() or 0 end)
 	page.autoSmelt:SetPoint("TOPLEFT", page.smeltPick, "BOTTOMLEFT", 0, -2)
