@@ -15,18 +15,16 @@ local function worldOpen(d)
 end
 
 local function bossSkillText(sk)
-	local ko = ns.lang == "ko"
 	if sk.kind == "smash" then
-		return string.format(ko and "강타 (피해 x%s)" or "Smash (x%s damage)", U.num(sk.mult, 1))
+		return string.format("강타 (피해 x%s)", U.num(sk.mult, 1))
 	elseif sk.kind == "aoe" then
-		return string.format(ko and "파티 전체 %s 공격" or "Party-wide %s attack", ns.N(ns.SCHOOL[sk.school or "phys"].name))
+		return string.format("파티 전체 %s 공격", ns.N(ns.SCHOOL[sk.school or "phys"].name))
 	elseif sk.kind == "summon" then
-		local name = ns.N(ns.MONSTERS[sk.mob].name)
-		return ko and string.format("%s %d마리 소환", name, sk.n) or string.format("Summons %d x %s", sk.n, name)
+		return string.format("%s %d마리 소환", ns.N(ns.MONSTERS[sk.mob].name), sk.n)
 	elseif sk.kind == "enrage" then
-		return string.format(ko and "생명력 %d%% 이하에서 격노" or "Enrages below %d%% health", sk.hp * 100)
+		return string.format("생명력 %d%% 이하에서 격노", sk.hp * 100)
 	elseif sk.kind == "shield" then
-		return ko and string.format("%d초 동안 받는 피해 %d%% 감소", sk.dur, sk.dr) or string.format("Shield: %d%% less damage for %d sec", sk.dr, sk.dur)
+		return string.format("%d초 동안 받는 피해 %d%% 감소", sk.dur, sk.dr)
 	end
 	return sk.kind
 end
@@ -40,7 +38,6 @@ end
 -- Screen
 ------------------------------------------------------------------------
 local function build(page)
-	local T = ns.T
 	page.diff = ns.db.stage.diff
 	page.idx = ns.db.stage.idx
 	page.act = ns.StageAct(page.idx)
@@ -89,10 +86,10 @@ local function build(page)
 		UI.Tip(w, function(self)
 			local dd = ns.DIFFS[self.d]
 			local lines = { { ns.N(dd.world), ns.N(dd.name), U.rgb(dd.hex) } }
-			lines[#lines + 1] = { string.format(ns.T("스테이지 레벨 %d ~ %d", "Stage levels %d - %d"), ns.StageLevel(self.d, 1), ns.StageLevel(self.d, ns.STAGE_COUNT)), nil, 1, 1, 1 }
-			lines[#lines + 1] = { ns.T("높은 난이도일수록 몬스터가 많고 높은 등급 장비가 잘 나옵니다.", "Higher difficulties bring more monsters and better loot."), nil, 0.8, 0.8, 0.8 }
+			lines[#lines + 1] = { string.format("스테이지 레벨 %d ~ %d", ns.StageLevel(self.d, 1), ns.StageLevel(self.d, ns.STAGE_COUNT)), nil, 1, 1, 1 }
+			lines[#lines + 1] = { "높은 난이도일수록 몬스터가 많고 높은 등급 장비가 잘 나옵니다.", nil, 0.8, 0.8, 0.8 }
 			if not worldOpen(self.d) then
-				lines[#lines + 1] = { string.format(ns.T("%s의 30개 스테이지를 모두 깨면 열립니다.", "Clear all 30 stages of %s to open."), ns.N(ns.DIFFS[self.d - 1].world)), nil, 1, 0.35, 0.3 }
+				lines[#lines + 1] = { string.format("%s의 30개 스테이지를 모두 깨면 열립니다.", ns.N(ns.DIFFS[self.d - 1].world)), nil, 1, 0.35, 0.3 }
 			end
 			return lines
 		end, "TOP")
@@ -173,11 +170,11 @@ local function build(page)
 	-- options under the path
 	local optY = PATH_Y - 2 * (NODE_H + 8) - 6
 	page.checks = {
-		UI.Check(page, T("자동 진행 - 깨면 다음 스테이지로", "Auto-advance after every clear"),
+		UI.Check(page, "자동 진행 - 깨면 다음 스테이지로",
 			function() return ns.db.opt.auto end, function(v) ns.db.opt.auto = v if v then ns.db.retry = 0 end ns.Fire("OPTIONS") end),
-		UI.Check(page, T("전멸하면 한 스테이지 물러나기", "Fall back one stage after a wipe"),
+		UI.Check(page, "전멸하면 한 스테이지 물러나기",
 			function() return ns.db.opt.retreat end, function(v) ns.db.opt.retreat = v end),
-		UI.Check(page, T("물러난 뒤 8번 깨면 다시 도전", "Retry after 8 clears"),
+		UI.Check(page, "물러난 뒤 8번 깨면 다시 도전",
 			function() return ns.db.opt.retry end, function(v) ns.db.opt.retry = v end),
 	}
 	for i, c in ipairs(page.checks) do
@@ -216,7 +213,7 @@ local function build(page)
 	d.bossSkills:SetWidth(240)
 	d.bossSkills:SetJustifyV("TOP")
 	UI.Color(d.bossSkills, UI.C.sub)
-	d.mobTitle = UI.Text(d, 10, T("등장 몬스터", "Monsters"))
+	d.mobTitle = UI.Text(d, 10, "등장 몬스터")
 	d.mobTitle:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -176)
 	UI.Color(d.mobTitle, UI.C.sub)
 	d.mobs = {}
@@ -228,11 +225,11 @@ local function build(page)
 			if not mon then return nil end
 			local lines = { { ns.N(mon.name), ns.N(ns.MTYPE[mon.type]), 1, 0.6, 0.5 } }
 			local traits = {}
-			if mon.range then traits[#traits + 1] = ns.T("원거리", "ranged") end
-			if mon.school ~= "phys" then traits[#traits + 1] = ns.N(ns.SCHOOL[mon.school].name) .. ns.T(" 공격", " attacks") end
+			if mon.range then traits[#traits + 1] = "원거리" end
+			if mon.school ~= "phys" then traits[#traits + 1] = ns.N(ns.SCHOOL[mon.school].name) .. " 공격" end
 			if mon.res then
 				for k, v in pairs(mon.res) do
-					traits[#traits + 1] = ns.N(ns.SCHOOL[k].name) .. (v > 0 and ns.T(" 저항 ", " res ") or ns.T(" 약점 ", " weak ")) .. math.abs(v) .. "%"
+					traits[#traits + 1] = ns.N(ns.SCHOOL[k].name) .. (v > 0 and " 저항 " or " 약점 ") .. math.abs(v) .. "%"
 				end
 			end
 			if #traits > 0 then lines[#lines + 1] = { table.concat(traits, ", "), nil, 0.8, 0.8, 0.8 } end
@@ -253,12 +250,11 @@ local function build(page)
 end
 
 local function refresh(page)
-	local T = ns.T
 	local db = ns.db
 	for d, w in ipairs(page.worlds) do
 		local open = worldOpen(d)
 		local p = db.prog[d] or 0
-		w.prog:SetText(open and string.format(T("진행 %d / 30", "Cleared %d / 30"), p) or T("잠김", "Locked"))
+		w.prog:SetText(open and string.format("진행 %d / 30", p) or "잠김")
 		w.lockG:SetShown(not open)
 		w.scene:SetDesaturated(not open)
 		if d == page.diff then w.edge:SetColor(1, 0.82, 0.3, 1) else w.edge:SetColor(0.22, 0.27, 0.4, 1) end
@@ -270,7 +266,7 @@ local function refresh(page)
 	end
 	local acts = ns.DIFFS[page.diff].acts
 	for a, c in ipairs(page.acts) do
-		c:SetLabel(string.format(T("%d막  %s", "Act %d  %s"), a, ns.N(acts[a])))
+		c:SetLabel(string.format("%d막  %s", a, ns.N(acts[a])))
 		c:SetOn(a == page.act)
 	end
 	if ns.StageAct(page.idx) ~= page.act then page.idx = (page.act - 1) * ns.STAGES_PER_ACT + 1 end
@@ -327,11 +323,11 @@ local function refresh(page)
 	local level = ns.StageLevel(page.diff, page.idx)
 	local waves = stg.raid and 4 or ns.WAVES
 	d.info:SetText(U.col(ns.DIFFS[page.diff].hex, ns.N(ns.DIFFS[page.diff].name)) .. "  ·  Lv " .. level .. "  ·  " ..
-		string.format(T("웨이브 %d · 웨이브당 %d마리", "%d waves · %d per wave"), waves, ns.MobsPerWave(page.diff, page.idx)))
+		string.format("웨이브 %d · 웨이브당 %d마리", waves, ns.MobsPerWave(page.diff, page.idx)))
 	local b = stg.boss
 	d.boss:SetIconName(b.icon)
 	d.boss:SetBorderRGB(stg.raid and 1 or 0.85, stg.raid and 0.6 or 0.25, stg.raid and 0.15 or 0.2)
-	d.bossName:SetText((stg.raid and T("공격대 우두머리  ", "Raid boss  ") or T("우두머리  ", "Boss  ")) .. U.col("ff8a5a", ns.N(b.name)))
+	d.bossName:SetText((stg.raid and "공격대 우두머리  " or "우두머리  ") .. U.col("ff8a5a", ns.N(b.name)))
 	local skills = {}
 	for _, sk in ipairs(b.skills) do skills[#skills + 1] = "• " .. bossSkillText(sk) end
 	d.bossSkills:SetText(table.concat(skills, "\n"))
@@ -348,28 +344,27 @@ local function refresh(page)
 		end
 	end
 	local chest = stg.raid and ns.CHEST[3] or ns.CHEST[2]
-	d.loot:SetText(T("보상", "Rewards") .. "\n" .. U.col("ffffff", ns.N(ns.CHEST[1].name)) .. "\n" .. U.col("ffd24a", ns.N(chest.name)) ..
-		"\n" .. string.format(T("장비 Lv %d~%d", "Gear Lv %d-%d"), max(1, level - 2), level))
+	d.loot:SetText("보상" .. "\n" .. U.col("ffffff", ns.N(ns.CHEST[1].name)) .. "\n" .. U.col("ffd24a", ns.N(chest.name)) ..
+		"\n" .. string.format("장비 Lv %d~%d", max(1, level - 2), level))
 	local can = ns.Combat.CanTravel(page.diff, page.idx)
 	local here = db.stage.diff == page.diff and db.stage.idx == page.idx
 	if here then
-		d.go:SetLabel(T("지금 싸우는 곳", "You are here"))
+		d.go:SetLabel("지금 싸우는 곳")
 		d.go:SetOff(true)
 	elseif can then
-		d.go:SetLabel(T("이 스테이지로 이동", "Travel here"))
+		d.go:SetLabel("이 스테이지로 이동")
 		d.go:SetOff(false)
 	else
-		d.go:SetLabel(T("아직 잠겨 있습니다", "Still locked"))
+		d.go:SetLabel("아직 잠겨 있습니다")
 		d.go:SetOff(true)
 	end
 
 	for _, c in ipairs(page.checks) do c:Refresh() end
 	local rate = db.rate
 	if (rate.gold or 0) > 0 then
-		page.rate:SetText(string.format(T("최근 수입: 시간당 골드 %s · 경험치 %s. 영웅 레벨과 비슷한 레벨의 스테이지에서 경험치가 가장 잘 오릅니다.",
-			"Recent income: %s gold/h · %s xp/h. Stages near your heroes' level give the most experience."), U.fmt(rate.gold * 3600), U.fmt(rate.xp * 3600)))
+		page.rate:SetText(string.format("최근 수입: 시간당 골드 %s · 경험치 %s. 영웅 레벨과 비슷한 레벨의 스테이지에서 경험치가 가장 잘 오릅니다.", U.fmt(rate.gold * 3600), U.fmt(rate.xp * 3600)))
 	else
-		page.rate:SetText(T("영웅 레벨과 비슷한 레벨의 스테이지에서 경험치가 가장 잘 오릅니다.", "Stages near your heroes' level give the most experience."))
+		page.rate:SetText("영웅 레벨과 비슷한 레벨의 스테이지에서 경험치가 가장 잘 오릅니다.")
 	end
 end
 
@@ -381,7 +376,7 @@ local function open(page)
 end
 
 Main.RegisterTab({
-	key = "map", title = { "지도", "Map" }, sub = { "네 개의 세계, 120개 지역", "Four worlds, 120 zones" },
+	key = "map", title = "지도", sub = "네 개의 세계, 120개 지역",
 	icon = "INV_Misc_Map_01", build = build, refresh = refresh, open = open,
 	events = { "STAGE", "PROGRESS", "RESULT", "OPTIONS", "RESET" },
 })

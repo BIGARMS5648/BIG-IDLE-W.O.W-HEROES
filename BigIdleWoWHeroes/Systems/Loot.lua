@@ -163,7 +163,7 @@ function Loot.OpenAll(chestType)
 		ns.Sound("loot")
 		Loot.Announce(sum)
 	elseif sum.full then
-		ns.Toast(ns.T("가방이 가득 차 상자를 열 수 없습니다.", "Your bags are full - chests stay closed."))
+		ns.Toast("가방이 가득 차 상자를 열 수 없습니다.")
 	end
 	return sum
 end
@@ -180,17 +180,17 @@ function Loot.Announce(sum)
 		matCount = matCount + n
 	end
 	if matCount > 0 then
-		parts[#parts + 1] = ns.T("재료 x", "Materials x") .. matCount
+		parts[#parts + 1] = "재료 x" .. matCount
 	end
-	local msg = string.format(ns.T("상자 %d개 개봉: %s", "Opened %d chests: %s"), sum.opened, table.concat(parts, ", "))
+	local msg = string.format("상자 %d개 개봉: %s", sum.opened, table.concat(parts, ", "))
 	if sum.full then
-		msg = msg .. " " .. U.col("ff4040", ns.T("(가방 가득 참)", "(bags full)"))
+		msg = msg .. " " .. U.col("ff4040", "(가방 가득 참)")
 	end
 	if sum.best and sum.best.q >= 5 then
 		ns.Toast(msg)
 		if sum.best.q >= 6 then
 			-- only the really rare finds go to the chat window
-			ns.Print(string.format(ns.T("획득: %s", "Looted: %s"), ns.Items.ColorName(sum.best)))
+			ns.Print(string.format("획득: %s", ns.Items.ColorName(sum.best)))
 		end
 	else
 		ns.Log(msg)

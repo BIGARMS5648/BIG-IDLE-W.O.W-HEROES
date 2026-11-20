@@ -21,7 +21,7 @@ local dirty = {}
 ------------------------------------------------------------------------
 -- Screen registry (each UI/Tab*.lua file registers itself)
 ------------------------------------------------------------------------
--- def: { key, title = { ko, en }, sub = { ko, en }, icon, build(page), refresh(page),
+-- def: { key, title, sub, icon, build(page), refresh(page),
 --        open(page, opts) optional, tick(page) optional, events = { ... } }
 function Main.RegisterTab(def)
 	tabs[#tabs + 1] = def

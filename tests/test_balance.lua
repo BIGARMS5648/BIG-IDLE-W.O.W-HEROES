@@ -8,7 +8,6 @@ local Bot = dofile(debug.getinfo(1, "S").source:sub(2):gsub("test_balance%.lua$"
 
 math.randomseed(20261120)
 BigIdleWoWHeroesDB = nil
-ns.DetectLang()
 ns.InitDB()
 local db = ns.db
 Bot.Start(starter)

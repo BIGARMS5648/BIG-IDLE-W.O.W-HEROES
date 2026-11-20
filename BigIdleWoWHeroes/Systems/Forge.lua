@@ -43,7 +43,7 @@ function Forge.AddXP(n)
 		leveled = true
 	end
 	if leveled then
-		ns.Toast(string.format(ns.T("티탄 용광로 %d레벨 달성!", "The Titan Forge reached level %d!"), f.level))
+		ns.Toast(string.format("티탄 용광로 %d레벨 달성!", f.level))
 	end
 	ns.Fire("FORGE")
 end
@@ -62,10 +62,10 @@ function Forge.Unlock(op)
 	local d = Forge.OpDef(op)
 	if not d or Forge.Unlocked(op) then return false end
 	if ns.db.forge.level < d.level then
-		return false, string.format(ns.T("용광로 %d레벨이 필요합니다.", "Requires forge level %d."), d.level)
+		return false, string.format("용광로 %d레벨이 필요합니다.", d.level)
 	end
 	if not ns.SpendGold(d.cost) then
-		return false, ns.T("골드가 부족합니다.", "Not enough gold.")
+		return false, "골드가 부족합니다."
 	end
 	ns.db.forge.ops[op] = true
 	ns.Fire("FORGE")
@@ -74,7 +74,7 @@ end
 
 local function needOp(op)
 	if Forge.Unlocked(op) then return true end
-	return false, string.format(ns.T("'%s' 기능이 아직 잠겨 있습니다.", "'%s' is still locked."), ns.N(Forge.OpDef(op).name))
+	return false, string.format("'%s' 기능이 아직 잠겨 있습니다.", ns.N(Forge.OpDef(op).name))
 end
 
 -- Items near the forge's own level are worth the most experience.
@@ -102,7 +102,7 @@ function Forge.Smelt(items)
 			n = n + 1
 		end
 	end
-	if n == 0 then return false, ns.T("용해할 아이템이 없습니다.", "Nothing to smelt.") end
+	if n == 0 then return false, "용해할 아이템이 없습니다." end
 	gold = floor(gold * (1 + ns.Bonus("smeltGold") / 100))
 	ns.AddGold(gold)
 	Forge.AddXP(xp)
@@ -142,7 +142,7 @@ function Forge.AutoSmelt()
 	if #list == 0 then return false end
 	local ok, gold, n = Forge.Smelt(list)
 	if ok then
-		ns.Log(string.format(ns.T("자동 용해: %d개 → %s 골드", "Auto-smelt: %d items -> %s gold"), n, U.fmt(gold)))
+		ns.Log(string.format("자동 용해: %d개 → %s 골드", n, U.fmt(gold)))
 	end
 	return ok and ns.Items.BagFree() > 0
 end
@@ -152,18 +152,18 @@ end
 ------------------------------------------------------------------------
 function Forge.CanFuse(items)
 	if #items ~= Forge.FUSE_COUNT then
-		return false, string.format(ns.T("같은 등급 장비 %d개가 필요합니다.", "Needs %d items of the same quality."), Forge.FUSE_COUNT)
+		return false, string.format("같은 등급 장비 %d개가 필요합니다.", Forge.FUSE_COUNT)
 	end
 	local q, cat = items[1].q, ns.Items.FuseCat(items[1])
 	if q >= ns.MAX_QUALITY then
-		return false, ns.T("최고 등급은 융합할 수 없습니다.", "The highest quality cannot be fused.")
+		return false, "최고 등급은 융합할 수 없습니다."
 	end
 	for i = 2, #items do
 		if items[i].q ~= q then
-			return false, ns.T("등급이 모두 같아야 합니다.", "All items must share one quality.")
+			return false, "등급이 모두 같아야 합니다."
 		end
 		if ns.Items.FuseCat(items[i]) ~= cat then
-			return false, ns.T("무기/방어구와 장신구류는 섞을 수 없습니다.", "Weapons / armor and accessories cannot be mixed.")
+			return false, "무기/방어구와 장신구류는 섞을 수 없습니다."
 		end
 	end
 	return true
@@ -176,7 +176,7 @@ function Forge.Fuse(items)
 	local levelSum, xp = 0, 0
 	for i = 1, #items do
 		if not ns.Items.IndexInBag(items[i]) then
-			return false, ns.T("가방에 없는 아이템이 있습니다.", "An item is no longer in your bags.")
+			return false, "가방에 없는 아이템이 있습니다."
 		end
 		levelSum = levelSum + items[i].l
 		xp = xp + Forge.ItemXP(items[i])
@@ -215,10 +215,10 @@ function Forge.FuseMat(id)
 	local m = ns.MATS[id]
 	if not m then return false end
 	if m.tier >= ns.MAT_MAX_TIER[m.kind] then
-		return false, ns.T("이미 최고 단계 재료입니다.", "Already the highest tier.")
+		return false, "이미 최고 단계 재료입니다."
 	end
 	if ns.MatCount(id) < Forge.FUSE_COUNT then
-		return false, string.format(ns.T("%d개가 필요합니다.", "Needs %d of them."), Forge.FUSE_COUNT)
+		return false, string.format("%d개가 필요합니다.", Forge.FUSE_COUNT)
 	end
 	local _, fxp = ns.MatValue(id)
 	ns.AddMat(id, -Forge.FUSE_COUNT)
@@ -239,10 +239,10 @@ function Forge.UnlockCraftTier(tier)
 	local d = ns.CRAFT_TIERS[tier]
 	if not d or Forge.CraftTierUnlocked(tier) then return false end
 	if ns.db.forge.level < d.forge then
-		return false, string.format(ns.T("용광로 %d레벨이 필요합니다.", "Requires forge level %d."), d.forge)
+		return false, string.format("용광로 %d레벨이 필요합니다.", d.forge)
 	end
 	if not ns.SpendGold(d.gold * 5) then
-		return false, ns.T("골드가 부족합니다.", "Not enough gold.")
+		return false, "골드가 부족합니다."
 	end
 	ns.db.forge.craft[tier] = true
 	ns.Fire("FORGE")
@@ -263,19 +263,19 @@ function Forge.CanCraft(group, tier)
 	local ok, why = needOp("craft")
 	if not ok then return false, why end
 	if not Forge.CraftTierUnlocked(tier) then
-		return false, ns.T("이 제작 단계는 아직 잠겨 있습니다.", "This crafting tier is still locked.")
+		return false, "이 제작 단계는 아직 잠겨 있습니다."
 	end
 	local cost, gold = Forge.CraftCost(group, tier)
 	for id, n in pairs(cost) do
 		if ns.MatCount(id) < n then
-			return false, string.format(ns.T("재료 부족: %s", "Missing material: %s"), ns.N(ns.MATS[id].name))
+			return false, string.format("재료 부족: %s", ns.N(ns.MATS[id].name))
 		end
 	end
 	if not ns.CanAfford(gold) then
-		return false, ns.T("골드가 부족합니다.", "Not enough gold.")
+		return false, "골드가 부족합니다."
 	end
 	if ns.Items.BagFree() <= 0 then
-		return false, ns.T("가방이 가득 찼습니다.", "Your bags are full.")
+		return false, "가방이 가득 찼습니다."
 	end
 	return true
 end
@@ -308,17 +308,17 @@ function Forge.CanSocket(it, kind, matId)
 	local ok, why = needOp(kind)
 	if not ok then return false, why end
 	if ns.Items.SocketCount(it, kind) <= 0 then
-		return false, ns.T("이 장비에는 해당 홈이 없습니다.", "This item has no slot of that kind.")
+		return false, "이 장비에는 해당 홈이 없습니다."
 	end
 	if ns.Items.FreeSockets(it, kind) <= 0 then
-		return false, ns.T("빈 홈이 없습니다. 먼저 추출하세요.", "No free slot. Extract a stat first.")
+		return false, "빈 홈이 없습니다. 먼저 추출하세요."
 	end
 	local m = ns.MATS[matId]
 	if not m or m.kind ~= ns.SOCKET[kind].mat then
-		return false, ns.T("맞지 않는 재료입니다.", "That material does not fit.")
+		return false, "맞지 않는 재료입니다."
 	end
 	if ns.MatCount(matId) <= 0 then
-		return false, ns.T("재료가 없습니다.", "You do not have that material.")
+		return false, "재료가 없습니다."
 	end
 	return true
 end
@@ -345,7 +345,7 @@ function Forge.RemoveSocket(it, kind, index, heroId)
 	local e = l and l[index]
 	if not e then return false end
 	if not ns.SpendGold(Forge.RemoveCost(kind, e[3])) then
-		return false, ns.T("골드가 부족합니다.", "Not enough gold.")
+		return false, "골드가 부족합니다."
 	end
 	table.remove(l, index)
 	ns.Stats.Invalidate(heroId)
@@ -363,13 +363,13 @@ function Forge.BonusRoll(tier)
 	local d = ns.SEAL[tier]
 	if not d then return false end
 	if ns.MatCount(d.mat) <= 0 then
-		return false, ns.T("인장이 없습니다.", "You have no seal of that kind.")
+		return false, "인장이 없습니다."
 	end
 	if ns.Items.BagFree() <= 0 then
-		return false, ns.T("가방이 가득 찼습니다.", "Your bags are full.")
+		return false, "가방이 가득 찼습니다."
 	end
 	if not ns.SpendGold(d.gold) then
-		return false, ns.T("골드가 부족합니다.", "Not enough gold.")
+		return false, "골드가 부족합니다."
 	end
 	local _, fxp = ns.MatValue(d.mat)
 	ns.AddMat(d.mat, -1)

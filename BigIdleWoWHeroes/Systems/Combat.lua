@@ -271,7 +271,7 @@ local function killReward(m, killer)
 		local h = db.heroes[u.id]
 		local amount = m.exp * (1 + (expBonus + (u.s.exp or 0)) / 100) * ns.Heroes.XPFactor(h.level, st.level)
 		if ns.Heroes.AddXP(u.id, amount) > 0 then
-			fx(u.x, ns.T("레벨 업!", "Level Up!"), 1, 0.85, 0.1, true, "hero")
+			fx(u.x, "레벨 업!", 1, 0.85, 0.1, true, "hero")
 			ns.Sound("level")
 			Combat.dirty = true
 		end
@@ -337,7 +337,7 @@ local function damageHero(h, amount, school, src, isDot)
 	local s = h.s
 	if not isDot then
 		if random() * 100 < s.dodge then
-			fx(h.x, ns.T("회피", "Dodge"), 0.7, 0.7, 0.7, false, "hero")
+			fx(h.x, "회피", 0.7, 0.7, 0.7, false, "hero")
 			return 0
 		end
 		if random() * 100 < s.block then
@@ -377,7 +377,7 @@ local function damageHero(h, amount, school, src, isDot)
 		h.shield = 0
 		h.hots = {}
 		meter(h, "deaths", 1)
-		fx(h.x, ns.T("쓰러짐!", "Down!"), 1, 0.2, 0.2, true, "hero")
+		fx(h.x, "쓰러짐!", 1, 0.2, 0.2, true, "hero")
 		Combat.dirty = true -- auras from this hero end
 	end
 	return amount
@@ -388,7 +388,7 @@ local function revive(h, ratio)
 	h.hp = max(1, floor(h.maxhp * ratio))
 	h.reviveT = 0
 	h.atkT = 0.5
-	fx(h.x, ns.T("부활", "Revived"), 0.6, 1, 0.6, true, "hero")
+	fx(h.x, "부활", 0.6, 1, 0.6, true, "hero")
 	Combat.dirty = true
 end
 
@@ -454,7 +454,7 @@ local function mobSkill(m, entry)
 		if not entry.done and m.hp / m.maxhp <= sk.hp then
 			entry.done = true
 			m.enr = sk.mult
-			fx(m.x, ns.T("격노!", "Enrage!"), 1, 0.2, 0.2, true, "mob")
+			fx(m.x, "격노!", 1, 0.2, 0.2, true, "mob")
 		end
 		return
 	end
@@ -474,7 +474,7 @@ local function mobSkill(m, entry)
 		end
 	elseif kind == "aoe" then
 		m.anim = 0.25
-		fx(m.x - 80, ns.T("광역 공격!", "Area attack!"), 1, 0.6, 0.2, false, "mob")
+		fx(m.x - 80, "광역 공격!", 1, 0.6, 0.2, false, "mob")
 		for i = 1, #heroes do
 			local t = heroes[i]
 			if not t.dead then
@@ -498,11 +498,11 @@ local function mobSkill(m, entry)
 				mobs[#mobs + 1] = add
 			end
 		end
-		fx(m.x, ns.T("소환!", "Summon!"), 0.8, 0.6, 1, false, "mob")
+		fx(m.x, "소환!", 0.8, 0.6, 1, false, "mob")
 	elseif kind == "shield" then
 		m.drT = sk.dur
 		m.dr = sk.dr
-		fx(m.x, ns.T("보호막!", "Shielded!"), 0.6, 0.8, 1, false, "mob")
+		fx(m.x, "보호막!", 0.6, 0.8, 1, false, "mob")
 	end
 end
 
@@ -1070,10 +1070,10 @@ local function victory()
 		local bonus = floor(ns.MobGold(40, st.level))
 		ns.AddGold(bonus)
 		ns.Loot.AddChest(2, st.level, st.diff)
-		ns.Toast(string.format(ns.T("첫 공략! %s (+%s 골드, 궤짝 1개)", "First clear! %s (+%s gold, 1 cache)"),
+		ns.Toast(string.format("첫 공략! %s (+%s 골드, 궤짝 1개)",
 			ns.StageLabel(st.diff, st.idx), U.fmt(bonus)))
 		if st.idx == ns.STAGE_COUNT and st.diff < #ns.DIFFS then
-			ns.Toast(string.format(ns.T("새 난이도 개방: %s", "New difficulty unlocked: %s"), ns.N(ns.DIFFS[st.diff + 1].name)))
+			ns.Toast(string.format("새 난이도 개방: %s", ns.N(ns.DIFFS[st.diff + 1].name)))
 		end
 		ns.Fire("PROGRESS")
 	end
@@ -1098,13 +1098,13 @@ local function defeat()
 		end
 		if db.opt.retry then
 			db.retry = 8
-			ns.Toast(string.format(ns.T("%s 공략 실패. 이전 스테이지에서 힘을 기른 뒤 다시 도전합니다.", "Failed %s. Farming the previous stage before trying again."), label))
+			ns.Toast(string.format("%s 공략 실패. 이전 스테이지에서 힘을 기른 뒤 다시 도전합니다.", label))
 		else
 			db.opt.auto = false
-			ns.Toast(string.format(ns.T("%s 공략 실패. 이전 스테이지를 반복합니다.", "Failed %s. Repeating the previous stage."), label))
+			ns.Toast(string.format("%s 공략 실패. 이전 스테이지를 반복합니다.", label))
 		end
 	else
-		ns.Toast(string.format(ns.T("%s 공략 실패. 다시 도전합니다.", "Failed %s. Trying again."), label))
+		ns.Toast(string.format("%s 공략 실패. 다시 도전합니다.", label))
 	end
 	ns.Fire("RESULT", "lose")
 end
@@ -1119,7 +1119,7 @@ end
 
 function Combat.Travel(diff, idx)
 	if not Combat.CanTravel(diff, idx) then
-		return false, ns.T("아직 갈 수 없는 스테이지입니다.", "That stage is not unlocked yet.")
+		return false, "아직 갈 수 없는 스테이지입니다."
 	end
 	ns.db.stage.diff = diff
 	ns.db.stage.idx = idx

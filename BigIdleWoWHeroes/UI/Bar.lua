@@ -364,7 +364,7 @@ local function updateInfo()
 	frame.diffChip:SetLabel(ns.N(d.name))
 	local act, n = ns.StageAct(idx)
 	local zone = string.format("%d-%d %s", act, n, ns.N(stg.name))
-	if stg.raid then zone = zone .. "  " .. U.col("ff9326", ns.T("공격대", "Raid")) end
+	if stg.raid then zone = zone .. "  " .. U.col("ff9326", "공격대") end
 	frame.zone:SetText(zone)
 	frame.zoneLv:SetText("Lv " .. ns.StageLevel(diff, idx))
 	local zw = frame.zone:GetStringWidth() + frame.zoneLv:GetStringWidth() + 96
@@ -374,19 +374,19 @@ local function updateInfo()
 
 	-- retry note under the banner
 	if (db.retry or 0) > 0 and db.opt.auto then
-		frame.note:SetText(string.format(ns.T("힘을 기르는 중 · 재도전까지 %d회", "Training up · retry in %d"), db.retry))
+		frame.note:SetText(string.format("힘을 기르는 중 · 재도전까지 %d회", db.retry))
 	elseif st.phase == "idle" then
-		frame.note:SetText(ns.T("영웅을 만들어 파티에 넣으세요", "Create a hero to start"))
+		frame.note:SetText("영웅을 만들어 파티에 넣으세요")
 	else
 		frame.note:SetText("")
 	end
 
 	if st.phase == "result" then
 		if st.result == "win" then
-			frame.result:SetText(ns.T("승리!", "Victory!"))
+			frame.result:SetText("승리!")
 			frame.result:SetTextColor(1, 0.85, 0.3)
 		else
-			frame.result:SetText(ns.T("전멸...", "Defeated..."))
+			frame.result:SetText("전멸...")
 			frame.result:SetTextColor(1, 0.35, 0.3)
 		end
 		frame.result:Show()
@@ -405,7 +405,7 @@ local function updateInfo()
 	local auto = db.opt.auto
 	frame.auto.glyph:SetVertexColor(auto and 0.15 or 0.75, auto and 0.12 or 0.78, auto and 0.05 or 0.85)
 	frame.auto.disc:SetVertexColor(auto and 1 or 0.14, auto and 0.78 or 0.17, auto and 0.25 or 0.26)
-	frame.auto.caption:SetText(auto and ns.T("자동 진행", "Auto") or ns.T("반복", "Repeat"))
+	frame.auto.caption:SetText(auto and "자동 진행" or "반복")
 
 	local goal = ns.Guide.Current()
 	frame.goal.text:SetText(ns.N(goal.text))
@@ -450,26 +450,25 @@ end
 -- Construction
 ------------------------------------------------------------------------
 local function chestTip(self)
-	local T = ns.T
 	local t = self.chestType
 	local def = ns.CHEST[t]
 	local lines = {
 		{ ns.N(def.name), ns.Loot.Count(t) .. " / " .. ns.ChestCap(t), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
 	}
 	if t == 1 then
-		lines[#lines + 1] = { T("일반 몬스터가 떨어뜨립니다.", "Dropped by regular monsters."), nil, 0.8, 0.8, 0.8 }
+		lines[#lines + 1] = { "일반 몬스터가 떨어뜨립니다.", nil, 0.8, 0.8, 0.8 }
 	elseif t == 2 then
-		lines[#lines + 1] = { T("스테이지 우두머리가 떨어뜨립니다.", "Dropped by stage bosses."), nil, 0.8, 0.8, 0.8 }
+		lines[#lines + 1] = { "스테이지 우두머리가 떨어뜨립니다.", nil, 0.8, 0.8, 0.8 }
 	else
-		lines[#lines + 1] = { T("각 막의 마지막 공격대 우두머리가 떨어뜨립니다.", "Dropped by the raid boss at the end of each act."), nil, 0.8, 0.8, 0.8 }
+		lines[#lines + 1] = { "각 막의 마지막 공격대 우두머리가 떨어뜨립니다.", nil, 0.8, 0.8, 0.8 }
 	end
 	if ns.Bonus("autoOpen") > 0 then
 		local left = max(0, ns.Loot.AutoInterval(t) - (ns.db.autoT[t] or 0))
-		lines[#lines + 1] = { T("자동 개봉까지", "Auto-open in"), U.time(left), 0.5, 1, 0.5 }
+		lines[#lines + 1] = { "자동 개봉까지", U.time(left), 0.5, 1, 0.5 }
 	else
-		lines[#lines + 1] = { T("'개봉의 룬'을 배우면 자동으로 열립니다.", "The Rune of Opening opens these automatically."), nil, 0.6, 0.6, 0.6 }
+		lines[#lines + 1] = { "'개봉의 룬'을 배우면 자동으로 열립니다.", nil, 0.6, 0.6, 0.6 }
 	end
-	lines[#lines + 1] = { T("클릭: 모두 열기", "Click: open all"), nil, 0.45, 0.8, 1 }
+	lines[#lines + 1] = { "클릭: 모두 열기", nil, 0.45, 0.8, 1 }
 	return lines
 end
 
@@ -501,12 +500,12 @@ function Bar.ApplyCompact()
 end
 
 local MENU = {
-	{ "party", "INV_Misc_GroupNeedMore", { "편성", "Party" } },
-	{ "hero",  "INV_Helmet_06",          { "영웅", "Heroes" } },
-	{ "bag",   "INV_Misc_Bag_10",        { "가방", "Bags" } },
-	{ "forge", "Trade_BlackSmithing",    { "용광로", "Forge" } },
-	{ "runes", "INV_Misc_Rune_01",       { "룬", "Runes" } },
-	{ "map",   "INV_Misc_Map_01",        { "지도", "Map" } },
+	{ "party", "INV_Misc_GroupNeedMore", "편성" },
+	{ "hero",  "INV_Helmet_06",          "영웅" },
+	{ "bag",   "INV_Misc_Bag_10",        "가방" },
+	{ "forge", "Trade_BlackSmithing",    "용광로" },
+	{ "runes", "INV_Misc_Rune_01",       "룬" },
+	{ "map",   "INV_Misc_Map_01",        "지도" },
 }
 
 function Bar.Create()
@@ -623,7 +622,7 @@ function Bar.Create()
 	goal.bg:SetColor(1, 1, 1, 1)
 	goal.star = UI.Glyph(goal, "star", 22, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3])
 	goal.star:SetPoint("LEFT", goal, "LEFT", 10, 0)
-	goal.head = UI.Text(goal, 10, ns.T("다음 목표", "Next goal"))
+	goal.head = UI.Text(goal, 10, "다음 목표")
 	goal.head:SetPoint("TOPLEFT", goal, "TOPLEFT", 40, -7)
 	UI.Color(goal.head, UI.C.gold)
 	goal.text = UI.Text(goal, 12)
@@ -640,8 +639,7 @@ function Bar.Create()
 	goal.onEnter = function(self) self.bg:SetColor(1.2, 1.2, 1.3, 1) end
 	goal.onLeave = function(self) self.bg:SetColor(1, 1, 1, 1) end
 	UI.Tip(goal, function()
-		return UI.SimpleTip(ns.T("다음 목표", "Next goal"), ns.T("지금 하면 좋은 일입니다. 클릭하면 바로 하거나 해당 화면을 엽니다.",
-			"The most useful thing to do now. Click to do it or to open the right screen."))
+		return UI.SimpleTip("다음 목표", "지금 하면 좋은 일입니다. 클릭하면 바로 하거나 해당 화면을 엽니다.")
 	end, "TOP")
 	frame.goal = goal
 
@@ -669,9 +667,8 @@ function Bar.Create()
 		ns.Fire("OPTIONS")
 	end)
 	UI.Tip(auto, function()
-		return UI.SimpleTip(ns.T("자동 진행", "Auto-advance"),
-			ns.T("켜면 스테이지를 깰 때마다 다음 스테이지로 넘어갑니다. 끄면 지금 스테이지를 반복해서 사냥합니다.",
-				"On: move to the next stage after every clear. Off: keep farming the current stage."))
+		return UI.SimpleTip("자동 진행",
+			"켜면 스테이지를 깰 때마다 다음 스테이지로 넘어갑니다. 끄면 지금 스테이지를 반복해서 사냥합니다.")
 	end, "TOP")
 	frame.auto = auto
 

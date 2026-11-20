@@ -48,7 +48,6 @@ local function runeNode(page, node, x, y)
 end
 
 local function build(page)
-	local T = ns.T
 	page.sel = "root"
 	page.nodes = {}
 	-- root, centered over the branches
@@ -106,7 +105,7 @@ local function build(page)
 		Main.Refresh()
 	end, "primary")
 	side.buy:SetPoint("TOP", side, "TOP", 0, -172)
-	side.totalTitle = UI.Title(side, T("보너스 합계", "Total bonuses"), 12)
+	side.totalTitle = UI.Title(side, "보너스 합계", 12)
 	side.totalTitle:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -228)
 	side.total = UI.Text(side, 10)
 	side.total:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -248)
@@ -123,7 +122,6 @@ local function nodeState(id)
 end
 
 local function refresh(page)
-	local T = ns.T
 	for _, b in ipairs(page.nodes) do
 		local node, lvl, cost, available = nodeState(b.node.id)
 		local affordable = cost and available and ns.CanAfford(cost)
@@ -153,20 +151,20 @@ local function refresh(page)
 	side.icon:SetIconName(node.icon)
 	side.icon:SetBorderRGB(lvl > 0 and 0.45 or 0.3, lvl > 0 and 0.7 or 0.33, lvl > 0 and 1 or 0.42)
 	side.name:SetText(ns.N(node.name))
-	side.lvl:SetText(string.format(T("레벨 %d / %d", "Level %d / %d"), lvl, node.max))
-	side.per:SetText(T("레벨당  ", "Per level  ") .. U.col("ffffff", ns.BonusText(node.stat, node.per)))
-	side.now:SetText(lvl > 0 and (T("현재  ", "Now  ") .. U.col("6af07a", ns.BonusText(node.stat, node.per * lvl))) or "")
+	side.lvl:SetText(string.format("레벨 %d / %d", lvl, node.max))
+	side.per:SetText("레벨당  " .. U.col("ffffff", ns.BonusText(node.stat, node.per)))
+	side.now:SetText(lvl > 0 and ("현재  " .. U.col("6af07a", ns.BonusText(node.stat, node.per * lvl))) or "")
 	if not available then
 		local prev = R.byId[R.prev[page.sel]]
-		side.req:SetText(U.col("ff6a5a", string.format(T("먼저 '%s'을(를) 배워야 합니다.", "Learn %s first."), ns.N(prev.name))))
+		side.req:SetText(U.col("ff6a5a", string.format("먼저 '%s'을(를) 배워야 합니다.", ns.N(prev.name))))
 	else
 		side.req:SetText("")
 	end
 	if cost then
-		side.buy:SetLabel(T("배우기  ", "Learn  ") .. U.fmt(cost) .. " G")
+		side.buy:SetLabel("배우기  " .. U.fmt(cost) .. " G")
 		side.buy:SetOff(not available or not ns.CanAfford(cost))
 	else
-		side.buy:SetLabel(T("최대 레벨", "Maxed"))
+		side.buy:SetLabel("최대 레벨")
 		side.buy:SetOff(true)
 	end
 
@@ -178,7 +176,7 @@ local function refresh(page)
 		local v = ns.Bonus(k)
 		if v ~= 0 then parts[#parts + 1] = ns.BonusText(k, v) end
 	end
-	side.total:SetText(#parts > 0 and table.concat(parts, "\n") or T("아직 배운 룬이 없습니다.", "No runes yet."))
+	side.total:SetText(#parts > 0 and table.concat(parts, "\n") or "아직 배운 룬이 없습니다.")
 end
 
 local function open(page, opts)
@@ -186,7 +184,7 @@ local function open(page, opts)
 end
 
 Main.RegisterTab({
-	key = "runes", title = { "룬", "Runes" }, sub = { "골드로 배우는 계정 전체 강화입니다", "Account-wide upgrades bought with gold" },
+	key = "runes", title = "룬", sub = "골드로 배우는 계정 전체 강화입니다",
 	icon = "INV_Misc_Rune_01", build = build, refresh = refresh, open = open,
 	events = { "RUNES", "RESET", "PETS", "GOLD" },
 })

@@ -13,7 +13,6 @@ local function section(name) print("  - " .. name) end
 
 math.randomseed(12345)
 BigIdleWoWHeroesDB = nil
-ns.DetectLang()
 ns.InitDB()
 local db = ns.db
 
@@ -105,10 +104,10 @@ do
 		check(#ns.DIFFS[d].acts == 3, "difficulty " .. d .. ": three acts")
 		for i, stg in ipairs(ns.STAGES[d]) do
 			local where = d .. "-" .. i
-			check(not names[stg.name[1]] and not names[stg.name[2]], where .. ": zone name reused: " .. stg.name[1])
-			names[stg.name[1]], names[stg.name[2]] = true, true
-			check(not bosses[stg.boss.name[1]], where .. ": boss reused: " .. stg.boss.name[1])
-			bosses[stg.boss.name[1]] = true
+			check(type(stg.name) == "string" and not names[stg.name], where .. ": zone name reused: " .. tostring(stg.name))
+			names[stg.name] = true
+			check(not bosses[stg.boss.name], where .. ": boss reused: " .. tostring(stg.boss.name))
+			bosses[stg.boss.name] = true
 			check(ns.THEMES[stg.theme], where .. ": unknown theme " .. tostring(stg.theme))
 			check(#stg.mobs >= 2, where .. ": needs monsters")
 			for _, e in ipairs(stg.mobs) do check(ns.MONSTERS[e[1]], where .. ": unknown monster " .. tostring(e[1])) end
@@ -124,7 +123,7 @@ do
 			check(type(ns.StageLabel(d, i)) == "string", where .. ": label")
 		end
 	end
-	check(ns.U.count(names) == 240, "120 distinct zones in both languages")
+	check(ns.U.count(names) == 120, "120 distinct zones")
 end
 do
 	local used = {}
@@ -167,7 +166,7 @@ section("hero creation, names and party roles")
 check(ns.Heroes.CreateCost() == 0, "first hero is free")
 local okc, firstId = ns.Heroes.Create("HUNTER_MM")
 check(okc and db.heroes[firstId], "create starter")
-check(type(db.heroes[firstId].name) == "table" and #db.heroes[firstId].name[1] > 0 and #db.heroes[firstId].name[2] > 0, "a new hero gets a name in both languages")
+check(type(db.heroes[firstId].name) == "string" and #db.heroes[firstId].name > 0, "a new hero gets a name")
 check(ns.Heroes.PartySlot(firstId) == 2, "damage dealer goes to slot 2")
 check(ns.Heroes.CreateCost() == ns.HERO_COST[2], "later heroes cost gold")
 check(not ns.Heroes.Create("PRIEST_HOLY"), "cannot create without gold")
@@ -205,14 +204,14 @@ do
 	-- two heroes of the same specialization are separate individuals
 	local a = hero("DRUID_FERAL")
 	local ok3, b = ns.Heroes.Create("DRUID_FERAL")
-	check(ok3 and a ~= b and db.heroes[a].name[1] ~= db.heroes[b].name[1], "same spec twice: different heroes, different names")
-	local before = db.heroes[b].name[1]
+	check(ok3 and a ~= b and db.heroes[a].name ~= db.heroes[b].name, "same spec twice: different heroes, different names")
+	local before = db.heroes[b].name
 	ns.Heroes.RerollName(b)
-	check(db.heroes[b].name[1] ~= before or true, "reroll name")
+	check(type(db.heroes[b].name) == "string" and db.heroes[b].name ~= "", "reroll name")
 	local bag0 = #db.bag
 	check(ns.Heroes.Dismiss(b) and not db.heroes[b] and #db.bag == bag0 + 1, "dismissing returns gear to the bags")
 	local names = {}
-	for _ = 1, 200 do names[ns.Names.Roll()[1]] = true end
+	for _ = 1, 200 do names[ns.Names.Roll()] = true end
 	check(ns.U.count(names) > 120, "names are varied")
 end
 do
@@ -572,16 +571,20 @@ do
 	check(db.heroes[m].level == 12 and db.heroes[m].gear.mh and db.heroes[m].gear.mh.t == "staff", "level and gear survive")
 	check(ns.Heroes.PointsFree(m) == 11, "talent points are refunded")
 	check(db.party[1] == w and db.party[2] == m, "the party survives")
-	check(type(db.heroes[m].name) == "table", "migrated heroes get a name")
+	check(type(db.heroes[m].name) == "string", "migrated heroes get a name")
 	check(db.prog[1] == 12, "progress survives")
 end
 BigIdleWoWHeroesDB = { v = 2, gold = 5, heroes = { h9 = { spec = "NOPE" }, h3 = { spec = "MAGE_FROST", level = 3 } }, party = { "h3", "h9" } }
 ns.InitDB()
 check(ns.db.gold == 5 and ns.db.heroes.h9 == nil and ns.db.party[2] == false, "unknown specializations are dropped")
-check(ns.db.heroSeq >= 3 and type(ns.db.heroes.h3.name) == "table" and ns.db.heroes.h3.gear, "missing hero fields are repaired")
+check(ns.db.heroSeq >= 3 and type(ns.db.heroes.h3.name) == "string" and ns.db.heroes.h3.gear, "missing hero fields are repaired")
 ns.Heroes.ValidateParty()
 check(ns.db.party[1] == false and ns.Heroes.PartySlot("h3") == 2, "a hero in the wrong role slot is moved")
 check(ns.db.forge.level == 1 and ns.db.opt.auto == true, "missing fields get defaults")
+-- version 2.0 stored names as { korean, english }
+BigIdleWoWHeroesDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 5, name = { "아르단", "Ardan" } } }, party = { false, "h1" } }
+ns.InitDB()
+check(ns.db.heroes.h1.name == "아르단", "two-spelling names from 2.0 keep the Korean one")
 
 if failures == 0 then print("  systems: all checks passed") end
 return failures == 0

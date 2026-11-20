@@ -39,7 +39,7 @@ local function field(id)
 	elseif act == "swap" then
 		H.Swap(id, slot)
 	else
-		UI.Try(false, ns.T("빈 자리가 없습니다. '지휘의 룬'으로 파티 인원을 늘리세요.", "No free slot. Learn a Rune of Command to grow the party."))
+		UI.Try(false, "빈 자리가 없습니다. '지휘의 룬'으로 파티 인원을 늘리세요.")
 	end
 end
 
@@ -52,12 +52,12 @@ local function heroTip(id)
 	local r, g, b = U.rgb(c.hex)
 	local lines = { { H.Name(id), "Lv " .. h.level, r, g, b } }
 	lines[#lines + 1] = { ns.SpecLabel(h.spec), ns.N(ns.ROLE[sp.role].name), U.rgb(ns.ROLE[sp.role].hex) }
-	lines[#lines + 1] = { ns.T("전투력", "Power"), U.fmt(ns.Stats.Power(id)), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] }
-	lines[#lines + 1] = { ns.T("초당 피해", "DPS"), U.fmt(ns.Stats.DPS(s)), 1, 1, 1 }
-	lines[#lines + 1] = { ns.T("생명력", "Health"), U.fmt(s.hp), 1, 1, 1 }
+	lines[#lines + 1] = { "전투력", U.fmt(ns.Stats.Power(id)), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] }
+	lines[#lines + 1] = { "초당 피해", U.fmt(ns.Stats.DPS(s)), 1, 1, 1 }
+	lines[#lines + 1] = { "생명력", U.fmt(s.hp), 1, 1, 1 }
 	local free = H.PointsFree(id)
 	if free > 0 then
-		lines[#lines + 1] = { string.format(ns.T("사용하지 않은 기술 점수 %d", "%d unspent skill points"), free), nil, 0.4, 1, 0.4 }
+		lines[#lines + 1] = { string.format("사용하지 않은 기술 점수 %d", free), nil, 0.4, 1, 0.4 }
 	end
 	lines[#lines + 1] = { ns.N(sp.desc), nil, 0.75, 0.8, 0.9 }
 	return lines
@@ -69,15 +69,14 @@ end
 local create = {}
 
 local function buildCreate()
-	local T = ns.T
 	local c = Main.ModalContent(680, 400)
 	create.frame = c
-	create.title = UI.Title(c, T("영웅 만들기", "Create a Hero"), 18)
+	create.title = UI.Title(c, "영웅 만들기", 18)
 	create.title:SetPoint("TOPLEFT", c, "TOPLEFT", 0, 0)
 	create.cost = UI.Text(c, 12)
 	create.cost:SetPoint("TOPRIGHT", c, "TOPRIGHT", 0, -2)
 	create.cost:SetJustifyH("RIGHT")
-	create.step1 = UI.Text(c, 11, T("1. 직업을 고르세요", "1. Choose a class"))
+	create.step1 = UI.Text(c, 11, "1. 직업을 고르세요")
 	create.step1:SetPoint("TOPLEFT", c, "TOPLEFT", 0, -28)
 	UI.Color(create.step1, UI.C.sub)
 
@@ -116,7 +115,7 @@ local function buildCreate()
 		create.classes[i] = b
 	end
 
-	create.step2 = UI.Text(c, 11, T("2. 전문화를 고르세요 - 역할과 싸우는 방식이 정해집니다", "2. Choose a specialization - it sets the role and fighting style"))
+	create.step2 = UI.Text(c, 11, "2. 전문화를 고르세요 - 역할과 싸우는 방식이 정해집니다")
 	create.step2:SetPoint("TOPLEFT", c, "TOPLEFT", 0, -136)
 	UI.Color(create.step2, UI.C.sub)
 
@@ -146,7 +145,7 @@ local function buildCreate()
 		b.desc:SetWidth(141)
 		b.desc:SetJustifyV("TOP")
 		UI.Color(b.desc, UI.C.text)
-		b.skillsLabel = UI.Text(b, 10, T("대표 기술", "Signature skills"))
+		b.skillsLabel = UI.Text(b, 10, "대표 기술")
 		b.skillsLabel:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 10, 36)
 		UI.Color(b.skillsLabel, UI.C.sub)
 		b.skills = {}
@@ -177,7 +176,7 @@ local function buildCreate()
 		create.specs[i] = b
 	end
 
-	create.go = UI.Button(c, 200, 38, T("영웅 만들기", "Create Hero"), function()
+	create.go = UI.Button(c, 200, 38, "영웅 만들기", function()
 		if not create.spec then return end
 		local ok, id = H.Create(create.spec)
 		if UI.Try(ok, id) then
@@ -185,7 +184,7 @@ local function buildCreate()
 		end
 	end, "primary")
 	create.go:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", 0, 0)
-	create.close = UI.Button(c, 100, 38, T("닫기", "Close"), function() Main.CloseModal() end, "dark")
+	create.close = UI.Button(c, 100, 38, "닫기", function() Main.CloseModal() end, "dark")
 	create.close:SetPoint("RIGHT", create.go, "LEFT", -10, 0)
 	create.hint = UI.Text(c, 11)
 	create.hint:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 0, 12)
@@ -195,7 +194,7 @@ local function buildCreate()
 	-- the result page
 	local r = Main.ModalContent(420, 300)
 	create.result = r
-	r.head = UI.Title(r, T("새 영웅이 합류했습니다!", "A new hero has joined!"), 18)
+	r.head = UI.Title(r, "새 영웅이 합류했습니다!", 18)
 	r.head:SetPoint("TOP", r, "TOP", 0, 0)
 	r.head:SetJustifyH("CENTER")
 	r.glow = UI.Art(r, "glow", "BACKGROUND", 1, 0.8, 0.3, 0.8)
@@ -213,13 +212,13 @@ local function buildCreate()
 	r.state:SetPoint("TOP", r.spec, "BOTTOM", 0, -6)
 	r.state:SetJustifyH("CENTER")
 	UI.Color(r.state, UI.C.sub)
-	r.reroll = UI.Button(r, 160, 34, T("이름 다시 뽑기", "Roll another name"), function()
+	r.reroll = UI.Button(r, 160, 34, "이름 다시 뽑기", function()
 		H.RerollName(create.newId)
 		create.showResult(create.newId)
 	end, "blue")
 	r.reroll:SetGlyph("auto")
 	r.reroll:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 20, 0)
-	r.ok = UI.Button(r, 160, 34, T("확인", "OK"), function() Main.CloseModal() end, "primary")
+	r.ok = UI.Button(r, 160, 34, "확인", function() Main.CloseModal() end, "primary")
 	r.ok:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", -20, 0)
 
 	function create.showResult(id)
@@ -229,15 +228,15 @@ local function buildCreate()
 		r.portrait:SetHero(id)
 		r.name:SetText(U.col(ns.CLASSES[sp.class].hex, H.Name(id)))
 		r.spec:SetText(ns.SpecLabel(h.spec) .. "  ·  " .. U.col(ns.ROLE[sp.role].hex, ns.N(ns.ROLE[sp.role].name)))
-		r.state:SetText(H.PartySlot(id) and ns.T("파티에 바로 합류했습니다.", "Joined the party right away.")
-			or ns.T("대기 중입니다. 편성 화면에서 출전시킬 수 있습니다.", "Waiting on the bench - field them from this screen."))
+		r.state:SetText(H.PartySlot(id) and "파티에 바로 합류했습니다."
+			or "대기 중입니다. 편성 화면에서 출전시킬 수 있습니다.")
 		Main.ShowModal(r, function() Main.MarkDirty() end)
 	end
 
 	function create.refresh()
 		local cost = H.CreateCost()
-		create.cost:SetText(T("비용 ", "Cost ") .. (cost > 0 and UI.Gold(cost) or U.col("45d16a", T("무료", "Free"))) ..
-			"   " .. string.format(T("보유 %d/%d", "Roster %d/%d"), H.Count(), ns.ROSTER_MAX))
+		create.cost:SetText("비용 " .. (cost > 0 and UI.Gold(cost) or U.col("45d16a", "무료")) ..
+			"   " .. string.format("보유 %d/%d", H.Count(), ns.ROSTER_MAX))
 		for _, b in ipairs(create.classes) do
 			local on = b.cid == create.class
 			b.glow:SetShown(on)
@@ -271,18 +270,18 @@ local function buildCreate()
 		local can = create.spec and H.Count() < ns.ROSTER_MAX and ns.CanAfford(cost)
 		create.go:SetOff(not can)
 		if not create.spec then
-			create.hint:SetText(T("전문화 카드를 누르세요.", "Pick a specialization card."))
+			create.hint:SetText("전문화 카드를 누르세요.")
 		else
 			local sp = ns.SPECS[create.spec]
 			local slot = H.FreeSlot(sp.role)
 			if H.Count() >= ns.ROSTER_MAX then
-				create.hint:SetText(U.col("ff6a5a", T("영웅을 더 보유할 수 없습니다.", "Your roster is full.")))
+				create.hint:SetText(U.col("ff6a5a", "영웅을 더 보유할 수 없습니다."))
 			elseif not ns.CanAfford(cost) then
-				create.hint:SetText(U.col("ff6a5a", T("골드가 부족합니다.", "Not enough gold.")))
+				create.hint:SetText(U.col("ff6a5a", "골드가 부족합니다."))
 			elseif slot and H.PartyCount() < ns.PartyLimit() then
-				create.hint:SetText(T("만들면 바로 파티에 들어갑니다. 이름은 무작위로 정해집니다.", "Joins the party right away. The name is random."))
+				create.hint:SetText("만들면 바로 파티에 들어갑니다. 이름은 무작위로 정해집니다.")
 			else
-				create.hint:SetText(T("파티에 자리가 없어 대기 영웅이 됩니다. 이름은 무작위로 정해집니다.", "No room in the party: joins the bench. The name is random."))
+				create.hint:SetText("파티에 자리가 없어 대기 영웅이 됩니다. 이름은 무작위로 정해집니다.")
 			end
 		end
 	end
@@ -312,10 +311,9 @@ ns.CreateHeroDialog = create.open
 -- Screen
 ------------------------------------------------------------------------
 local function build(page)
-	local T = ns.T
 	page.title = UI.Title(page, "", 14)
 	page.title:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
-	page.hint = UI.Text(page, 11, T("탱커 1 · 딜러 3 · 힐러 1 자리. 파티 인원은 '지휘의 룬'으로 늘어납니다.", "1 tank, 3 damage and 1 healer slot. Runes of Command add party slots."))
+	page.hint = UI.Text(page, 11, "탱커 1 · 딜러 3 · 힐러 1 자리. 파티 인원은 '지휘의 룬'으로 늘어납니다.")
 	page.hint:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, -2)
 	page.hint:SetJustifyH("RIGHT")
 	UI.Color(page.hint, UI.C.sub)
@@ -417,12 +415,11 @@ local function build(page)
 		end)
 		page.roster[i] = card
 	end
-	page.empty = UI.Text(page, 13, T("아직 영웅이 없습니다. 오른쪽 위의 '영웅 만들기'로 첫 영웅을 무료로 만드세요!",
-		"No heroes yet. Use 'Create Hero' (top right) to make your first one for free!"))
+	page.empty = UI.Text(page, 13, "아직 영웅이 없습니다. 오른쪽 위의 '영웅 만들기'로 첫 영웅을 무료로 만드세요!")
 	page.empty:SetPoint("TOP", page, "TOP", 0, -300)
 	page.empty:SetJustifyH("CENTER")
 
-	page.petTitle = UI.Text(page, 11, T("동료 (효과는 획득만 하면 항상 적용)", "Companions (bonuses always apply once unlocked)"))
+	page.petTitle = UI.Text(page, 11, "동료 (효과는 획득만 하면 항상 적용)")
 	page.petTitle:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 0, 30)
 	UI.Color(page.petTitle, UI.C.sub)
 	page.pets = {}
@@ -440,7 +437,7 @@ local function build(page)
 			local p = self.pet
 			local have, need = ns.PetProgress(p)
 			local owned = ns.db.pets[p.id]
-			local lines = { { ns.N(p.name), owned and ns.T("획득 · 클릭: 데리고 다니기", "Unlocked - click to bring along") or ns.T("미획득", "Locked"),
+			local lines = { { ns.N(p.name), owned and "획득 · 클릭: 데리고 다니기" or "미획득",
 				UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] } }
 			for k, v in pairs(p.bonus) do lines[#lines + 1] = { ns.BonusText(k, v), nil, 0.4, 1, 0.4 } end
 			lines[#lines + 1] = { ns.PetUnlockText(p), U.fmt(have) .. " / " .. U.fmt(need), 0.8, 0.8, 0.8 }
@@ -454,10 +451,9 @@ local function build(page)
 end
 
 local function refresh(page)
-	local T = ns.T
 	local db = ns.db
 	local count, limit = H.PartyCount(), ns.PartyLimit()
-	page.title:SetText(string.format(T("출전 파티  %d / %d", "Party  %d / %d"), count, limit))
+	page.title:SetText(string.format("출전 파티  %d / %d", count, limit))
 	local sel = Main.SelectedHero()
 
 	for i, card in ipairs(page.slots) do
@@ -475,25 +471,25 @@ local function refresh(page)
 			card.name:SetText(U.col(ns.CLASSES[sp.class].hex, H.Name(id)))
 			card.spec:SetText(ns.SpecLabel(h.spec))
 			UI.Color(card.spec, UI.C.sub)
-			card.power:SetText(T("전투력 ", "Power ") .. U.col("ffd24a", U.fmt(ns.Stats.Power(id))))
-			card.action:SetLabel(T("휴식", "Rest"))
+			card.power:SetText("전투력 " .. U.col("ffd24a", U.fmt(ns.Stats.Power(id))))
+			card.action:SetLabel("휴식")
 			card.action:SetStyle("dark")
 			card.action:SetOff(count <= 1)
 			card.action.onClick = function() UI.Try(H.Withdraw(id)) end
 		elseif count >= limit then
 			card.lock:Show()
-			card.name:SetText(U.col("9a8f78", T("잠긴 자리", "Locked slot")))
-			card.spec:SetText(T("지휘의 룬으로 열립니다", "Opened by a Rune of Command"))
+			card.name:SetText(U.col("9a8f78", "잠긴 자리"))
+			card.spec:SetText("지휘의 룬으로 열립니다")
 			UI.Color(card.spec, UI.C.dim)
 			card.power:SetText("")
-			card.action:SetLabel(T("룬 보러 가기", "Go to runes"))
+			card.action:SetLabel("룬 보러 가기")
 			card.action:SetStyle("blue")
 			card.action:SetOff(false)
 			card.action.onClick = function() Main.ShowTab("runes") end
 		else
 			card.plus:Show()
-			card.name:SetText(U.col("b8c0d8", T("빈 자리", "Empty slot")))
-			card.spec:SetText(string.format(T("%s 영웅을 넣으세요", "Place a %s here"), ns.N(ns.ROLE[ns.PARTY_ROLES[i]].name)))
+			card.name:SetText(U.col("b8c0d8", "빈 자리"))
+			card.spec:SetText(string.format("%s 영웅을 넣으세요", ns.N(ns.ROLE[ns.PARTY_ROLES[i]].name)))
 			UI.Color(card.spec, UI.C.dim)
 			card.power:SetText("")
 			-- a bench hero of this role, or create one
@@ -502,12 +498,12 @@ local function refresh(page)
 				if not H.PartySlot(hid) and H.Role(hid) == ns.PARTY_ROLES[i] then bench = hid break end
 			end
 			if bench then
-				card.action:SetLabel(T("출전: ", "Field: ") .. H.Name(bench))
+				card.action:SetLabel("출전: " .. H.Name(bench))
 				card.action:SetStyle("green")
 				card.action:SetOff(false)
 				card.action.onClick = function() UI.Try(H.Deploy(bench, i)) end
 			else
-				card.action:SetLabel(T("영웅 만들기", "Create hero"))
+				card.action:SetLabel("영웅 만들기")
 				card.action:SetStyle("primary")
 				card.action:SetOff(H.Count() >= ns.ROSTER_MAX)
 				card.action.onClick = function() create.open() end
@@ -516,9 +512,9 @@ local function refresh(page)
 	end
 
 	local list = H.List()
-	page.rosterTitle:SetText(string.format(T("보유 영웅  %d / %d", "Roster  %d / %d"), #list, ns.ROSTER_MAX))
+	page.rosterTitle:SetText(string.format("보유 영웅  %d / %d", #list, ns.ROSTER_MAX))
 	local cost = H.CreateCost()
-	page.create:SetLabel(T("영웅 만들기  ", "Create Hero  ") .. (cost > 0 and U.fmt(cost) .. " G" or T("무료", "Free")))
+	page.create:SetLabel("영웅 만들기  " .. (cost > 0 and U.fmt(cost) .. " G" or "무료"))
 	page.create:SetOff(#list >= ns.ROSTER_MAX)
 	page.create:SetBadge(ns.Guide.Badges().party and H.Count() < ns.ROSTER_MAX and ns.CanAfford(cost) and H.PartyCount() < ns.PartyLimit())
 	page.empty:SetShown(#list == 0)
@@ -537,16 +533,16 @@ local function refresh(page)
 			card.sel:SetShown(id == sel)
 			if H.PartySlot(id) then
 				card.state:SetColor(0.2, 0.55, 0.3, 1)
-				card.state:SetLabel(T("출전", "Active"))
-				card.action:SetLabel(T("휴식", "Rest"))
+				card.state:SetLabel("출전")
+				card.action:SetLabel("휴식")
 				card.action:SetStyle("dark")
 				card.action:SetOff(H.PartyCount() <= 1)
 				card.action.onClick = function() UI.Try(H.Withdraw(id)) end
 			else
 				card.state:SetColor(0.3, 0.33, 0.42, 1)
-				card.state:SetLabel(T("대기", "Bench"))
+				card.state:SetLabel("대기")
 				local act = fieldAction(id)
-				card.action:SetLabel(act == "swap" and T("교체 출전", "Swap in") or T("출전", "Field"))
+				card.action:SetLabel(act == "swap" and "교체 출전" or "출전")
 				card.action:SetStyle(act and "green" or "dark")
 				card.action:SetOff(act == nil)
 				card.action.onClick = function() field(id) end
@@ -575,7 +571,7 @@ local function open(page, opts)
 end
 
 Main.RegisterTab({
-	key = "party", title = { "편성", "Party" }, sub = { "출전할 영웅을 정하고 새 영웅을 만듭니다", "Choose who fights and create new heroes" },
+	key = "party", title = "편성", sub = "출전할 영웅을 정하고 새 영웅을 만듭니다",
 	icon = "INV_Misc_GroupNeedMore", build = build, refresh = refresh, open = open,
 	events = { "PARTY", "HEROES", "LEVEL", "RUNES", "PETS", "RESET", "GEAR", "TREE" },
 })

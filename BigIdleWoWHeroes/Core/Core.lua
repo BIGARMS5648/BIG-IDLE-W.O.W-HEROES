@@ -8,36 +8,23 @@ local floor, max, min, random = math.floor, math.max, math.min, math.random
 local format = string.format
 
 ------------------------------------------------------------------------
--- Language. Every user-facing string is written inline as T(ko, en) and
--- every data name is a { ko, en } pair read through N().
+-- Text. The addon is Korean only. On a client of another language the
+-- standard font may have no Hangul glyphs, so the Korean font is used.
 ------------------------------------------------------------------------
-ns.lang = "en"
-
-function ns.DetectLang(override)
-	if override == "ko" or override == "en" then
-		ns.lang = override
-	elseif GetLocale and GetLocale() == "koKR" then
-		ns.lang = "ko"
+function ns.SetupFont()
+	if GetLocale and GetLocale() == "koKR" then
+		ns.FONT = STANDARD_TEXT_FONT or "Fonts\\2002.TTF"
 	else
-		ns.lang = "en"
-	end
-	-- A Korean UI on a non-Korean client needs a font that has Hangul glyphs.
-	if ns.lang == "ko" and not (GetLocale and GetLocale() == "koKR") then
 		ns.FONT = "Fonts\\2002.TTF"
-	else
-		ns.FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 	end
 end
+ns.SetupFont()
 
-function ns.T(ko, en)
-	if ns.lang == "ko" then return ko end
-	return en or ko
-end
-
+-- Names are plain strings; saves from older versions may still hold
+-- { korean, english } pairs, of which the Korean half is used.
 function ns.N(t)
-	if type(t) ~= "table" then return t end
-	if ns.lang == "ko" then return t[1] end
-	return t[2] or t[1]
+	if type(t) == "table" then return t[1] end
+	return t
 end
 
 ------------------------------------------------------------------------
@@ -121,11 +108,11 @@ function U.time(sec)
 	local m = floor((sec % 3600) / 60)
 	local s = sec % 60
 	if h > 0 then
-		return format(ns.T("%d시간 %d분", "%dh %dm"), h, m)
+		return format("%d시간 %d분", h, m)
 	elseif m > 0 then
-		return format(ns.T("%d분 %d초", "%dm %ds"), m, s)
+		return format("%d분 %d초", m, s)
 	end
-	return format(ns.T("%d초", "%ds"), s)
+	return format("%d초", s)
 end
 
 function U.col(hex, text)
@@ -222,7 +209,7 @@ end
 
 function ns.Print(msg)
 	if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
-		DEFAULT_CHAT_FRAME:AddMessage("|cffffd100[Idle Heroes]|r " .. tostring(msg))
+		DEFAULT_CHAT_FRAME:AddMessage("|cffffd100[방치형 영웅단]|r " .. tostring(msg))
 	end
 end
 

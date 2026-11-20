@@ -62,7 +62,7 @@ end
 local function takenNames()
 	local t = {}
 	for _, h in pairs(ns.db.heroes) do
-		if type(h.name) == "table" then t[h.name[1]] = true end
+		t[ns.N(h.name)] = true
 	end
 	return t
 end
@@ -89,11 +89,11 @@ function Heroes.Create(specId)
 	local sp = ns.SPECS[specId]
 	if not sp then return false end
 	if Heroes.Count() >= ns.ROSTER_MAX then
-		return false, string.format(ns.T("영웅은 최대 %d명까지 보유할 수 있습니다.", "You can keep at most %d heroes."), ns.ROSTER_MAX)
+		return false, string.format("영웅은 최대 %d명까지 보유할 수 있습니다.", ns.ROSTER_MAX)
 	end
 	local cost = Heroes.CreateCost()
 	if cost > 0 and not ns.SpendGold(cost) then
-		return false, ns.T("골드가 부족합니다.", "Not enough gold.")
+		return false, "골드가 부족합니다."
 	end
 	local h = Heroes.NewRecord(specId)
 	ns.Stats.Invalidate(h.id)
@@ -115,12 +115,12 @@ function Heroes.Dismiss(id)
 	local h = db.heroes[id]
 	if not h then return false end
 	if Heroes.Count() <= 1 then
-		return false, ns.T("마지막 영웅은 떠나보낼 수 없습니다.", "You cannot dismiss your last hero.")
+		return false, "마지막 영웅은 떠나보낼 수 없습니다."
 	end
 	local n = 0
 	for _ in pairs(h.gear) do n = n + 1 end
 	if n > ns.Items.BagFree() then
-		return false, ns.T("가방에 장비를 돌려받을 자리가 부족합니다.", "Not enough bag space to return this hero's gear.")
+		return false, "가방에 장비를 돌려받을 자리가 부족합니다."
 	end
 	for _, slot in ipairs(ns.SLOTS) do
 		if h.gear[slot] then db.bag[#db.bag + 1] = h.gear[slot] end
@@ -204,13 +204,13 @@ function Heroes.CanSpend(id, tier, n)
 	local node = tree[tier] and tree[tier][n]
 	if not node then return false end
 	if Heroes.PointsFree(id) <= 0 then
-		return false, ns.T("기술 점수가 없습니다.", "No skill points left.")
+		return false, "기술 점수가 없습니다."
 	end
 	if not Heroes.TierOpen(id, tier) then
-		return false, string.format(ns.T("기술 점수를 %d점 사용해야 열립니다.", "Spend %d skill points to unlock this tier."), (tier - 1) * ns.TREE_TIER_POINTS)
+		return false, string.format("기술 점수를 %d점 사용해야 열립니다.", (tier - 1) * ns.TREE_TIER_POINTS)
 	end
 	if Heroes.NodeLevel(id, tier, n) >= node.max then
-		return false, ns.T("이미 최대 레벨입니다.", "Already at maximum level.")
+		return false, "이미 최대 레벨입니다."
 	end
 	return true
 end
@@ -277,7 +277,7 @@ function Heroes.ResetTree(id)
 	local h = ns.db.heroes[id]
 	if Heroes.PointsSpent(id) == 0 then return false end
 	if not ns.SpendGold(Heroes.ResetCost(id)) then
-		return false, ns.T("골드가 부족합니다.", "Not enough gold.")
+		return false, "골드가 부족합니다."
 	end
 	h.tree = {}
 	h.skills = {}
@@ -322,7 +322,7 @@ end
 function Heroes.EquipSkill(id, skillId, quiet)
 	local h = ns.db.heroes[id]
 	if Heroes.SkillPoints(id, skillId) <= 0 then
-		return false, ns.T("아직 배우지 않은 기술입니다.", "You have not learned that skill.")
+		return false, "아직 배우지 않은 기술입니다."
 	end
 	if Heroes.IsSkillEquipped(id, skillId) then return true end
 	for i = 1, ns.SkillSlots() do
@@ -333,7 +333,7 @@ function Heroes.EquipSkill(id, skillId, quiet)
 		end
 	end
 	if quiet then return false end
-	return false, ns.T("기술 슬롯이 가득 찼습니다. 다른 기술을 먼저 해제하세요.", "All skill slots are in use. Remove another skill first.")
+	return false, "기술 슬롯이 가득 찼습니다. 다른 기술을 먼저 해제하세요."
 end
 
 function Heroes.UnequipSkill(id, skillId)
@@ -394,16 +394,16 @@ function Heroes.Deploy(id, slot)
 	local role = Heroes.Role(id)
 	if slot then
 		if ns.PARTY_ROLES[slot] ~= role then
-			return false, ns.T("그 자리는 다른 역할 전용입니다.", "That slot is reserved for another role.")
+			return false, "그 자리는 다른 역할 전용입니다."
 		end
 	else
 		slot = Heroes.FreeSlot(role)
 		if not slot then
-			return false, string.format(ns.T("%s 자리가 모두 찼습니다. 먼저 다른 영웅을 쉬게 하세요.", "All %s slots are taken. Rest another hero first."), ns.N(ns.ROLE[role].name))
+			return false, string.format("%s 자리가 모두 찼습니다. 먼저 다른 영웅을 쉬게 하세요.", ns.N(ns.ROLE[role].name))
 		end
 	end
 	if not db.party[slot] and Heroes.PartyCount() >= ns.PartyLimit() then
-		return false, ns.T("파티 슬롯이 부족합니다. '지휘의 룬'을 배우세요.", "No free party slot. Learn a Rune of Command.")
+		return false, "파티 슬롯이 부족합니다. '지휘의 룬'을 배우세요."
 	end
 	db.party[slot] = id
 	ns.Fire("PARTY")
@@ -414,7 +414,7 @@ function Heroes.Withdraw(id)
 	local slot = Heroes.PartySlot(id)
 	if not slot then return false end
 	if Heroes.PartyCount() <= 1 then
-		return false, ns.T("파티에는 최소 한 명이 있어야 합니다.", "The party needs at least one hero.")
+		return false, "파티에는 최소 한 명이 있어야 합니다."
 	end
 	ns.db.party[slot] = false
 	ns.Fire("PARTY")

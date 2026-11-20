@@ -59,45 +59,44 @@ local function nextCommandRune()
 	end
 end
 
-local function T(ko, en) return { ko, en } end
 
--- Returns { text = {ko,en}, tab = key, hero = id, sub = key, act = fn, done = bool }
+-- Returns { text = string, tab = key, hero = id, sub = key, act = fn, done = bool }
 local function compute()
 	local db = ns.db
 	local heroes = ns.Heroes.Count()
 	if heroes == 0 then
-		return { text = T("첫 영웅을 만드세요 (무료)", "Create your first hero (free)"), tab = "party", create = true }
+		return { text = "첫 영웅을 만드세요 (무료)", tab = "party", create = true }
 	end
 	for _, id in ipairs(partyHeroes()) do
 		local free = ns.Heroes.PointsFree(id)
 		if free > 0 then
-			return { text = { string.format("%s: 기술 점수 %d점 사용", ns.db.heroes[id].name[1], free), string.format("%s: spend %d skill point%s", ns.db.heroes[id].name[2], free, free > 1 and "s" or "") },
+			return { text = string.format("%s: 기술 점수 %d점 사용", ns.Heroes.Name(id), free),
 				tab = "hero", hero = id, sub = "tree" }
 		end
 	end
 	local chests = ns.Loot.Count()
 	if chests >= 3 and ns.Items.BagFree() > 0 then
-		return { text = { string.format("상자 %d개 열기", chests), string.format("Open %d chests", chests) }, tab = "bag",
+		return { text = string.format("상자 %d개 열기", chests), tab = "bag",
 			act = function() ns.Loot.OpenAll() end }
 	end
 	if ns.Items.BagFree() <= 3 and ns.Forge.Unlocked("smelt") then
-		return { text = T("가방이 가득 찼어요: 일괄 분해", "Bags are full: bulk smelt"), tab = "bag" }
+		return { text = "가방이 가득 찼어요: 일괄 분해", tab = "bag" }
 	end
 	if Guide.UpgradeCount() > 0 then
-		return { text = T("더 좋은 장비가 있어요: 일괄 장착", "Better gear found: equip all"), tab = "hero",
+		return { text = "더 좋은 장비가 있어요: 일괄 장착", tab = "hero",
 			act = function()
 				for _, id in ipairs(partyHeroes()) do ns.Items.AutoEquip(id) end
 			end }
 	end
 	if not ns.Forge.Unlocked("smelt") and db.gold >= 10 then
-		return { text = T("용광로의 '용해' 해금 (10 G)", "Unlock Smelt in the forge (10 G)"), tab = "forge", sub = "smelt" }
+		return { text = "용광로의 '용해' 해금 (10 G)", tab = "forge", sub = "smelt" }
 	end
 	local limit = ns.PartyLimit()
 	if ns.Heroes.PartyCount() < limit then
 		-- a bench hero could fill the slot
 		for _, id in ipairs(ns.Heroes.List()) do
 			if not ns.Heroes.PartySlot(id) and ns.Heroes.FreeSlot(ns.Heroes.Role(id)) then
-				return { text = { ns.db.heroes[id].name[1] .. " 출전시키기", "Send " .. ns.db.heroes[id].name[2] .. " into battle" }, tab = "party",
+				return { text = ns.Heroes.Name(id) .. " 출전시키기", tab = "party",
 					act = function() ns.Heroes.Deploy(id) end }
 			end
 		end
@@ -107,33 +106,33 @@ local function compute()
 			for i = 1, ns.PARTY_SIZE do
 				if not db.party[i] then role = ns.PARTY_ROLES[i] break end
 			end
-			local rn = role and ns.ROLE[role].name or T("영웅", "hero")
-			return { text = { string.format("%s 영웅 만들기 (%s G)", rn[1], ns.U.fmt(cost)), string.format("Create a %s hero (%s G)", rn[2]:lower(), ns.U.fmt(cost)) },
+			local rn = role and ns.ROLE[role].name or "영웅"
+			return { text = string.format("%s 영웅 만들기 (%s G)", rn, ns.U.fmt(cost)),
 				tab = "party", create = true, wait = not ns.CanAfford(cost) }
 		end
 	end
 	local cmd = nextCommandRune()
 	if cmd and limit < ns.PARTY_SIZE then
 		local cost = ns.Runes.NextCost(cmd.id)
-		return { text = { string.format("지휘의 룬: 파티 %d명으로 (%s G)", limit + 1, ns.U.fmt(cost)), string.format("Rune of Command: party of %d (%s G)", limit + 1, ns.U.fmt(cost)) },
+		return { text = string.format("지휘의 룬: 파티 %d명으로 (%s G)", limit + 1, ns.U.fmt(cost)),
 			tab = "runes", rune = cmd.id, wait = not (ns.Runes.Available(cmd.id) and ns.CanAfford(cost)) }
 	end
 	for _, op in ipairs(ns.FORGE_OPS) do
 		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and ns.CanAfford(op.cost) then
-			return { text = { string.format("용광로 '%s' 해금", op.name[1]), string.format("Unlock %s in the forge", op.name[2]) }, tab = "forge", sub = op.key }
+			return { text = string.format("용광로 '%s' 해금", ns.N(op.name)), tab = "forge", sub = op.key }
 		end
 	end
 	local rid, rcost = cheapestRune()
 	if rid and ns.CanAfford(rcost) then
 		local n = ns.Runes.byId[rid].name
-		return { text = { "룬 배우기: " .. n[1], "Learn a rune: " .. n[2] }, tab = "runes", rune = rid }
+		return { text = "룬 배우기: " .. ns.N(n), tab = "runes", rune = rid }
 	end
 	local st = ns.Combat.state
 	local stg = ns.Stage(db.stage.diff, db.stage.idx)
 	if stg.raid then
-		return { text = { "공격대 우두머리 처치: " .. stg.boss.name[1], "Defeat the raid boss: " .. stg.boss.name[2] }, tab = "map", done = true }
+		return { text = "공격대 우두머리 처치: " .. ns.N(stg.boss.name), tab = "map", done = true }
 	end
-	return { text = { "다음 지역으로: " .. stg.name[1], "Push on through " .. stg.name[2] }, tab = "map", done = true, phase = st.phase }
+	return { text = "다음 지역으로: " .. ns.N(stg.name), tab = "map", done = true, phase = st.phase }
 end
 
 local function computeBadges()

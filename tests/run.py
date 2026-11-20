@@ -119,8 +119,8 @@ def main(argv):
         ok = run_script(lua, "test_systems.lua") and ok
 
     if what in ("all", "ui"):
-        for locale in ("koKR", "enUS"):
-            print("== ui smoke test (%s) ==" % locale)
+        for locale in ("koKR", "enUS"):  # a Korean client, and any other client (font fallback)
+            print("== ui test (game client %s, interface in Korean) ==" % locale)
             lua = new_runtime(locale)
             ok = run_script(lua, "test_ui.lua") and ok
 

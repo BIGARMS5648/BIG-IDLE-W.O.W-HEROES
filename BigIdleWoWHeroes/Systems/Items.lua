@@ -143,11 +143,11 @@ end
 
 function Items.CanEquip(heroId, it)
 	if not Items.CanUse(heroId, it) then
-		return false, ns.T("이 직업은 사용할 수 없는 장비입니다.", "This class cannot use that item.")
+		return false, "이 직업은 사용할 수 없는 장비입니다."
 	end
 	local h = ns.db.heroes[heroId]
 	if h.level < Items.ReqLevel(it) then
-		return false, string.format(ns.T("%d레벨이 되어야 착용할 수 있습니다.", "Requires level %d."), Items.ReqLevel(it))
+		return false, string.format("%d레벨이 되어야 착용할 수 있습니다.", Items.ReqLevel(it))
 	end
 	return true
 end
@@ -316,7 +316,7 @@ end
 
 function Items.ToBank(index)
 	if Items.BankFree() <= 0 then
-		return false, ns.T("은행이 가득 찼습니다.", "The bank is full.")
+		return false, "은행이 가득 찼습니다."
 	end
 	local it = table.remove(ns.db.bag, index)
 	if not it then return false end
@@ -327,7 +327,7 @@ end
 
 function Items.FromBank(index)
 	if Items.BagFree() <= 0 then
-		return false, ns.T("가방이 가득 찼습니다.", "Your bags are full.")
+		return false, "가방이 가득 찼습니다."
 	end
 	local it = table.remove(ns.db.bank, index)
 	if not it then return false end
@@ -381,7 +381,7 @@ function Items.Unequip(heroId, slot)
 	local it = h.gear[slot]
 	if not it then return false end
 	if Items.BagFree() <= 0 then
-		return false, ns.T("가방이 가득 찼습니다.", "Your bags are full.")
+		return false, "가방이 가득 찼습니다."
 	end
 	h.gear[slot] = nil
 	ns.db.bag[#ns.db.bag + 1] = it
@@ -435,7 +435,6 @@ end
 -- Tooltip text: array of { left, right, r, g, b }
 ------------------------------------------------------------------------
 function Items.Tooltip(it, heroId)
-	local T = ns.T
 	local q = ns.QUALITY[it.q]
 	local lines = {}
 	local function add(left, right, r, g, b)
@@ -443,7 +442,7 @@ function Items.Tooltip(it, heroId)
 	end
 	local qr, qg, qb = U.rgb(q.hex)
 	add(Items.Name(it), nil, qr, qg, qb)
-	add(ns.N(q.name) .. " " .. ns.N(ns.SLOT[it.s].name), T("아이템 레벨 ", "Item Level ") .. it.l, 0.7, 0.7, 0.7)
+	add(ns.N(q.name) .. " " .. ns.N(ns.SLOT[it.s].name), "아이템 레벨 " .. it.l, 0.7, 0.7, 0.7)
 	for _, b in ipairs(Items.BaseStats(it)) do
 		add(ns.Stats.ModText(b[1], b[2]), nil, 1, 1, 1)
 	end
@@ -462,25 +461,25 @@ function Items.Tooltip(it, heroId)
 				if e then
 					add("[" .. label .. "] " .. ns.Stats.ModText(e[1], e[2]), nil, 0.4, 0.8, 1)
 				else
-					add("[" .. label .. "] " .. T("비어 있음", "Empty"), nil, 0.5, 0.5, 0.5)
+					add("[" .. label .. "] " .. "비어 있음", nil, 0.5, 0.5, 0.5)
 				end
 			end
 		end
 	end
 	if it.t then
-		add(T("사용 가능: ", "Classes: ") .. Items.UsableBy(it), nil, 0.8, 0.8, 0.8)
+		add("사용 가능: " .. Items.UsableBy(it), nil, 0.8, 0.8, 0.8)
 	end
 	local req = Items.ReqLevel(it)
 	local h = heroId and ns.db.heroes[heroId]
 	if h and h.level < req then
-		add(string.format(T("요구 레벨 %d", "Requires Level %d"), req), nil, 1, 0.2, 0.2)
+		add(string.format("요구 레벨 %d", req), nil, 1, 0.2, 0.2)
 	else
-		add(string.format(T("요구 레벨 %d", "Requires Level %d"), req), nil, 0.8, 0.8, 0.8)
+		add(string.format("요구 레벨 %d", req), nil, 0.8, 0.8, 0.8)
 	end
 	local gold = Items.Value(it)
-	add(T("용해 가치", "Smelt value"), U.fmt(gold) .. " G", 1, 0.82, 0)
+	add("용해 가치", U.fmt(gold) .. " G", 1, 0.82, 0)
 	if it.lock then
-		add(T("잠김 - 일괄 용해/융합에서 제외", "Locked - skipped by bulk smelt / fusion"), nil, 1, 0.5, 0.2)
+		add("잠김 - 일괄 용해/융합에서 제외", nil, 1, 0.5, 0.2)
 	end
 	if h and it ~= h.gear[it.s] then
 		local r = Items.Compare(heroId, it)
@@ -488,44 +487,43 @@ function Items.Tooltip(it, heroId)
 			local pct = (r - 1) * 100
 			local name = ns.Heroes.Name(heroId)
 			if pct > 0.2 then
-				add(string.format(T("%s 전투력 +%s%%", "%s power +%s%%"), name, U.num(pct, 1)), nil, 0.2, 1, 0.2)
+				add(string.format("%s 전투력 +%s%%", name, U.num(pct, 1)), nil, 0.2, 1, 0.2)
 			elseif pct < -0.2 then
-				add(string.format(T("%s 전투력 %s%%", "%s power %s%%"), name, U.num(pct, 1)), nil, 1, 0.3, 0.3)
+				add(string.format("%s 전투력 %s%%", name, U.num(pct, 1)), nil, 1, 0.3, 0.3)
 			else
-				add(string.format(T("%s 전투력 변화 없음", "%s power unchanged"), name), nil, 0.7, 0.7, 0.7)
+				add(string.format("%s 전투력 변화 없음", name), nil, 0.7, 0.7, 0.7)
 			end
 		elseif not Items.CanUse(heroId, it) then
-			add(T("선택한 영웅은 사용할 수 없습니다.", "The selected hero cannot use this."), nil, 1, 0.3, 0.3)
+			add("선택한 영웅은 사용할 수 없습니다.", nil, 1, 0.3, 0.3)
 		end
 	end
 	return lines
 end
 
 function Items.MatTooltip(id)
-	local T = ns.T
 	local m = ns.MATS[id]
 	local lines = {}
 	local r, g, b = U.rgb(ns.QUALITY[m.q].hex)
 	lines[#lines + 1] = { ns.N(m.name), nil, r, g, b }
-	lines[#lines + 1] = { ns.N(ns.MAT_KIND_NAME[m.kind]) .. " " .. string.format(T("%d단계", "Tier %d"), m.tier), nil, 0.7, 0.7, 0.7 }
+	lines[#lines + 1] = { ns.N(ns.MAT_KIND_NAME[m.kind]) .. " " .. string.format("%d단계", m.tier), nil, 0.7, 0.7, 0.7 }
 	local use
 	if m.kind == "bar" or m.kind == "leather" or m.kind == "cloth" then
-		use = T("용광로 '제작'의 재료입니다.", "Used by the forge's Craft operation.")
+		use = "용광로 '제작'의 재료입니다."
 	elseif m.kind == "gem" then
-		use = T("'보석 세공'으로 장비의 보석 홈에 능력치를 부여합니다.", "Adds a stat to a gem socket.")
+		use = "'보석 세공'으로 장비의 보석 홈에 능력치를 부여합니다."
 	elseif m.kind == "dust" then
-		use = T("'마법부여'로 장비에 능력치를 부여합니다.", "Adds a stat to an enchant slot.")
+		use = "'마법부여'로 장비에 능력치를 부여합니다."
 	elseif m.kind == "scroll" then
-		use = T("'룬 각인'으로 장비에 능력치를 부여합니다.", "Adds a stat to an inscription slot.")
+		use = "'룬 각인'으로 장비에 능력치를 부여합니다."
 	else
-		use = T("'보너스 굴림'에 바쳐 무작위 장비를 얻습니다.", "Offer it in a Bonus Roll for a random item.")
+		use = "'보너스 굴림'에 바쳐 무작위 장비를 얻습니다."
 	end
 	lines[#lines + 1] = { use, nil, 1, 0.82, 0, true }
 	if m.tier < ns.MAT_MAX_TIER[m.kind] then
-		lines[#lines + 1] = { T("9개를 융합하면 다음 단계 1개가 됩니다.", "Fuse 9 into one of the next tier."), nil, 0.6, 0.8, 1, true }
+		lines[#lines + 1] = { "9개를 융합하면 다음 단계 1개가 됩니다.", nil, 0.6, 0.8, 1, true }
 	end
 	local gold = ns.MatValue(id)
-	lines[#lines + 1] = { T("용해 가치", "Smelt value"), U.fmt(gold) .. " G", 1, 0.82, 0 }
-	lines[#lines + 1] = { T("보유", "Owned"), tostring(ns.MatCount(id)), 0.8, 0.8, 0.8 }
+	lines[#lines + 1] = { "용해 가치", U.fmt(gold) .. " G", 1, 0.82, 0 }
+	lines[#lines + 1] = { "보유", tostring(ns.MatCount(id)), 0.8, 0.8, 0.8 }
 	return lines
 end

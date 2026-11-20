@@ -4,9 +4,9 @@
 local _, ns = ...
 
 ns.ROLE = {
-	TANK   = { name = { "탱커", "Tank" },   hex = "4c8dff", art = "role_tank" },
-	DPS    = { name = { "딜러", "Damage" }, hex = "ff5a47", art = "role_dps" },
-	HEALER = { name = { "힐러", "Healer" }, hex = "45d16a", art = "role_heal" },
+	TANK   = { name = "탱커",   hex = "4c8dff", art = "role_tank" },
+	DPS    = { name = "딜러", hex = "ff5a47", art = "role_dps" },
+	HEALER = { name = "힐러", hex = "45d16a", art = "role_heal" },
 }
 
 -- Party slot index -> role it accepts.
@@ -37,15 +37,15 @@ ns.CLASS_ICON_COORD = {
 ns.CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 
 ns.CLASSES = {
-	WARRIOR = { name = { "전사", "Warrior" },     hex = "c79c6e", specs = { "WARRIOR_ARMS", "WARRIOR_FURY", "WARRIOR_PROT" } },
-	PALADIN = { name = { "성기사", "Paladin" },   hex = "f58cba", specs = { "PALADIN_HOLY", "PALADIN_PROT", "PALADIN_RET" } },
-	HUNTER  = { name = { "사냥꾼", "Hunter" },    hex = "abd473", specs = { "HUNTER_BM", "HUNTER_MM", "HUNTER_SV" } },
-	ROGUE   = { name = { "도적", "Rogue" },       hex = "fff569", specs = { "ROGUE_ASSA", "ROGUE_OUTLAW", "ROGUE_SUB" } },
-	PRIEST  = { name = { "사제", "Priest" },      hex = "ffffff", specs = { "PRIEST_DISC", "PRIEST_HOLY", "PRIEST_SHADOW" } },
-	SHAMAN  = { name = { "주술사", "Shaman" },    hex = "2e8bff", specs = { "SHAMAN_ELE", "SHAMAN_ENH", "SHAMAN_RESTO" } },
-	MAGE    = { name = { "마법사", "Mage" },      hex = "69ccf0", specs = { "MAGE_ARCANE", "MAGE_FIRE", "MAGE_FROST" } },
-	WARLOCK = { name = { "흑마법사", "Warlock" }, hex = "9482c9", specs = { "WARLOCK_AFF", "WARLOCK_DEMO", "WARLOCK_DESTRO" } },
-	DRUID   = { name = { "드루이드", "Druid" },   hex = "ff7d0a", specs = { "DRUID_BALANCE", "DRUID_FERAL", "DRUID_GUARDIAN", "DRUID_RESTO" } },
+	WARRIOR = { name = "전사",     hex = "c79c6e", specs = { "WARRIOR_ARMS", "WARRIOR_FURY", "WARRIOR_PROT" } },
+	PALADIN = { name = "성기사",   hex = "f58cba", specs = { "PALADIN_HOLY", "PALADIN_PROT", "PALADIN_RET" } },
+	HUNTER  = { name = "사냥꾼",    hex = "abd473", specs = { "HUNTER_BM", "HUNTER_MM", "HUNTER_SV" } },
+	ROGUE   = { name = "도적",       hex = "fff569", specs = { "ROGUE_ASSA", "ROGUE_OUTLAW", "ROGUE_SUB" } },
+	PRIEST  = { name = "사제",      hex = "ffffff", specs = { "PRIEST_DISC", "PRIEST_HOLY", "PRIEST_SHADOW" } },
+	SHAMAN  = { name = "주술사",    hex = "2e8bff", specs = { "SHAMAN_ELE", "SHAMAN_ENH", "SHAMAN_RESTO" } },
+	MAGE    = { name = "마법사",      hex = "69ccf0", specs = { "MAGE_ARCANE", "MAGE_FIRE", "MAGE_FROST" } },
+	WARLOCK = { name = "흑마법사", hex = "9482c9", specs = { "WARLOCK_AFF", "WARLOCK_DEMO", "WARLOCK_DESTRO" } },
+	DRUID   = { name = "드루이드",   hex = "ff7d0a", specs = { "DRUID_BALANCE", "DRUID_FERAL", "DRUID_GUARDIAN", "DRUID_RESTO" } },
 }
 for id, c in pairs(ns.CLASSES) do c.id = id end
 
@@ -122,10 +122,10 @@ ns.SPECS = {}
 ns.SPEC_ORDER = {}
 
 -- t: role, school, range, ranged, icon, base, mh, oh, arch + stats for the tree, skills, desc
-local function spec(id, class, ko, en, t)
+local function spec(id, class, name, t)
 	t.id = id
 	t.class = class
-	t.name = { ko, en }
+	t.name = name
 	t.tree = tree(t.arch, t.a, t.b, t.g, t.skills)
 	ns.SPECS[id] = t
 	ns.SPEC_ORDER[#ns.SPEC_ORDER + 1] = id
@@ -134,25 +134,25 @@ end
 local MELEE, CAST = 150, 680
 
 -- Warrior ---------------------------------------------------------------
-spec("WARRIOR_ARMS", "WARRIOR", "무기", "Arms", {
+spec("WARRIOR_ARMS", "WARRIOR", "무기", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Ability_Warrior_SavageBlow",
-	desc = { "거대한 무기로 묵직한 한 방을 꽂고 약해진 적을 마무리합니다.", "Lands slow, crushing blows and finishes weakened enemies." },
+	desc = "거대한 무기로 묵직한 한 방을 꽂고 약해진 적을 마무리합니다.",
 	base = { atk = 13, aspd = 0.75, crit = 5, critdmg = 165, hp = 175, armor = 28 },
 	mh = { "sword", "axe", "mace" }, oh = { "whetstone" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_phys",
 	skills = { "mortal_strike", "cleave", "rend", "battle_shout", "execute", "bladestorm" },
 })
-spec("WARRIOR_FURY", "WARRIOR", "분노", "Fury", {
+spec("WARRIOR_FURY", "WARRIOR", "분노", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Spell_Nature_BloodLust",
-	desc = { "쌍수 무기를 휘몰아치며 싸울수록 스스로를 회복하는 광전사.", "A dual-wielding berserker who heals through the frenzy." },
+	desc = "쌍수 무기를 휘몰아치며 싸울수록 스스로를 회복하는 광전사.",
 	base = { atk = 9, aspd = 1.20, crit = 6, critdmg = 160, hp = 170, armor = 24 },
 	mh = { "sword", "axe", "mace" }, oh = { "offblade" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_phys",
 	skills = { "bloodthirst", "whirlwind", "raging_blow", "battle_shout", "recklessness", "rampage" },
 })
-spec("WARRIOR_PROT", "WARRIOR", "방어", "Protection", {
+spec("WARRIOR_PROT", "WARRIOR", "방어", {
 	role = "TANK", school = "phys", range = MELEE, icon = "Ability_Warrior_ShieldWall",
-	desc = { "방패로 최전선을 지키는 굳건한 수호자.", "A steadfast guardian holding the line behind a shield." },
+	desc = "방패로 최전선을 지키는 굳건한 수호자.",
 	base = { atk = 8, aspd = 0.90, crit = 3, critdmg = 150, hp = 240, armor = 40 },
 	mh = { "sword", "axe", "mace" }, oh = { "shield" },
 	arch = "TANK", a = "dmg_phys", g = "block",
@@ -160,25 +160,25 @@ spec("WARRIOR_PROT", "WARRIOR", "방어", "Protection", {
 })
 
 -- Paladin ---------------------------------------------------------------
-spec("PALADIN_HOLY", "PALADIN", "신성", "Holy", {
+spec("PALADIN_HOLY", "PALADIN", "신성", {
 	role = "HEALER", school = "holy", range = 520, ranged = true, icon = "Spell_Holy_HolyBolt",
-	desc = { "튼튼한 갑옷을 입은 치유사. 한 명을 강하게 살려냅니다.", "An armored healer with powerful single-target heals." },
+	desc = "튼튼한 갑옷을 입은 치유사. 한 명을 강하게 살려냅니다.",
 	base = { atk = 7, aspd = 0.85, crit = 3, critdmg = 150, hp = 170, armor = 26, move = -10 },
 	mh = { "mace", "sword" }, oh = { "shield", "relic" },
 	arch = "HEALER", a = "dmg_holy", g = "block",
 	skills = { "holy_light", "devotion_aura", "judgement", "blessing_of_might", "lay_on_hands", "divine_protection" },
 })
-spec("PALADIN_PROT", "PALADIN", "보호", "Protection", {
+spec("PALADIN_PROT", "PALADIN", "보호", {
 	role = "TANK", school = "phys", range = MELEE, icon = "Spell_Holy_BlessingOfProtection",
-	desc = { "신성한 힘으로 적 무리를 붙잡고 스스로를 치유하는 탱커.", "A holy tank who holds packs and heals themselves." },
+	desc = "신성한 힘으로 적 무리를 붙잡고 스스로를 치유하는 탱커.",
 	base = { atk = 8, aspd = 0.85, crit = 3, critdmg = 150, hp = 235, armor = 38, block = 4 },
 	mh = { "sword", "mace", "axe" }, oh = { "shield" },
 	arch = "TANK", a = "dmg_holy", g = "block",
 	skills = { "shield_of_righteous", "avengers_shield", "consecration", "devotion_aura", "ardent_defender", "word_of_glory" },
 })
-spec("PALADIN_RET", "PALADIN", "징벌", "Retribution", {
+spec("PALADIN_RET", "PALADIN", "징벌", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Spell_Holy_SealOfMight",
-	desc = { "신성한 일격으로 적을 심판하는 근접 딜러.", "A melee damage dealer who smites with holy strikes." },
+	desc = "신성한 일격으로 적을 심판하는 근접 딜러.",
 	base = { atk = 12, aspd = 0.80, crit = 5, critdmg = 160, hp = 175, armor = 30 },
 	mh = { "sword", "mace", "axe" }, oh = { "whetstone", "relic" },
 	arch = "MELEE", a = "dmg_holy", b = "dmg_phys",
@@ -186,25 +186,25 @@ spec("PALADIN_RET", "PALADIN", "징벌", "Retribution", {
 })
 
 -- Hunter ----------------------------------------------------------------
-spec("HUNTER_BM", "HUNTER", "야수", "Beast Mastery", {
+spec("HUNTER_BM", "HUNTER", "야수", {
 	role = "DPS", school = "phys", range = 720, ranged = true, icon = "Ability_Hunter_BeastTaming",
-	desc = { "늘 야수와 함께 싸웁니다. 소환수가 꾸준히 피해를 보탭니다.", "Never fights alone: a companion beast adds steady damage." },
+	desc = "늘 야수와 함께 싸웁니다. 소환수가 꾸준히 피해를 보탭니다.",
 	base = { atk = 8.5, aspd = 1.05, crit = 5, critdmg = 155, hp = 145, armor = 18 },
 	mh = { "bow" }, oh = { "quiver" },
 	arch = "RANGED", a = "dmg_phys", b = "dmg_nature",
 	skills = { "kill_command", "hunters_pet", "multi_shot", "pack_leader", "bestial_wrath", "stampede" },
 })
-spec("HUNTER_MM", "HUNTER", "사격", "Marksmanship", {
+spec("HUNTER_MM", "HUNTER", "사격", {
 	role = "DPS", school = "phys", range = 720, ranged = true, icon = "Ability_Marksmanship",
-	desc = { "가장 빠른 공격 속도로 먼 거리에서 화살을 퍼붓는 명사수.", "A sharpshooter with the fastest attacks in the game." },
+	desc = "가장 빠른 공격 속도로 먼 거리에서 화살을 퍼붓는 명사수.",
 	base = { atk = 9, aspd = 1.10, crit = 6, critdmg = 160, hp = 140, armor = 18 },
 	mh = { "bow" }, oh = { "quiver" },
 	arch = "RANGED", a = "dmg_phys", b = "dmg_arcane",
 	skills = { "aimed_shot", "multi_shot", "arcane_shot", "trueshot_aura", "rapid_fire", "volley" },
 })
-spec("HUNTER_SV", "HUNTER", "생존", "Survival", {
+spec("HUNTER_SV", "HUNTER", "생존", {
 	role = "DPS", school = "phys", range = 700, ranged = true, icon = "Spell_Fire_SelfDestruct",
-	desc = { "덫과 독, 폭발로 적 무리를 한꺼번에 무너뜨립니다.", "Traps, venom and explosives that break whole packs." },
+	desc = "덫과 독, 폭발로 적 무리를 한꺼번에 무너뜨립니다.",
 	base = { atk = 9, aspd = 1.00, crit = 6, critdmg = 160, hp = 145, armor = 18 },
 	mh = { "bow" }, oh = { "quiver" },
 	arch = "RANGED", a = "dmg_phys", b = "dmg_fire",
@@ -212,25 +212,25 @@ spec("HUNTER_SV", "HUNTER", "생존", "Survival", {
 })
 
 -- Rogue -----------------------------------------------------------------
-spec("ROGUE_ASSA", "ROGUE", "암살", "Assassination", {
+spec("ROGUE_ASSA", "ROGUE", "암살", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Ability_Poisons",
-	desc = { "독을 겹겹이 쌓아 한 대상을 녹여 버립니다.", "Stacks poisons that melt a single target." },
+	desc = "독을 겹겹이 쌓아 한 대상을 녹여 버립니다.",
 	base = { atk = 9, aspd = 1.30, crit = 7, critdmg = 170, hp = 150, armor = 20, move = 10, dodge = 5 },
 	mh = { "dagger", "sword", "mace" }, oh = { "offblade" },
 	arch = "MELEE", a = "dmg_nature", b = "dmg_phys",
 	skills = { "mutilate", "deadly_poison", "envenom", "rupture", "vendetta", "cold_blood" },
 })
-spec("ROGUE_OUTLAW", "ROGUE", "무법", "Outlaw", {
+spec("ROGUE_OUTLAW", "ROGUE", "무법", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Ability_Warrior_PunishingBlow",
-	desc = { "쌍수 칼날을 쉼 없이 휘두르는 검객.", "A swashbuckler whose blades never rest." },
+	desc = "쌍수 칼날을 쉼 없이 휘두르는 검객.",
 	base = { atk = 10, aspd = 1.30, crit = 8, critdmg = 175, hp = 150, armor = 20, move = 10, dodge = 6 },
 	mh = { "dagger", "sword", "mace" }, oh = { "offblade" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_phys",
 	skills = { "sinister_strike", "blade_flurry", "eviscerate", "evasion", "killing_spree", "adrenaline_rush" },
 })
-spec("ROGUE_SUB", "ROGUE", "잠행", "Subtlety", {
+spec("ROGUE_SUB", "ROGUE", "잠행", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Ability_Stealth",
-	desc = { "치명타에 모든 것을 거는 그림자 암살자.", "A shadow assassin who lives and dies by critical strikes." },
+	desc = "치명타에 모든 것을 거는 그림자 암살자.",
 	base = { atk = 10, aspd = 1.15, crit = 10, critdmg = 185, hp = 145, armor = 20, move = 10, dodge = 7 },
 	mh = { "dagger", "sword", "mace" }, oh = { "offblade" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_shadow",
@@ -238,25 +238,25 @@ spec("ROGUE_SUB", "ROGUE", "잠행", "Subtlety", {
 })
 
 -- Priest ----------------------------------------------------------------
-spec("PRIEST_DISC", "PRIEST", "수양", "Discipline", {
+spec("PRIEST_DISC", "PRIEST", "수양", {
 	role = "HEALER", school = "holy", range = 700, ranged = true, icon = "Spell_Holy_PowerWordShield",
-	desc = { "보호막과 피해 감소로 다치기 전에 막아 주는 치유사.", "Prevents damage with shields and mitigation." },
+	desc = "보호막과 피해 감소로 다치기 전에 막아 주는 치유사.",
 	base = { atk = 6.5, aspd = 0.80, crit = 3, critdmg = 150, hp = 140, armor = 12, move = -10 },
 	mh = { "mace", "staff", "dagger" }, oh = { "orb" },
 	arch = "HEALER", a = "dmg_holy",
 	skills = { "penance", "pw_shield", "smite", "fortitude", "pain_suppression", "pw_barrier" },
 })
-spec("PRIEST_HOLY", "PRIEST", "신성", "Holy", {
+spec("PRIEST_HOLY", "PRIEST", "신성", {
 	role = "HEALER", school = "holy", range = 700, ranged = true, icon = "Spell_Holy_Heal",
-	desc = { "파티 전체를 치유하고 쓰러진 동료를 되살립니다.", "Heals the whole party and raises the fallen." },
+	desc = "파티 전체를 치유하고 쓰러진 동료를 되살립니다.",
 	base = { atk = 6, aspd = 0.80, crit = 3, critdmg = 150, hp = 140, armor = 12, move = -10 },
 	mh = { "mace", "staff", "dagger" }, oh = { "orb" },
 	arch = "HEALER", a = "dmg_holy",
 	skills = { "heal", "renew", "holy_nova", "fortitude", "prayer_of_healing", "resurrection" },
 })
-spec("PRIEST_SHADOW", "PRIEST", "암흑", "Shadow", {
+spec("PRIEST_SHADOW", "PRIEST", "암흑", {
 	role = "DPS", school = "shadow", range = CAST, ranged = true, icon = "Spell_Shadow_ShadowWordPain",
-	desc = { "고통과 역병으로 적을 갉아먹고 그 피해로 파티를 회복시킵니다.", "Gnaws at enemies and turns the damage into party healing." },
+	desc = "고통과 역병으로 적을 갉아먹고 그 피해로 파티를 회복시킵니다.",
 	base = { atk = 10, aspd = 0.68, crit = 5, critdmg = 160, hp = 125, armor = 10, move = -5 },
 	mh = { "mace", "staff", "dagger" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_shadow", b = "dmg_shadow",
@@ -264,25 +264,25 @@ spec("PRIEST_SHADOW", "PRIEST", "암흑", "Shadow", {
 })
 
 -- Shaman ----------------------------------------------------------------
-spec("SHAMAN_ELE", "SHAMAN", "정기", "Elemental", {
+spec("SHAMAN_ELE", "SHAMAN", "정기", {
 	role = "DPS", school = "nature", range = 640, ranged = true, icon = "Spell_Nature_Lightning",
-	desc = { "번개와 용암으로 싸우는 원소술사. 피의 욕망으로 파티를 가속합니다.", "Hurls lightning and lava; Bloodlust speeds up the party." },
+	desc = "번개와 용암으로 싸우는 원소술사. 피의 욕망으로 파티를 가속합니다.",
 	base = { atk = 10, aspd = 0.75, crit = 5, critdmg = 160, hp = 160, armor = 24 },
 	mh = { "mace", "staff", "dagger" }, oh = { "shield", "relic" },
 	arch = "CASTER", a = "dmg_nature", b = "dmg_fire",
 	skills = { "lightning_bolt", "chain_lightning", "earth_shock", "totem_of_wrath", "lava_burst", "bloodlust" },
 })
-spec("SHAMAN_ENH", "SHAMAN", "고양", "Enhancement", {
+spec("SHAMAN_ENH", "SHAMAN", "고양", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Spell_Nature_Windfury",
-	desc = { "원소의 힘을 무기에 실어 근접에서 몰아치는 전사 주술사.", "A melee shaman whose weapons carry the elements." },
+	desc = "원소의 힘을 무기에 실어 근접에서 몰아치는 전사 주술사.",
 	base = { atk = 10, aspd = 1.10, crit = 6, critdmg = 160, hp = 165, armor = 26 },
 	mh = { "mace", "axe" }, oh = { "offblade" },
 	arch = "MELEE", a = "dmg_nature", b = "dmg_fire",
 	skills = { "stormstrike", "lava_lash", "windfury_totem", "feral_spirit", "fire_nova", "bloodlust" },
 })
-spec("SHAMAN_RESTO", "SHAMAN", "복원", "Restoration", {
+spec("SHAMAN_RESTO", "SHAMAN", "복원", {
 	role = "HEALER", school = "nature", range = 640, ranged = true, icon = "Spell_Nature_HealingWaveGreater",
-	desc = { "연쇄 치유와 토템으로 여럿을 한꺼번에 돌보는 치유사.", "Chain heals and totems that look after many at once." },
+	desc = "연쇄 치유와 토템으로 여럿을 한꺼번에 돌보는 치유사.",
 	base = { atk = 6.5, aspd = 0.80, crit = 3, critdmg = 150, hp = 160, armor = 22, move = -10 },
 	mh = { "mace", "staff" }, oh = { "shield", "relic" },
 	arch = "HEALER", a = "dmg_nature", g = "block",
@@ -290,25 +290,25 @@ spec("SHAMAN_RESTO", "SHAMAN", "복원", "Restoration", {
 })
 
 -- Mage ------------------------------------------------------------------
-spec("MAGE_ARCANE", "MAGE", "비전", "Arcane", {
+spec("MAGE_ARCANE", "MAGE", "비전", {
 	role = "DPS", school = "arcane", range = CAST, ranged = true, icon = "Spell_Holy_MagicalSentry",
-	desc = { "순수한 마력을 한 대상에 쏟아붓는 폭딜 마법사.", "Pours raw arcane power into a single target." },
+	desc = "순수한 마력을 한 대상에 쏟아붓는 폭딜 마법사.",
 	base = { atk = 11, aspd = 0.65, crit = 6, critdmg = 165, hp = 110, armor = 8, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_arcane", b = "dmg_arcane",
 	skills = { "arcane_blast", "arcane_missiles", "arcane_explosion", "arcane_intellect", "arcane_power", "arcane_barrage" },
 })
-spec("MAGE_FIRE", "MAGE", "화염", "Fire", {
+spec("MAGE_FIRE", "MAGE", "화염", {
 	role = "DPS", school = "fire", range = CAST, ranged = true, icon = "Spell_Fire_FlameBolt",
-	desc = { "폭발하는 화염으로 적 무리를 태우는 광역 마법사.", "Burns packs down with exploding fire." },
+	desc = "폭발하는 화염으로 적 무리를 태우는 광역 마법사.",
 	base = { atk = 11, aspd = 0.60, crit = 6, critdmg = 170, hp = 110, armor = 8, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_fire", b = "dmg_fire",
 	skills = { "fireball", "scorch", "fire_blast", "flamestrike", "combustion", "pyroblast" },
 })
-spec("MAGE_FROST", "MAGE", "냉기", "Frost", {
+spec("MAGE_FROST", "MAGE", "냉기", {
 	role = "DPS", school = "frost", range = CAST, ranged = true, icon = "Spell_Frost_FrostBolt02",
-	desc = { "적을 얼리고 늦춰 파티가 받는 피해까지 줄여 줍니다.", "Freezes and slows enemies, sparing the party damage." },
+	desc = "적을 얼리고 늦춰 파티가 받는 피해까지 줄여 줍니다.",
 	base = { atk = 10.5, aspd = 0.62, crit = 6, critdmg = 165, hp = 115, armor = 8, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_frost", b = "dmg_frost",
@@ -316,25 +316,25 @@ spec("MAGE_FROST", "MAGE", "냉기", "Frost", {
 })
 
 -- Warlock ---------------------------------------------------------------
-spec("WARLOCK_AFF", "WARLOCK", "고통", "Affliction", {
+spec("WARLOCK_AFF", "WARLOCK", "고통", {
 	role = "DPS", school = "shadow", range = CAST, ranged = true, icon = "Spell_Shadow_AbominationExplosion",
-	desc = { "여러 적에게 지속 피해를 걸고 저주로 파티 전체의 피해를 올립니다.", "Spreads lingering damage and curses that amplify the party." },
+	desc = "여러 적에게 지속 피해를 걸고 저주로 파티 전체의 피해를 올립니다.",
 	base = { atk = 10, aspd = 0.65, crit = 5, critdmg = 160, hp = 130, armor = 8, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_shadow", b = "dmg_shadow",
 	skills = { "corruption", "unstable_affliction", "drain_life", "curse_of_elements", "haunt", "seed_of_corruption" },
 })
-spec("WARLOCK_DEMO", "WARLOCK", "악마", "Demonology", {
+spec("WARLOCK_DEMO", "WARLOCK", "악마", {
 	role = "DPS", school = "shadow", range = CAST, ranged = true, icon = "Spell_Shadow_SummonFelHunter",
-	desc = { "악마를 부리고 스스로도 악마로 변신하는 튼튼한 술사.", "Commands demons and becomes one; sturdier than other casters." },
+	desc = "악마를 부리고 스스로도 악마로 변신하는 튼튼한 술사.",
 	base = { atk = 9.5, aspd = 0.65, crit = 5, critdmg = 160, hp = 140, armor = 10, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_shadow", b = "dmg_fire",
 	skills = { "shadow_bolt", "felguard", "soul_link", "hand_of_guldan", "metamorphosis", "summon_infernal" },
 })
-spec("WARLOCK_DESTRO", "WARLOCK", "파괴", "Destruction", {
+spec("WARLOCK_DESTRO", "WARLOCK", "파괴", {
 	role = "DPS", school = "fire", range = CAST, ranged = true, icon = "Spell_Fire_Immolation",
-	desc = { "불과 혼돈의 큰 한 방. 치명타가 터지면 무엇이든 무너집니다.", "Fire and chaos in huge single hits." },
+	desc = "불과 혼돈의 큰 한 방. 치명타가 터지면 무엇이든 무너집니다.",
 	base = { atk = 10.5, aspd = 0.62, crit = 6, critdmg = 165, hp = 125, armor = 8, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_fire", b = "dmg_shadow",
@@ -342,33 +342,33 @@ spec("WARLOCK_DESTRO", "WARLOCK", "파괴", "Destruction", {
 })
 
 -- Druid -----------------------------------------------------------------
-spec("DRUID_BALANCE", "DRUID", "조화", "Balance", {
+spec("DRUID_BALANCE", "DRUID", "조화", {
 	role = "DPS", school = "nature", range = CAST, ranged = true, icon = "Spell_Nature_StarFall",
-	desc = { "달과 별의 힘으로 싸우는 원거리 마법 딜러.", "A ranged caster wielding moon and stars." },
+	desc = "달과 별의 힘으로 싸우는 원거리 마법 딜러.",
 	base = { atk = 10, aspd = 0.70, crit = 5, critdmg = 160, hp = 140, armor = 14, move = -5 },
 	mh = { "staff", "mace", "dagger" }, oh = { "relic", "orb" },
 	arch = "CASTER", a = "dmg_nature", b = "dmg_arcane",
 	skills = { "wrath", "moonfire", "starfire", "moonkin_aura", "hurricane", "starfall" },
 })
-spec("DRUID_FERAL", "DRUID", "야성", "Feral", {
+spec("DRUID_FERAL", "DRUID", "야성", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Ability_Druid_FerociousBite",
-	desc = { "표범으로 변신해 찢고 물어뜯는 근접 딜러.", "A cat-form shredder who rips and bites in melee." },
+	desc = "표범으로 변신해 찢고 물어뜯는 근접 딜러.",
 	base = { atk = 10, aspd = 1.20, crit = 8, critdmg = 170, hp = 160, armor = 22, move = 10, dodge = 5 },
 	mh = { "staff", "mace", "dagger" }, oh = { "relic", "whetstone" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_phys",
 	skills = { "shred", "rake", "ferocious_bite", "leader_of_pack", "tigers_fury", "berserk" },
 })
-spec("DRUID_GUARDIAN", "DRUID", "수호", "Guardian", {
+spec("DRUID_GUARDIAN", "DRUID", "수호", {
 	role = "TANK", school = "phys", range = MELEE, icon = "Ability_Druid_Maul",
-	desc = { "곰으로 변신해 두꺼운 가죽과 재생력으로 버티는 탱커.", "A bear-form tank with thick hide and regeneration." },
+	desc = "곰으로 변신해 두꺼운 가죽과 재생력으로 버티는 탱커.",
 	base = { atk = 9, aspd = 0.80, crit = 4, critdmg = 150, hp = 270, armor = 30, dodge = 5 },
 	mh = { "mace", "staff" }, oh = { "relic" },
 	arch = "TANK", a = "dmg_phys", g = "dodge",
 	skills = { "maul", "swipe", "demo_roar", "thorns", "frenzied_regen", "barkskin" },
 })
-spec("DRUID_RESTO", "DRUID", "회복", "Restoration", {
+spec("DRUID_RESTO", "DRUID", "회복", {
 	role = "HEALER", school = "nature", range = CAST, ranged = true, icon = "Spell_Nature_Rejuvenation",
-	desc = { "지속 치유를 겹겹이 걸어 파티를 천천히, 꾸준히 회복시킵니다.", "Layers heal-over-time effects for slow, steady recovery." },
+	desc = "지속 치유를 겹겹이 걸어 파티를 천천히, 꾸준히 회복시킵니다.",
 	base = { atk = 6, aspd = 0.80, crit = 3, critdmg = 150, hp = 150, armor = 14, move = -10 },
 	mh = { "staff", "mace" }, oh = { "relic", "orb" },
 	arch = "HEALER", a = "dmg_nature",

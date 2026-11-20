@@ -11,10 +11,10 @@ local GRID_Y = -40
 local DETAIL_X, DETAIL_W = 516, 332
 
 local FILTERS = {
-	{ key = "all",  name = { "전체", "All" } },
-	{ key = "weapon", name = { "무기", "Weapons" }, slots = { mh = true, oh = true } },
-	{ key = "armor", name = { "방어구", "Armor" }, slots = { head = true, chest = true, hands = true, feet = true } },
-	{ key = "acc", name = { "장신구", "Jewelry" }, slots = { wrist = true, neck = true, ring = true, trinket = true } },
+	{ key = "all",  name = "전체" },
+	{ key = "weapon", name = "무기", slots = { mh = true, oh = true } },
+	{ key = "armor", name = "방어구", slots = { head = true, chest = true, hands = true, feet = true } },
+	{ key = "acc", name = "장신구", slots = { wrist = true, neck = true, ring = true, trinket = true } },
 }
 
 local function smeltQ()
@@ -42,7 +42,6 @@ end
 -- Detail card
 ------------------------------------------------------------------------
 local function buildDetail(page)
-	local T = ns.T
 	local d = UI.Panel(page, DETAIL_W, Main.PAGE_H + GRID_Y, "card")
 	d:SetPoint("TOPLEFT", page, "TOPLEFT", DETAIL_X, GRID_Y)
 	page.detail = d
@@ -62,7 +61,7 @@ local function buildDetail(page)
 		fs:SetWordWrap(false)
 		d.lines[i] = fs
 	end
-	d.targetLabel = UI.Text(d, 11, T("착용 대상", "Equip on"))
+	d.targetLabel = UI.Text(d, 11, "착용 대상")
 	d.targetLabel:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 16, 112)
 	UI.Color(d.targetLabel, UI.C.sub)
 	d.targets = {}
@@ -90,7 +89,7 @@ local function buildDetail(page)
 	d.b3:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 14, 4)
 	d.b4 = UI.Button(d, 148, 22, "", nil, "dark")
 	d.b4:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -14, 4)
-	d.hint = UI.Text(d, 12, T("아이템을 누르면 여기에서 자세히 보고 장착하거나 분해할 수 있습니다.", "Tap an item to see it here, equip it or smelt it."))
+	d.hint = UI.Text(d, 12, "아이템을 누르면 여기에서 자세히 보고 장착하거나 분해할 수 있습니다.")
 	d.hint:SetPoint("CENTER", d, "CENTER", 0, 30)
 	d.hint:SetWidth(DETAIL_W - 60)
 	d.hint:SetJustifyH("CENTER")
@@ -112,7 +111,6 @@ local function setButtons(d, specs)
 end
 
 local function refreshDetail(page)
-	local T = ns.T
 	local d = page.detail
 	local it, mat = page.selItem, page.selMat
 	local showItem = it ~= nil
@@ -137,7 +135,7 @@ local function refreshDetail(page)
 		local r, g, b = U.rgb(ns.QUALITY[m.q].hex)
 		d.name:SetText(ns.N(m.name))
 		d.name:SetTextColor(r, g, b)
-		d.kind:SetText(ns.N(ns.MAT_KIND_NAME[m.kind]) .. " · " .. string.format(T("%d단계", "Tier %d"), m.tier))
+		d.kind:SetText(ns.N(ns.MAT_KIND_NAME[m.kind]) .. " · " .. string.format("%d단계", m.tier))
 		local tl = ns.Items.MatTooltip(mat)
 		for i = 3, #tl do
 			if d.lines[i - 2] then
@@ -150,16 +148,16 @@ local function refreshDetail(page)
 		local canFuse = count >= ns.Forge.FUSE_COUNT and m.tier < ns.MAT_MAX_TIER[m.kind]
 		local smelt = ns.Forge.Unlocked("smelt")
 		setButtons(d, {
-			{ T("9개 융합", "Fuse 9"), function()
+			{ "9개 융합", function()
 				local ok, res = ns.Forge.FuseMat(mat)
-				if UI.Try(ok, res) then ns.Fire("TOAST", string.format(ns.T("융합 성공: %s", "Fused into %s"), ns.N(ns.MATS[res].name))) end
+				if UI.Try(ok, res) then ns.Fire("TOAST", string.format("융합 성공: %s", ns.N(ns.MATS[res].name))) end
 				Main.Refresh()
 			end, not canFuse },
-			{ T("1개 분해 +", "Smelt 1 +") .. U.fmt(gold), function()
+			{ "1개 분해 +" .. U.fmt(gold), function()
 				UI.Try(ns.Forge.SmeltMat(mat, 1))
 				Main.Refresh()
 			end, not smelt },
-			{ T("전부 분해", "Smelt all"), function()
+			{ "전부 분해", function()
 				UI.Try(ns.Forge.SmeltMat(mat, ns.MatCount(mat)))
 				Main.Refresh()
 			end, not smelt },
@@ -176,13 +174,13 @@ local function refreshDetail(page)
 	local r, g, b = U.rgb(ns.QUALITY[it.q].hex)
 	d.name:SetText(ns.Items.Name(it))
 	d.name:SetTextColor(r, g, b)
-	d.kind:SetText(ns.N(ns.QUALITY[it.q].name) .. " " .. ns.N(ns.SLOT[it.s].name) .. " · " .. T("아이템 레벨 ", "Item level ") .. it.l)
+	d.kind:SetText(ns.N(ns.QUALITY[it.q].name) .. " " .. ns.N(ns.SLOT[it.s].name) .. " · " .. "아이템 레벨 " .. it.l)
 	local tl = ns.Items.Tooltip(it, nil)
 	local n = 0
 	for i = 3, #tl do
 		local line = tl[i]
 		local text = line[1] or ""
-		if not text:find(ns.T("용해 가치", "Smelt value"), 1, true) and not text:find(ns.T("잠김", "Locked"), 1, true) then
+		if not text:find("용해 가치", 1, true) and not text:find("잠김", 1, true) then
 			n = n + 1
 			if d.lines[n] then
 				d.lines[n]:SetText(text .. (line[2] and ("  " .. line[2]) or ""))
@@ -193,13 +191,13 @@ local function refreshDetail(page)
 
 	if page.view == "bank" then
 		setButtons(d, {
-			{ T("가방으로", "To bags"), function()
+			{ "가방으로", function()
 				local idx = indexIn(ns.db.bank, it)
 				if idx and UI.Try(ns.Items.FromBank(idx)) then page.view = "bag" end
 				Main.Refresh()
 			end },
 			nil,
-			{ it.lock and T("잠금 해제", "Unlock") or T("잠그기", "Lock"), function() ns.Items.ToggleLock(it) Main.Refresh() end },
+			{ it.lock and "잠금 해제" or "잠그기", function() ns.Items.ToggleLock(it) Main.Refresh() end },
 		})
 		return
 	end
@@ -232,27 +230,27 @@ local function refreshDetail(page)
 				d.compare:SetText(U.col("aab3c8", "±0%"))
 			end
 		else
-			d.compare:SetText(U.col("ff6a5a", ns.Items.CanUse(id, it) and T("레벨 부족", "Level too low") or T("사용 불가", "Can't use")))
+			d.compare:SetText(U.col("ff6a5a", ns.Items.CanUse(id, it) and "레벨 부족" or "사용 불가"))
 		end
 	end
 	local gold = floor(ns.Items.Value(it) * (1 + ns.Bonus("smeltGold") / 100))
 	local canEquip = id and ns.Items.CanEquip(id, it)
 	setButtons(d, {
-		{ id and (T("장착: ", "Equip: ") .. ns.Heroes.Name(id)) or T("장착", "Equip"), function()
+		{ id and ("장착: " .. ns.Heroes.Name(id)) or "장착", function()
 			local idx = indexIn(ns.db.bag, it)
 			if idx and UI.Try(ns.Items.Equip(id, idx)) then page.selItem = nil end
 			Main.Refresh()
 		end, not canEquip },
-		{ T("분해 +", "Smelt +") .. U.fmt(gold) .. " G", function()
+		{ "분해 +" .. U.fmt(gold) .. " G", function()
 			local ok, g = ns.Forge.Smelt({ it })
 			if UI.Try(ok, g) then
-				ns.Fire("TOAST", string.format(ns.T("분해: +%s 골드", "Smelted: +%s gold"), U.fmt(g)))
+				ns.Fire("TOAST", string.format("분해: +%s 골드", U.fmt(g)))
 				page.selItem = nil
 			end
 			Main.Refresh()
 		end, it.lock or not ns.Forge.Unlocked("smelt") },
-		{ it.lock and T("잠금 해제", "Unlock") or T("잠그기 (보호)", "Lock (protect)"), function() ns.Items.ToggleLock(it) Main.Refresh() end },
-		{ T("은행에 보관", "Store in bank"), function()
+		{ it.lock and "잠금 해제" or "잠그기 (보호)", function() ns.Items.ToggleLock(it) Main.Refresh() end },
+		{ "은행에 보관", function()
 			local idx = indexIn(ns.db.bag, it)
 			if idx and UI.Try(ns.Items.ToBank(idx)) then page.selItem = nil end
 			Main.Refresh()
@@ -264,7 +262,6 @@ end
 -- Screen
 ------------------------------------------------------------------------
 local function build(page)
-	local T = ns.T
 	page.view, page.filter = "bag", 1
 
 	page.views = {}
@@ -287,7 +284,7 @@ local function build(page)
 		c:SetPoint("TOPLEFT", page, "TOPLEFT", 362 + (i - 1) * 70, -2)
 		page.filters[i] = c
 	end
-	page.sort = UI.Button(page, 80, 26, T("정리", "Sort"), function()
+	page.sort = UI.Button(page, 80, 26, "정리", function()
 		if page.view == "bank" then ns.Items.Sort(ns.db.bank) else ns.Items.Sort(ns.db.bag) end
 		Main.Refresh()
 	end, "dark")
@@ -328,7 +325,7 @@ local function build(page)
 	page.smeltGo = UI.Button(page, 170, 38, "", function()
 		local ok, gold, n = ns.Forge.Smelt(ns.Forge.PickByQuality(smeltQ()))
 		if UI.Try(ok, gold) then
-			ns.Fire("TOAST", string.format(ns.T("%d개 분해: +%s 골드", "Smelted %d items: +%s gold"), n, U.fmt(gold)))
+			ns.Fire("TOAST", string.format("%d개 분해: +%s 골드", n, U.fmt(gold)))
 		end
 		page.selItem = nil
 		Main.Refresh()
@@ -343,11 +340,10 @@ local function build(page)
 	end)
 	page.smeltPick:SetPoint("TOPLEFT", page.smeltGo, "TOPRIGHT", 8, 0)
 	UI.Tip(page.smeltPick, function()
-		return UI.SimpleTip(ns.T("분해 기준 등급", "Smelt up to"),
-			ns.T("이 등급 이하이면서 잠기지 않았고 홈에 능력치가 없는 장비가 분해됩니다. 클릭/우클릭으로 바꿉니다.",
-				"Smelts unlocked items of this quality or lower that have nothing socketed. Click / right-click to change."))
+		return UI.SimpleTip("분해 기준 등급",
+			"이 등급 이하이면서 잠기지 않았고 홈에 능력치가 없는 장비가 분해됩니다. 클릭/우클릭으로 바꿉니다.")
 	end, "TOP")
-	page.autoSmelt = UI.Check(page, T("가방이 차면 자동 분해", "Auto-smelt when full"),
+	page.autoSmelt = UI.Check(page, "가방이 차면 자동 분해",
 		function() return (ns.db.opt.autoSmelt or 0) > 0 end,
 		function(v) ns.db.opt.autoSmelt = v and smeltQ() or 0 end)
 	page.autoSmelt:SetPoint("TOPLEFT", page.smeltPick, "BOTTOMLEFT", 0, -2)
@@ -356,12 +352,11 @@ local function build(page)
 end
 
 local function refresh(page)
-	local T = ns.T
 	local db = ns.db
 	local labels = {
-		bag = string.format(T("가방 %d/%d", "Bags %d/%d"), #db.bag, ns.BagSize()),
-		bank = string.format(T("은행 %d/%d", "Bank %d/%d"), #db.bank, ns.BankSize()),
-		mats = T("재료", "Materials"),
+		bag = string.format("가방 %d/%d", #db.bag, ns.BagSize()),
+		bank = string.format("은행 %d/%d", #db.bank, ns.BankSize()),
+		mats = "재료",
 	}
 	for _, c in ipairs(page.views) do
 		c:SetLabel(labels[c.key])
@@ -374,20 +369,20 @@ local function refresh(page)
 	page.sort:SetShown(page.view ~= "mats")
 
 	local chests = ns.Loot.Count()
-	page.open:SetLabel(string.format(T("상자 모두 열기 (%d)", "Open chests (%d)"), chests))
+	page.open:SetLabel(string.format("상자 모두 열기 (%d)", chests))
 	page.open:SetOff(chests == 0)
 	page.open:SetBadge(chests > 0 and chests or nil)
 	local q = smeltQ()
-	page.smeltPick:SetLabel(ns.N(ns.QUALITY[q].name) .. T(" 이하 분해", " or lower"))
+	page.smeltPick:SetLabel(ns.N(ns.QUALITY[q].name) .. " 이하 분해")
 	if ns.Forge.Unlocked("smelt") then
 		local list = ns.Forge.PickByQuality(q)
 		local total = 0
 		for _, it in ipairs(list) do total = total + ns.Items.Value(it) end
 		total = floor(total * (1 + ns.Bonus("smeltGold") / 100))
-		page.smeltGo:SetLabel(string.format(T("일괄 분해 %d개", "Smelt %d items"), #list) .. "\n" .. U.col("ffd24a", "+" .. U.fmt(total) .. " G"))
+		page.smeltGo:SetLabel(string.format("일괄 분해 %d개", #list) .. "\n" .. U.col("ffd24a", "+" .. U.fmt(total) .. " G"))
 		page.smeltGo:SetOff(#list == 0)
 	else
-		page.smeltGo:SetLabel(T("분해 잠김\n(용광로에서 해금)", "Smelt locked\n(unlock in forge)"))
+		page.smeltGo:SetLabel("분해 잠김\n(용광로에서 해금)")
 		page.smeltGo:SetOff(true)
 	end
 	page.autoSmelt:Refresh()
@@ -418,7 +413,7 @@ local function refresh(page)
 			end
 		end
 		for i = n + 1, #cells do cells[i]:Clear() end
-		page.empty:SetText(n == 0 and T("재료가 없습니다. 상자에서 얻을 수 있습니다.", "No materials yet. They come from chests.") or "")
+		page.empty:SetText(n == 0 and "재료가 없습니다. 상자에서 얻을 수 있습니다." or "")
 	else
 		local list = itemList(page)
 		local cap = page.view == "bank" and ns.BankSize() or ns.BagSize()
@@ -447,8 +442,8 @@ local function refresh(page)
 			end
 		end
 		if #list == 0 then
-			page.empty:SetText(page.view == "bank" and T("은행이 비어 있습니다. 아끼는 장비를 보관해 두세요.", "The bank is empty. Keep items you want to save here.")
-				or T("가방이 비어 있습니다. 상자를 열어 장비를 얻으세요.", "Your bags are empty. Open chests to find gear."))
+			page.empty:SetText(page.view == "bank" and "은행이 비어 있습니다. 아끼는 장비를 보관해 두세요."
+				or "가방이 비어 있습니다. 상자를 열어 장비를 얻으세요.")
 		else
 			page.empty:SetText("")
 		end
@@ -457,7 +452,7 @@ local function refresh(page)
 end
 
 Main.RegisterTab({
-	key = "bag", title = { "가방", "Bags" }, sub = { "상자를 열고 장비를 장착하거나 분해합니다", "Open chests, equip or smelt gear" },
+	key = "bag", title = "가방", sub = "상자를 열고 장비를 장착하거나 분해합니다",
 	icon = "INV_Misc_Bag_10", build = build, refresh = refresh,
 	events = { "BAG", "MATS", "CHESTS", "GEAR", "RUNES", "FORGE", "LEVEL", "RESET", "PARTY" },
 })

@@ -55,7 +55,7 @@ return function(name)
 	if name == "bar" then
 		ns.Main.Toggle(false)
 		for _ = 1, 30 do Mock.Update(0.1) end
-		ns.Toast(ns.T("첫 공략! 3-6 저주받은 땅 (+12,345 골드, 궤짝 1개)", "First clear! 3-6 Blasted Lands (+12,345 gold, 1 cache)"))
+		ns.Toast("첫 공략! 3-6 저주받은 땅 (+12,345 골드, 궤짝 1개)")
 		Mock.Update(0.05)
 		return
 	end

@@ -54,7 +54,7 @@ local function click(what, pred, mouse)
 end
 
 local function label(b) return b.label and b.label.__text end
-local function labelIs(ko, en) return function(b) return label(b) == ns.T(ko, en) end end
+local function labelIs(ko, en) return function(b) return label(b) == (ko) end end
 
 math.randomseed(777)
 BigIdleWoWHeroesDB = nil
@@ -95,15 +95,14 @@ local page = Main.Page("party")
 try("open create dialog", page.create.Click, page.create, "LeftButton")
 click("class Hunter", function(b) return b.cid == "HUNTER" end)
 click("spec Marksmanship", function(b) return b.sid == "HUNTER_MM" end)
-click("create", function(b) return label(b) == ns.T("영웅 만들기", "Create Hero") and b.__h == 38 end)
+click("create", function(b) return label(b) == "영웅 만들기" and b.__h == 38 end)
 if H.Count() ~= 1 then fail("creating through the dialog did not make a hero") end
 local first = H.List()[1]
 if first and ns.db.heroes[first].spec ~= "HUNTER_MM" then fail("the hero has the wrong specialization") end
 if first and H.PartySlot(first) ~= 2 then fail("the first damage dealer should join slot 2") end
-local name0 = first and ns.db.heroes[first].name[1]
-click("reroll name", labelIs("이름 다시 뽑기", "Roll another name"))
-click("ok", function(b) return label(b) == ns.T("확인", "OK") and b.__w == 160 end)
-if first and type(ns.db.heroes[first].name) ~= "table" then fail("hero name missing") end
+click("reroll name", labelIs("이름 다시 뽑기"))
+click("ok", function(b) return label(b) == "확인" and b.__w == 160 end)
+if first and (type(ns.db.heroes[first].name) ~= "string" or ns.db.heroes[first].name == "") then fail("hero name missing") end
 frames(300)
 if ns.db.stat.kills == 0 then fail("the battle should run once a hero exists") end
 
@@ -187,24 +186,24 @@ do
 	local free = H.PointsFree(id)
 	click("talent node", function(b) return b.tier == 1 and b.n == 3 end)
 	if H.PointsFree(id) ~= free - 1 then fail("clicking a talent should spend a point") end
-	click("auto-assign", labelIs("자동 배분", "Auto-assign"))
+	click("auto-assign", labelIs("자동 배분"))
 	if H.PointsFree(id) ~= 0 then fail("auto-assign should spend every point") end
 	for _, c in ipairs(hp.card.chips) do
 		if c.key == "skills" then try("skills chip", c.Click, c, "LeftButton") end
 	end
 	if hp.sub ~= "skills" then fail("the skills chip did not switch the sub-page") end
 	local active = #H.ActiveSkills(id)
-	click("remove skill", labelIs("해제", "Remove"))
+	click("remove skill", labelIs("해제"))
 	if #H.ActiveSkills(id) ~= active - 1 then fail("removing a skill from its card did not work") end
 	Main.Refresh()
-	click("equip skill", labelIs("장착", "Equip"))
+	click("equip skill", labelIs("장착"))
 	if #H.ActiveSkills(id) ~= active then fail("equipping a skill from its card did not work") end
 	for _, c in ipairs(hp.card.chips) do
 		if c.key == "gear" then try("gear chip", c.Click, c, "LeftButton") end
 	end
-	click("equip best", labelIs("일괄 장착", "Equip best"))
-	click("equip party", labelIs("파티 전원 일괄 장착", "Equip best: whole party"))
-	click("rename", labelIs("이름 변경", "Rename"))
+	click("equip best", labelIs("일괄 장착"))
+	click("equip party", labelIs("파티 전원 일괄 장착"))
+	click("rename", labelIs("이름 변경"))
 	-- dismiss a bench hero: two clicks
 	local benchId
 	for _, hid in ipairs(H.List()) do
@@ -213,10 +212,10 @@ do
 	Main.SelectHero(benchId)
 	Main.Refresh()
 	local n = H.Count()
-	click("dismiss", labelIs("떠나보내기", "Dismiss"))
+	click("dismiss", labelIs("떠나보내기"))
 	if H.Count() ~= n then fail("one click must not dismiss a hero") end
 	Main.Refresh()
-	click("dismiss confirm", labelIs("정말요?", "Sure?"))
+	click("dismiss confirm", labelIs("정말요?"))
 	if H.Count() ~= n - 1 or ns.db.heroes[benchId] then fail("two clicks should dismiss the hero") end
 	hoverAll()
 end
@@ -267,7 +266,7 @@ do
 	bp.view = "bag"
 	enrich(2)
 	Main.Refresh()
-	click("open chests", function(b) return label(b) and label(b):find(ns.T("상자 모두 열기", "Open chests"), 1, true) end)
+	click("open chests", function(b) return label(b) and label(b):find("상자 모두 열기", 1, true) end)
 	hoverAll()
 end
 
@@ -279,13 +278,13 @@ do
 	for _ = 1, 27 do ns.Items.AddToBag(ns.Items.New("head", 20, 2)) end
 	Main.ShowTab("forge", { sub = "fuse" })
 	local before = #ns.db.bag
-	click("fuse", function(b) return label(b) == ns.T("융합", "Fuse") and b.__w == 170 end)
+	click("fuse", function(b) return label(b) == "융합" and b.__w == 170 end)
 	if #ns.db.bag ~= before - 8 then fail("fusing through the forge should turn 9 items into 1") end
-	click("fuse all", labelIs("가능한 만큼 융합", "Fuse as many as possible"))
+	click("fuse all", labelIs("가능한 만큼 융합"))
 	if #ns.db.bag ~= 3 then fail("fuse-all should leave 3 items, got " .. #ns.db.bag) end
 	click("craft tile", function(b) return b.key == "craft" end)
 	before = #ns.db.bag
-	click("craft", function(b) return label(b) == ns.T("제작", "Craft") and b.__w == 170 end)
+	click("craft", function(b) return label(b) == "제작" and b.__w == 170 end)
 	if #ns.db.bag ~= before + 1 then fail("crafting should add one item") end
 	local epic = ns.Items.New("chest", 30, 6)
 	ns.Items.AddToBag(epic)
@@ -302,7 +301,7 @@ do
 	if (#(epic.g or {}) + #(epic.e or {}) + #(epic.i or {})) ~= 2 then fail("extraction should clear one stat") end
 	click("seal tile", function(b) return b.key == "seal" end)
 	before = #ns.db.bag
-	click("roll", labelIs("굴림", "Roll"))
+	click("roll", labelIs("굴림"))
 	if #ns.db.bag ~= before + 1 then fail("a bonus roll should add one item") end
 	click("smelt tile", function(b) return b.key == "smelt" end)
 	hoverAll()
@@ -313,7 +312,7 @@ do
 	Main.ShowTab("runes")
 	local lvl = ns.Runes.Level("w1")
 	click("rune w1", function(b) return b.node and b.node.id == "w1" end)
-	click("learn", function(b) return label(b) and label(b):find(ns.T("배우기", "Learn"), 1, true) end)
+	click("learn", function(b) return label(b) and label(b):find("배우기", 1, true) end)
 	if ns.Runes.Level("w1") ~= lvl + 1 then fail("learning a rune from the side card did not work") end
 end
 
@@ -323,7 +322,7 @@ do
 	ns.db.prog[1] = 30
 	click("world Azeroth", function(b) return b.d == 1 end)
 	click("stage 3", function(b) return b.n == 3 and b.__h == 98 end)
-	click("travel", labelIs("이 스테이지로 이동", "Travel here"))
+	click("travel", labelIs("이 스테이지로 이동"))
 	if ns.db.stage.idx ~= 3 or ns.db.stage.diff ~= 1 then fail("travelling through the map did not work") end
 	click("world Outland", function(b) return b.d == 2 end)
 	hoverAll()
@@ -400,9 +399,7 @@ frames(20)
 try("slash bar", SlashCmdList.BIGIDLEWOWHEROES, "bar")
 try("slash reset", SlashCmdList.BIGIDLEWOWHEROES, "reset")
 try("slash help", SlashCmdList.BIGIDLEWOWHEROES, "help")
-try("slash lang", SlashCmdList.BIGIDLEWOWHEROES, "lang en")
 try("compartment", BigIdleWoWHeroes_OnAddonCompartmentClick)
-ns.db.lang = nil
 
 -- a long stretch with a full party fighting, then lag spikes
 enrich(1)

@@ -77,14 +77,14 @@ function Runes.Buy(id)
 	local node = Runes.byId[id]
 	if not node then return false end
 	if not Runes.Available(id) then
-		return false, ns.T("이전 룬을 먼저 배워야 합니다.", "Learn the previous rune first.")
+		return false, "이전 룬을 먼저 배워야 합니다."
 	end
 	local cost = Runes.NextCost(id)
 	if not cost then
-		return false, ns.T("이미 최대 레벨입니다.", "Already at maximum level.")
+		return false, "이미 최대 레벨입니다."
 	end
 	if not ns.SpendGold(cost) then
-		return false, ns.T("골드가 부족합니다.", "Not enough gold.")
+		return false, "골드가 부족합니다."
 	end
 	ns.db.runes[id] = Runes.Level(id) + 1
 	Runes.Invalidate()
@@ -137,12 +137,9 @@ end
 function ns.PetUnlockText(pet)
 	local u = pet.unlock
 	if u.type then
-		if ns.lang == "ko" then
-			return string.format("%s 유형의 적 %s마리 처치", ns.N(ns.MTYPE[u.type]), ns.U.fmt(u.n))
-		end
-		return string.format("Defeat %s %s enemies", ns.U.fmt(u.n), ns.N(ns.MTYPE[u.type]))
+		return string.format("%s 유형의 적 %s마리 처치", ns.N(ns.MTYPE[u.type]), ns.U.fmt(u.n))
 	end
-	return ns.T("3막의 마지막 우두머리 처치", "Defeat the final boss of Act 3")
+	return "3막의 마지막 우두머리 처치"
 end
 
 function ns.CheckPets()
@@ -155,7 +152,7 @@ function ns.CheckPets()
 				db.pets[pet.id] = true
 				if not db.pet then db.pet = pet.id end
 				changed = true
-				ns.Toast(string.format(ns.T("새 동료 획득: %s", "New companion: %s"), ns.N(pet.name)))
+				ns.Toast(string.format("새 동료 획득: %s", ns.N(pet.name)))
 			end
 		end
 	end

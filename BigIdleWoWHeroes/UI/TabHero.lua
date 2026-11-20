@@ -19,33 +19,30 @@ local function gearTip(self)
 	local it = h and h.gear[self.slot]
 	if it then
 		local lines = ns.Items.Tooltip(it, id)
-		lines[#lines + 1] = { ns.T("클릭: 장비 해제", "Click: unequip"), nil, 0.45, 0.8, 1 }
+		lines[#lines + 1] = { "클릭: 장비 해제", nil, 0.45, 0.8, 1 }
 		return lines
 	end
-	return UI.SimpleTip(ns.N(ns.SLOT[self.slot].name), ns.T("비어 있음. '가방'에서 장비를 골라 착용하거나 '일괄 장착'을 누르세요.",
-		"Empty. Pick an item in the bags, or press 'Equip best'."))
+	return UI.SimpleTip(ns.N(ns.SLOT[self.slot].name), "비어 있음. '가방'에서 장비를 골라 착용하거나 '일괄 장착'을 누르세요.")
 end
 
 local function skillLines(id, sid)
-	local T = ns.T
 	local sk = ns.SKILLS[sid]
 	local pts = H.SkillPoints(id, sid)
 	local eff = H.SkillLevel(id, sid)
 	local lvl = max(1, eff)
-	local lines = { { ns.N(sk.name), string.format(T("레벨 %d/%d", "Level %d/%d"), pts, ns.SKILL_MAX), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] } }
+	local lines = { { ns.N(sk.name), string.format("레벨 %d/%d", pts, ns.SKILL_MAX), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] } }
 	if eff > pts then
-		lines[#lines + 1] = { string.format(T("장비 효과 포함 레벨 %d", "Level %d with gear"), eff), nil, 0.4, 1, 0.4 }
+		lines[#lines + 1] = { string.format("장비 효과 포함 레벨 %d", eff), nil, 0.4, 1, 0.4 }
 	end
 	lines[#lines + 1] = { ns.SkillTag(sid) .. " · " .. ns.SkillActText(sid, lvl), nil, 0.6, 0.8, 1 }
 	lines[#lines + 1] = { ns.SkillDesc(sid, lvl), nil, 1, 1, 1 }
 	if pts > 0 and pts < ns.SKILL_MAX then
-		lines[#lines + 1] = { T("다음 레벨: ", "Next level: ") .. ns.SkillDesc(sid, eff + 1), nil, 0.6, 0.62, 0.7 }
+		lines[#lines + 1] = { "다음 레벨: " .. ns.SkillDesc(sid, eff + 1), nil, 0.6, 0.62, 0.7 }
 	end
 	return lines
 end
 
 local function nodeTip(self)
-	local T = ns.T
 	local id = Main.SelectedHero()
 	if not id then return nil end
 	local node = H.Tree(id)[self.tier][self.n]
@@ -55,19 +52,19 @@ local function nodeTip(self)
 	if node.s then
 		lines = skillLines(id, node.s)
 		if lvl > 0 then
-			lines[#lines + 1] = { H.IsSkillEquipped(id, node.s) and T("장착 중 · 우클릭: 해제", "Equipped - right-click to remove")
-				or T("우클릭: 기술 슬롯에 장착", "Right-click: put in a skill slot"), nil, 0.45, 0.8, 1 }
+			lines[#lines + 1] = { H.IsSkillEquipped(id, node.s) and "장착 중 · 우클릭: 해제"
+				or "우클릭: 기술 슬롯에 장착", nil, 0.45, 0.8, 1 }
 		end
 	else
 		local a = ns.AFFIX[node.p]
-		lines = { { ns.N(a.n) .. T(" 강화", " Mastery"), string.format(T("레벨 %d/%d", "Level %d/%d"), lvl, node.max), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] } }
-		lines[#lines + 1] = { T("레벨당 ", "Per level: ") .. ns.Stats.ModText(node.p, node.v), nil, 1, 1, 1 }
-		if lvl > 0 then lines[#lines + 1] = { T("현재 ", "Now: ") .. ns.Stats.ModText(node.p, node.v * lvl), nil, 0.4, 1, 0.4 } end
+		lines = { { ns.N(a.n) .. " 강화", string.format("레벨 %d/%d", lvl, node.max), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] } }
+		lines[#lines + 1] = { "레벨당 " .. ns.Stats.ModText(node.p, node.v), nil, 1, 1, 1 }
+		if lvl > 0 then lines[#lines + 1] = { "현재 " .. ns.Stats.ModText(node.p, node.v * lvl), nil, 0.4, 1, 0.4 } end
 	end
 	if not H.TierOpen(id, self.tier) then
-		lines[#lines + 1] = { string.format(T("기술 점수를 %d점 쓰면 열립니다.", "Opens after spending %d points."), (self.tier - 1) * ns.TREE_TIER_POINTS), nil, 1, 0.35, 0.3 }
+		lines[#lines + 1] = { string.format("기술 점수를 %d점 쓰면 열립니다.", (self.tier - 1) * ns.TREE_TIER_POINTS), nil, 1, 0.35, 0.3 }
 	elseif lvl < node.max then
-		lines[#lines + 1] = { T("클릭: 기술 점수 1점 투자", "Click: spend 1 skill point"), nil, 0.45, 0.8, 1 }
+		lines[#lines + 1] = { "클릭: 기술 점수 1점 투자", nil, 0.45, 0.8, 1 }
 	end
 	return lines
 end
@@ -76,13 +73,12 @@ end
 -- Sub-pages
 ------------------------------------------------------------------------
 local SUBS = {
-	{ key = "gear", name = { "장비", "Gear" } },
-	{ key = "tree", name = { "특성", "Talents" } },
-	{ key = "skills", name = { "기술", "Skills" } },
+	{ key = "gear", name = "장비" },
+	{ key = "tree", name = "특성" },
+	{ key = "skills", name = "기술" },
 }
 
 local function buildGear(p)
-	local T = ns.T
 	p.slots = {}
 	for i, slot in ipairs(ns.SLOTS) do
 		local col, row = (i <= 5) and 0 or 1, (i - 1) % 5
@@ -99,7 +95,7 @@ local function buildGear(p)
 		UI.Tip(b, gearTip)
 		p.slots[i] = b
 	end
-	p.statsTitle = UI.Title(p, T("능력치", "Stats"), 13)
+	p.statsTitle = UI.Title(p, "능력치", 13)
 	p.statsTitle:SetPoint("TOPLEFT", p, "TOPLEFT", 140, 0)
 	p.rows = {}
 	for i = 1, 22 do
@@ -118,30 +114,30 @@ local function buildGear(p)
 		box.v:SetJustifyH("RIGHT")
 		p.rows[i] = box
 	end
-	p.equip = UI.Button(p, 190, 36, T("일괄 장착", "Equip best"), function()
+	p.equip = UI.Button(p, 190, 36, "일괄 장착", function()
 		local id = Main.SelectedHero()
 		if id then
 			local n = ns.Items.AutoEquip(id)
-			ns.Fire("TOAST", string.format(ns.T("장비 %d개를 바꿨습니다.", "%d items changed."), n))
+			ns.Fire("TOAST", string.format("장비 %d개를 바꿨습니다.", n))
 		end
 	end, "primary")
 	p.equip:SetPoint("TOPRIGHT", p, "TOPRIGHT", 0, -4)
-	p.equipAll = UI.Button(p, 190, 30, T("파티 전원 일괄 장착", "Equip best: whole party"), function()
+	p.equipAll = UI.Button(p, 190, 30, "파티 전원 일괄 장착", function()
 		local n = 0
 		for i = 1, ns.PARTY_SIZE do
 			local id = ns.db.party[i]
 			if id then n = n + ns.Items.AutoEquip(id) end
 		end
-		ns.Fire("TOAST", string.format(ns.T("장비 %d개를 바꿨습니다.", "%d items changed."), n))
+		ns.Fire("TOAST", string.format("장비 %d개를 바꿨습니다.", n))
 	end, "blue")
 	p.equipAll:SetPoint("TOPRIGHT", p.equip, "BOTTOMRIGHT", 0, -8)
-	p.toBag = UI.Button(p, 190, 30, T("가방 열기", "Open bags"), function() Main.ShowTab("bag") end, "dark")
+	p.toBag = UI.Button(p, 190, 30, "가방 열기", function() Main.ShowTab("bag") end, "dark")
 	p.toBag:SetPoint("TOPRIGHT", p.equipAll, "BOTTOMRIGHT", 0, -8)
 	p.upgrades = UI.Text(p, 11)
 	p.upgrades:SetPoint("TOPRIGHT", p.toBag, "BOTTOMRIGHT", 0, -12)
 	p.upgrades:SetWidth(190)
 	p.upgrades:SetJustifyH("RIGHT")
-	p.note = UI.Text(p, 10, T("가방에서 + 표시가 붙은 장비는 이 영웅에게 더 좋은 장비입니다.", "Items marked + in the bags are upgrades for this hero."))
+	p.note = UI.Text(p, 10, "가방에서 + 표시가 붙은 장비는 이 영웅에게 더 좋은 장비입니다.")
 	p.note:SetPoint("BOTTOMRIGHT", p, "BOTTOMRIGHT", 0, 4)
 	p.note:SetWidth(190)
 	p.note:SetJustifyH("RIGHT")
@@ -149,7 +145,6 @@ local function buildGear(p)
 end
 
 local function refreshGear(p, id)
-	local T = ns.T
 	local h = ns.db.heroes[id]
 	-- compare every bag item once
 	local better, ups = {}, 0
@@ -186,12 +181,11 @@ local function refreshGear(p, id)
 			r:Hide()
 		end
 	end
-	p.upgrades:SetText(ups > 0 and U.col("6af07a", string.format(T("가방에 더 좋은 장비 %d개", "%d upgrades in the bags"), ups)) or "")
+	p.upgrades:SetText(ups > 0 and U.col("6af07a", string.format("가방에 더 좋은 장비 %d개", ups)) or "")
 	p.equip:SetBadge(ups > 0 and ups or nil)
 end
 
 local function buildTree(p)
-	local T = ns.T
 	p.tiers = {}
 	for t = 1, 8 do
 		local y = -(t - 1) * 35
@@ -230,14 +224,14 @@ local function buildTree(p)
 	end
 	p.side = UI.Panel(p, 200, 270, "inset")
 	p.side:SetPoint("TOPRIGHT", p, "TOPRIGHT", 0, 0)
-	p.ptsLabel = UI.Text(p.side, 11, T("남은 기술 점수", "Skill points left"))
+	p.ptsLabel = UI.Text(p.side, 11, "남은 기술 점수")
 	p.ptsLabel:SetPoint("TOP", p.side, "TOP", 0, -14)
 	p.ptsLabel:SetJustifyH("CENTER")
 	UI.Color(p.ptsLabel, UI.C.sub)
 	p.pts = UI.Text(p.side, 34)
 	p.pts:SetPoint("TOP", p.ptsLabel, "BOTTOM", 0, -4)
 	p.pts:SetJustifyH("CENTER")
-	p.auto = UI.Button(p.side, 176, 32, T("자동 배분", "Auto-assign"), function()
+	p.auto = UI.Button(p.side, 176, 32, "자동 배분", function()
 		local id = Main.SelectedHero()
 		if id then
 			H.AutoSpend(id)
@@ -250,8 +244,7 @@ local function buildTree(p)
 		if id then UI.Try(H.ResetTree(id)) end
 	end, "dark")
 	p.reset:SetPoint("TOP", p.auto, "BOTTOM", 0, -8)
-	p.help = UI.Text(p.side, 10, T("레벨마다 1점을 얻습니다. 10점을 쓸 때마다 다음 단계가 열립니다. 기술 아이콘을 배우면 '기술' 탭에서 장착할 수 있습니다.",
-		"You gain 1 point per level. Every 10 points spent opens the next tier. Learned skills are equipped on the Skills tab."))
+	p.help = UI.Text(p.side, 10, "레벨마다 1점을 얻습니다. 10점을 쓸 때마다 다음 단계가 열립니다. 기술 아이콘을 배우면 '기술' 탭에서 장착할 수 있습니다.")
 	p.help:SetPoint("TOPLEFT", p.side, "TOPLEFT", 12, -192)
 	p.help:SetWidth(176)
 	p.help:SetJustifyV("TOP")
@@ -259,22 +252,21 @@ local function buildTree(p)
 end
 
 local function refreshTree(p, id)
-	local T = ns.T
 	local tree = H.Tree(id)
 	local free = H.PointsFree(id)
 	p.pts:SetText(tostring(free))
 	if free > 0 then p.pts:SetTextColor(0.4, 1, 0.45) else p.pts:SetTextColor(0.6, 0.64, 0.72) end
 	p.auto:SetOff(free == 0)
 	p.auto:SetBadge(free > 0 and free or nil)
-	p.reset:SetLabel(T("초기화 ", "Reset ") .. U.fmt(H.ResetCost(id)) .. " G")
+	p.reset:SetLabel("초기화 " .. U.fmt(H.ResetCost(id)) .. " G")
 	p.reset:SetOff(H.PointsSpent(id) == 0 or not ns.CanAfford(H.ResetCost(id)))
 	for t, row in ipairs(p.tiers) do
 		local open = H.TierOpen(id, t)
 		if open then
-			row.label:SetText(string.format(T("%d단계", "Tier %d"), t))
+			row.label:SetText(string.format("%d단계", t))
 			UI.Color(row.label, UI.C.gold)
 		else
-			row.label:SetText(string.format(T("%d단계\n%d점", "Tier %d\n%d pts"), t, (t - 1) * ns.TREE_TIER_POINTS))
+			row.label:SetText(string.format("%d단계\n%d점", t, (t - 1) * ns.TREE_TIER_POINTS))
 			UI.Color(row.label, UI.C.dim)
 		end
 		for n, b in ipairs(row.nodes) do
@@ -310,8 +302,7 @@ local function refreshTree(p, id)
 end
 
 local function buildSkills(p)
-	local T = ns.T
-	p.slotTitle = UI.Title(p, T("장착 슬롯", "Equipped"), 13)
+	p.slotTitle = UI.Title(p, "장착 슬롯", 13)
 	p.slotTitle:SetPoint("TOPLEFT", p, "TOPLEFT", 0, 0)
 	p.load = {}
 	for i = 1, 3 do
@@ -331,12 +322,12 @@ local function buildSkills(p)
 			local id = Main.SelectedHero()
 			if self.skill and id then
 				local lines = skillLines(id, self.skill)
-				lines[#lines + 1] = { ns.T("클릭: 해제", "Click: remove"), nil, 0.45, 0.8, 1 }
+				lines[#lines + 1] = { "클릭: 해제", nil, 0.45, 0.8, 1 }
 				return lines
 			elseif self.locked then
-				return UI.SimpleTip(ns.T("잠긴 기술 슬롯", "Locked skill slot"), ns.T("'각성의 룬'을 배우면 열립니다.", "Unlocked by a Rune of Awakening."))
+				return UI.SimpleTip("잠긴 기술 슬롯", "'각성의 룬'을 배우면 열립니다.")
 			end
-			return UI.SimpleTip(ns.T("빈 기술 슬롯", "Empty skill slot"), ns.T("오른쪽 목록에서 '장착'을 누르세요.", "Press 'Equip' on a skill to the right."))
+			return UI.SimpleTip("빈 기술 슬롯", "오른쪽 목록에서 '장착'을 누르세요.")
 		end)
 		p.load[i] = b
 	end
@@ -375,7 +366,6 @@ local function buildSkills(p)
 end
 
 local function refreshSkills(p, id)
-	local T = ns.T
 	local sp = H.Spec(id)
 	local slots = ns.SkillSlots()
 	local active = H.ActiveSkills(id)
@@ -392,8 +382,8 @@ local function refreshSkills(p, id)
 		else
 			b:Clear()
 			b:SetLocked(b.locked)
-			b.name:SetText(b.locked and U.col("8a8070", T("잠김", "Locked")) or U.col("8a90a2", T("비어 있음", "Empty")))
-			b.sub:SetText(b.locked and T("각성의 룬 필요", "Needs a Rune of Awakening") or "")
+			b.name:SetText(b.locked and U.col("8a8070", "잠김") or U.col("8a90a2", "비어 있음"))
+			b.sub:SetText(b.locked and "각성의 룬 필요" or "")
 		end
 	end
 	local full = #active >= slots
@@ -412,21 +402,21 @@ local function refreshSkills(p, id)
 		local eq = H.IsSkillEquipped(id, sid)
 		if pts == 0 then
 			c.icon:SetBorderRGB(0.3, 0.33, 0.42)
-			c.btn:SetLabel(T("배우기", "Learn"))
+			c.btn:SetLabel("배우기")
 			c.btn:SetStyle("blue")
 			c.btn:SetOff(false)
 			c.btn.onClick = function() Main.ShowTab("hero", { sub = "tree" }) end
 			c.bg:SetColor(0.75, 0.75, 0.8, 1)
 		elseif eq then
 			c.icon:SetBorderRGB(1, 0.82, 0.3)
-			c.btn:SetLabel(T("해제", "Remove"))
+			c.btn:SetLabel("해제")
 			c.btn:SetStyle("dark")
 			c.btn:SetOff(false)
 			c.btn.onClick = function() H.UnequipSkill(id, sid) end
 			c.bg:SetColor(1.15, 1.1, 0.95, 1)
 		else
 			c.icon:SetBorderRGB(0.4, 0.7, 1)
-			c.btn:SetLabel(T("장착", "Equip"))
+			c.btn:SetLabel("장착")
 			c.btn:SetStyle("green")
 			c.btn:SetOff(full)
 			c.btn.onClick = function() UI.Try(H.EquipSkill(id, sid)) end
@@ -439,7 +429,6 @@ end
 -- Screen
 ------------------------------------------------------------------------
 local function build(page)
-	local T = ns.T
 	page.sub = "gear"
 
 	page.strip = {}
@@ -455,7 +444,7 @@ local function build(page)
 			if not self.heroId then return nil end
 			local h = ns.db.heroes[self.heroId]
 			return { { H.Name(self.heroId), "Lv " .. h.level, U.rgb(ns.CLASSES[H.Spec(self.heroId).class].hex) },
-				{ ns.SpecLabel(h.spec), H.PartySlot(self.heroId) and ns.T("출전", "Active") or ns.T("대기", "Bench"), 0.75, 0.8, 0.9 } }
+				{ ns.SpecLabel(h.spec), H.PartySlot(self.heroId) and "출전" or "대기", 0.75, 0.8, 0.9 } }
 		end, "TOP")
 		page.strip[i] = b
 	end
@@ -478,7 +467,7 @@ local function build(page)
 	card.xp:SetPoint("TOPLEFT", card, "TOPLEFT", 90, -60)
 	card.lv = UI.Text(card, 11)
 	card.lv:SetPoint("LEFT", card.xp, "RIGHT", 8, 0)
-	card.powerLabel = UI.Text(card, 11, T("전투력", "Power"))
+	card.powerLabel = UI.Text(card, 11, "전투력")
 	card.powerLabel:SetPoint("TOPRIGHT", card, "TOPRIGHT", -16, -12)
 	card.powerLabel:SetJustifyH("RIGHT")
 	UI.Color(card.powerLabel, UI.C.sub)
@@ -488,13 +477,13 @@ local function build(page)
 	UI.Color(card.power, UI.C.gold)
 	card.field = UI.Button(card, 92, 26, "", nil, "green")
 	card.field:SetPoint("TOPRIGHT", card, "TOPRIGHT", -200, -14)
-	card.rename = UI.Button(card, 92, 26, T("이름 변경", "Rename"), function()
+	card.rename = UI.Button(card, 92, 26, "이름 변경", function()
 		local id = Main.SelectedHero()
 		if id then H.RerollName(id) end
 	end, "dark")
 	card.rename:SetGlyph("auto")
 	card.rename:SetPoint("TOP", card.field, "BOTTOM", 0, -6)
-	UI.Tip(card.rename, function() return UI.SimpleTip(ns.T("이름 변경", "Rename"), ns.T("새 이름을 무작위로 뽑습니다 (무료).", "Rolls a new random name (free).")) end, "TOP")
+	UI.Tip(card.rename, function() return UI.SimpleTip("이름 변경", "새 이름을 무작위로 뽑습니다 (무료).") end, "TOP")
 	card.dismiss = UI.Button(card, 92, 26, "", function()
 		local id = Main.SelectedHero()
 		if not id then return end
@@ -502,7 +491,7 @@ local function build(page)
 			page.dismissArm = 0
 			if UI.Try(H.Dismiss(id)) then
 				Main.SelectHero(nil)
-				ns.Fire("TOAST", ns.T("영웅이 떠났습니다. 장비는 가방으로 돌아왔습니다.", "The hero has left. Their gear is back in your bags."))
+				ns.Fire("TOAST", "영웅이 떠났습니다. 장비는 가방으로 돌아왔습니다.")
 			end
 		else
 			page.dismissArm, page.dismissId = 4, id
@@ -511,8 +500,7 @@ local function build(page)
 	end, "red")
 	card.dismiss:SetPoint("RIGHT", card.field, "LEFT", -6, 0)
 	UI.Tip(card.dismiss, function()
-		return UI.SimpleTip(ns.T("떠나보내기", "Dismiss"), ns.T("영웅을 명단에서 내보냅니다. 착용한 장비는 가방으로 돌아옵니다. 두 번 눌러야 합니다.",
-			"Removes the hero from your roster; their gear returns to your bags. Needs two clicks."))
+		return UI.SimpleTip("떠나보내기", "영웅을 명단에서 내보냅니다. 착용한 장비는 가방으로 돌아옵니다. 두 번 눌러야 합니다.")
 	end, "TOP")
 
 	card.chips = {}
@@ -537,16 +525,15 @@ local function build(page)
 		card.pages[s.key] = p
 	end
 
-	page.empty = UI.Text(page, 14, T("아직 영웅이 없습니다. '편성'에서 첫 영웅을 만드세요.", "No heroes yet. Create your first one on the Party screen."))
+	page.empty = UI.Text(page, 14, "아직 영웅이 없습니다. '편성'에서 첫 영웅을 만드세요.")
 	page.empty:SetPoint("CENTER", page, "CENTER", 0, 0)
-	page.emptyBtn = UI.Button(page, 200, 34, T("영웅 만들기", "Create Hero"), function()
+	page.emptyBtn = UI.Button(page, 200, 34, "영웅 만들기", function()
 		Main.ShowTab("party", { create = true })
 	end, "primary")
 	page.emptyBtn:SetPoint("TOP", page.empty, "BOTTOM", 0, -14)
 end
 
 local function refresh(page)
-	local T = ns.T
 	local id = Main.SelectedHero()
 	page.card:SetShown(id ~= nil)
 	page.empty:SetShown(id == nil)
@@ -587,26 +574,26 @@ local function refresh(page)
 	card.role:SetLabel(ns.N(role.name))
 	if h.level >= ns.HERO_MAX_LEVEL then
 		card.xp:SetValue(1)
-		card.xp:SetLabel(T("최대 레벨", "Max level"))
+		card.xp:SetLabel("최대 레벨")
 	else
 		local need = ns.XPForLevel(h.level)
 		card.xp:SetValue(h.xp / need)
 		card.xp:SetLabel(U.fmt(h.xp) .. " / " .. U.fmt(need))
 	end
-	card.lv:SetText(string.format(T("레벨 %d", "Level %d"), h.level))
+	card.lv:SetText(string.format("레벨 %d", h.level))
 	card.power:SetText(U.fmt(ns.Stats.Power(id)))
 	if H.PartySlot(id) then
-		card.field:SetLabel(T("휴식", "Rest"))
+		card.field:SetLabel("휴식")
 		card.field:SetStyle("dark")
 		card.field:SetOff(H.PartyCount() <= 1)
 		card.field.onClick = function() UI.Try(H.Withdraw(id)) end
 	else
-		card.field:SetLabel(T("출전", "Field"))
+		card.field:SetLabel("출전")
 		card.field:SetStyle("green")
 		card.field:SetOff(false)
 		card.field.onClick = function()
 			if not H.FreeSlot(sp.role) then
-				UI.Try(false, ns.T("같은 역할 자리가 차 있습니다. '편성'에서 교체하세요.", "That role is full. Swap on the Party screen."))
+				UI.Try(false, "같은 역할 자리가 차 있습니다. '편성'에서 교체하세요.")
 			else
 				UI.Try(H.Deploy(id))
 			end
@@ -614,9 +601,9 @@ local function refresh(page)
 	end
 
 	if (page.dismissArm or 0) > 0 and page.dismissId == id then
-		card.dismiss:SetLabel(T("정말요?", "Sure?"))
+		card.dismiss:SetLabel("정말요?")
 	else
-		card.dismiss:SetLabel(T("떠나보내기", "Dismiss"))
+		card.dismiss:SetLabel("떠나보내기")
 	end
 	card.dismiss:SetOff(H.Count() <= 1)
 	for _, c in ipairs(card.chips) do
@@ -647,7 +634,7 @@ local function open(page, opts)
 end
 
 Main.RegisterTab({
-	key = "hero", title = { "영웅", "Heroes" }, sub = { "장비와 특성, 기술을 관리합니다", "Gear, talents and skills" },
+	key = "hero", title = "영웅", sub = "장비와 특성, 기술을 관리합니다",
 	icon = "INV_Helmet_06", build = build, refresh = refresh, open = open, tick = tick,
 	events = { "HEROES", "LEVEL", "TREE", "SKILLS", "GEAR", "STATS", "RUNES", "RESET", "PARTY", "BAG" },
 })

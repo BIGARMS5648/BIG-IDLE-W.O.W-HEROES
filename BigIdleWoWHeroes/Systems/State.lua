@@ -116,7 +116,8 @@ function ns.InitDB()
 			h.tree = h.tree or {}
 			h.skills = h.skills or {}
 			h.gear = h.gear or {}
-			if type(h.name) ~= "table" then h.name = ns.Names.Roll() end
+			if type(h.name) == "table" then h.name = h.name[1] end -- version 2.0 kept two spellings
+			if type(h.name) ~= "string" or h.name == "" then h.name = ns.Names.Roll() end
 			local n = tonumber(tostring(id):sub(2)) or 0
 			if n > db.heroSeq then db.heroSeq = n end
 		end
@@ -136,11 +137,9 @@ end
 
 function ns.ResetDB()
 	local ui = ns.db and ns.db.ui
-	local lang = ns.db and ns.db.lang
 	BigIdleWoWHeroesDB = {}
 	local db = ns.InitDB()
 	if ui then db.ui = ui end
-	db.lang = lang
 	ns.Fire("RESET")
 end
 

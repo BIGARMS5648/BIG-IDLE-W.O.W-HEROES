@@ -191,31 +191,31 @@ end
 -- Rows for the character sheet: { label, text }
 function Stats.Sheet(heroId)
 	local s = Stats.Get(heroId)
-	local T, U = ns.T, ns.U
+	local U = ns.U
 	local rows = {}
 	local function row(label, text)
 		rows[#rows + 1] = { label, text }
 	end
-	row(T("공격력", "Attack"), U.fmt(s.atk))
-	row(T("공격 속도", "Attack Speed"), U.num(s.aspd, 2) .. "/s")
-	row(T("치명타 확률", "Crit Chance"), U.num(s.crit, 1) .. "%")
-	row(T("치명타 피해", "Crit Damage"), U.num(s.critdmg, 0) .. "%")
-	row(T("초당 피해(추정)", "DPS (est.)"), U.fmt(Stats.DPS(s)))
-	row(T("생명력", "Health"), U.fmt(s.hp))
-	row(T("방어도", "Armor"), U.fmt(s.armor) .. " (" .. U.num(Stats.ArmorDR(s.armor, s.level) * 100, 0) .. "%)")
-	row(T("회피 / 방어", "Dodge / Block"), U.num(s.dodge, 1) .. "% / " .. U.num(s.block, 1) .. "%")
-	row(T("받는 피해 감소", "Damage Reduction"), U.num(s.dr, 1) .. "%")
-	row(T("초당 회복", "Regen/s"), U.fmt(s.regen + s.hp * s.regenPct / 100))
-	row(T("재사용 대기시간 감소", "Cooldown Reduction"), U.num(s.cdr, 1) .. "%")
-	row(T("시전 속도", "Cast Speed"), "+" .. U.num(s.cast, 1) .. "%")
-	if s.heal > 0 then row(T("치유량 증가", "Healing Done"), "+" .. U.num(s.heal, 1) .. "%") end
-	if s.leech > 0 then row(T("생명력 흡수", "Life Leech"), U.num(s.leech, 1) .. "%") end
-	if s.multi > 0 then row(T("연속 타격", "Multistrike"), U.num(s.multi, 1) .. "%") end
+	row("공격력", U.fmt(s.atk))
+	row("공격 속도", U.num(s.aspd, 2) .. "/s")
+	row("치명타 확률", U.num(s.crit, 1) .. "%")
+	row("치명타 피해", U.num(s.critdmg, 0) .. "%")
+	row("초당 피해(추정)", U.fmt(Stats.DPS(s)))
+	row("생명력", U.fmt(s.hp))
+	row("방어도", U.fmt(s.armor) .. " (" .. U.num(Stats.ArmorDR(s.armor, s.level) * 100, 0) .. "%)")
+	row("회피 / 방어", U.num(s.dodge, 1) .. "% / " .. U.num(s.block, 1) .. "%")
+	row("받는 피해 감소", U.num(s.dr, 1) .. "%")
+	row("초당 회복", U.fmt(s.regen + s.hp * s.regenPct / 100))
+	row("재사용 대기시간 감소", U.num(s.cdr, 1) .. "%")
+	row("시전 속도", "+" .. U.num(s.cast, 1) .. "%")
+	if s.heal > 0 then row("치유량 증가", "+" .. U.num(s.heal, 1) .. "%") end
+	if s.leech > 0 then row("생명력 흡수", U.num(s.leech, 1) .. "%") end
+	if s.multi > 0 then row("연속 타격", U.num(s.multi, 1) .. "%") end
 	local school = (s["dmg_" .. s.school] or 0) + s.dmg_all
-	if school > 0 then row(ns.N(ns.SCHOOL[s.school].name) .. T(" 피해", " Damage"), "+" .. U.num(school, 1) .. "%") end
-	if s.allres > 0 then row(T("모든 원소 저항", "All Resistance"), U.num(s.allres, 1) .. "%") end
-	if s.exp > 0 then row(T("경험치 획득", "Experience Gain"), "+" .. U.num(s.exp, 1) .. "%") end
-	if s.gold > 0 then row(T("골드 획득", "Gold Gain"), "+" .. U.num(s.gold, 1) .. "%") end
-	if s.skills > 0 then row(T("모든 기술 레벨", "All Skill Levels"), "+" .. s.skills) end
+	if school > 0 then row(ns.N(ns.SCHOOL[s.school].name) .. " 피해", "+" .. U.num(school, 1) .. "%") end
+	if s.allres > 0 then row("모든 원소 저항", U.num(s.allres, 1) .. "%") end
+	if s.exp > 0 then row("경험치 획득", "+" .. U.num(s.exp, 1) .. "%") end
+	if s.gold > 0 then row("골드 획득", "+" .. U.num(s.gold, 1) .. "%") end
+	if s.skills > 0 then row("모든 기술 레벨", "+" .. s.skills) end
 	return rows
 end

@@ -117,7 +117,6 @@ end
 local builders = {}
 
 function builders.fuse(panel)
-	local T = ns.T
 	panel.q = 2
 	panel.cat = "gear"
 	panel.pick = UI.Chip(panel, 170, 26, "", function(_, button)
@@ -150,52 +149,49 @@ function builders.fuse(panel)
 		if last then
 			local msg
 			if n > 1 then
-				msg = string.format(ns.T("%d회 융합 완료. 마지막 결과:", "Fused %d times. Last result:"), n)
+				msg = string.format("%d회 융합 완료. 마지막 결과:", n)
 			elseif panel.outcome == "great" or great then
-				msg = U.col("ffd100", ns.T("대성공! 두 등급 상승!", "Great success! Two qualities up!"))
+				msg = U.col("ffd100", "대성공! 두 등급 상승!")
 			elseif panel.outcome == "same" then
-				msg = U.col("ff8080", ns.T("등급 상승 실패 (같은 등급)", "No upgrade this time (same quality)"))
+				msg = U.col("ff8080", "등급 상승 실패 (같은 등급)")
 			else
-				msg = ns.T("융합 성공!", "Fusion complete!")
+				msg = "융합 성공!"
 			end
 			showResult(panel, last, msg)
 		else
-			UI.Try(false, string.format(ns.T("잠기지 않은 같은 등급 장비 %d개가 필요합니다.", "Needs %d unlocked items of that quality."), ns.Forge.FUSE_COUNT))
+			UI.Try(false, string.format("잠기지 않은 같은 등급 장비 %d개가 필요합니다.", ns.Forge.FUSE_COUNT))
 		end
 		Main.Refresh()
 	end
-	panel.go = UI.Button(panel, 170, 34, T("융합", "Fuse"), function() fuse(false) end, "primary")
+	panel.go = UI.Button(panel, 170, 34, "융합", function() fuse(false) end, "primary")
 	panel.go:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -92)
-	panel.goAll = UI.Button(panel, 190, 34, T("가능한 만큼 융합", "Fuse as many as possible"), function() fuse(true) end, "blue")
+	panel.goAll = UI.Button(panel, 190, 34, "가능한 만큼 융합", function() fuse(true) end, "blue")
 	panel.goAll:SetPoint("LEFT", panel.go, "RIGHT", 6, 0)
 	addResult(panel, 0, -132)
-	panel.note = UI.Text(panel, 10, T("가장 낮은 레벨의 잠기지 않은 장비부터 자동으로 사용합니다. 아끼는 장비는 가방에서 Alt+클릭으로 잠그세요.\n결과 아이템의 레벨은 재료 9개의 평균 레벨 부근입니다. 재료 아이템 융합은 '가방 > 재료 가방'에서 합니다.",
-		"The lowest-level unlocked items are used first. Alt+click items in your bags to protect them.\nThe result's level is close to the average of the nine inputs. Fuse materials from Bags > Reagents."))
+	panel.note = UI.Text(panel, 10, "가장 낮은 레벨의 잠기지 않은 장비부터 자동으로 사용합니다. 아끼는 장비는 가방에서 Alt+클릭으로 잠그세요.\n결과 아이템의 레벨은 재료 9개의 평균 레벨 부근입니다. 재료 아이템 융합은 '가방 > 재료 가방'에서 합니다.")
 	panel.note:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -196)
 	panel.note:SetWidth(PW)
 	panel.note:SetTextColor(0.7, 0.7, 0.7)
 
 	return function()
 		local q = ns.QUALITY[panel.q]
-		panel.pick:SetLabel(T("등급: ", "Quality: ") .. U.col(q.hex, ns.N(q.name)))
-		panel.catBtn:SetLabel(panel.cat == "gear" and T("종류: 무기/방어구", "Type: weapons / armor") or T("종류: 장신구류", "Type: accessories"))
+		panel.pick:SetLabel("등급: " .. U.col(q.hex, ns.N(q.name)))
+		panel.catBtn:SetLabel(panel.cat == "gear" and "종류: 무기/방어구" or "종류: 장신구류")
 		local n = 0
 		for _, it in ipairs(ns.db.bag) do
 			if not it.lock and it.q == panel.q and ns.Items.FuseCat(it) == panel.cat and not ns.Items.HasSockets(it) then n = n + 1 end
 		end
-		panel.have:SetText(string.format(T("사용 가능한 장비: %d개 (9개 필요)", "Usable items: %d (9 needed)"), n))
+		panel.have:SetText(string.format("사용 가능한 장비: %d개 (9개 필요)", n))
 		local weights = {}
 		for _, e in ipairs(ns.Forge.FUSE_ODDS[panel.q]) do weights[e[1]] = e[2] end
-		panel.odds:SetText(T("결과 확률: ", "Result odds: ") .. qualityOdds(weights))
+		panel.odds:SetText("결과 확률: " .. qualityOdds(weights))
 		panel.go:SetOff(n < ns.Forge.FUSE_COUNT)
 		panel.goAll:SetOff(n < ns.Forge.FUSE_COUNT)
 	end
 end
 
 function builders.smelt(panel)
-	local T = ns.T
-	panel.info = UI.Text(panel, 11, T("아이템을 녹여 골드와 용광로 경험치를 얻습니다. 용광로 레벨과 비슷한 레벨의 아이템일수록 경험치를 많이 줍니다.\n일괄 용해와 자동 용해 설정은 '가방' 탭에 있습니다. 가방에서 아이템을 우클릭하면 하나씩 용해합니다.",
-		"Melt items into gold and forge experience. Items near the forge's own level give the most experience.\nBulk and automatic smelting live on the Bags tab; right-click a bag item to smelt just that one."))
+	panel.info = UI.Text(panel, 11, "아이템을 녹여 골드와 용광로 경험치를 얻습니다. 용광로 레벨과 비슷한 레벨의 아이템일수록 경험치를 많이 줍니다.\n일괄 용해와 자동 용해 설정은 '가방' 탭에 있습니다. 가방에서 아이템을 우클릭하면 하나씩 용해합니다.")
 	panel.info:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, 0)
 	panel.info:SetWidth(PW)
 	panel.rows = {}
@@ -204,21 +200,20 @@ function builders.smelt(panel)
 		fs:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -70 - (q - 1) * 18)
 		panel.rows[q] = fs
 	end
-	panel.toBag = UI.Button(panel, 170, 32, T("가방에서 분해하기", "Smelt from the bags"), function() Main.ShowTab("bag") end, "blue")
+	panel.toBag = UI.Button(panel, 170, 32, "가방에서 분해하기", function() Main.ShowTab("bag") end, "blue")
 	panel.toBag:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -226)
 	return function()
 		local level = math.max(1, ns.db.forge.level)
 		for q = 1, ns.MAX_QUALITY do
 			local sample = { s = "chest", l = level, q = q }
 			local gold = ns.Items.Value(sample)
-			panel.rows[q]:SetText(string.format(T("%s  ·  %d레벨 갑옷 기준  %s 골드", "%s  -  level %d armor is worth %s gold"),
+			panel.rows[q]:SetText(string.format("%s  ·  %d레벨 갑옷 기준  %s 골드",
 				U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)), level, U.fmt(gold)))
 		end
 	end
 end
 
 function builders.craft(panel)
-	local T = ns.T
 	panel.group, panel.tier = 1, 1
 	panel.groups = {}
 	for i, g in ipairs(ns.CRAFT_GROUPS) do
@@ -241,18 +236,18 @@ function builders.craft(panel)
 		end)
 		b:SetPoint("TOPLEFT", panel, "TOPLEFT", (i - 1) * 116, -32)
 		UI.Tip(b, function()
-			local lines = { { string.format(T("%d단계 제작 (레벨 %d~%d)", "Tier %d crafting (levels %d-%d)"), i, d.lo, d.hi), nil, 1, 0.82, 0 } }
+			local lines = { { string.format("%d단계 제작 (레벨 %d~%d)", i, d.lo, d.hi), nil, 1, 0.82, 0 } }
 			if not ns.Forge.CraftTierUnlocked(i) then
-				lines[#lines + 1] = { string.format(T("용광로 %d레벨 필요", "Requires forge level %d"), d.forge), nil, 1, 0.5, 0.3 }
-				lines[#lines + 1] = { T("해금 비용", "Unlock cost"), U.fmt(d.gold * 5) .. " G", 1, 0.82, 0 }
-				lines[#lines + 1] = { T("클릭: 해금", "Click: unlock"), nil, 0.4, 0.8, 1 }
+				lines[#lines + 1] = { string.format("용광로 %d레벨 필요", d.forge), nil, 1, 0.5, 0.3 }
+				lines[#lines + 1] = { "해금 비용", U.fmt(d.gold * 5) .. " G", 1, 0.82, 0 }
+				lines[#lines + 1] = { "클릭: 해금", nil, 0.4, 0.8, 1 }
 			end
 			lines[#lines + 1] = { qualityOdds(d.q), nil, 1, 1, 1 }
 			return lines
 		end, "TOP")
 		panel.tiers[i] = b
 	end
-	panel.costTitle = UI.Text(panel, 12, T("필요 재료", "Materials"))
+	panel.costTitle = UI.Text(panel, 12, "필요 재료")
 	panel.costTitle:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -76)
 	panel.costTitle:SetTextColor(1, 0.82, 0)
 	panel.cost = {}
@@ -272,10 +267,10 @@ function builders.craft(panel)
 	panel.odds = UI.Text(panel, 11)
 	panel.odds:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -168)
 	panel.odds:SetWidth(PW)
-	panel.go = UI.Button(panel, 170, 34, T("제작", "Craft"), function()
+	panel.go = UI.Button(panel, 170, 34, "제작", function()
 		local ok, it = ns.Forge.Craft(panel.group, panel.tier)
 		if UI.Try(ok, it) then
-			showResult(panel, it, ns.T("제작 완료!", "Crafted!"))
+			showResult(panel, it, "제작 완료!")
 		end
 		Main.Refresh()
 	end)
@@ -289,9 +284,9 @@ function builders.craft(panel)
 			local d = ns.CRAFT_TIERS[i]
 			local open = ns.Forge.CraftTierUnlocked(i)
 			if open then
-				b:SetLabel(string.format(T("%d단계\nLv %d~%d", "Tier %d\nLv %d-%d"), i, d.lo, d.hi))
+				b:SetLabel(string.format("%d단계\nLv %d~%d", i, d.lo, d.hi))
 			else
-				b:SetLabel(string.format(T("잠김 (용광로 %d)\n%s G", "Locked (forge %d)\n%s G"), d.forge, U.fmt(d.gold * 5)))
+				b:SetLabel(string.format("잠김 (용광로 %d)\n%s G", d.forge, U.fmt(d.gold * 5)))
 			end
 			b:SetOn(open and i == panel.tier)
 			b:SetStyle(open and "blue" or "dark")
@@ -316,16 +311,15 @@ function builders.craft(panel)
 				b.text:SetText("")
 			end
 		end
-		panel.fee:SetText(T("제작 비용: ", "Fee: ") .. U.col(ns.CanAfford(gold) and "ffd100" or "ff5050", U.fmt(gold)) .. " G")
-		panel.odds:SetText(T("결과 등급: ", "Result quality: ") .. qualityOdds(ns.CRAFT_TIERS[panel.tier].q))
+		panel.fee:SetText("제작 비용: " .. U.col(ns.CanAfford(gold) and "ffd100" or "ff5050", U.fmt(gold)) .. " G")
+		panel.odds:SetText("결과 등급: " .. qualityOdds(ns.CRAFT_TIERS[panel.tier].q))
 		panel.go:SetOff(not ns.Forge.CanCraft(panel.group, panel.tier))
 	end
 end
 
 local function socketBuilder(kind)
 	return function(panel)
-		local T = ns.T
-		panel.title = UI.Text(panel, 11, T("대상 장비 (E = 선택한 영웅이 착용 중)", "Target item (E = worn by the selected hero)"))
+		panel.title = UI.Text(panel, 11, "대상 장비 (E = 선택한 영웅이 착용 중)")
 		panel.title:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, 0)
 		panel.title:SetTextColor(1, 0.82, 0)
 		addGrid(panel, -18, function() Main.Refresh() end)
@@ -333,7 +327,7 @@ local function socketBuilder(kind)
 		panel.info:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -122)
 		panel.info:SetWidth(PW)
 		panel.info:SetJustifyV("TOP")
-		panel.matTitle = UI.Text(panel, 11, T("사용할 재료 (단계가 높을수록 수치가 높습니다)", "Material (higher tiers roll higher values)"))
+		panel.matTitle = UI.Text(panel, 11, "사용할 재료 (단계가 높을수록 수치가 높습니다)")
 		panel.matTitle:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -196)
 		panel.matTitle:SetTextColor(1, 0.82, 0)
 		panel.mats = {}
@@ -355,7 +349,7 @@ local function socketBuilder(kind)
 			if not panel.picked or not panel.mat then return end
 			local ok, entry = ns.Forge.Socket(panel.picked, kind, panel.mat, panel.pickedHero)
 			if UI.Try(ok, entry) then
-				panel.last = U.col("40ff40", ns.T("부여됨: ", "Applied: ") .. ns.Stats.ModText(entry[1], entry[2]))
+				panel.last = U.col("40ff40", "부여됨: " .. ns.Stats.ModText(entry[1], entry[2]))
 			end
 			Main.Refresh()
 		end)
@@ -363,8 +357,7 @@ local function socketBuilder(kind)
 		panel.go:SetStyle("primary")
 		panel.lastText = UI.Text(panel, 12)
 		panel.lastText:SetPoint("LEFT", panel.go, "RIGHT", 10, 0)
-		panel.note = UI.Text(panel, 10, T("부여되는 능력치는 장비 종류(무기/방어구/장신구)에 따라 정해진 목록에서 무작위로 결정됩니다. 마음에 들지 않으면 '추출'로 비우고 다시 시도할 수 있습니다.",
-			"The stat is rolled at random from a list that depends on the item type (weapon / armor / accessory). Use Extraction to clear it and try again."))
+		panel.note = UI.Text(panel, 10, "부여되는 능력치는 장비 종류(무기/방어구/장신구)에 따라 정해진 목록에서 무작위로 결정됩니다. 마음에 들지 않으면 '추출'로 비우고 다시 시도할 수 있습니다.")
 		panel.note:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -302)
 		panel.note:SetWidth(PW)
 		panel.note:SetTextColor(0.7, 0.7, 0.7)
@@ -373,21 +366,21 @@ local function socketBuilder(kind)
 			local n = fillGrid(panel, function(it) return ns.Items.SocketCount(it, kind) > 0 end)
 			if n == 0 then
 				local need = (kind == "gem" and 3) or (kind == "ench" and 5) or 6
-				panel.info:SetText(string.format(T("해당 홈이 있는 장비가 없습니다. %s 등급 이상 장비에 홈이 있습니다.", "No item has that slot. They appear on %s quality or better."),
+				panel.info:SetText(string.format("해당 홈이 있는 장비가 없습니다. %s 등급 이상 장비에 홈이 있습니다.",
 					U.col(ns.QUALITY[need].hex, ns.N(ns.QUALITY[need].name))))
 			elseif panel.picked then
 				local it = panel.picked
 				local l = ns.Items.SocketList(it, kind)
-				local parts = { ns.Items.ColorName(it) .. "  " .. string.format(T("빈 홈 %d / %d", "%d of %d slots free"), ns.Items.FreeSockets(it, kind), ns.Items.SocketCount(it, kind)) }
+				local parts = { ns.Items.ColorName(it) .. "  " .. string.format("빈 홈 %d / %d", ns.Items.FreeSockets(it, kind), ns.Items.SocketCount(it, kind)) }
 				if l then
 					for _, e in ipairs(l) do parts[#parts + 1] = U.col("66ccff", ns.Stats.ModText(e[1], e[2])) end
 				end
 				local pool = {}
 				for _, e in ipairs(ns.SOCKET[kind][ns.Items.Cat(it)]) do pool[#pool + 1] = ns.N(ns.AFFIX[e[1]].n) end
-				parts[#parts + 1] = U.col("a0a0a0", T("가능한 능력치: ", "Possible stats: ") .. table.concat(pool, ", "))
+				parts[#parts + 1] = U.col("a0a0a0", "가능한 능력치: " .. table.concat(pool, ", "))
 				panel.info:SetText(table.concat(parts, "\n"))
 			else
-				panel.info:SetText(T("위에서 장비를 선택하세요.", "Pick an item above."))
+				panel.info:SetText("위에서 장비를 선택하세요.")
 			end
 			for _, b in ipairs(panel.mats) do
 				local count = ns.MatCount(b.data)
@@ -407,8 +400,7 @@ builders.ench = socketBuilder("ench")
 builders.insc = socketBuilder("insc")
 
 function builders.remove(panel)
-	local T = ns.T
-	panel.title = UI.Text(panel, 11, T("능력치가 부여된 장비", "Items with applied stats"))
+	panel.title = UI.Text(panel, 11, "능력치가 부여된 장비")
 	panel.title:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, 0)
 	panel.title:SetTextColor(1, 0.82, 0)
 	addGrid(panel, -18, function() Main.Refresh() end)
@@ -426,8 +418,7 @@ function builders.remove(panel)
 		b:SetStyle("red")
 		panel.rows[i] = b
 	end
-	panel.note = UI.Text(panel, 10, T("추출하면 홈이 비워지지만 사용했던 재료는 돌아오지 않습니다. 비용은 재료 단계가 높을수록 비쌉니다.",
-		"Extraction frees the slot but destroys the material that was used. Higher material tiers cost more to clear."))
+	panel.note = UI.Text(panel, 10, "추출하면 홈이 비워지지만 사용했던 재료는 돌아오지 않습니다. 비용은 재료 단계가 높을수록 비쌉니다.")
 	panel.note:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -308)
 	panel.note:SetWidth(PW)
 	panel.note:SetTextColor(0.7, 0.7, 0.7)
@@ -443,9 +434,9 @@ function builders.remove(panel)
 			end
 			panel.info:SetText(ns.Items.ColorName(panel.picked))
 		elseif n == 0 then
-			panel.info:SetText(T("능력치가 부여된 장비가 없습니다.", "No item has an applied stat."))
+			panel.info:SetText("능력치가 부여된 장비가 없습니다.")
 		else
-			panel.info:SetText(T("위에서 장비를 선택하세요.", "Pick an item above."))
+			panel.info:SetText("위에서 장비를 선택하세요.")
 		end
 		for i, b in ipairs(panel.rows) do
 			local r = rows[i]
@@ -464,7 +455,6 @@ function builders.remove(panel)
 end
 
 function builders.seal(panel)
-	local T = ns.T
 	panel.rows = {}
 	for i, d in ipairs(ns.SEAL) do
 		local m = ns.MATS[d.mat]
@@ -481,10 +471,10 @@ function builders.seal(panel)
 		b.odds:SetPoint("TOPLEFT", panel, "TOPLEFT", 52, y - 20)
 		b.odds:SetWidth(PW - 150)
 		b.odds:SetText(qualityOdds(d.q))
-		b.go = UI.Button(panel, 96, 30, T("굴림", "Roll"), function()
+		b.go = UI.Button(panel, 96, 30, "굴림", function()
 			local ok, it = ns.Forge.BonusRoll(i)
 			if UI.Try(ok, it) then
-				showResult(panel, it, ns.T("보너스 굴림 결과:", "Bonus roll result:"))
+				showResult(panel, it, "보너스 굴림 결과:")
 			end
 			Main.Refresh()
 		end)
@@ -493,8 +483,7 @@ function builders.seal(panel)
 		panel.rows[i] = b
 	end
 	addResult(panel, 0, -256)
-	panel.note = UI.Text(panel, 10, T("행운의 인장은 상자에서 드물게 나옵니다. 결과 장비의 레벨은 지금까지 도달한 가장 높은 스테이지를 따릅니다.",
-		"Seals drop rarely from chests. The item's level follows the highest stage you have cleared."))
+	panel.note = UI.Text(panel, 10, "행운의 인장은 상자에서 드물게 나옵니다. 결과 장비의 레벨은 지금까지 도달한 가장 높은 스테이지를 따릅니다.")
 	panel.note:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -316)
 	panel.note:SetWidth(PW)
 	panel.note:SetTextColor(0.7, 0.7, 0.7)
@@ -504,7 +493,7 @@ function builders.seal(panel)
 			local count = ns.MatCount(d.mat)
 			b:SetCount(tostring(count))
 			b:SetDim(count == 0)
-			b.name:SetText(ns.N(ns.MATS[d.mat].name) .. "   " .. T("비용 ", "Fee ") .. U.col(ns.CanAfford(d.gold) and "ffd100" or "ff5050", U.fmt(d.gold)) .. " G")
+			b.name:SetText(ns.N(ns.MATS[d.mat].name) .. "   " .. "비용 " .. U.col(ns.CanAfford(d.gold) and "ffd100" or "ff5050", U.fmt(d.gold)) .. " G")
 			b.go:SetOff(count == 0 or not ns.CanAfford(d.gold) or ns.Items.BagFree() <= 0)
 		end
 	end
@@ -514,7 +503,6 @@ end
 -- Screen
 ------------------------------------------------------------------------
 local function build(page)
-	local T = ns.T
 	page.op = "fuse"
 	-- forge level card
 	page.lvCard = UI.Panel(page, 236, 70, "card")
@@ -528,8 +516,7 @@ local function build(page)
 	page.xp = UI.Bar(page.lvCard, 162, 14, 0.95, 0.55, 0.15)
 	page.xp:SetPoint("TOPLEFT", page.lvCard, "TOPLEFT", 60, -36)
 	UI.Tip(page.lvCard, function()
-		return UI.SimpleTip(ns.T("용광로 레벨", "Forge level"), ns.T("아이템을 분해·융합·제작해 소모하면 경험치가 오릅니다. 레벨이 오르면 새 기능과 제작 단계가 열립니다.",
-			"Consuming items (smelting, fusion, crafting) levels the forge, which opens new operations and crafting tiers."))
+		return UI.SimpleTip("용광로 레벨", "아이템을 분해·융합·제작해 소모하면 경험치가 오릅니다. 레벨이 오르면 새 기능과 제작 단계가 열립니다.")
 	end)
 
 	-- operation tiles
@@ -567,8 +554,8 @@ local function build(page)
 		UI.Tip(b, function()
 			local lines = { { ns.N(d.name), nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] }, { ns.N(d.desc), nil, 1, 1, 1 } }
 			if not ns.Forge.Unlocked(d.key) then
-				lines[#lines + 1] = { string.format(ns.T("용광로 %d레벨 필요", "Requires forge level %d"), d.level), nil, 1, 0.5, 0.3 }
-				lines[#lines + 1] = { ns.T("해금 비용", "Unlock cost"), U.fmt(d.cost) .. " G", UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] }
+				lines[#lines + 1] = { string.format("용광로 %d레벨 필요", d.level), nil, 1, 0.5, 0.3 }
+				lines[#lines + 1] = { "해금 비용", U.fmt(d.cost) .. " G", UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] }
 			end
 			return lines
 		end)
@@ -615,12 +602,11 @@ local function build(page)
 end
 
 local function refresh(page)
-	local T = ns.T
 	local f = ns.db.forge
-	page.title:SetText(string.format(T("티탄 용광로 Lv %d", "Titan Forge Lv %d"), f.level))
+	page.title:SetText(string.format("티탄 용광로 Lv %d", f.level))
 	if f.level >= ns.FORGE_MAX then
 		page.xp:SetValue(1)
-		page.xp:SetLabel(T("최대 레벨", "Max level"))
+		page.xp:SetLabel("최대 레벨")
 	else
 		local need = ns.Forge.Need(f.level)
 		page.xp:SetValue(f.xp / need)
@@ -636,7 +622,7 @@ local function refresh(page)
 			b.lv:SetText("")
 			UI.Color(b.name, UI.C.text)
 		else
-			b.lv:SetText(string.format(T("Lv %d · %s G", "Lv %d · %s G"), d.level, U.fmt(d.cost)))
+			b.lv:SetText(string.format("Lv %d · %s G", d.level, U.fmt(d.cost)))
 			b.lv:SetTextColor(f.level >= d.level and 0.4 or 0.6, f.level >= d.level and 1 or 0.55, f.level >= d.level and 0.45 or 0.5)
 			UI.Color(b.name, UI.C.dim)
 		end
@@ -654,10 +640,9 @@ local function refresh(page)
 	else
 		page.locked:Show()
 		local okLevel = f.level >= d.level
-		page.lockText:SetText(string.format(T("용광로 %s레벨에 열리며, 해금 비용은 %s 골드입니다.\n용광로 레벨은 아이템을 분해·융합·제작하면 오릅니다.",
-			"Opens at forge level %s and costs %s gold to unlock.\nThe forge levels up when it consumes items: smelting, fusion and crafting."),
+		page.lockText:SetText(string.format("용광로 %s레벨에 열리며, 해금 비용은 %s 골드입니다.\n용광로 레벨은 아이템을 분해·융합·제작하면 오릅니다.",
 			U.col(okLevel and "6af07a" or "ff6a5a", tostring(d.level)), U.col(ns.CanAfford(d.cost) and "ffd24a" or "ff6a5a", U.fmt(d.cost))))
-		page.unlock:SetLabel(T("해금하기", "Unlock") .. "  " .. U.fmt(d.cost) .. " G")
+		page.unlock:SetLabel("해금하기" .. "  " .. U.fmt(d.cost) .. " G")
 		page.unlock:SetOff(not okLevel or not ns.CanAfford(d.cost))
 	end
 end
@@ -667,7 +652,7 @@ local function open(page, opts)
 end
 
 Main.RegisterTab({
-	key = "forge", title = { "용광로", "Forge" }, sub = { "장비를 융합하고, 분해하고, 만들고, 강화합니다", "Fuse, smelt, craft and enhance gear" },
+	key = "forge", title = "용광로", sub = "장비를 융합하고, 분해하고, 만들고, 강화합니다",
 	icon = "Trade_BlackSmithing", build = build, refresh = refresh, open = open,
 	events = { "FORGE", "BAG", "MATS", "GEAR", "RESET", "GOLD" },
 })

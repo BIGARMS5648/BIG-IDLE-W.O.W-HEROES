@@ -10,8 +10,7 @@ repository cannot contain (item / spell icons and class portraits).
 It is a layout check, not a pixel-accurate rendering of the game.
 
     python3 tools/make_art.py          # once, to have the PNG twins of Media/
-    python3 tests/preview.py           # Korean
-    python3 tests/preview.py enUS      # English
+    python3 tests/preview.py
 """
 import base64
 import json
@@ -33,7 +32,7 @@ PAGE = r"""<!doctype html>
   h2 { font-size:14px; margin:18px 0 6px; }
   canvas { background:#3b4a40; display:block; }
 </style></head><body>
-<h1 style="font-size:16px">Big Idle W.O.W Heroes - layout preview (__LOCALE__)</h1>
+<h1 style="font-size:16px">Big Idle W.O.W Heroes - 화면 미리보기</h1>
 <div id="root"></div>
 <script>
 const SCENES = __DATA__;
