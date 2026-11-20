@@ -1,0 +1,1138 @@
+-- The battle simulation. It runs in fixed 0.1 s steps on a 1-D lane
+-- (x = 0 on the left, 1000 on the right): heroes hold a formation on the left,
+-- monsters walk in from the right. The UI only reads this state.
+local _, ns = ...
+
+local floor, max, min, random = math.floor, math.max, math.min, math.random
+local U = ns.U
+
+local Combat = {}
+ns.Combat = Combat
+
+local STEP = 0.1
+local LANE = 1000
+local FRONT_X = 400
+local REVIVE_TIME = 20
+local SOFT_ENRAGE = 75      -- seconds into a wave before monsters start to ramp up
+local MAX_MOBS = 12
+
+Combat.STEP = STEP
+Combat.heroes = {}
+Combat.mobs = {}
+Combat.fields = {}
+Combat.fx = {}
+Combat.state = { phase = "idle", wave = 0, waves = 0, timer = 0, time = 0 }
+
+local heroes, mobs, fields, fxList = Combat.heroes, Combat.mobs, Combat.fields, Combat.fx
+local st = Combat.state
+
+------------------------------------------------------------------------
+-- Visual events (consumed by the battle bar; capped so they never pile up)
+------------------------------------------------------------------------
+local function fx(x, text, r, g, b, big, side)
+	if #fxList >= 40 then table.remove(fxList, 1) end
+	fxList[#fxList + 1] = { x = x, text = text, r = r, g = g, b = b, big = big, side = side }
+end
+
+local function fxSkill(u, icon)
+	u.castIcon = icon
+	u.castT = 0.8
+end
+
+------------------------------------------------------------------------
+-- Small helpers
+------------------------------------------------------------------------
+local function aliveHeroes()
+	local n = 0
+	for i = 1, #heroes do
+		if not heroes[i].dead then n = n + 1 end
+	end
+	return n
+end
+
+local function aliveMobs()
+	local n = 0
+	for i = 1, #mobs do
+		if not mobs[i].dead then n = n + 1 end
+	end
+	return n
+end
+
+-- The hero monsters run at: the tank while it stands, otherwise whoever is in front.
+local function frontHero()
+	local best
+	for i = 1, #heroes do
+		local h = heroes[i]
+		if not h.dead then
+			if h.role == "TANK" then return h end
+			if not best or h.x > best.x then best = h end
+		end
+	end
+	return best
+end
+
+local function nearestMob()
+	local best
+	for i = 1, #mobs do
+		local m = mobs[i]
+		if not m.dead and (not best or m.x < best.x) then best = m end
+	end
+	return best
+end
+
+local function lowestAlly(maxRatio)
+	local best, bestR
+	for i = 1, #heroes do
+		local h = heroes[i]
+		if not h.dead then
+			local r = h.hp / h.maxhp
+			if r < (maxRatio or 2) and (not bestR or r < bestR) then
+				best, bestR = h, r
+			end
+		end
+	end
+	return best
+end
+
+local function isDisabled(u)
+	return u.st.stun ~= nil or u.st.freeze ~= nil
+end
+
+------------------------------------------------------------------------
+-- Stats of a hero unit, including auras and timed buffs
+------------------------------------------------------------------------
+local function collectAuras()
+	local mods = {}
+	for i = 1, #heroes do
+		local u = heroes[i]
+		if not u.dead then
+			for _, sid in ipairs(u.skills) do
+				local sk = ns.SKILLS[sid]
+				if sk.kind == "aura" then
+					local lvl = u.slv[sid] or 1
+					for _, m in ipairs(sk.mods) do
+						mods[#mods + 1] = { m[1], m[2] + m[3] * (lvl - 1) }
+					end
+				end
+			end
+		end
+	end
+	return mods
+end
+
+local function recalc(u, auras)
+	local extra = {}
+	for i = 1, #auras do extra[#extra + 1] = auras[i] end
+	for _, b in ipairs(u.buffs) do
+		for _, m in ipairs(b.mods) do extra[#extra + 1] = m end
+	end
+	local s = ns.Stats.Compute(u.id, extra)
+	local ratio = u.maxhp and u.maxhp > 0 and (u.hp / u.maxhp) or 1
+	u.s = s
+	local oldMax = u.maxhp
+	u.maxhp = s.hp
+	if not oldMax then
+		u.hp = s.hp
+	elseif s.hp > oldMax then
+		u.hp = min(s.hp, u.hp + (s.hp - oldMax)) -- gained max health comes filled
+	else
+		u.hp = min(u.hp, s.hp)
+	end
+	if ratio <= 0 then u.hp = 0 end
+end
+
+local function loadSkills(u)
+	local s = ns.Stats.Get(u.id)
+	u.skills = ns.Heroes.ActiveSkills(u.id)
+	u.slv = {}
+	u.cd = u.cd or {}
+	u.cnt = u.cnt or {}
+	for n, sid in ipairs(u.skills) do
+		u.slv[sid] = max(1, ns.Heroes.SkillLevel(u.id, sid, s))
+		if ns.SKILLS[sid].act == "cd" and not u.cd[sid] then
+			u.cd[sid] = 1 + n * 0.7 -- stagger the opening casts
+		end
+		u.cnt[sid] = u.cnt[sid] or 0
+	end
+end
+
+local function recalcAll()
+	-- the roster changed under us (save replaced or edited): start over
+	for i = 1, #heroes do
+		local u = heroes[i]
+		if not ns.db.heroes[u.id] or ns.db.party[u.slot] ~= u.id then
+			Combat.dirty = false
+			Combat.StartStage()
+			return
+		end
+	end
+	for i = 1, #heroes do loadSkills(heroes[i]) end
+	local auras = collectAuras()
+	for i = 1, #heroes do recalc(heroes[i], auras) end
+	Combat.dirty = false
+end
+
+------------------------------------------------------------------------
+-- Healing and shields
+------------------------------------------------------------------------
+local function heal(src, tgt, amount)
+	if tgt.dead or amount <= 0 then return 0 end
+	if src and src.s then amount = amount * (1 + (src.s.heal or 0) / 100) end
+	local before = tgt.hp
+	tgt.hp = min(tgt.maxhp, tgt.hp + amount)
+	local done = tgt.hp - before
+	if done >= tgt.maxhp * 0.03 then
+		fx(tgt.x, "+" .. U.fmt(done), 0.3, 1, 0.3, false, "hero")
+	end
+	return done
+end
+
+------------------------------------------------------------------------
+-- Status ailments (both sides)
+------------------------------------------------------------------------
+local function applyStatus(tgt, kind, hit, power, dur, school)
+	if tgt.dead then return end
+	local def = ns.STATUS[kind]
+	if not def then return end
+	dur = dur or def.dur
+	if kind == "stun" or kind == "freeze" then
+		if (tgt.ccImmune or 0) > 0 then return end
+		if tgt.boss then dur = dur * 0.5 end
+		tgt.ccImmune = dur + (tgt.boss and 8 or 4)
+	end
+	local e = tgt.st[kind]
+	if not e then
+		e = {}
+		tgt.st[kind] = e
+		fx(tgt.x, ns.N(def.name), 1, 0.9, 0.4, false, tgt.hero and "hero" or "mob")
+	end
+	e.t = max(e.t or 0, dur)
+	if kind == "ignite" or kind == "bleed" then
+		e.dps = max(e.dps or 0, (hit or 0) * def.power / 100)
+		e.school = def.school
+	elseif kind == "poison" or kind == "corrupt" then
+		e.dps = max(e.dps or 0, power or ((hit or 0) * 0.2))
+		e.school = school or def.school
+	elseif kind == "shock" then
+		e.v = def.power
+	elseif kind == "chill" then
+		e.v = def.power
+	elseif kind == "weaken" or kind == "curse" then
+		e.v = max(e.v or 0, power or 0)
+	end
+end
+
+------------------------------------------------------------------------
+-- Rewards
+------------------------------------------------------------------------
+local function killReward(m, killer)
+	local db = ns.db
+	local goldPct = ns.Bonus("gold")
+	for i = 1, #heroes do goldPct = goldPct + (heroes[i].s.gold or 0) end
+	local gold = m.gold * (1 + goldPct / 100)
+	if m.boss then gold = gold * (1 + ns.Bonus("bossGold") / 100) end
+	gold = max(1, floor(gold + 0.5))
+	ns.AddGold(gold)
+	st.gGold = st.gGold + gold
+	st.gXP = st.gXP + m.exp
+
+	local expBonus = ns.Bonus("exp")
+	for i = 1, #heroes do
+		local u = heroes[i]
+		local h = db.heroes[u.id]
+		local amount = m.exp * (1 + (expBonus + (u.s.exp or 0)) / 100) * ns.Heroes.XPFactor(h.level, st.level)
+		if ns.Heroes.AddXP(u.id, amount) > 0 then
+			fx(u.x, ns.T("레벨 업!", "Level Up!"), 1, 0.85, 0.1, true, "hero")
+			ns.Sound("level")
+			Combat.dirty = true
+		end
+	end
+
+	db.kills[m.type] = (db.kills[m.type] or 0) + 1
+	db.stat.kills = db.stat.kills + 1
+
+	if m.boss then
+		local chest = st.raid and 3 or 2
+		ns.Loot.AddChest(chest, st.level, st.diff)
+		if random() * 100 < ns.Bonus("bossChest") then
+			ns.Loot.AddChest(2, st.level, st.diff)
+		end
+	elseif not m.summoned then
+		if random() * 100 < 12 + ns.Bonus("chestChance") then
+			ns.Loot.AddChest(1, st.level, st.diff)
+		end
+	end
+
+	if killer and killer.hero and not killer.dead then
+		local s = killer.s
+		local amount = (s.hpk or 0) + killer.maxhp * (s.hpkPct or 0) / 100
+		if amount > 0 then heal(nil, killer, amount) end
+	end
+end
+
+------------------------------------------------------------------------
+-- Damage
+------------------------------------------------------------------------
+local function damageMob(src, m, amount, school, crit, quiet)
+	if m.dead then return 0 end
+	local res = m.res and m.res[school]
+	if res then amount = amount * (1 - res / 100) end
+	if m.st.shock then amount = amount * (1 + m.st.shock.v / 100) end
+	if m.st.curse then amount = amount * (1 + m.st.curse.v / 100) end
+	if (m.drT or 0) > 0 then amount = amount * (1 - m.dr / 100) end
+	amount = max(1, amount)
+	m.hp = m.hp - amount
+	m.flash = 0.12
+	if not quiet then
+		if crit then
+			fx(m.x, U.fmt(amount) .. "!", 1, 0.9, 0.2, true, "mob")
+		else
+			local c = ns.SCHOOL[school]
+			local r, g, b = 1, 1, 1
+			if c and school ~= "phys" then r, g, b = U.rgb(c.hex) end
+			fx(m.x, U.fmt(amount), r, g, b, false, "mob")
+		end
+	end
+	if m.hp <= 0 then
+		m.hp = 0
+		m.dead = true
+		m.fade = 0.4
+		killReward(m, src)
+	end
+	return amount
+end
+
+local function damageHero(h, amount, school, src, isDot)
+	if h.dead then return 0 end
+	local s = h.s
+	if not isDot then
+		if random() * 100 < s.dodge then
+			fx(h.x, ns.T("회피", "Dodge"), 0.7, 0.7, 0.7, false, "hero")
+			return 0
+		end
+		if random() * 100 < s.block then
+			amount = amount * 0.5
+		end
+	end
+	if school == "phys" then
+		amount = amount * (1 - ns.Stats.ArmorDR(s.armor, st.level))
+	else
+		local res = (s["res_" .. school] or 0) + s.allres
+		if res > 75 then res = 75 end
+		amount = amount * (1 - res / 100)
+	end
+	amount = amount * (1 - s.dr / 100)
+	if h.st.shock then amount = amount * (1 + h.st.shock.v / 100) end
+	if not isDot then amount = amount - s.absorb end
+	if amount < 1 then amount = 1 end
+	if h.shield > 0 then
+		local a = min(h.shield, amount)
+		h.shield = h.shield - a
+		amount = amount - a
+		if amount <= 0 then return 0 end
+	end
+	h.hp = h.hp - amount
+	h.flash = 0.12
+	if not isDot and amount >= h.maxhp * 0.04 then
+		fx(h.x, "-" .. U.fmt(amount), 1, 0.3, 0.3, false, "hero")
+	end
+	if h.hp <= 0 then
+		h.hp = 0
+		h.dead = true
+		h.reviveT = REVIVE_TIME
+		h.st = {}
+		h.buffs = {}
+		h.shield = 0
+		h.hot = nil
+		fx(h.x, ns.T("쓰러짐!", "Down!"), 1, 0.2, 0.2, true, "hero")
+		Combat.dirty = true -- auras from this hero end
+	end
+	return amount
+end
+
+local function revive(h, ratio)
+	h.dead = false
+	h.hp = max(1, floor(h.maxhp * ratio))
+	h.reviveT = 0
+	h.atkT = 0.5
+	fx(h.x, ns.T("부활", "Revived"), 0.6, 1, 0.6, true, "hero")
+	Combat.dirty = true
+end
+
+------------------------------------------------------------------------
+-- Monsters
+------------------------------------------------------------------------
+local function newMob(def, isBoss, index, summoned)
+	local l = st.level
+	local hp = ns.MobHP(def.hp, l)
+	if isBoss then hp = hp * ns.DIFFS[st.diff].bossHP end
+	if st.raid and not isBoss and not summoned then hp = hp * 1.5 end
+	hp = floor(hp + 0.5)
+	local m = {
+		mob = true, def = def, name = def.name, icon = def.icon, type = def.type, boss = isBoss, summoned = summoned,
+		hp = hp, maxhp = hp, atk = ns.MobAtk(def.atk, l), aspd = def.aspd, range = def.range,
+		school = def.school, move = def.move, res = def.res, status = def.status,
+		gold = ns.MobGold(1 + def.hp / 14, l), exp = ns.MobExp(1 + def.hp / 10, l),
+		x = LANE + (index - 1) * 45 + random(0, 20), off = ((index - 1) % 4) * 12,
+		atkT = 0.3 + random() * 0.6, st = {}, enr = 1, drT = 0, dr = 0, flash = 0, anim = 0,
+	}
+	if summoned then
+		m.gold = m.gold * 0.25
+		m.exp = m.exp * 0.25
+	end
+	if def.skills then
+		m.sk = {}
+		for i, sk in ipairs(def.skills) do
+			m.sk[i] = { def = sk, cd = (sk.cd or 0) * 0.6 + i }
+		end
+	end
+	return m
+end
+
+local function spawnWave()
+	local stage = ns.STAGES[st.idx]
+	local n = ns.MobsPerWave(st.diff, st.idx)
+	local isBossWave = st.wave == st.waves
+	local index = 1
+	if isBossWave then
+		mobs[#mobs + 1] = newMob(stage.boss, true, index)
+		index = index + 1
+		n = floor(n / 2)
+		if st.raid then ns.Sound("boss") end
+		fx(700, ns.N(stage.boss.name), 1, 0.4, 0.2, true, "mob")
+	end
+	local pool = {}
+	for _, e in ipairs(stage.mobs) do
+		pool[#pool + 1] = { id = e[1], w = e[2] }
+	end
+	for _ = 1, n do
+		local pick = U.weighted(pool)
+		mobs[#mobs + 1] = newMob(ns.MONSTERS[pick.id], false, index)
+		index = index + 1
+	end
+	st.waveT = 0
+	ns.Fire("WAVE")
+end
+
+local function mobSkill(m, entry)
+	local sk = entry.def
+	local kind = sk.kind
+	if kind == "enrage" then
+		if not entry.done and m.hp / m.maxhp <= sk.hp then
+			entry.done = true
+			m.enr = sk.mult
+			fx(m.x, ns.T("격노!", "Enrage!"), 1, 0.2, 0.2, true, "mob")
+		end
+		return
+	end
+	entry.cd = entry.cd - STEP
+	if entry.cd > 0 then return end
+	entry.cd = sk.cd
+	local school = sk.school or m.school
+	local weak = m.st.weaken and (1 - m.st.weaken.v / 100) or 1
+	if kind == "smash" then
+		local t = frontHero()
+		if t then
+			m.anim = 0.25
+			local dealt = damageHero(t, m.atk * sk.mult * m.enr * st.rage * weak, school, m)
+			if dealt > 0 and sk.status and random() < sk.status[2] then
+				applyStatus(t, sk.status[1], dealt)
+			end
+		end
+	elseif kind == "aoe" then
+		m.anim = 0.25
+		fx(m.x - 80, ns.T("광역 공격!", "Area attack!"), 1, 0.6, 0.2, false, "mob")
+		for i = 1, #heroes do
+			local t = heroes[i]
+			if not t.dead then
+				local dealt = damageHero(t, m.atk * sk.mult * m.enr * st.rage * weak, school, m)
+				if dealt > 0 and sk.status and random() < sk.status[2] then
+					applyStatus(t, sk.status[1], dealt)
+				end
+			end
+		end
+	elseif kind == "summon" then
+		local def = ns.MONSTERS[sk.mob]
+		for i = 1, sk.n do
+			if #mobs < MAX_MOBS then
+				local add = newMob(def, false, i, true)
+				add.x = min(LANE, m.x + 40 + i * 35)
+				mobs[#mobs + 1] = add
+			end
+		end
+		fx(m.x, ns.T("소환!", "Summon!"), 0.8, 0.6, 1, false, "mob")
+	elseif kind == "shield" then
+		m.drT = sk.dur
+		m.dr = sk.dr
+		fx(m.x, ns.T("보호막!", "Shielded!"), 0.6, 0.8, 1, false, "mob")
+	end
+end
+
+local function stepMob(m)
+	if m.dead then
+		m.fade = m.fade - STEP
+		return
+	end
+	if m.flash > 0 then m.flash = m.flash - STEP end
+	if m.anim > 0 then m.anim = m.anim - STEP end
+	if m.drT > 0 then m.drT = m.drT - STEP end
+	if (m.ccImmune or 0) > 0 then m.ccImmune = m.ccImmune - STEP end
+
+	-- ailments
+	for kind, e in pairs(m.st) do
+		e.t = e.t - STEP
+		if e.dps then
+			local dealt = damageMob(e.src, m, e.dps * STEP, e.school or "phys", false, true)
+			e.acc = (e.acc or 0) + dealt
+			e.show = (e.show or 1) - STEP
+			if e.show <= 0 then
+				e.show = 1
+				local c = ns.SCHOOL[e.school or "phys"]
+				local r, g, b = U.rgb(c.hex)
+				fx(m.x, U.fmt(e.acc), r, g, b, false, "mob")
+				e.acc = 0
+			end
+			if m.dead then return end
+		end
+		if e.t <= 0 then m.st[kind] = nil end
+	end
+	if isDisabled(m) then return end
+
+	local front = frontHero()
+	if not front then return end
+	local slow = m.st.chill and (1 - m.st.chill.v / 100) or 1
+
+	-- movement
+	local stopX
+	if m.range then
+		stopX = front.x + 230 + m.off * 2
+	else
+		stopX = front.x + 55 + m.off
+	end
+	if m.x > stopX then
+		m.x = max(stopX, m.x - m.move * slow * STEP)
+	end
+
+	-- abilities
+	if m.sk then
+		for i = 1, #m.sk do
+			mobSkill(m, m.sk[i])
+			if m.dead then return end
+		end
+	end
+
+	-- an ability may have just felled the hero this monster was facing
+	front = frontHero()
+	if not front then return end
+
+	-- basic attack
+	m.atkT = m.atkT - STEP * slow
+	local inReach
+	if m.range then
+		inReach = (m.x - front.x) <= m.range
+	else
+		inReach = m.x <= stopX + 25
+	end
+	if m.atkT <= 0 and inReach then
+		m.atkT = 1 / m.aspd
+		local t = front
+		if m.range then
+			-- ranged monsters harass anyone
+			local pool = {}
+			for i = 1, #heroes do
+				if not heroes[i].dead then pool[#pool + 1] = heroes[i] end
+			end
+			if #pool > 0 then t = pool[random(1, #pool)] end
+		end
+		m.anim = 0.15
+		local weak = m.st.weaken and (1 - m.st.weaken.v / 100) or 1
+		local amount = m.atk * U.rnd(0.9, 1.1) * m.enr * st.rage * weak
+		local dealt = damageHero(t, amount, m.school, m)
+		if dealt > 0 and m.status and random() < m.status[2] then
+			applyStatus(t, m.status[1], dealt)
+		end
+		if not m.range and not t.dead and (t.s.thorns or 0) > 0 then
+			damageMob(t, m, t.s.atk * t.s.thorns / 100, "nature", false)
+		end
+	end
+end
+
+------------------------------------------------------------------------
+-- Hero skills
+------------------------------------------------------------------------
+local function schoolMult(s, school)
+	return 1 + ((s["dmg_" .. school] or 0) + s.dmg_all) / 100
+end
+
+local function rollCrit(s, bonus)
+	return random() * 100 < s.crit + (bonus or 0)
+end
+
+-- up to n living monsters, closest to `first` first
+local function pickTargets(first, n)
+	local list = {}
+	for i = 1, #mobs do
+		if not mobs[i].dead then list[#list + 1] = mobs[i] end
+	end
+	if n >= #list then return list end
+	local fx0 = first and first.x or 0
+	table.sort(list, function(a, b) return math.abs(a.x - fx0) < math.abs(b.x - fx0) end)
+	local out = {}
+	for i = 1, n do out[i] = list[i] end
+	return out
+end
+
+local function heroHit(u, m, mult, school, critBonus, quiet)
+	local s = u.s
+	local amount = s.atk * mult * U.rnd(0.95, 1.05) * schoolMult(s, school)
+	local crit = rollCrit(s, critBonus)
+	if crit then amount = amount * s.critdmg / 100 end
+	local dealt = damageMob(u, m, amount, school, crit, quiet)
+	if dealt > 0 and s.leech > 0 and not u.dead then
+		heal(nil, u, dealt * s.leech / 100)
+	end
+	return dealt
+end
+
+local function needsMet(u, sk)
+	local w = sk.when
+	if not w then return true end
+	if w.self then return u.hp / u.maxhp < w.self end
+	if w.ally then return lowestAlly(w.ally) ~= nil end
+	return true
+end
+
+-- Returns true if the skill was actually used.
+local function cast(u, sid, target)
+	local sk = ns.SKILLS[sid]
+	local lvl = u.slv[sid] or 1
+	local v = ns.SkillValue(sid, lvl)
+	local kind = sk.kind
+	if not needsMet(u, sk) then return false end
+
+	if kind == "dmg" then
+		if not target then return false end
+		local list = pickTargets(target, sk.targets or 1)
+		for _, m in ipairs(list) do
+			for _ = 1, sk.hits or 1 do
+				local dealt = heroHit(u, m, v / 100, sk.school, sk.critBonus)
+				if dealt > 0 then
+					if sk.status and random() < sk.status[2] then
+						applyStatus(m, sk.status[1], dealt)
+						if m.st[sk.status[1]] then m.st[sk.status[1]].src = u end
+					end
+					if sk.drain and not u.dead then
+						heal(u, u, min(dealt * sk.drain / 100, u.maxhp * 0.3))
+					end
+				end
+			end
+		end
+		if sk.healAll then
+			local pct = sk.healAll[1] + sk.healAll[2] * (lvl - 1)
+			for i = 1, #heroes do
+				heal(u, heroes[i], heroes[i].maxhp * pct / 100)
+			end
+		end
+	elseif kind == "dot" then
+		if not target then return false end
+		local list = pickTargets(target, sk.targets or 1)
+		local dps = u.s.atk * v / 100 * schoolMult(u.s, sk.school)
+		for _, m in ipairs(list) do
+			applyStatus(m, sk.status, nil, dps, sk.dur, sk.school)
+			if m.st[sk.status] then m.st[sk.status].src = u end
+		end
+	elseif kind == "field" then
+		if not target then return false end
+		fields[#fields + 1] = { src = u, sk = sk, mult = v / 100, t = sk.dur, tickT = 0 }
+	elseif kind == "debuff" then
+		if not target then return false end
+		local list = pickTargets(target, sk.targets or 1)
+		for _, m in ipairs(list) do
+			applyStatus(m, sk.status, nil, v, sk.dur)
+		end
+	elseif kind == "heal" then
+		if sk.target == "self" then
+			if sk.hot then
+				u.hot = { t = sk.hot, per = u.maxhp * v / 100, src = u }
+			else
+				heal(u, u, u.maxhp * v / 100)
+			end
+		elseif sk.target == "all" then
+			for i = 1, #heroes do
+				heal(u, heroes[i], heroes[i].maxhp * v / 100)
+			end
+		else
+			local t = lowestAlly(sk.when and sk.when.ally or 1)
+			if not t then return false end
+			heal(u, t, t.maxhp * v / 100)
+		end
+	elseif kind == "shield" then
+		local function shield(t)
+			if not t.dead then
+				t.shield = max(t.shield, t.maxhp * v / 100 * (1 + (u.s.heal or 0) / 100))
+				t.shieldT = sk.dur
+			end
+		end
+		if sk.target == "all" then
+			for i = 1, #heroes do shield(heroes[i]) end
+		elseif sk.target == "self" then
+			shield(u)
+		else
+			local t = lowestAlly(sk.when and sk.when.ally or 1)
+			if not t then return false end
+			shield(t)
+		end
+	elseif kind == "buff" then
+		if not target and not sk.when then return false end
+		local mods = {}
+		for _, m in ipairs(sk.mods) do
+			mods[#mods + 1] = { m[1], m[2] + m[3] * (lvl - 1) }
+		end
+		if sk.target == "party" then
+			for i = 1, #heroes do
+				local t = heroes[i]
+				if not t.dead then t.buffs[#t.buffs + 1] = { mods = mods, t = sk.dur } end
+			end
+		else
+			u.buffs[#u.buffs + 1] = { mods = mods, t = sk.dur }
+		end
+		Combat.dirty = true
+	elseif kind == "revive" then
+		local t
+		for i = 1, #heroes do
+			if heroes[i].dead then t = heroes[i] break end
+		end
+		if not t then return false end
+		revive(t, v / 100)
+	else
+		return false
+	end
+	fxSkill(u, sk.icon)
+	return true
+end
+
+------------------------------------------------------------------------
+-- Heroes
+------------------------------------------------------------------------
+local function heroSpeed(u)
+	return 240 * (1 + (u.s.move or 0) / 100)
+end
+
+local function stepHero(u)
+	if u.flash > 0 then u.flash = u.flash - STEP end
+	if u.anim > 0 then u.anim = u.anim - STEP end
+	if (u.castT or 0) > 0 then u.castT = u.castT - STEP end
+	if u.dead then
+		u.reviveT = u.reviveT - STEP
+		if u.reviveT <= 0 then revive(u, 0.4) end
+		return
+	end
+	local s = u.s
+
+	-- regeneration, heal over time, shields
+	local regen = s.regen + u.maxhp * s.regenPct / 100
+	if regen > 0 and u.hp < u.maxhp then
+		u.hp = min(u.maxhp, u.hp + regen * STEP)
+	end
+	if u.hot then
+		u.hot.t = u.hot.t - STEP
+		u.hp = min(u.maxhp, u.hp + u.hot.per * STEP * (1 + (s.heal or 0) / 100))
+		if u.hot.t <= 0 then u.hot = nil end
+	end
+	if u.shield > 0 then
+		u.shieldT = u.shieldT - STEP
+		if u.shieldT <= 0 then u.shield = 0 end
+	end
+	if (u.ccImmune or 0) > 0 then u.ccImmune = u.ccImmune - STEP end
+
+	-- buffs
+	for i = #u.buffs, 1, -1 do
+		local b = u.buffs[i]
+		b.t = b.t - STEP
+		if b.t <= 0 then
+			table.remove(u.buffs, i)
+			Combat.dirty = true
+		end
+	end
+
+	-- ailments
+	for kind, e in pairs(u.st) do
+		e.t = e.t - STEP
+		if e.dps then
+			damageHero(u, e.dps * STEP, e.school or "phys", nil, true)
+			if u.dead then return end
+		end
+		if e.t <= 0 then u.st[kind] = nil end
+	end
+	if isDisabled(u) then return end
+
+	local target = nearestMob()
+	local front = frontHero()
+	local inRange = false
+	if target then
+		local reachFrom = u.x
+		if not u.ranged and front and front.x > reachFrom then reachFrom = front.x end
+		inRange = target.x - reachFrom <= u.range
+		if not inRange then
+			-- advance; melee followers keep a step behind whoever leads
+			local limit = target.x - (u.ranged and (u.range - 20) or 60)
+			if not u.ranged and front and front ~= u then
+				limit = min(limit, front.x - 40)
+			end
+			if u.x < limit then
+				u.x = min(limit, u.x + heroSpeed(u) * STEP)
+			end
+		end
+	end
+
+	-- cooldown skills (support skills work without an enemy in range)
+	local castSpeed = 1 + s.cast / 100
+	for _, sid in ipairs(u.skills) do
+		local sk = ns.SKILLS[sid]
+		if sk.act == "cd" then
+			u.cd[sid] = u.cd[sid] - STEP * castSpeed
+			if u.cd[sid] <= 0 then
+				local t = inRange and target or nil
+				if cast(u, sid, t) then
+					u.cd[sid] = ns.SkillCooldown(sid, u.slv[sid]) * (1 - s.cdr / 100)
+					break
+				else
+					u.cd[sid] = 0.3 -- try again shortly
+				end
+			end
+		end
+	end
+	if u.dead then return end
+
+	-- basic attack
+	local slow = u.st.chill and (1 - u.st.chill.v / 100) or 1
+	u.atkT = u.atkT - STEP * slow
+	if u.atkT <= 0 and target and inRange and not target.dead then
+		u.atkT = u.atkT + 1 / s.aspd
+		if u.atkT < 0 then u.atkT = 0 end
+		u.anim = 0.15
+		heroHit(u, target, 1, u.school)
+		if s.hph > 0 then heal(nil, u, s.hph) end
+		if s.multi > 0 and random() * 100 < s.multi and not target.dead then
+			heroHit(u, target, 0.5, u.school)
+		end
+		for _, sid in ipairs(u.skills) do
+			local sk = ns.SKILLS[sid]
+			if sk.act == "count" then
+				u.cnt[sid] = u.cnt[sid] + 1
+				if u.cnt[sid] >= sk.n then
+					local t = target
+					if t.dead then t = nearestMob() end
+					if t and cast(u, sid, t) then
+						u.cnt[sid] = 0
+					end
+				end
+			end
+		end
+	end
+end
+
+local function stepFields()
+	for i = #fields, 1, -1 do
+		local f = fields[i]
+		f.t = f.t - STEP
+		f.tickT = f.tickT - STEP
+		local u = f.src
+		if f.tickT <= 0 and not u.dead then
+			f.tickT = f.sk.tick
+			local first = nearestMob()
+			if first then
+				local list = pickTargets(first, f.sk.targets or 1)
+				for _, m in ipairs(list) do
+					local dealt = heroHit(u, m, f.mult, f.sk.school)
+					if dealt > 0 and f.sk.status and random() < f.sk.status[2] then
+						applyStatus(m, f.sk.status[1], dealt)
+						if m.st[f.sk.status[1]] then m.st[f.sk.status[1]].src = u end
+					end
+				end
+			end
+		end
+		if f.t <= 0 or u.dead then table.remove(fields, i) end
+	end
+end
+
+------------------------------------------------------------------------
+-- Stage flow
+------------------------------------------------------------------------
+local function wipe(list)
+	for i = #list, 1, -1 do list[i] = nil end
+end
+
+local function layoutParty()
+	-- tank first, then melee, then ranged damage, healer last
+	local order = {}
+	for i = 1, #heroes do order[i] = heroes[i] end
+	local function rank(u)
+		if u.role == "TANK" then return 1 end
+		if u.role == "HEALER" then return 4 end
+		return u.ranged and 3 or 2
+	end
+	table.sort(order, function(a, b)
+		local ra, rb = rank(a), rank(b)
+		if ra ~= rb then return ra < rb end
+		return a.slot < b.slot
+	end)
+	local x = FRONT_X
+	local wasRanged = false
+	for _, u in ipairs(order) do
+		if u.ranged and not wasRanged and x < FRONT_X then
+			x = x - 20
+		end
+		wasRanged = u.ranged
+		u.homeX = x
+		u.x = x
+		x = x - (u.ranged and 60 or 70)
+	end
+end
+
+function Combat.StartStage()
+	local db = ns.db
+	wipe(heroes)
+	wipe(mobs)
+	wipe(fields)
+	ns.Heroes.ValidateParty()
+	for slot = 1, ns.PARTY_SIZE do
+		local id = db.party[slot]
+		if id and db.heroes[id] then
+			local c = ns.CLASSES[id]
+			heroes[#heroes + 1] = {
+				hero = true, id = id, slot = slot, role = c.role, name = c.name, ranged = c.ranged or false,
+				range = c.range, school = c.school, x = 0, homeX = 0, atkT = 0.2 + random() * 0.4,
+				buffs = {}, st = {}, shield = 0, shieldT = 0, flash = 0, anim = 0, dead = false, reviveT = 0,
+			}
+		end
+	end
+	if #heroes == 0 then
+		st.phase = "idle"
+		return
+	end
+	st.diff = db.stage.diff
+	st.idx = db.stage.idx
+	st.level = ns.StageLevel(st.diff, st.idx)
+	st.raid = ns.STAGES[st.idx].raid or false
+	st.waves = st.raid and 4 or ns.WAVES
+	st.wave = 0
+	st.phase = "travel"
+	st.timer = 0.8
+	st.time = 0
+	st.waveT = 0
+	st.rage = 1
+	st.gGold = 0
+	st.gXP = 0
+	st.result = nil
+	recalcAll()
+	for i = 1, #heroes do
+		heroes[i].hp = heroes[i].maxhp
+	end
+	layoutParty()
+	ns.Fire("STAGE")
+end
+
+local function travelTime()
+	local total, n = 0, 0
+	for i = 1, #heroes do
+		if not heroes[i].dead then
+			total = total + (heroes[i].s.move or 0)
+			n = n + 1
+		end
+	end
+	local avg = n > 0 and total / n or 0
+	return max(0.4, 1.2 / (1 + avg / 100))
+end
+
+local function updateRate()
+	local db = ns.db
+	if st.time < 5 then return end
+	local g, x = st.gGold / st.time, st.gXP / st.time
+	if db.rate.gold <= 0 then
+		db.rate.gold, db.rate.xp = g, x
+	else
+		db.rate.gold = db.rate.gold * 0.7 + g * 0.3
+		db.rate.xp = db.rate.xp * 0.7 + x * 0.3
+	end
+	db.rate.level = st.level
+end
+
+local function nextAfterVictory()
+	local db = ns.db
+	if not db.opt.auto then return end
+	if (db.retry or 0) > 0 then
+		-- farming after a failed push: count clears, then try again
+		db.retry = db.retry - 1
+		if db.retry > 0 then return end
+	end
+	if db.stage.idx < ns.STAGE_COUNT then
+		db.stage.idx = db.stage.idx + 1
+	elseif db.stage.diff < #ns.DIFFS then
+		db.stage.diff = db.stage.diff + 1
+		db.stage.idx = 1
+	end
+end
+
+local function victory()
+	local db = ns.db
+	st.phase = "result"
+	st.result = "win"
+	st.timer = 1.5
+	db.stat.clears = db.stat.clears + 1
+	updateRate()
+	if (db.prog[st.diff] or 0) < st.idx then
+		db.prog[st.diff] = st.idx
+		local bonus = floor(ns.MobGold(40, st.level))
+		ns.AddGold(bonus)
+		ns.Loot.AddChest(2, st.level, st.diff)
+		ns.Toast(string.format(ns.T("첫 공략! %s (+%s 골드, 궤짝 1개)", "First clear! %s (+%s gold, 1 cache)"),
+			ns.StageLabel(st.diff, st.idx), U.fmt(bonus)))
+		if st.idx == ns.STAGE_COUNT and st.diff < #ns.DIFFS then
+			ns.Toast(string.format(ns.T("새 난이도 개방: %s", "New difficulty unlocked: %s"), ns.N(ns.DIFFS[st.diff + 1].name)))
+		end
+		ns.Fire("PROGRESS")
+	end
+	ns.CheckPets()
+	nextAfterVictory()
+	ns.Fire("RESULT", "win")
+end
+
+local function defeat()
+	local db = ns.db
+	st.phase = "result"
+	st.result = "lose"
+	st.timer = 2.5
+	db.stat.wipes = db.stat.wipes + 1
+	local label = ns.StageLabel(st.diff, st.idx)
+	if db.opt.retreat and (db.stage.idx > 1 or db.stage.diff > 1) then
+		if db.stage.idx > 1 then
+			db.stage.idx = db.stage.idx - 1
+		else
+			db.stage.diff = db.stage.diff - 1
+			db.stage.idx = ns.STAGE_COUNT
+		end
+		if db.opt.retry then
+			db.retry = 8
+			ns.Toast(string.format(ns.T("%s 공략 실패. 이전 스테이지에서 힘을 기른 뒤 다시 도전합니다.", "Failed %s. Farming the previous stage before trying again."), label))
+		else
+			db.opt.auto = false
+			ns.Toast(string.format(ns.T("%s 공략 실패. 이전 스테이지를 반복합니다.", "Failed %s. Repeating the previous stage."), label))
+		end
+	else
+		ns.Toast(string.format(ns.T("%s 공략 실패. 다시 도전합니다.", "Failed %s. Trying again."), label))
+	end
+	ns.Fire("RESULT", "lose")
+end
+
+-- Jump to any stage that is already unlocked.
+function Combat.CanTravel(diff, idx)
+	if diff < 1 or diff > #ns.DIFFS or idx < 1 or idx > ns.STAGE_COUNT then return false end
+	local db = ns.db
+	if diff > 1 and (db.prog[diff - 1] or 0) < ns.STAGE_COUNT then return false end
+	return idx <= (db.prog[diff] or 0) + 1
+end
+
+function Combat.Travel(diff, idx)
+	if not Combat.CanTravel(diff, idx) then
+		return false, ns.T("아직 갈 수 없는 스테이지입니다.", "That stage is not unlocked yet.")
+	end
+	ns.db.stage.diff = diff
+	ns.db.stage.idx = idx
+	ns.db.retry = 0
+	Combat.StartStage()
+	return true
+end
+
+function Combat.Restart()
+	Combat.StartStage()
+end
+
+------------------------------------------------------------------------
+-- One fixed step
+------------------------------------------------------------------------
+function Combat.Step()
+	if st.phase == "idle" then
+		if ns.Heroes.PartyCount() > 0 then Combat.StartStage() end
+		return
+	end
+	if Combat.dirty then recalcAll() end
+	st.time = st.time + STEP
+
+	if st.phase == "travel" then
+		st.timer = st.timer - STEP
+		for i = 1, #heroes do
+			local u = heroes[i]
+			stepHero(u)
+			if not u.dead then
+				-- fall back into formation
+				local sp = heroSpeed(u) * 1.5 * STEP
+				if u.x > u.homeX then u.x = max(u.homeX, u.x - sp) elseif u.x < u.homeX then u.x = min(u.homeX, u.x + sp) end
+			end
+		end
+		if st.timer <= 0 then
+			st.wave = st.wave + 1
+			st.phase = "fight"
+			spawnWave()
+		end
+		return
+	end
+
+	if st.phase == "fight" then
+		st.waveT = st.waveT + STEP
+		st.rage = 1 + max(0, (st.waveT - SOFT_ENRAGE) / 5) * 0.1
+		for i = 1, #heroes do stepHero(heroes[i]) end
+		for i = 1, #mobs do stepMob(mobs[i]) end
+		stepFields()
+		for i = #mobs, 1, -1 do
+			if mobs[i].dead and mobs[i].fade <= 0 then table.remove(mobs, i) end
+		end
+		if aliveHeroes() == 0 then
+			defeat()
+		elseif aliveMobs() == 0 then
+			wipe(fields)
+			if st.wave >= st.waves then
+				victory()
+			else
+				st.phase = "travel"
+				st.timer = travelTime()
+			end
+		end
+		return
+	end
+
+	if st.phase == "result" then
+		st.timer = st.timer - STEP
+		for i = #mobs, 1, -1 do
+			mobs[i].fade = (mobs[i].fade or 0) - STEP
+			if mobs[i].dead and mobs[i].fade <= 0 then table.remove(mobs, i) end
+		end
+		if st.timer <= 0 then Combat.StartStage() end
+	end
+end
+
+-- Called every frame with real elapsed seconds.
+local acc = 0
+function Combat.Update(elapsed)
+	acc = acc + elapsed * ns.GameSpeed()
+	if acc > 3 then acc = 3 end
+	while acc >= STEP do
+		acc = acc - STEP
+		Combat.Step()
+	end
+end
+
+------------------------------------------------------------------------
+-- React to changes made in the UI
+------------------------------------------------------------------------
+ns.On("PARTY", function()
+	if ns.db then Combat.StartStage() end
+end)
+ns.On("STATS", function() Combat.dirty = true end)
+ns.On("SKILLS", function() Combat.dirty = true end)
+ns.On("RESET", function()
+	st.phase = "idle"
+	wipe(heroes)
+	wipe(mobs)
+	wipe(fields)
+end)

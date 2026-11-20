@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Load the addon into a Lua 5.1 runtime with a mocked WoW API and run test scripts.
+
+    python3 tests/run.py                 # all checks (systems, UI smoke test, short balance run)
+    python3 tests/run.py balance 40      # only the balance run, 40 simulated hours
+    python3 tests/run.py balance 2 MAGE  # ... starting with another class
+    python3 tests/run.py cover           # line coverage of the addon under the tests
+    python3 tests/run.py ui              # only the UI smoke test
+
+Needs:  pip install lupa
+"""
+import os
+import sys
+
+try:
+    import lupa.lua51 as lupa
+except ImportError:  # pragma: no cover
+    sys.exit("lupa with a bundled Lua 5.1 is required:  pip install lupa")
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ADDON_NAME = "BigIdleWoWHeroes"
+ADDON_DIR = os.path.join(HERE, "..", ADDON_NAME)
+
+
+def toc_files():
+    files = []
+    with open(os.path.join(ADDON_DIR, ADDON_NAME + ".toc"), encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                files.append(line.replace("\\", "/"))
+    return files
+
+
+COVER_HOOK = """
+COVERAGE = {}
+debug.sethook(function(_, line)
+    local src = debug.getinfo(2, "S").source
+    local t = COVERAGE[src]
+    if not t then t = {} COVERAGE[src] = t end
+    t[line] = true
+end, "l")
+"""
+
+
+def new_runtime(locale="koKR", partial=False, cover=False):
+    lua = lupa.LuaRuntime(unpack_returned_tuples=True)
+    g = lua.globals()
+    lua.execute("package.path = package.path .. ';%s/?.lua'" % HERE.replace("\\", "/"))
+    lua.execute("dofile(%r)" % os.path.join(HERE, "wowmock.lua"))
+    if cover:
+        lua.execute(COVER_HOOK)
+    g.WoWMock.locale = locale
+    lua.execute("NS = {}")
+    loader = lua.eval(
+        """function(path, name)
+            local chunk, err = loadfile(path)
+            if not chunk then error(err, 0) end
+            return chunk(name, NS)
+        end"""
+    )
+    missing = []
+    for rel in toc_files():
+        path = os.path.join(ADDON_DIR, rel)
+        if not os.path.exists(path):
+            if partial:
+                missing.append(rel)
+                continue
+            raise SystemExit("TOC lists a missing file: " + rel)
+        loader(path, ADDON_NAME)
+    if missing:
+        print("  (partial load, skipped: %s)" % ", ".join(missing))
+    return lua
+
+
+def run_script(lua, name, *args):
+    fn = lua.eval("function(path, ...) return assert(loadfile(path))(...) end")
+    return fn(os.path.join(HERE, name), *args)
+
+
+def report_coverage(lua):
+    """Print, per addon file, the code lines the tests never executed."""
+    import re
+
+    skip = re.compile(r"^\s*(--.*|end[,)]*|else|\}[,)]*|\{|\)|local function .*|function .*|[\w.]+ = function.*)?\s*$")
+    cov = lua.globals().COVERAGE
+    hit_by_file = {}
+    for src in cov:
+        name = str(src)
+        if ADDON_NAME in name:
+            hit_by_file[os.path.normpath(name.lstrip("@"))] = set(int(k) for k in cov[src])
+    total_code = total_hit = 0
+    for rel in toc_files():
+        path = os.path.normpath(os.path.join(ADDON_DIR, rel))
+        hits = hit_by_file.get(path, set())
+        missed = []
+        code = 0
+        with open(path, encoding="utf-8") as f:
+            for n, line in enumerate(f, 1):
+                if skip.match(line.rstrip("\n")):
+                    continue
+                code += 1
+                if n not in hits:
+                    missed.append(n)
+        total_code += code
+        total_hit += code - len(missed)
+        pct = 100.0 * (code - len(missed)) / max(1, code)
+        print("  %-22s %5.1f%%  missed: %s" % (rel, pct, " ".join(map(str, missed[:60])) + (" ..." if len(missed) > 60 else "")))
+    print("  total %.1f%% of %d code lines" % (100.0 * total_hit / max(1, total_code), total_code))
+
+
+def main(argv):
+    what = argv[1] if len(argv) > 1 else "all"
+    ok = True
+
+    if what in ("all", "systems"):
+        print("== systems ==")
+        lua = new_runtime()
+        ok = run_script(lua, "test_systems.lua") and ok
+
+    if what in ("all", "ui"):
+        for locale in ("koKR", "enUS"):
+            print("== ui smoke test (%s) ==" % locale)
+            lua = new_runtime(locale)
+            ok = run_script(lua, "test_ui.lua") and ok
+
+    if what in ("all", "balance"):
+        hours = float(argv[2]) if len(argv) > 2 else 6
+        starter = argv[3] if len(argv) > 3 else "HUNTER"
+        print("== balance run (%g simulated hours, starting as %s) ==" % (hours, starter))
+        lua = new_runtime()
+        ok = run_script(lua, "test_balance.lua", hours, starter) and ok
+
+    if what == "cover":
+        # line coverage of the addon under the systems + UI tests (slow)
+        lua = new_runtime(cover=True)
+        ok = run_script(lua, "test_systems.lua") and ok
+        ok = run_script(lua, "test_ui.lua") and ok
+        ok = run_script(lua, "test_balance.lua", 1) and ok
+        report_coverage(lua)
+
+    if what == "partial":
+        hours = float(argv[2]) if len(argv) > 2 else 6
+        lua = new_runtime(partial=True)
+        ok = run_script(lua, "test_systems.lua") and ok
+        ok = run_script(lua, "test_balance.lua", hours) and ok
+
+    print("RESULT: %s" % ("PASS" if ok else "FAIL"))
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

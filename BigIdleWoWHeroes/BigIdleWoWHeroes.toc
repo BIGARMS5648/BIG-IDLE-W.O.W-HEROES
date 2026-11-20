@@ -1,0 +1,42 @@
+## Interface: 16001
+## Title: Big Idle W.O.W Heroes
+## Title-koKR: Big Idle W.O.W Heroes |cff9d9d9d(방치형 영웅단)|r
+## Notes: An idle party auto-battler that plays itself in a small bar. /biwh
+## Notes-koKR: 화면 한켠의 작은 바에서 저절로 싸우는 방치형 5인 파티 RPG. /biwh
+## Version: 1.0.0
+## SavedVariables: BigIdleWoWHeroesDB
+## IconTexture: Interface\Icons\INV_Misc_Book_09
+## AddonCompartmentFunc: BigIdleWoWHeroes_OnAddonCompartmentClick
+
+Core\Core.lua
+
+Data\Items.lua
+Data\Skills.lua
+Data\Classes.lua
+Data\Monsters.lua
+Data\Stages.lua
+Data\Runes.lua
+Data\Pets.lua
+
+Systems\State.lua
+Systems\Runes.lua
+Systems\Stats.lua
+Systems\Items.lua
+Systems\Heroes.lua
+Systems\Loot.lua
+Systems\Forge.lua
+Systems\Combat.lua
+Systems\Offline.lua
+
+UI\Widgets.lua
+UI\Bar.lua
+UI\Main.lua
+UI\TabParty.lua
+UI\TabHero.lua
+UI\TabBag.lua
+UI\TabForge.lua
+UI\TabRunes.lua
+UI\TabMap.lua
+UI\TabOptions.lua
+
+Init.lua

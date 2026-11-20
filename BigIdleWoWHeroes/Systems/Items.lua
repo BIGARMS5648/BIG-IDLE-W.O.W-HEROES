@@ -1,0 +1,517 @@
+-- Item instances: generation, naming, stat iteration, bag / bank handling.
+--
+-- An item is a plain table so it can live in SavedVariables:
+--   s = slot, t = weapon type (weapons only), l = level, q = quality,
+--   a = inherent affixes, g/e/i = gem / enchant / inscription sockets,
+--   each entry { affixKey, value [, materialTier] }, lock = true when protected.
+local _, ns = ...
+
+local floor, max, min, random = math.floor, math.max, math.min, math.random
+local U = ns.U
+
+local Items = {}
+ns.Items = Items
+
+local BASE_ORDER = { "atk", "hp", "armor", "aspd", "crit", "block", "cast", "heal" }
+
+local function roundValue(v)
+	if v >= 20 then return floor(v + 0.5) end
+	return floor(v * 10 + 0.5) / 10
+end
+
+------------------------------------------------------------------------
+-- Reading an item
+------------------------------------------------------------------------
+function Items.Def(it)
+	if it.t then return ns.WTYPE[it.t] end
+	return ns.SLOT[it.s]
+end
+
+function Items.Cat(it)
+	return ns.SLOT[it.s].cat
+end
+
+-- Fusion keeps armor / weapons apart from accessories.
+function Items.FuseCat(it)
+	return ns.SLOT[it.s].cat == "accessory" and "accessory" or "gear"
+end
+
+function Items.Tier(it)
+	return min(#ns.ITEM_TIER, floor(it.l / 10) + 1)
+end
+
+function Items.Name(it)
+	local def = Items.Def(it)
+	local tname = def.tname or def.name
+	return ns.N(ns.ITEM_TIER[Items.Tier(it)]) .. " " .. ns.N(tname)
+end
+
+function Items.ColorName(it)
+	return U.col(ns.QUALITY[it.q].hex, Items.Name(it))
+end
+
+function Items.Icon(it)
+	local def = Items.Def(it)
+	local icons = def.icons
+	return icons[min(#icons, floor((Items.Tier(it) + 1) / 2))]
+end
+
+function Items.ReqLevel(it)
+	return max(1, it.l - 2)
+end
+
+-- Base stats are derived from type, level and quality (never stored).
+function Items.BaseStats(it)
+	local def = Items.Def(it)
+	local q = ns.QUALITY[it.q]
+	local out = {}
+	for i = 1, #BASE_ORDER do
+		local key = BASE_ORDER[i]
+		local b = def.base[key]
+		if b then
+			local a = ns.AFFIX[key]
+			local v
+			if a.s then
+				v = b * ns.Scale[a.s](it.l) * q.mult
+			else
+				v = b * (0.8 + 0.1 * it.q)
+			end
+			out[#out + 1] = { key, roundValue(v) }
+		end
+	end
+	return out
+end
+
+-- Calls fn(acc, affixKey, value) for every stat the item grants.
+function Items.EachMod(it, fn, acc)
+	local base = Items.BaseStats(it)
+	for i = 1, #base do
+		fn(acc, base[i][1], base[i][2])
+	end
+	local lists = { it.a, it.g, it.e, it.i }
+	for n = 1, 4 do
+		local l = lists[n]
+		if l then
+			for i = 1, #l do
+				fn(acc, l[i][1], l[i][2])
+			end
+		end
+	end
+end
+
+function Items.SocketCount(it, kind)
+	return ns.QUALITY[it.q][kind] or 0
+end
+
+function Items.SocketList(it, kind, create)
+	local f = ns.SOCKET_FIELD[kind]
+	if not it[f] and create then it[f] = {} end
+	return it[f]
+end
+
+function Items.FreeSockets(it, kind)
+	local l = Items.SocketList(it, kind)
+	return Items.SocketCount(it, kind) - (l and #l or 0)
+end
+
+function Items.HasSockets(it)
+	return (it.g and #it.g > 0) or (it.e and #it.e > 0) or (it.i and #it.i > 0)
+end
+
+-- Gold and forge experience from smelting.
+function Items.Value(it)
+	local q = ns.QUALITY[it.q]
+	local gold = floor(q.gold * ns.MobGold(1, it.l) + 0.5)
+	local fxp = q.fxp * (1 + 0.5 * (it.l - 1)) * ns.SLOT[it.s].fxp
+	return gold, fxp
+end
+
+function Items.CanUse(heroId, it)
+	local c = ns.CLASSES[heroId]
+	if it.s == "mh" then
+		return U.contains(c.mh, it.t)
+	elseif it.s == "oh" then
+		return U.contains(c.oh, it.t)
+	end
+	return true
+end
+
+function Items.CanEquip(heroId, it)
+	if not Items.CanUse(heroId, it) then
+		return false, ns.T("이 직업은 사용할 수 없는 장비입니다.", "This class cannot use that item.")
+	end
+	local h = ns.db.heroes[heroId]
+	if h.level < Items.ReqLevel(it) then
+		return false, string.format(ns.T("%d레벨이 되어야 착용할 수 있습니다.", "Requires level %d."), Items.ReqLevel(it))
+	end
+	return true
+end
+
+function Items.UsableBy(it)
+	local names = {}
+	for _, id in ipairs(ns.CLASS_ORDER) do
+		if Items.CanUse(id, it) then
+			names[#names + 1] = U.col(ns.CLASSES[id].hex, ns.N(ns.CLASSES[id].name))
+		end
+	end
+	return table.concat(names, ", ")
+end
+
+------------------------------------------------------------------------
+-- Generation
+------------------------------------------------------------------------
+local function rollAffix(entry, level, quality)
+	local key, lo, hi = entry[1], entry[2], entry[3]
+	local a = ns.AFFIX[key]
+	local v
+	if a.s then
+		v = U.rnd(lo, hi) * ns.Scale[a.s](level) * ns.QUALITY[quality].mult
+	else
+		v = U.rnd(lo, hi) * (1 + level / 200) * (0.86 + 0.07 * quality)
+	end
+	return { key, roundValue(v) }
+end
+
+-- Weapon types the current party can actually use ("personal loot").
+local function partyTypes(slot)
+	local set, list = {}, {}
+	for i = 1, ns.PARTY_SIZE do
+		local id = ns.db.party[i]
+		if id then
+			for _, t in ipairs(ns.CLASSES[id][slot]) do
+				if not set[t] then
+					set[t] = true
+					list[#list + 1] = t
+				end
+			end
+		end
+	end
+	return list
+end
+
+function Items.RandomType(slot)
+	local all = slot == "mh" and ns.WTYPES_MH or ns.WTYPES_OH
+	if ns.db and random() < 0.75 then
+		local list = partyTypes(slot)
+		if #list > 0 then return U.pick(list) end
+	end
+	return U.pick(all)
+end
+
+function Items.New(slot, level, quality, wtype)
+	level = U.clamp(floor(level + 0.5), 1, ns.HERO_MAX_LEVEL)
+	quality = U.clamp(quality, 1, ns.MAX_QUALITY)
+	local it = { s = slot, l = level, q = quality }
+	if slot == "mh" or slot == "oh" then
+		it.t = wtype or Items.RandomType(slot)
+	end
+	local n = ns.QUALITY[quality].affix
+	if n > 0 then
+		it.a = {}
+		local pool = ns.AFFIX_POOL[ns.SLOT[slot].cat]
+		local used = {}
+		for _ = 1, n do
+			local choices = {}
+			for i = 1, #pool do
+				if not used[pool[i][1]] then
+					choices[#choices + 1] = pool[i]
+				end
+			end
+			local e = U.weighted(choices, 4)
+			used[e[1]] = true
+			it.a[#it.a + 1] = rollAffix(e, level, quality)
+		end
+		-- high-end amulets may carry +1 to all skills instead of their last affix
+		if slot == "neck" and quality >= 6 and random() < 0.2 then
+			it.a[#it.a] = { "skills", 1 }
+		end
+	end
+	return it
+end
+
+-- Random slot for a level, optionally restricted to a fusion category.
+function Items.RandomSlot(level, cat)
+	local choices = {}
+	for _, slot in ipairs(ns.SLOTS) do
+		local def = ns.SLOT[slot]
+		local okLevel = (def.minLevel or 1) <= level
+		local isAcc = def.cat == "accessory"
+		local okCat = (cat == nil) or (cat == "accessory" and isAcc) or (cat == "gear" and not isAcc)
+		if okCat and (okLevel or cat ~= nil) then
+			choices[#choices + 1] = { slot = slot, w = def.w }
+		end
+	end
+	return U.weighted(choices).slot
+end
+
+-- Rolls a socket stat for an item; returns the entry that was added.
+function Items.AddSocket(it, kind, tier)
+	local pool = ns.SOCKET[kind][Items.Cat(it)]
+	local e = U.pick(pool)
+	local a = ns.AFFIX[e[1]]
+	local v
+	if e[1] == "skills" then
+		v = 1
+	elseif a.s then
+		v = U.rnd(e[2], e[3]) * ns.Scale[a.s](ns.SOCKET_TIER_LEVEL[tier])
+	else
+		v = U.rnd(e[2], e[3]) * ns.SOCKET_TIER_MULT[tier]
+	end
+	local entry = { e[1], roundValue(v), tier }
+	local l = Items.SocketList(it, kind, true)
+	l[#l + 1] = entry
+	return entry
+end
+
+------------------------------------------------------------------------
+-- Bag and bank
+------------------------------------------------------------------------
+function Items.BagFree()
+	return ns.BagSize() - #ns.db.bag
+end
+
+function Items.BankFree()
+	return ns.BankSize() - #ns.db.bank
+end
+
+function Items.AddToBag(it)
+	if Items.BagFree() <= 0 then return false end
+	local bag = ns.db.bag
+	bag[#bag + 1] = it
+	ns.Fire("BAG")
+	return true
+end
+
+function Items.RemoveFromBag(index)
+	local it = table.remove(ns.db.bag, index)
+	ns.Fire("BAG")
+	return it
+end
+
+function Items.IndexInBag(it)
+	local bag = ns.db.bag
+	for i = 1, #bag do
+		if bag[i] == it then return i end
+	end
+end
+
+function Items.ToggleLock(it)
+	it.lock = (not it.lock) or nil
+	ns.Fire("BAG")
+end
+
+function Items.ToBank(index)
+	if Items.BankFree() <= 0 then
+		return false, ns.T("은행이 가득 찼습니다.", "The bank is full.")
+	end
+	local it = table.remove(ns.db.bag, index)
+	if not it then return false end
+	ns.db.bank[#ns.db.bank + 1] = it
+	ns.Fire("BAG")
+	return true
+end
+
+function Items.FromBank(index)
+	if Items.BagFree() <= 0 then
+		return false, ns.T("가방이 가득 찼습니다.", "Your bags are full.")
+	end
+	local it = table.remove(ns.db.bank, index)
+	if not it then return false end
+	ns.db.bag[#ns.db.bag + 1] = it
+	ns.Fire("BAG")
+	return true
+end
+
+local function sortKey(it)
+	local slotIndex = 0
+	for i = 1, #ns.SLOTS do
+		if ns.SLOTS[i] == it.s then slotIndex = i end
+	end
+	return it.q * 100000 + it.l * 100 + (20 - slotIndex)
+end
+
+function Items.Sort(list)
+	table.sort(list, function(a, b)
+		local ka, kb = sortKey(a), sortKey(b)
+		if ka ~= kb then return ka > kb end
+		return (a.t or "") < (b.t or "")
+	end)
+	ns.Fire("BAG")
+end
+
+------------------------------------------------------------------------
+-- Equipping
+------------------------------------------------------------------------
+function Items.Equip(heroId, bagIndex)
+	local db = ns.db
+	local it = db.bag[bagIndex]
+	if not it then return false end
+	local ok, why = Items.CanEquip(heroId, it)
+	if not ok then return false, why end
+	local h = db.heroes[heroId]
+	local old = h.gear[it.s]
+	table.remove(db.bag, bagIndex)
+	h.gear[it.s] = it
+	it.lock = nil
+	if old then
+		table.insert(db.bag, bagIndex, old)
+	end
+	ns.Stats.Invalidate(heroId)
+	ns.Fire("BAG")
+	ns.Fire("GEAR", heroId)
+	return true
+end
+
+function Items.Unequip(heroId, slot)
+	local h = ns.db.heroes[heroId]
+	local it = h.gear[slot]
+	if not it then return false end
+	if Items.BagFree() <= 0 then
+		return false, ns.T("가방이 가득 찼습니다.", "Your bags are full.")
+	end
+	h.gear[slot] = nil
+	ns.db.bag[#ns.db.bag + 1] = it
+	ns.Stats.Invalidate(heroId)
+	ns.Fire("BAG")
+	ns.Fire("GEAR", heroId)
+	return true
+end
+
+-- Would this bag item be an upgrade for the hero? Returns the power ratio.
+function Items.Compare(heroId, it)
+	if not Items.CanEquip(heroId, it) then return nil end
+	local h = ns.db.heroes[heroId]
+	local cur = ns.Stats.Power(heroId)
+	local gear = {}
+	for k, v in pairs(h.gear) do gear[k] = v end
+	gear[it.s] = it
+	local new = ns.Stats.Power(heroId, gear)
+	return new / max(0.0001, cur)
+end
+
+-- Puts the best usable bag item into every slot. Returns how many changed.
+function Items.AutoEquip(heroId)
+	local db = ns.db
+	local changed = 0
+	for _ = 1, 3 do -- a few passes because percent stats interact
+		local any = false
+		for _, slot in ipairs(ns.SLOTS) do
+			local bestIndex, bestRatio = nil, 1.002
+			for i = 1, #db.bag do
+				local it = db.bag[i]
+				if it.s == slot then
+					local r = Items.Compare(heroId, it)
+					if r and r > bestRatio then
+						bestIndex, bestRatio = i, r
+					end
+				end
+			end
+			if bestIndex then
+				Items.Equip(heroId, bestIndex)
+				changed = changed + 1
+				any = true
+			end
+		end
+		if not any then break end
+	end
+	return changed
+end
+
+------------------------------------------------------------------------
+-- Tooltip text: array of { left, right, r, g, b }
+------------------------------------------------------------------------
+function Items.Tooltip(it, heroId)
+	local T = ns.T
+	local q = ns.QUALITY[it.q]
+	local lines = {}
+	local function add(left, right, r, g, b)
+		lines[#lines + 1] = { left, right, r or 1, g or 1, b or 1 }
+	end
+	local qr, qg, qb = U.rgb(q.hex)
+	add(Items.Name(it), nil, qr, qg, qb)
+	add(ns.N(q.name) .. " " .. ns.N(ns.SLOT[it.s].name), T("아이템 레벨 ", "Item Level ") .. it.l, 0.7, 0.7, 0.7)
+	for _, b in ipairs(Items.BaseStats(it)) do
+		add(ns.Stats.ModText(b[1], b[2]), nil, 1, 1, 1)
+	end
+	if it.a then
+		for _, a in ipairs(it.a) do
+			add(ns.Stats.ModText(a[1], a[2]), nil, 0.2, 1, 0.2)
+		end
+	end
+	for _, kind in ipairs(ns.SOCKET_KINDS) do
+		local total = Items.SocketCount(it, kind)
+		if total > 0 then
+			local l = Items.SocketList(it, kind)
+			local label = ns.N(ns.SOCKET[kind].short)
+			for i = 1, total do
+				local e = l and l[i]
+				if e then
+					add("[" .. label .. "] " .. ns.Stats.ModText(e[1], e[2]), nil, 0.4, 0.8, 1)
+				else
+					add("[" .. label .. "] " .. T("비어 있음", "Empty"), nil, 0.5, 0.5, 0.5)
+				end
+			end
+		end
+	end
+	if it.t then
+		add(T("사용 가능: ", "Classes: ") .. Items.UsableBy(it), nil, 0.8, 0.8, 0.8)
+	end
+	local req = Items.ReqLevel(it)
+	local h = heroId and ns.db.heroes[heroId]
+	if h and h.level < req then
+		add(string.format(T("요구 레벨 %d", "Requires Level %d"), req), nil, 1, 0.2, 0.2)
+	else
+		add(string.format(T("요구 레벨 %d", "Requires Level %d"), req), nil, 0.8, 0.8, 0.8)
+	end
+	local gold = Items.Value(it)
+	add(T("용해 가치", "Smelt value"), U.fmt(gold) .. " G", 1, 0.82, 0)
+	if it.lock then
+		add(T("잠김 - 일괄 용해/융합에서 제외", "Locked - skipped by bulk smelt / fusion"), nil, 1, 0.5, 0.2)
+	end
+	if h and it ~= h.gear[it.s] then
+		local r = Items.Compare(heroId, it)
+		if r then
+			local pct = (r - 1) * 100
+			local name = ns.N(ns.CLASSES[heroId].name)
+			if pct > 0.2 then
+				add(string.format(T("%s 전투력 +%s%%", "%s power +%s%%"), name, U.num(pct, 1)), nil, 0.2, 1, 0.2)
+			elseif pct < -0.2 then
+				add(string.format(T("%s 전투력 %s%%", "%s power %s%%"), name, U.num(pct, 1)), nil, 1, 0.3, 0.3)
+			else
+				add(string.format(T("%s 전투력 변화 없음", "%s power unchanged"), name), nil, 0.7, 0.7, 0.7)
+			end
+		elseif not Items.CanUse(heroId, it) then
+			add(T("선택한 영웅은 사용할 수 없습니다.", "The selected hero cannot use this."), nil, 1, 0.3, 0.3)
+		end
+	end
+	return lines
+end
+
+function Items.MatTooltip(id)
+	local T = ns.T
+	local m = ns.MATS[id]
+	local lines = {}
+	local r, g, b = U.rgb(ns.QUALITY[m.q].hex)
+	lines[#lines + 1] = { ns.N(m.name), nil, r, g, b }
+	lines[#lines + 1] = { ns.N(ns.MAT_KIND_NAME[m.kind]) .. " " .. string.format(T("%d단계", "Tier %d"), m.tier), nil, 0.7, 0.7, 0.7 }
+	local use
+	if m.kind == "bar" or m.kind == "leather" or m.kind == "cloth" then
+		use = T("용광로 '제작'의 재료입니다.", "Used by the forge's Craft operation.")
+	elseif m.kind == "gem" then
+		use = T("'보석 세공'으로 장비의 보석 홈에 능력치를 부여합니다.", "Adds a stat to a gem socket.")
+	elseif m.kind == "dust" then
+		use = T("'마법부여'로 장비에 능력치를 부여합니다.", "Adds a stat to an enchant slot.")
+	elseif m.kind == "scroll" then
+		use = T("'룬 각인'으로 장비에 능력치를 부여합니다.", "Adds a stat to an inscription slot.")
+	else
+		use = T("'보너스 굴림'에 바쳐 무작위 장비를 얻습니다.", "Offer it in a Bonus Roll for a random item.")
+	end
+	lines[#lines + 1] = { use, nil, 1, 0.82, 0, true }
+	if m.tier < ns.MAT_MAX_TIER[m.kind] then
+		lines[#lines + 1] = { T("9개를 융합하면 다음 단계 1개가 됩니다.", "Fuse 9 into one of the next tier."), nil, 0.6, 0.8, 1, true }
+	end
+	local gold = ns.MatValue(id)
+	lines[#lines + 1] = { T("용해 가치", "Smelt value"), U.fmt(gold) .. " G", 1, 0.82, 0 }
+	lines[#lines + 1] = { T("보유", "Owned"), tostring(ns.MatCount(id)), 0.8, 0.8, 0.8 }
+	return lines
+end
