@@ -103,9 +103,9 @@ ns.STAGES = {
 			{ skills = { { kind = "smash", cd = 8, mult = 2.6 }, { kind = "shield", cd = 20, dur = 6, dr = 70 }, { kind = "enrage", hp = 0.3, mult = 1.3 } } }) },
 	{ name = { "안퀴라즈 사원", "Temple of Ahn'Qiraj" }, raid = true, mobs = { { "anubisath", 40 }, { "qiraji", 60 } },
 		boss = B("쑨", "C'Thun", "INV_Misc_Eye_01", "beast", 1900, 15, 0.7,
-			{ range = 600, school = "shadow", res = { shadow = 50 }, skills = {
-				{ kind = "aoe", cd = 8, mult = 1.0, school = "shadow" },
-				{ kind = "summon", cd = 15, mob = "eye_tentacle", n = 3 },
+			{ school = "shadow", res = { shadow = 50 }, skills = {
+				{ kind = "aoe", cd = 9, mult = 1.0, school = "shadow" },
+				{ kind = "summon", cd = 18, mob = "eye_tentacle", n = 2 },
 				{ kind = "shield", cd = 30, dur = 7, dr = 75 },
 				{ kind = "enrage", hp = 0.2, mult = 1.5 },
 			} }) },

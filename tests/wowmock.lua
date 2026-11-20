@@ -45,11 +45,23 @@ function Region:SetPoint(point, a, b, c, d)
 		check(b == nil or type(b) == "number", "SetPoint: y offset must be a number")
 	end
 	self.__points[#self.__points + 1] = { point, a, b, c, d }
+	-- the same anchor in one canonical shape, for the layout preview
+	local relTo, relPoint, x, y = self.__parent, point, 0, 0
+	if type(a) == "table" then
+		relTo = a
+		if type(b) == "string" then relPoint, x, y = b, c or 0, d or 0 else x, y = b or 0, c or 0 end
+	elseif type(a) == "string" then
+		relPoint, x, y = a, b or 0, c or 0
+	elseif type(a) == "number" then
+		x, y = a, b or 0
+	end
+	self.__anchors[#self.__anchors + 1] = { point, relTo, relPoint, x, y }
 end
-function Region:ClearAllPoints() self.__points = {} end
+function Region:ClearAllPoints() self.__points = {} self.__anchors = {} end
 function Region:SetAllPoints(other)
 	check(other == nil or (type(other) == "table" and other.__widget), "SetAllPoints: bad target")
 	self.__points = { { "ALL" } }
+	self.__anchors = { { "ALL", other or self.__parent } }
 end
 function Region:GetPoint(i)
 	local p = self.__points[i or 1]
@@ -131,6 +143,7 @@ function Texture:GetTexture() return self.__tex end
 function Texture:SetColorTexture(r, g, b, a)
 	check(type(r) == "number" and type(g) == "number" and type(b) == "number", "SetColorTexture: numbers expected")
 	self.__tex = "color"
+	self.__color = { r, g, b, a or 1 }
 end
 function Texture:SetTexCoord(...)
 	local n = select("#", ...)
@@ -139,9 +152,10 @@ function Texture:SetTexCoord(...)
 end
 function Texture:SetVertexColor(r, g, b, a)
 	check(type(r) == "number" and type(g) == "number" and type(b) == "number", "SetVertexColor: numbers expected")
+	self.__vertex = { r, g, b, a or 1 }
 end
 function Texture:SetBlendMode(m) check(m == "ADD" or m == "BLEND" or m == "DISABLE" or m == "MOD" or m == "ALPHAKEY", "SetBlendMode: bad mode") end
-function Texture:SetDrawLayer(l, sub) check(LAYERS[l], "SetDrawLayer: bad layer") end
+function Texture:SetDrawLayer(l, sub) check(LAYERS[l], "SetDrawLayer: bad layer") self.__layer = l end
 function Texture:SetDesaturated(v) end
 function Texture:SetRotation(r) check(type(r) == "number", "SetRotation: number expected") end
 
@@ -167,10 +181,11 @@ function FontString:GetFont() if self.__font then return self.__font[1], self.__
 function FontString:SetFontObject(o) end
 function FontString:SetTextColor(r, g, b, a)
 	check(type(r) == "number" and type(g) == "number" and type(b) == "number", "SetTextColor: numbers expected")
+	self.__color = { r, g, b, a or 1 }
 end
-function FontString:SetJustifyH(j) check(j == "LEFT" or j == "CENTER" or j == "RIGHT", "SetJustifyH: bad value " .. tostring(j)) end
-function FontString:SetJustifyV(j) check(j == "TOP" or j == "MIDDLE" or j == "BOTTOM", "SetJustifyV: bad value " .. tostring(j)) end
-function FontString:SetWordWrap(v) end
+function FontString:SetJustifyH(j) check(j == "LEFT" or j == "CENTER" or j == "RIGHT", "SetJustifyH: bad value " .. tostring(j)) self.__jh = j end
+function FontString:SetJustifyV(j) check(j == "TOP" or j == "MIDDLE" or j == "BOTTOM", "SetJustifyV: bad value " .. tostring(j)) self.__jv = j end
+function FontString:SetWordWrap(v) self.__nowrap = not v end
 function FontString:SetNonSpaceWrap(v) end
 function FontString:SetMaxLines(n) end
 function FontString:SetShadowOffset(x, y) end
@@ -215,12 +230,16 @@ function Frame:UnregisterEvent(ev) self.__events[ev] = nil end
 function Frame:UnregisterAllEvents() self.__events = {} end
 function Frame:CreateTexture(name, layer, template, sub)
 	check(layer == nil or LAYERS[layer], "CreateTexture: bad layer " .. tostring(layer))
-	local t = setmetatable({ __widget = true, __type = "Texture", __points = {}, __shown = true, __parent = self, __name = name }, { __index = Texture })
+	local t = setmetatable({ __widget = true, __type = "Texture", __points = {}, __anchors = {}, __shown = true, __parent = self, __name = name,
+		__layer = layer or "ARTWORK" }, { __index = Texture })
+	self.__regions[#self.__regions + 1] = t
 	return t
 end
 function Frame:CreateFontString(name, layer, template)
 	check(layer == nil or LAYERS[layer], "CreateFontString: bad layer " .. tostring(layer))
-	local t = setmetatable({ __widget = true, __type = "FontString", __points = {}, __shown = true, __parent = self, __name = name, __text = "" }, { __index = FontString })
+	local t = setmetatable({ __widget = true, __type = "FontString", __points = {}, __anchors = {}, __shown = true, __parent = self, __name = name, __text = "",
+		__layer = layer or "ARTWORK" }, { __index = FontString })
+	self.__regions[#self.__regions + 1] = t
 	if template then t.__font = { "template", 12 } end
 	return t
 end
@@ -233,7 +252,7 @@ function Frame:StartMoving() check(self.__movable, "StartMoving on a frame that 
 function Frame:StopMovingOrSizing() end
 function Frame:SetClampedToScreen(v) end
 function Frame:SetUserPlaced(v) end
-function Frame:SetFrameStrata(s) check(STRATA[s], "SetFrameStrata: bad strata " .. tostring(s)) end
+function Frame:SetFrameStrata(s) check(STRATA[s], "SetFrameStrata: bad strata " .. tostring(s)) self.__strata = s end
 function Frame:SetFrameLevel(l) check(type(l) == "number" and l >= 0, "SetFrameLevel: non-negative number expected") self.__level = l end
 function Frame:GetFrameLevel() return self.__level or 1 end
 function Frame:SetToplevel(v) end
@@ -286,8 +305,8 @@ function _G.CreateFrame(ftype, name, parent, template)
 	check(template == nil or template == "BackdropTemplate", "CreateFrame: unexpected template " .. tostring(template))
 	local class = CLASSES[ftype]
 	local f = setmetatable({
-		__widget = true, __type = ftype, __points = {}, __shown = true, __parent = parent, __name = name,
-		__scripts = {}, __events = {}, __children = {},
+		__widget = true, __type = ftype, __points = {}, __anchors = {}, __shown = true, __parent = parent, __name = name,
+		__scripts = {}, __events = {}, __children = {}, __regions = {},
 	}, { __index = class })
 	if parent then parent.__children[#parent.__children + 1] = f end
 	Mock.frames[#Mock.frames + 1] = f
@@ -373,6 +392,107 @@ function Mock.VisibleButtons()
 		end
 	end
 	return out
+end
+
+------------------------------------------------------------------------
+-- Layout preview: everything currently visible, as a flat JSON-ready list
+-- (tests/preview.py turns it into a picture).
+------------------------------------------------------------------------
+function Mock.Export()
+	local ids, n = {}, 0
+	local function id(w)
+		if not w then return 0 end
+		if not ids[w] then
+			n = n + 1
+			ids[w] = n
+		end
+		return ids[w]
+	end
+	local out = {}
+	local function anchors(w)
+		local list = {}
+		for _, a in ipairs(w.__anchors) do
+			if a[1] == "ALL" then
+				list[#list + 1] = { "ALL", id(a[2]) }
+			else
+				list[#list + 1] = { a[1], id(a[2]), a[3], a[4], a[5] }
+			end
+		end
+		return list
+	end
+	local function add(w, kind, order)
+		local e = {
+			id = id(w), kind = kind, parent = id(w.__parent), w = w.__w or 0, h = w.__h or 0,
+			alpha = w.__alpha or 1, anchors = anchors(w), order = order, scale = w.__scale or 1,
+		}
+		if kind == "texture" then
+			e.layer = w.__layer
+			e.color = w.__color
+			e.tex = (w.__tex ~= "color") and w.__tex or nil
+			e.vertex = w.__vertex
+		elseif kind == "text" then
+			e.layer = w.__layer
+			e.text = w.__text
+			e.size = w.__font and w.__font[2] or 12
+			e.color = w.__color
+			e.jh = w.__jh or "CENTER"
+			e.jv = w.__jv or "MIDDLE"
+			e.nowrap = w.__nowrap or false
+		else
+			e.strata = w.__strata
+			e.level = w.__level
+		end
+		out[#out + 1] = e
+	end
+	local order = 0
+	local function walk(f)
+		if not f.__shown then return end
+		order = order + 1
+		add(f, "frame", order)
+		for _, r in ipairs(f.__regions) do
+			if r.__shown then
+				order = order + 1
+				add(r, r.__type == "Texture" and "texture" or "text", order)
+			end
+		end
+		for _, c in ipairs(f.__children) do walk(c) end
+	end
+	for _, f in ipairs(Mock.frames) do
+		if not f.__parent then walk(f) end
+	end
+	return out, id(UIParent)
+end
+
+local function json(v)
+	local t = type(v)
+	if t == "table" then
+		if #v > 0 or next(v) == nil then
+			local parts = {}
+			for i = 1, #v do parts[i] = json(v[i]) end
+			return "[" .. table.concat(parts, ",") .. "]"
+		end
+		local parts = {}
+		for k, x in pairs(v) do parts[#parts + 1] = string.format("%q", tostring(k)) .. ":" .. json(x) end
+		return "{" .. table.concat(parts, ",") .. "}"
+	elseif t == "string" then
+		return '"' .. v:gsub('[%c"\\]', function(c)
+			if c == "\n" then return "\\n" end
+			if c == '"' then return '\\"' end
+			if c == "\\" then return "\\\\" end
+			return string.format("\\u%04x", c:byte())
+		end) .. '"'
+	elseif t == "number" then
+		if v ~= v or v == math.huge or v == -math.huge then return "0" end
+		return string.format("%.4f", v)
+	elseif t == "boolean" then
+		return v and "true" or "false"
+	end
+	return "null"
+end
+
+function Mock.ExportJSON()
+	local list, root = Mock.Export()
+	return '{"root":' .. root .. ',"items":' .. json(list) .. "}"
 end
 
 return Mock

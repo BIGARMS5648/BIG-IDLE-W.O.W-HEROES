@@ -9,8 +9,8 @@ ns.Bar = Bar
 
 local W, H = 724, 92
 local LANE_X, LANE_W, LANE_H = 176, 424, 80
-local UNIT = 30
-local BOSS = 40
+local UNIT = 28
+local BOSS = 38
 local MAX_MOBS = 12
 local MAX_FLOATS = 26
 

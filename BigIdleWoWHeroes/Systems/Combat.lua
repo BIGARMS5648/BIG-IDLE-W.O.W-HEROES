@@ -453,8 +453,13 @@ local function mobSkill(m, entry)
 		end
 	elseif kind == "summon" then
 		local def = ns.MONSTERS[sk.mob]
+		-- adds do not pile up without limit while the party is busy with the boss
+		local out = 0
+		for i = 1, #mobs do
+			if mobs[i].summoned and not mobs[i].dead then out = out + 1 end
+		end
 		for i = 1, sk.n do
-			if #mobs < MAX_MOBS then
+			if #mobs < MAX_MOBS and out + i <= 4 then
 				local add = newMob(def, false, i, true)
 				add.x = min(LANE, m.x + 40 + i * 35)
 				mobs[#mobs + 1] = add
@@ -507,7 +512,7 @@ local function stepMob(m)
 	if m.range then
 		stopX = front.x + 230 + m.off * 2
 	else
-		stopX = front.x + 55 + m.off
+		stopX = front.x + 75 + m.off * 1.5
 	end
 	if m.x > stopX then
 		m.x = max(stopX, m.x - m.move * slow * STEP)
@@ -881,12 +886,12 @@ local function layoutParty()
 	local wasRanged = false
 	for _, u in ipairs(order) do
 		if u.ranged and not wasRanged and x < FRONT_X then
-			x = x - 20
+			x = x - 10
 		end
 		wasRanged = u.ranged
 		u.homeX = x
 		u.x = x
-		x = x - (u.ranged and 60 or 70)
+		x = x - (u.ranged and 72 or 78)
 	end
 end
 
