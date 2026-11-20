@@ -90,7 +90,7 @@ def hero_tile(S, anim, k, body):
     head = (cx + 1.2 * lean, base - 0.84 * u - bob)
     shoulder = (neck[0], neck[1] + 0.05 * u)
     hand_a, sword_a = {
-        "idle": (-35, 55 + 3 * k), "walk": (-35 + 8 * math.sin(k), 55), "attack": (10, 50 - 22 * k),
+        "idle": (-35, 55 + 3 * k), "walk": (-35 + 8 * math.sin(k), 55), "attack": (10, (80, 64, 48, 40)[min(k, 3)]),
         "cast": (40, 50), "hit": (-50, 30), "death": (-35, 55),
     }[anim]
     seg(d, hip, (cx - spread * u, base), body, 0.07 * u)
@@ -99,11 +99,11 @@ def hero_tile(S, anim, k, body):
     disc(d, head, 0.11 * u, (240, 200, 170, 255))
     hand = pol(shoulder, hand_a, 0.26 * u)
     seg(d, shoulder, hand, body, 0.06 * u)
-    blade = pol(hand, sword_a, 0.30 * u)
+    blade = pol(hand, sword_a, 0.20 * u)
     seg(d, hand, blade, (190, 190, 200, 255), 0.035 * u)
-    b0 = pol(blade, sword_a, 0.10 * u)               # gap of 10% of the height: beyond the merge dilation
-    apex = pol(b0, sword_a, 0.07 * u)
-    c1, c2 = pol(b0, sword_a + 90, 0.03 * u), pol(b0, sword_a - 90, 0.03 * u)
+    b0 = pol(blade, sword_a, 0.09 * u)               # a gap of ~9% of the height: wider than the merge dilation
+    apex = pol(b0, sword_a, 0.08 * u)
+    c1, c2 = pol(b0, sword_a + 90, 0.035 * u), pol(b0, sword_a - 90, 0.035 * u)
     poly(d, [apex, c1, c2], TIP)
     if anim == "cast":
         disc(d, (hand[0], hand[1] - 0.07 * u), 0.06 * u, (255, 230, 80, 255))
@@ -111,14 +111,13 @@ def hero_tile(S, anim, k, body):
     return finish_tile(im, rot, (cx, base))
 
 
-def wolf_tile(S, anim, k):
+def wolf_tile(S, anim, k, fur=(120, 110, 100, 255)):
     """A four-legged beast drawn facing right, then mirrored (monsters face left)."""
     T = int(2.2 * S)
     u = S * SS
     im = Image.new("RGBA", (T * SS, T * SS), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     cx, base = T * SS / 2.0, T * SS - 0.06 * u
-    fur = (120, 110, 100, 255)
     sh = (0.02 * k * u) if anim == "attack" else (-0.05 * u if anim == "hit" else 0.0)
     step = 0.06 * math.sin(k * math.pi / 2) * u if anim == "walk" else 0.0
     by = base - 0.42 * u
@@ -164,7 +163,7 @@ def fx_tile(kind, k):
 
 
 def icon_tile(i):
-    T = 200
+    T = 240
     u = SS
     im = Image.new("RGBA", (T * SS, T * SS), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
@@ -234,6 +233,23 @@ def on_magenta(sheet):
     return bg.convert("RGB")
 
 
+def with_matte(sheet):
+    """A transparent PNG whose cut-out is a pixel too loose: a rim of the magenta it was cut from."""
+    arr = np.asarray(sheet).astype(np.float32)
+    a = arr[..., 3:4] / 255.0
+    rgb = arr[..., :3] * a + np.array(MAGENTA, np.float32) * (1 - a)
+    grown = np.asarray(Image.fromarray(arr[..., 3].astype(np.uint8)).filter(ImageFilter.MaxFilter(3)))
+    return Image.fromarray(np.dstack([rgb, grown]).astype(np.uint8), "RGBA")
+
+
+def on_busy(sheet):
+    """No usable background: random colour blotches right up to the border."""
+    small = rng.integers(0, 256, (SHEET[1] // 32, SHEET[0] // 32, 3)).astype(np.uint8)
+    bg = Image.fromarray(small, "RGB").resize(SHEET, Image.Resampling.NEAREST).convert("RGBA")
+    bg.alpha_composite(sheet)
+    return bg.convert("RGB")
+
+
 def on_noisy(sheet, path, colour=OFFWHITE):
     W, H = sheet.size
     yy, xx = np.mgrid[0:H, 0:W]
@@ -259,6 +275,10 @@ def build_art(src):
     on_noisy(layout(A, lambda a, k, j: hero_tile(S * 1.1 * j, a, k, (220, 170, 50, 255))), os.path.join(src, "hero_paladin_alliance_m_A.png"))
     mob_rows = [("idle", 4), ("walk", 3), ("attack", 4), ("hit", 2), ("death", 4)]       # one walk frame missing
     on_magenta(layout(mob_rows, lambda a, k, j: wolf_tile(120 * j, a, k), jitter_base=5)).save(os.path.join(src, "mob_wolf.png"))
+    bear_rows = [("idle", 4), ("walk", 4), ("attack", 4), ("death", 4)]                   # the 'hit' row is missing
+    with_matte(layout(bear_rows, lambda a, k, j: wolf_tile(140 * j, a, k, (90, 60, 40, 255)), jitter_base=6)).save(
+        os.path.join(src, "mob_bear.png"))
+    on_busy(layout([("idle", 4), ("walk", 4)], lambda a, k, j: wolf_tile(100 * j, a, k))).save(os.path.join(src, "pet_cat.png"))
     fx_rows = [("proj_arrow", 4), ("proj_bullet", 5), ("proj_fire", 4), ("proj_frost", 4)]  # one bullet frame too many
     layout(fx_rows, lambda a, k, j: fx_tile(a, k), jitter_size=0, jitter_base=10).save(os.path.join(src, "fx_projectiles_1.png"))
 
@@ -413,7 +433,9 @@ def main():
         warns = [ln for ln in text.splitlines() if ln.startswith("  ! ")]
         ok(any("mob_wolf.png: row 'walk': found 3 frames, expected 4" in w for w in warns), "warning: missing monster frame")
         ok(any("fx_projectiles_1.png: row 'proj_bullet': found 5 frames, expected 4" in w for w in warns), "warning: extra effect frame")
-        ok(len(warns) == 2, "no other warnings (got %d: %s)" % (len(warns), warns))
+        ok(any("mob_bear.png: missing row 'hit' (found 4 of 5 rows)" in w for w in warns), "warning: missing row")
+        ok(any("pet_cat: pet_cat.png: background not detected" in w and "not imported" in w for w in warns), "warning: background not detected")
+        ok(len(warns) == 4, "no other warnings (got %d: %s)" % (len(warns), warns))
         ok("not supplied, so attack, cast, hit, death are not imported yet" in text, "note: paladin sheet B not supplied")
         ok("removed stale texture old_unused.tga" in text and not os.path.exists(os.path.join(media, "old_unused.tga")), "stale TGA removed")
 
@@ -436,7 +458,9 @@ def main():
         ok(m.get("anims") == {"idle": [0, 4], "walk": [4, 3], "attack": [7, 4], "hit": [11, 2], "death": [13, 4]}, "wolf anims %s" % m.get("anims"))
         ok(m.get("facing") == "left" and m.get("cols") == 4 and (m.get("w"), m.get("h")) == (1024, 1024), "wolf geometry")
         ok("wolf" in (m.get("game") or {}).get("monsters", []), "wolf game.monsters list")
-        ok(set(sp) == {"hero_warrior_alliance_m", "hero_paladin_alliance_m", "mob_wolf"}, "sprite ids %s" % sorted(sp))
+        ok((sp.get("mob_bear") or {}).get("anims") == {"idle": [0, 4], "walk": [4, 4], "attack": [8, 4], "death": [12, 4]},
+           "bear without its hit row: anims %s" % (sp.get("mob_bear") or {}).get("anims"))
+        ok(set(sp) == {"hero_warrior_alliance_m", "hero_paladin_alliance_m", "mob_wolf", "mob_bear"}, "sprite ids %s" % sorted(sp))
 
         for sid, e in sp.items():
             n = sum(c for _, c in e["anims"].values())
@@ -462,9 +486,15 @@ def main():
             ok(max(abs(c - e["cw"] / 2.0) for c in centres) <= 2.0, "%s feet centred (max off %.1f)" % (sid, max(abs(c - e["cw"] / 2.0) for c in centres)))
             idle, walk = e["anims"]["idle"], e["anims"]["walk"]
             normal = [heights[k] for k in list(range(idle[0], idle[0] + idle[1])) + list(range(walk[0], walk[0] + walk[1])) if k in heights]
-            ok(0.7 * e["ch"] <= max(normal) <= 0.86 * e["ch"] + 2, "%s tallest idle/walk frame fills ~86%% (%d of %d)" % (sid, max(normal), e["ch"]))
             if sid.startswith("hero"):
-                tips = [int(((cell[..., 3] > 128) & (cell[..., 0] < 60) & (cell[..., 1] > 170) & (cell[..., 2] > 200)).sum())
+                # 86% unless another frame (here the half-fallen death pose) needs the character smaller
+                ok(0.75 * e["ch"] <= max(normal) <= 0.86 * e["ch"] + 2, "%s tallest idle/walk frame fills ~86%% (%d of %d)" % (sid, max(normal), e["ch"]))
+            else:   # a beast wider than tall is sized by how far its idle/walk frames reach from the feet
+                reach = max(float(np.abs(np.nonzero(c[..., 3] > 5)[1] + 0.5 - e["cw"] / 2.0).max())
+                            for k, c in cells(tex, e, idle[1] + walk[1]))
+                ok(0.88 * e["cw"] / 2.0 <= reach <= e["cw"] / 2.0, "%s widest idle/walk frame reaches the cell side (%.1f of %d)" % (sid, reach, e["cw"] // 2))
+            if sid.startswith("hero"):
+                tips = [int(((cell[..., 3] > 128) & (cell[..., 0] < 100) & (cell[..., 1] > 150) & (cell[..., 2] > 180)).sum())
                         for _, cell in cells(tex, e, n)]
                 ok(min(tips) >= 6, "%s detached sword tip kept in every frame (min %d px)" % (sid, min(tips)))
             opaque = tex[..., 3] > 25
@@ -521,7 +551,9 @@ def main():
         ok(ui == {"file": "ui_window", "w": 512, "h": 512, "slice": 96}, "ui_window entry %s" % ui)
         uit = read_tga(os.path.join(media, "ui_window.tga"))
         ok(uit.shape == (512, 512, 4) and uit[256, 256, 3] == 255 and uit[256, 256, 2] > uit[256, 256, 0], "ui_window fills 512x512, navy centre")
-        ok(uit[0, 256, 3] > 200 and uit[256, 0, 3] > 200, "ui_window trimmed to its frame")
+        top_edge = int(np.argmax(uit[:, 256, 3] > 200))
+        left_edge = int(np.argmax(uit[256, :, 3] > 200))
+        ok(top_edge <= 8 and left_edge <= 8, "ui_window trimmed to its frame (edges at %d, %d; the corner gems stick out)" % (top_edge, left_edge))
         ic = art.get("icons", {})
         want = SPEC_ICONS
         ok(set(ic) == set(want), "icon ids %s" % sorted(ic))
@@ -536,7 +568,7 @@ def main():
         ok(all(os.path.isfile(os.path.join(PREVIEW, a + ".png")) for a in
                ("hero_warrior_alliance_m", "hero_paladin_alliance_m", "mob_wolf", "fx_projectiles_1", "bg_forest", "ui_window", "icons_menu")),
            "contact sheets written")
-        expected_files = {"hero_warrior_alliance_m", "hero_paladin_alliance_m", "mob_wolf", "bg_forest_far", "bg_forest_near",
+        expected_files = {"hero_warrior_alliance_m", "hero_paladin_alliance_m", "mob_wolf", "mob_bear", "bg_forest_far", "bg_forest_near",
                           "ui_window", "proj_arrow", "proj_bullet", "proj_fire", "proj_frost"} | set(want)
         ok({f[:-4] for f in os.listdir(media)} == expected_files, "exactly the expected textures")
 

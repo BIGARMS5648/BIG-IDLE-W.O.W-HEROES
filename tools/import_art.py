@@ -417,6 +417,20 @@ def _clean_specks(a, H, W):
     return a
 
 
+def _grow_background(bg, weak):
+    """Extend the background through weak pixels (close to the background colour: noise,
+    JPEG colour bleeding) that are not right next to a surely-foreground pixel. The
+    thick dark outlines the style asks for stop the growth."""
+    can = weak & ~dilate(~weak, 2)
+    lab, n = label(bg | can)
+    if not n:
+        return bg
+    keep = np.zeros(n + 1, bool)
+    keep[np.unique(lab[bg])] = True
+    keep[0] = False
+    return keep[lab]
+
+
 def _suppress_magenta(rgb, sel):
     """Pull pixels that lean towards magenta (R and B above G) back to neutral."""
     if not sel.any():
@@ -428,8 +442,9 @@ def _suppress_magenta(rgb, sel):
     rgb[sel] = px
 
 
-def remove_background(rgba, has_alpha, where, log, holes=True):
-    """Returns float RGBA (0..1) with the background made transparent, and the mode used."""
+def remove_background(rgba, has_alpha, where, log, holes=True, need_bg=False):
+    """Returns float RGBA (0..1) with the background made transparent, and the mode used.
+    need_bg: no detectable background is an error (sheets of separate drawings)."""
     H, W = rgba.shape[:2]
     rgb = rgba[..., :3] * 255.0
     a = rgba[..., 3].copy()
@@ -438,14 +453,25 @@ def remove_background(rgba, has_alpha, where, log, holes=True):
 
     if has_alpha and ((a[ring] < 0.5).mean() > 0.5 or (a < 0.5).mean() > 0.08):
         a[a < 0.04] = 0.0
-        edge = dilate(a <= 0, 2) & (a > 0)
         m = np.minimum(rgb[..., 0], rgb[..., 2]) - rgb[..., 1]
-        # a magenta matte left behind by the model: nearly pure magenta edge pixels
-        matte = edge & (m > 0.85 * 255)
-        if matte.sum() > 0.001 * max(1, (a > 0).sum()):
-            est = np.clip(1.0 - m / 255.0, 0, 1)
+        # a magenta matte left behind by the model (cut out of a magenta fill, often a pixel
+        # too loosely): peel nearly pure magenta edge pixels, ring by ring, each pixel once
+        est = np.clip(1.0 - m / 255.0, 0, 1)
+        opaque = max(1, int((a > 0).sum()))
+        done = np.zeros((H, W), bool)
+        edge = dilate(a <= 0, 2) & (a > 0)
+        matte_mode = (edge & (m > 0.85 * 255)).sum() > 0.001 * opaque
+        if matte_mode:
+            a[est < 0.15] = 0.0      # also fills of narrow gaps the cut-out closed over
+        for _ in range(4 if matte_mode else 0):
+            edge = dilate(a <= 0, 2) & (a > 0) & ~done
+            if not (edge & (m > 0.5 * 255)).any():
+                break
             a[edge] *= np.clip((est[edge] - 0.15) / 0.75, 0, 1)
-        _suppress_magenta(rgb, edge & (m > 0.35 * 255))
+            a[a < 0.04] = 0.0
+            done |= edge
+        edge = (dilate(a <= 0, 2) & (a > 0)) | (done & (a > 0))
+        _suppress_magenta(rgb, edge & (m > (0.2 if matte_mode else 0.35) * 255))
         a = _clean_specks(a, H, W)
         return np.dstack([rgb / 255.0, a]).astype(np.float32), "transparent"
 
@@ -457,7 +483,7 @@ def remove_background(rgba, has_alpha, where, log, holes=True):
         m_bg = float(np.median(m[ring][near_c]))
         m_bg = max(m_bg, 60.0)
         est = np.clip(1.0 - m / m_bg, 0, 1)          # foreground opacity, assuming non-magenta paint
-        hard = est < 0.15
+        hard = _grow_background(est < 0.15, est < 0.4)
         zone = dilate(hard, fr) & ~hard
         a = np.ones((H, W), np.float32)
         a[hard] = 0.0
@@ -471,6 +497,9 @@ def remove_background(rgba, has_alpha, where, log, holes=True):
         return np.dstack([rgb / 255.0, a]).astype(np.float32), "magenta"
 
     if near_c.mean() < 0.45:
+        if need_bg:
+            raise AssetError("%s: background not detected (no transparency and no uniform border colour); "
+                             "use a transparent or flat magenta background" % where)
         log.warn(where, "background not detected (no transparency and no uniform border colour); kept opaque")
         return np.dstack([rgb / 255.0, np.ones((H, W), np.float32)]).astype(np.float32), "none"
 
@@ -487,7 +516,7 @@ def remove_background(rgba, has_alpha, where, log, holes=True):
         mean_d = np.bincount(lab.ravel(), weights=dist.ravel(), minlength=n + 1) / np.maximum(area, 1)
         is_bg |= (area >= max(24, (H * W) // 40000)) & (mean_d <= 0.6 * tol)
     is_bg[0] = False
-    bg = is_bg[lab]
+    bg = _grow_background(is_bg[lab], dist < 2.0 * tol)
     zone = dilate(bg, fr) & ~bg
     a = np.ones((H, W), np.float32)
     a[bg] = 0.0
@@ -520,10 +549,9 @@ def remove_background(rgba, has_alpha, where, log, holes=True):
     return np.dstack([rgb / 255.0, a]).astype(np.float32), "colour"
 
 
-def prepare(path, where, log, holes=True):
+def prepare(path, where, log, holes=True, need_bg=True):
     arr, has_alpha = load_image(path)
-    rgba, mode = remove_background(arr, has_alpha, where, log, holes)
-    return rgba, mode
+    return remove_background(arr, has_alpha, where, log, holes, need_bg)
 
 
 # ---------------------------------------------------------------------------
@@ -966,7 +994,7 @@ def process_background(a, src, log):
                 img[..., :3] = img[..., :3] * al + mean[None, None, :] * (1 - al)
             img[..., 3] = 1.0
         else:
-            img, _ = prepare(path, sh["file"], log, holes=False)
+            img, _ = prepare(path, sh["file"], log, holes=False, need_bg=False)
         H, W = img.shape[:2]
         wide = BG_W + BG_FADE
         s = max(wide / float(W), BG_H / float(H))
@@ -1003,8 +1031,8 @@ def process_background(a, src, log):
 
 def process_ui(a, src, log):
     sh = a["sheets"][0]
-    rgba, _ = prepare(_sheet_path(src, sh), sh["file"], log)
-    img = trim(rgba, 0.02)
+    rgba, _ = prepare(_sheet_path(src, sh), sh["file"], log, need_bg=False)
+    img = trim(rgba, 0.2)            # the faint outer fringe does not count as the frame's edge
     if img is None:
         raise AssetError("nothing drawn (empty after background removal)")
     w, h = a["size"]
@@ -1479,15 +1507,17 @@ def cmd_import(args):
         try:
             res = PROCESS[a["kind"]](a, src, log)
         except AssetError as e:
-            log.warn(a["id"], "%s; not imported (any previous import is kept)" % e)
+            log.warn(a["id"], "%s; not imported%s" % (e, " (the previous import is kept)" if any(
+                k in old[sec] for sec, k in manifest_keys(a)) else ""))
             failed.add(a["id"])
             continue
         except Exception as e:  # keep going: one broken image must not stop the others
             if args.debug:
                 raise
             tb = traceback.extract_tb(e.__traceback__)[-1]
-            log.warn(a["id"], "failed: %s: %s (line %d; --debug for details); any previous import is kept"
-                     % (type(e).__name__, e, tb.lineno))
+            log.warn(a["id"], "failed: %s: %s (line %d; --debug for details)%s"
+                     % (type(e).__name__, e, tb.lineno, "; the previous import is kept" if any(
+                         k in old[sec] for sec, k in manifest_keys(a)) else ""))
             failed.add(a["id"])
             continue
         for name, arr in sorted(res.textures.items()):
