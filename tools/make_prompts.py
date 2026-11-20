@@ -50,6 +50,30 @@ GUIDE = """# 그림 에셋 프롬프트 목록
 - 게임 이름이나 실제 캐릭터 이름은 프롬프트에 넣지 않았습니다(거절당하지 않게). 원하는 모습이 안 나오면 생김새 설명을 더 자세히 덧붙이세요.
 - 영웅은 전투 화면에서 높이 60~90픽셀 정도로 작게 보입니다. 얼굴보다 **실루엣, 무기, 색**이 잘 구분되는 쪽이 좋습니다.
 
+## 인터페이스 그림이 들어가는 자리 (새 화면 배치)
+
+모든 메뉴 화면은 같은 틀입니다. 각 자리에 들어가는 그림 파일은 다음과 같습니다(괄호 안은 파일 이름에서 .png를 뺀 것).
+
+```
+┌ 메뉴 창 테두리 (ui_window) ───────────────────────────────────────────┐
+│ 제목 띠 (ui_header): 화면 아이콘(icons_menu) · 화면 이름 · 골드(ui_pill)  [X](icon_close) │
+│ [위쪽 탭 ui_chip / 고른 탭 ui_chip_on] ...            [도구 버튼 ui_btn_neutral] │
+│ ┌ 왼쪽 목록 판 (ui_inset) ─────────────┐ ┌ 오른쪽 카드 (ui_card) ─────────┐ │
+│ │ 영웅 카드(ui_card) + 초상화 테두리     │ │ 머리 띠(ui_band) 아이콘 이름    │ │
+│ │ (ui_portrait_ring), 역할(icons_role)  │ │ 능력치 줄(icons_stats*)          │ │
+│ │ 아이템 칸(ui_slot / icons_quality)    │ │ 막대(ui_bar_frame, ui_bar_fill)  │ │
+│ │ 고른 것: 금색 테두리 (ui_select)      │ │                                  │ │
+│ │ [화면 버튼 ui_btn_secondary]          │ │ [보조 ui_btn_neutral][실행 ui_btn_primary] │
+│ └───────────────────────────────────────┘ └──────────────────────────────────┘ │
+│ [아래 탭 ui_tab / 지금 화면 ui_tab_on] × 6 (icons_menu)                       │
+└───────────────────────────────────────────────────────────────────────┘
+알림 (ui_toast): 메뉴 창 위쪽 테두리에 잠깐   설명 창 (ui_tooltip): 마우스를 올리면
+잃는 행동 버튼 (ui_btn_danger) · 켜짐 버튼 (ui_btn_confirm) · 빨간 알림 점 (icon_badge)
+전투 창: 테두리 (ui_battle_frame) · 우두머리 막대 (ui_boss_bar) · 상자 (icons_misc)
+```
+
+{ui_table}
+
 ## 화면 어디에 쓰이나
 
 | 묶음 | 쓰이는 곳 |
@@ -72,7 +96,15 @@ def main():
         sel = [a for a in S.ASSETS if a["priority"] == p]
         n = sum(len(a["sheets"]) for a in sel)
         lines.append(f"- **{PRIORITY[p][0]}**: 그림 {n}장. {PRIORITY[p][1]}")
-    out = [GUIDE.format(total_assets=len(S.ASSETS), total_images=total_images, priority_lines="\n".join(lines))]
+    rows = ["| 파일 | 그림 | 쓰이는 곳 |", "| --- | --- | --- |"]
+    for a in S.ASSETS:
+        if a["kind"] in ("ui", "icons") and a.get("where"):
+            what = a["title"].split(" · ", 1)[-1]
+            if a["kind"] == "icons":
+                what += " (%d개: %s)" % (len(a["icons"]), ", ".join(a["icons"]))
+            rows.append("| `%s` | %s | %s |" % (a["sheets"][0]["file"], what, a["where"]))
+    out = [GUIDE.format(total_assets=len(S.ASSETS), total_images=total_images, priority_lines="\n".join(lines),
+                        ui_table="\n".join(rows))]
 
     for p in (1, 2, 3):
         out.append(f"\n---\n\n# {PRIORITY[p][0]}\n")

@@ -124,6 +124,25 @@ def main(argv):
             lua = new_runtime(locale)
             ok = run_script(lua, "test_ui.lua") and ok
 
+    if what in ("all", "uiart"):
+        # the same UI test with every interface picture and icon of
+        # tools/asset_spec.py imported (as if the art were finished)
+        print("== ui test with all interface art imported ==")
+        sys.path.insert(0, os.path.join(os.path.dirname(HERE), "tools"))
+        import asset_spec
+        lua = new_runtime("koKR")
+        art = lua.globals().NS.ART
+        for a in asset_spec.ASSETS:
+            if a["kind"] == "ui":
+                e = lua.table_from({"file": a["id"], "w": a["size"][0], "h": a["size"][1]})
+                if a.get("slice") is not None:
+                    e.slice = a["slice"]
+                art.ui[a["id"]] = e
+            elif a["kind"] == "icons":
+                for i in a["icons"]:
+                    art.icons[i] = lua.table_from({"file": i, "w": 128, "h": 128})
+        ok = run_script(lua, "test_ui.lua") and ok
+
     if what in ("all", "layout"):
         # every scene of tests/preview.py drawn in a browser and checked for
         # text that is cut off, spills out or wraps badly, overlaps, things

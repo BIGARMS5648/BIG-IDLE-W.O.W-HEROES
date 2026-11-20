@@ -116,11 +116,47 @@ function UI.SetHeroIcon(tex, heroId)
 	return false
 end
 
--- A texture from Media/, optionally tinted.
+-- Path of an imported picture (an interface piece or an icon), or nil.
+function UI.ArtPath(id)
+	local a = ns.ART
+	local e = id and a and ((a.ui and a.ui[id]) or (a.icons and a.icons[id]))
+	return e and (UI.MEDIA .. "Art\\" .. e.file) or nil
+end
+
+-- Built-in glyphs that an imported picture replaces. tint = the picture is
+-- drawn light so the game can colour it (rings, bars, slots); the others are
+-- painted in their own colours and are never tinted.
+UI.GLYPH_ART = {
+	lock = { "icon_lock" }, check = { "icon_check" }, plus = { "icon_plus" }, close = { "icon_close" },
+	arrow = { "icon_arrow" }, star = { "icon_star" }, crown = { "icon_crown" }, skull = { "icon_skull" },
+	auto = { "icon_auto" }, role_tank = { "icon_tank" }, role_dps = { "icon_dps" }, role_heal = { "icon_heal" },
+	ring = { "ui_portrait_ring", tint = true }, bar = { "ui_bar_fill", tint = true }, slot = { "ui_slot", tint = true },
+}
+
+-- Sets a glyph texture (imported picture if there is one), optionally tinted.
+function UI.SetGlyph(t, name, r, g, b, a)
+	local m = UI.GLYPH_ART[name]
+	local path = m and UI.ArtPath(m[1])
+	if path then
+		t:SetTexture(path)
+		t:SetTexCoord(0, 1, 0, 1)
+		t.painted = not m.tint
+	else
+		t:SetTexture(UI.Tex(name))
+		t.painted = nil
+	end
+	if r then UI.Tint(t, r, g, b, a) end
+end
+
+-- Colours a glyph; painted pictures keep their own colours.
+function UI.Tint(t, r, g, b, a)
+	if t.painted then t:SetVertexColor(1, 1, 1, a or 1) else t:SetVertexColor(r, g, b, a or 1) end
+end
+
+-- A texture from Media/ (or the picture that replaces it), optionally tinted.
 function UI.Art(parent, name, layer, r, g, b, a)
 	local t = parent:CreateTexture(nil, layer or "ARTWORK")
-	t:SetTexture(UI.Tex(name))
-	if r then t:SetVertexColor(r, g, b, a or 1) end
+	UI.SetGlyph(t, name, r, g, b, a)
 	return t
 end
 
@@ -294,6 +330,10 @@ function UI.Badge(parent, size)
 	f:SetSize(size, size)
 	f:SetFrameLevel(parent:GetFrameLevel() + 6)
 	f.dot = UI.Art(f, "circle", "OVERLAY", 0.92, 0.18, 0.16)
+	if UI.ArtPath("icon_badge") then
+		f.dot:SetTexture(UI.ArtPath("icon_badge"))
+		f.dot:SetVertexColor(1, 1, 1)
+	end
 	f.dot:SetAllPoints(f)
 	f.text = UI.Text(f, 10, nil, "OUTLINE")
 	f.text:SetPoint("CENTER", f, "CENTER", 0, 0)
@@ -329,6 +369,7 @@ local function ensureTip()
 	tip:SetClampedToScreen(true)
 	tip:SetSize(TIP_WIDTH + 20, 40)
 	tip.bg = UI.Slice(tip, "panel", "BACKGROUND", 12)
+	if UI.ArtUI("ui_tooltip") then tip.bg:SetArt(UI.ArtUI("ui_tooltip")) end
 	tip.rows = {}
 	tip:Hide()
 	return tip
@@ -489,7 +530,7 @@ function UI.Button(parent, w, h, text, onClick, style)
 			self.glyph = UI.Glyph(self, name, h - 10)
 			self.glyph:SetPoint("RIGHT", self.label, "LEFT", -4, 0)
 		else
-			self.glyph:SetTexture(UI.Tex(name))
+			UI.SetGlyph(self.glyph, name)
 		end
 		paint(self)
 	end
@@ -551,6 +592,14 @@ function UI.Chip(parent, w, h, text, onClick)
 		if onClick then onClick(self, button) end
 	end)
 	local function chipPaint(self)
+		local art = UI.ArtUI(self.on and "ui_chip_on" or "ui_chip")
+		if art then
+			if self.bg.art ~= art then self.bg:SetArt(art) end
+			local k = (self.hover and not self.on) and 1.12 or 1
+			for i = 1, 9 do self.bg[i]:SetVertexColor(min(1, k), min(1, k), min(1, k), 1) end
+			self.label:SetTextColor(self.on and 0.12 or 0.88, self.on and 0.10 or 0.90, self.on and 0.05 or 0.96)
+			return
+		end
 		if self.on then
 			self.bg:SetColor(UI.C.gold[1], UI.C.gold[2] * 0.95, UI.C.gold[3], 1)
 			self.label:SetTextColor(0.12, 0.10, 0.05)
@@ -651,12 +700,28 @@ function UI.IconButton(parent, size, onClick)
 			self.icon:Hide()
 		end
 	end
+	-- an imported icon if there is one, else a game icon
+	function b:SetArtIcon(artId, iconName)
+		UI.SetArtOrIcon(self.icon, artId, iconName)
+		self.icon:Show()
+	end
 	function b:SetClass(classId)
 		UI.SetClassIcon(self.icon, classId)
 		self.icon:Show()
 	end
 	-- the quality colours both the frame and, softly, the card behind the icon
 	function b:SetQuality(q)
+		local card = q and UI.ArtPath("item_q" .. q)
+		if card then
+			-- a painted background per rarity (it has its own border)
+			self.slotBg:SetTexture(card)
+			self.slotBg:SetTexCoord(0, 1, 0, 1)
+			self.slotBg:SetVertexColor(1, 1, 1)
+			self.frame:Hide()
+			self.qArt = true
+			return
+		end
+		if self.qArt then UI.SetGlyph(self.slotBg, "slot") self.qArt = nil end
 		if q and ns.QUALITY[q] then
 			local r, g, bl = ns.U.rgb(ns.QUALITY[q].hex)
 			self.frame:SetVertexColor(r, g, bl)
@@ -751,8 +816,7 @@ function UI.Portrait(parent, size, onClick)
 		self.icon:Show()
 		local r, g, bl = ns.U.rgb(ns.ROLE[sp.role].hex)
 		self.ringT:SetVertexColor(r, g, bl)
-		self.role:SetTexture(UI.Tex(ns.ROLE[sp.role].art))
-		self.role:SetVertexColor(r, g, bl)
+		UI.SetGlyph(self.role, ns.ROLE[sp.role].art, r, g, bl)
 		self.role:Show()
 		self.lvl:SetLabel(tostring(h.level))
 		self.lvl:Show()
@@ -782,7 +846,11 @@ function UI.Bar(parent, w, h, r, g, b)
 	f.fill:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
 	f.fill:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 1, 1)
 	f.inner = w - 2
-	f.text = UI.Text(f, max(8, min(11, h - 3)), nil, "OUTLINE")
+	if UI.ArtUI("ui_bar_frame") then
+		f.frameArt = UI.Slice(f, "pill", "OVERLAY", min(h, 12), 2)
+		f.frameArt:SetArt(UI.ArtUI("ui_bar_frame"))
+	end
+	f.text = UI.Text(f, max(10, min(11, h - 3)), nil, "OUTLINE")
 	f.text:SetPoint("CENTER", f, "CENTER", 0, 0)
 	f.text:SetJustifyH("CENTER")
 	function f:SetValue(v)
@@ -833,6 +901,18 @@ UI.STAT_ICON = {
 	dmg_phys = "Ability_MeleeDamage", dmg_fire = "Spell_Fire_FireBolt02", dmg_frost = "Spell_Frost_FrostBolt02",
 	dmg_nature = "Spell_Nature_Lightning", dmg_shadow = "Spell_Shadow_ShadowWordPain", dmg_holy = "Spell_Holy_HolySmite",
 	dmg_arcane = "Spell_Holy_MagicalSentry", dmg_all = "Spell_Nature_WispSplode",
+}
+
+-- Imported stat icons (tools/asset_spec.py "stat_*"); a stat without its own
+-- picture shares the one of its family.
+UI.STAT_ART = {
+	atk = "stat_atk", atkPct = "stat_atk", aspd = "stat_aspd", crit = "stat_crit", critdmg = "stat_critdmg",
+	multi = "stat_dps", hp = "stat_hp", hpPct = "stat_hp", armor = "stat_armor", armorPct = "stat_armor",
+	dodge = "stat_dodge", block = "stat_block", cdr = "stat_cdr", heal = "stat_heal", regen = "stat_regen",
+	regenPct = "stat_regen", dr = "stat_dr", allres = "stat_allres", leech = "stat_leech", hpkPct = "stat_leech",
+	cast = "stat_cast", dmg_phys = "stat_phys", dmg_fire = "stat_fire", dmg_frost = "stat_frost",
+	dmg_nature = "stat_nature", dmg_shadow = "stat_shadow", dmg_holy = "stat_holy", dmg_arcane = "stat_arcane",
+	dmg_all = "stat_alldmg",
 }
 
 -- Section title: gold text with a short underline.

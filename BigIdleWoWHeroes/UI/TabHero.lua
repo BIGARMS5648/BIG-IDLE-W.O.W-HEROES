@@ -172,7 +172,7 @@ local function buildGear(page)
 	local d = page.S.card
 	p.statRows = {}
 	for i = 1, #KEY_STATS do
-		local r = UI.StatRow(d.content, K.CARD_IN, UI.STAT_ICON[KEY_STATS[i][1]])
+		local r = UI.StatRow(d.content, K.CARD_IN, UI.STAT_ICON[KEY_STATS[i][1]], UI.STAT_ART[KEY_STATS[i][1]])
 		r:SetPoint("TOPLEFT", d.content, "TOPLEFT", 0, -(i - 1) * 24)
 		p.statRows[i] = r
 	end
@@ -580,7 +580,7 @@ local function refreshTree(page, id)
 			local a = ns.AFFIX[node.p]
 			local lvl = H.NodeLevel(id, t, n)
 			b.icon:Clear()
-			b.icon:SetIconName(UI.STAT_ICON[node.p] or "INV_Misc_QuestionMark")
+			b.icon:SetArtIcon(UI.STAT_ART[node.p], UI.STAT_ICON[node.p] or "INV_Misc_QuestionMark")
 			b.icon:SetDim(not open)
 			b.icon:SetLocked(not open)
 			b.title:SetText(open and ns.N(a.n) or U.col("8a90a2", ns.N(a.n)))
@@ -595,7 +595,7 @@ local function refreshTree(page, id)
 	local node = tree[t][n]
 	local a = ns.AFFIX[node.p]
 	local lvl = H.NodeLevel(id, t, n)
-	d:Head({ icon = UI.STAT_ICON[node.p] or "INV_Misc_QuestionMark", dim = not H.TierOpen(id, t), title = ns.N(a.n),
+	d:Head({ icon = UI.STAT_ICON[node.p] or "INV_Misc_QuestionMark", art = UI.STAT_ART[node.p], dim = not H.TierOpen(id, t), title = ns.N(a.n),
 		sub = string.format("%d단계 · %d / %d", t, lvl, node.max) })
 	local rows = {
 		{ "1점마다", ns.Stats.ModText(node.p, node.v) },

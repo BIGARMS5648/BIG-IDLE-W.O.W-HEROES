@@ -796,7 +796,8 @@ function Bar.Create()
 	frame:SetFrameStrata("MEDIUM")
 	frame:SetClampedToScreen(true)
 	UI.Slice(frame, "shadow", "BACKGROUND", nil, 12)
-	UI.Slice(frame, "panel", "BACKGROUND")
+	local body = UI.Slice(frame, "panel", "BACKGROUND")
+	if UI.ArtUI("ui_battle_frame") then body:SetArt(UI.ArtUI("ui_battle_frame")) end
 	frame:SetMovable(true)
 	frame:EnableMouse(true)
 	frame:RegisterForDrag("LeftButton")
@@ -880,6 +881,10 @@ function Bar.Create()
 	UI.SetIcon(coin, "INV_Misc_Coin_01")
 
 	frame.bossBar = UI.Bar(over, 260, 14, 0.85, 0.15, 0.12)
+	if UI.ArtUI("ui_boss_bar") then
+		local deco = UI.Slice(frame.bossBar, "pill", "OVERLAY", 14, 10)
+		deco:SetArt(UI.ArtUI("ui_boss_bar"))
+	end
 	frame.bossBar:SetPoint("TOP", scene, "TOP", 0, -28)
 	frame.bossBar:Hide()
 
@@ -914,6 +919,10 @@ function Bar.Create()
 	goal.bg = UI.Slice(goal, "card", "BACKGROUND")
 	goal.bg:SetColor(1, 1, 1, 1)
 	goal.star = UI.Glyph(goal, "star", 22, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3])
+	if UI.ArtPath("icon_goal") then
+		goal.star:SetTexture(UI.ArtPath("icon_goal"))
+		goal.star:SetVertexColor(1, 1, 1)
+	end
 	goal.star:SetPoint("LEFT", goal, "LEFT", 10, 0)
 	goal.head = UI.Text(goal, 10, "다음 목표")
 	goal.head:SetPoint("TOPLEFT", goal, "TOPLEFT", 40, -5)
@@ -974,7 +983,7 @@ function Bar.Create()
 			UI.RefreshTip()
 		end)
 		cb.chestType = t
-		cb:SetIconName(ns.CHEST[t].icon)
+		cb:SetArtIcon(({ "icon_chest_common", "icon_chest_boss", "icon_chest_raid" })[t], ns.CHEST[t].icon)
 		cb:SetPoint("LEFT", auto, "RIGHT", 8 + (t - 1) * 41, -3)
 		UI.Tip(cb, chestTip, "TOP")
 		frame.chests[t] = cb
@@ -1063,6 +1072,7 @@ local function ensureToast()
 	toast.rows = {}
 	for i = 1, 3 do
 		local r = UI.Pill(toast, 480, 26, 0.02, 0.03, 0.06, 0.88)
+		if UI.ArtUI("ui_toast") then r.bg:SetArt(UI.ArtUI("ui_toast")) end
 		r:SetPoint("BOTTOM", toast, "BOTTOM", 0, (i - 1) * 29)
 		r.text:SetWidth(460)
 		r.text:SetWordWrap(false)

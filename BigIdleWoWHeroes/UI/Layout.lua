@@ -71,7 +71,7 @@ function UI.Section(parent, w, text)
 end
 
 -- A label on the left and a value on the right. Height 22.
-function UI.StatRow(parent, w, icon)
+function UI.StatRow(parent, w, icon, art)
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetSize(w, 22)
 	local x = 0
@@ -79,7 +79,7 @@ function UI.StatRow(parent, w, icon)
 		f.icon = f:CreateTexture(nil, "ARTWORK")
 		f.icon:SetSize(16, 16)
 		f.icon:SetPoint("LEFT", f, "LEFT", 0, 0)
-		UI.SetIcon(f.icon, icon)
+		UI.SetArtOrIcon(f.icon, art, icon)
 		x = 22
 	end
 	f.l = UI.Text(f, K.F_SMALL)
@@ -142,6 +142,7 @@ function UI.SelFrame(parent, out)
 	out = out or 2
 	local t = UI.Slice(parent, "frame", "OVERLAY", 11, out)
 	t:SetColor(K.SEL[1], K.SEL[2], K.SEL[3], 1)
+	if UI.ArtUI("ui_select") then t:SetArt(UI.ArtUI("ui_select")) end
 	t:SetShown(false)
 	return t
 end
@@ -406,7 +407,7 @@ function UI.Card(parent, w, h)
 		elseif o.class then
 			self.icon:SetClass(o.class)
 		elseif o.icon then
-			self.icon:SetIconName(o.icon)
+			if o.art then self.icon:SetArtIcon(o.art, o.icon) else self.icon:SetIconName(o.icon) end
 			self.icon:SetQuality(o.quality)
 			self.icon:SetCount(o.count)
 			self.icon:SetLocked(o.locked)
@@ -426,7 +427,13 @@ function UI.Card(parent, w, h)
 		if o.titleRGB then self.title:SetTextColor(o.titleRGB[1], o.titleRGB[2], o.titleRGB[3]) else UI.Color(self.title, UI.C.gold) end
 		self.sub:SetText(o.sub or "")
 		if o.band then
-			UI.Fill(self.band, o.band[1] * 0.38, o.band[2] * 0.38, o.band[3] * 0.38, 0.9)
+			local art = UI.ArtPath("ui_band")
+			if art then
+				self.band:SetTexture(art)
+				self.band:SetVertexColor(o.band[1] * 0.8 + 0.2, o.band[2] * 0.8 + 0.2, o.band[3] * 0.8 + 0.2, 1)
+			else
+				UI.Fill(self.band, o.band[1] * 0.38, o.band[2] * 0.38, o.band[3] * 0.38, 0.9)
+			end
 			self.band:Show()
 		else
 			self.band:Hide()

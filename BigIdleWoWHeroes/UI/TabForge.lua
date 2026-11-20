@@ -262,7 +262,7 @@ function ops.fuse(page, panel, cp)
 		cp.out:SetQuality(min(ns.MAX_QUALITY, panel.q + 1))
 		cp.out:SetDim(pick == nil)
 		cp.result:Refresh()
-		d:Head({ icon = OP_ICON.fuse, title = "융합", sub = string.format("%s 장비 9개 → 장비 1개", ns.N(q.name)) })
+		d:Head({ icon = OP_ICON.fuse, art = "forge_fuse", title = "융합", sub = string.format("%s 장비 9개 → 장비 1개", ns.N(q.name)) })
 		local can = n >= ns.Forge.FUSE_COUNT
 		d:Actions(UI.ArmSpec(page, "fuseAll", "가능한 만큼", "정말? 한 번 더", function() fuse(true) end, "dark", not can,
 			{ "가능한 만큼 융합", "재료가 떨어질 때까지(최대 20번) 계속 융합합니다." }),
@@ -297,7 +297,7 @@ function ops.smelt(page, panel, cp)
 			local gold = ns.Items.SmeltGold({ s = "chest", l = level, q = q })
 			r:Set(U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)), U.col("ffd24a", U.fmt(gold)) .. " G")
 		end
-		d:Head({ icon = OP_ICON.smelt, title = "분해", sub = "장비 → 골드, 용광로 경험치" })
+		d:Head({ icon = OP_ICON.smelt, art = "forge_smelt", title = "분해", sub = "장비 → 골드, 용광로 경험치" })
 		d:Actions(nil, { "가방에서 분해하기", function() Main.ShowTab("bag") end, "primary" })
 	end
 end
@@ -327,7 +327,7 @@ function ops.craft(page, panel, cp)
 		end)
 		row:SetPoint("TOPLEFT", panel, "TOPLEFT", K.PAD, -108 - (i - 1) * 44)
 		row:Layout(240)
-		row.icon:SetIconName(OP_ICON.craft)
+		row.icon:SetArtIcon("forge_craft", OP_ICON.craft)
 		panel.tiers[i] = row
 	end
 	cp.head = UI.Section(cp, K.CARD_IN, "필요 재료")
@@ -394,7 +394,7 @@ function ops.craft(page, panel, cp)
 		cp.fee:Set("제작 비용", U.col(ns.CanAfford(gold) and "ffd24a" or "ff6a5a", U.fmt(gold)) .. " G")
 		cp.odds:SetText("결과 등급: " .. qualityOdds(t.q))
 		cp.result:Refresh()
-		d:Head({ icon = OP_ICON.craft, title = "제작: " .. ns.N(g.name),
+		d:Head({ icon = OP_ICON.craft, art = "forge_craft", title = "제작: " .. ns.N(g.name),
 			sub = string.format("%d단계 · 장비 Lv %d~%d", panel.tier, t.lo, t.hi) })
 		if open then
 			local okc, whyc = ns.Forge.CanCraft(panel.group, panel.tier)
@@ -460,7 +460,7 @@ local function socketOp(kind)
 			local name = ns.N(ns.SOCKET[kind].name)
 			if not it then
 				local need = (kind == "gem" and 3) or (kind == "ench" and 5) or 6
-				d:Head({ icon = OP_ICON[kind], title = name, sub = "홈이 있는 장비가 없습니다" })
+				d:Head({ icon = OP_ICON[kind], art = "forge_" .. kind, title = name, sub = "홈이 있는 장비가 없습니다" })
 				cp.lines:SetText(string.format("%s 등급 이상의 장비에 홈이 있습니다.", U.col(ns.QUALITY[need].hex, ns.N(ns.QUALITY[need].name))))
 				cp.last:SetText("")
 				d:Actions(nil, { SOCKET_VERB[kind], nil, "primary", true })
@@ -532,7 +532,7 @@ function ops.remove(page, panel, cp)
 			local e = rows[i]
 			r.idx = i
 			if e then
-				r.icon:SetIconName(OP_ICON[e[1]])
+				r.icon:SetArtIcon("forge_" .. e[1], OP_ICON[e[1]])
 				r.title:SetText(ns.Stats.ModText(e[3][1], e[3][2]))
 				r.right:SetText(U.fmt(ns.Forge.RemoveCost(e[1], e[3][3])) .. " G")
 				r:SetSelected(i == panel.rm)
@@ -543,7 +543,7 @@ function ops.remove(page, panel, cp)
 		end
 		cp.head:SetShown(it ~= nil)
 		if not it then
-			d:Head({ icon = OP_ICON.remove, title = "추출", sub = "능력치가 부여된 장비가 없습니다" })
+			d:Head({ icon = OP_ICON.remove, art = "forge_remove", title = "추출", sub = "능력치가 부여된 장비가 없습니다" })
 			d:Actions(nil, { "추출하기", nil, "red", true })
 			return
 		end
@@ -716,7 +716,7 @@ local function refresh(page)
 	page.lockCard:Show()
 	local okLevel = f.level >= od.level
 	page.lockText:SetText(string.format("'%s'은(는) 아직 잠겨 있습니다.\n용광로 레벨은 아이템을 분해·융합·제작하면 오릅니다.", ns.N(od.name)))
-	d:Head({ icon = OP_ICON[od.key], dim = true, locked = true, title = ns.N(od.name), sub = ns.N(od.short or "") })
+	d:Head({ icon = OP_ICON[od.key], art = "forge_" .. od.key, dim = true, locked = true, title = ns.N(od.name), sub = ns.N(od.short or "") })
 	page.lockCard:SetText(ns.N(od.desc) .. "\n\n" ..
 		string.format("필요한 용광로 레벨: %s", U.col(okLevel and "6af07a" or "ff6a5a", tostring(od.level))) .. "\n" ..
 		string.format("해금 비용: %s G", U.col(ns.CanAfford(od.cost) and "ffd24a" or "ff6a5a", U.fmt(od.cost))))

@@ -210,6 +210,15 @@ function Main.Create()
 	head:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
 	head:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -3)
 	head:SetHeight(46)
+	if UI.ArtUI("ui_header") then
+		-- a painted title strip instead of the plain gradient
+		local strip = CreateFrame("Frame", nil, frame)
+		strip:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
+		strip:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -3)
+		strip:SetHeight(50)
+		UI.Slice(strip, "card", "BACKGROUND"):SetArt(UI.ArtUI("ui_header"))
+		head:Hide()
+	end
 	frame.titleIcon = frame:CreateTexture(nil, "ARTWORK")
 	frame.titleIcon:SetSize(28, 28)
 	frame.titleIcon:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -12)

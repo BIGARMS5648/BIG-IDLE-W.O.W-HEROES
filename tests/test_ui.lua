@@ -554,7 +554,15 @@ for path in pairs(Mock.textures) do
 		fail("malformed icon path: " .. path)
 	end
 	local media = path:match("\\Media\\([%w_]+)%.tga$")
-	if media then
+	local art = path:match("\\Media\\Art\\([%w_]+)$") or path:match("\\Media\\Art\\([%w_]+)%.tga$")
+	if art then
+		local A = ns.ART or {}
+		local known = false
+		for _, sec in ipairs({ "ui", "icons", "sprites", "fx", "bg" }) do
+			for _, e in pairs(A[sec] or {}) do if e.file == art then known = true end end
+		end
+		if not known then fail("texture from imported art that is not in Data/Art.lua: " .. art) end
+	elseif media then
 		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigIdleWoWHeroes/Media/" .. media .. ".tga"), "rb")
 		if f then f:close() else fail("missing texture file: Media/" .. media .. ".tga") end
 	elseif path:find("AddOns") then
