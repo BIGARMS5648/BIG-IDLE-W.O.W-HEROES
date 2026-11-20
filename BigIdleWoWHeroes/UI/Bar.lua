@@ -434,7 +434,7 @@ local function drawMobs()
 	end
 	-- big boss bar while a boss is up
 	local bb = frame.bossBar
-	if boss then
+	if boss and ns.Combat.state.phase ~= "result" then
 		bb:SetValue(boss.hp / boss.maxhp)
 		bb:SetLabel(ns.N(boss.name) .. "  " .. floor(boss.hp / boss.maxhp * 100 + 0.5) .. "%")
 		if (boss.drT or 0) > 0 then bb:SetRGB(0.5, 0.75, 1) elseif boss.enr > 1 then bb:SetRGB(1, 0.35, 0.1) else bb:SetRGB(0.85, 0.15, 0.12) end
@@ -446,6 +446,11 @@ end
 
 local function drawPips(now)
 	local st = ns.Combat.state
+	-- the boss bar takes the wave row's place while the boss is up
+	if frame.bossBar:IsShown() then
+		for i = 1, MAX_PIPS do pips[i]:Hide() end
+		return
+	end
 	local n = max(1, min(MAX_PIPS, st.waves or 10))
 	local wave = st.wave or 0
 	local x0 = 418 - (n - 1) * 8 -- centred between the zone banner and the gold
@@ -557,6 +562,7 @@ local function updateInfo()
 
 	local goal = ns.Guide.Current()
 	frame.goal.text:SetText(ns.N(goal.text))
+	frame.goal:Center()
 	if goal.wait then
 		frame.goal.text:SetTextColor(0.75, 0.78, 0.86)
 	else
@@ -786,7 +792,7 @@ local MENU = {
 	{ "bag",   "INV_Misc_Bag_10",        "가방" },
 	{ "forge", "Trade_BlackSmithing",    "용광로" },
 	{ "runes", "INV_Misc_Rune_01",       "룬" },
-	{ "map",   "INV_Misc_Map_01",        "지도" },
+	{ "map",   "INV_Misc_Map_01",        "스테이지" },
 }
 
 function Bar.Create()
@@ -880,16 +886,18 @@ function Bar.Create()
 	coin:SetPoint("LEFT", frame.gold, "LEFT", 5, 0)
 	UI.SetIcon(coin, "INV_Misc_Coin_01")
 
-	frame.bossBar = UI.Bar(over, 260, 14, 0.85, 0.15, 0.12)
+	-- the boss bar sits in the top row, where the wave dots are (the boss is
+	-- always the last wave), so nothing in the fight below can cover it
+	frame.bossBar = UI.Bar(over, 290, 16, 0.85, 0.15, 0.12)
 	if UI.ArtUI("ui_boss_bar") then
 		local deco = UI.Slice(frame.bossBar, "pill", "OVERLAY", 14, 10)
 		deco:SetArt(UI.ArtUI("ui_boss_bar"))
 	end
-	frame.bossBar:SetPoint("TOP", scene, "TOP", 0, -28)
+	frame.bossBar:SetPoint("CENTER", scene, "TOPLEFT", 418, -17)
 	frame.bossBar:Hide()
 
 	frame.result = UI.Text(over, 26, nil, "OUTLINE")
-	frame.result:SetPoint("CENTER", scene, "CENTER", 0, 8)
+	frame.result:SetPoint("CENTER", scene, "CENTER", 0, -6)
 	frame.result:SetJustifyH("CENTER")
 	frame.result:Hide()
 
@@ -925,14 +933,20 @@ function Bar.Create()
 	end
 	goal.star:SetPoint("LEFT", goal, "LEFT", 10, 0)
 	goal.head = UI.Text(goal, 10, "다음 목표")
-	goal.head:SetPoint("TOPLEFT", goal, "TOPLEFT", 40, -5)
 	UI.Color(goal.head, UI.C.gold)
 	goal.text = UI.Text(goal, 11)
-	goal.text:SetPoint("TOPLEFT", goal, "TOPLEFT", 40, -18)
+	goal.text:SetPoint("TOPLEFT", goal.head, "BOTTOMLEFT", 0, -2)
 	goal.text:SetWidth(208)
-	goal.text:SetHeight(26)
 	goal.text:SetJustifyV("TOP")
 	if goal.text.SetMaxLines then goal.text:SetMaxLines(2) end
+	-- the heading and the goal (one or two lines) sit in the middle of the box
+	function goal:Center()
+		local lines = (self.text:GetStringWidth() > 206) and 2 or 1
+		self.text:SetHeight(lines * 13 + 1)
+		local h = 12 + 2 + lines * 13 + 1
+		self.head:ClearAllPoints()
+		self.head:SetPoint("TOPLEFT", self, "TOPLEFT", 40, -math.floor((46 - h) / 2))
+	end
 	goal.arrow = UI.Glyph(goal, "arrow", 14, 0.7, 0.75, 0.9)
 	goal.arrow:SetPoint("RIGHT", goal, "RIGHT", -8, 0)
 	goal:RegisterForClicks("LeftButtonUp")
@@ -948,8 +962,8 @@ function Bar.Create()
 	frame.goal = goal
 
 	local auto = CreateFrame("Button", nil, dock)
-	auto:SetSize(40, 52)
-	auto:SetPoint("LEFT", goal, "RIGHT", 8, 3)
+	auto:SetSize(40, 49)
+	auto:SetPoint("TOPLEFT", goal, "TOPRIGHT", 8, 1)
 	auto.disc = UI.Art(auto, "circle", "BACKGROUND")
 	auto.disc:SetSize(36, 36)
 	auto.disc:SetPoint("TOP", auto, "TOP", 0, 0)
@@ -984,7 +998,7 @@ function Bar.Create()
 		end)
 		cb.chestType = t
 		cb:SetArtIcon(({ "icon_chest_common", "icon_chest_boss", "icon_chest_raid" })[t], ns.CHEST[t].icon)
-		cb:SetPoint("LEFT", auto, "RIGHT", 8 + (t - 1) * 41, -3)
+		cb:SetPoint("TOPLEFT", auto, "TOPRIGHT", 8 + (t - 1) * 41, 1)
 		UI.Tip(cb, chestTip, "TOP")
 		frame.chests[t] = cb
 	end
@@ -993,7 +1007,7 @@ function Bar.Create()
 	for i, m in ipairs(MENU) do
 		local mb = UI.MenuButton(dock, 36, m[2], ns.N(m[3]), function(self) Bar.OpenMenu(self.key) end)
 		mb.key = m[1]
-		mb:SetPoint("TOPLEFT", frame.chests[#ns.CHEST], "TOPRIGHT", 10 + (i - 1) * 40, 4)
+		mb:SetPoint("TOPLEFT", auto, "TOPRIGHT", 8 + #ns.CHEST * 41 + 2 + (i - 1) * 40, 0)
 		frame.menu[i] = mb
 	end
 

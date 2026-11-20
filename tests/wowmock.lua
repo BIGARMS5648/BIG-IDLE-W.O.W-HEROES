@@ -150,7 +150,7 @@ function Texture:SetTexCoord(...)
 	local n = select("#", ...)
 	check(n == 4 or n == 8, "SetTexCoord: 4 or 8 numbers expected")
 	for i = 1, n do check(type((select(i, ...))) == "number", "SetTexCoord: numbers expected") end
-	if n == 4 then self.__tc = { ... } end
+	if n == 4 then self.__tc, self.__tc8 = { ... }, nil else self.__tc, self.__tc8 = nil, { ... } end
 end
 function Texture:SetVertexColor(r, g, b, a)
 	check(type(r) == "number" and type(g) == "number" and type(b) == "number", "SetVertexColor: numbers expected")
@@ -196,7 +196,14 @@ function FontString:SetShadowColor(r, g, b, a) end
 function FontString:SetDrawLayer(l) check(LAYERS[l], "SetDrawLayer: bad layer") end
 function FontString:GetStringWidth()
 	check(self.__font, "GetStringWidth before SetFont")
-	return #(self.__text or "") * self.__font[2] * 0.45
+	-- roughly what the game measures: a Hangul syllable about one em, Latin
+	-- letters and digits a little over half
+	local text = (self.__text or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+	local w = 0
+	for ch in text:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+		w = w + ((#ch > 1) and 1.0 or 0.55)
+	end
+	return w * self.__font[2]
 end
 function FontString:GetStringHeight()
 	check(self.__font, "GetStringHeight before SetFont")
@@ -441,6 +448,7 @@ function Mock.Export()
 			e.tex = (w.__tex ~= "color") and w.__tex or nil
 			e.vertex = w.__vertex
 			e.tc = w.__tc
+			e.tc8 = w.__tc8
 			e.desat = w.__desat
 		elseif kind == "text" then
 			e.layer = w.__layer
@@ -457,6 +465,7 @@ function Mock.Export()
 			e.ftype = w.__type
 			e.nomouse = (w.__mouse == false)
 			e.item = w.isItem or false
+			e.catcher = w.isCatcher or false
 			e.clips = w.__clips or false
 			e.click = (w.__scripts and w.__scripts.OnClick) and true or false
 			e.off = w.__disabled or false

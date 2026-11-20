@@ -924,12 +924,16 @@ local function refreshCard(page)
 			if v then r:Set(v[1], v[2]) r:Show() else r:Hide() end
 		end
 		d:Extras({ "이름 바꾸기", function() ns.OpenRename(id) end, "dark" },
-			UI.ArmSpec(page, "dismiss" .. id, "떠나보내기", "정말요? 한 번 더", function()
-				if UI.Try(H.Dismiss(id)) then
-					page.sel = nil
-					Main.SelectHero(nil)
-				end
-			end, "red", H.Count() <= 1, { "떠나보내기", "영웅이 영영 떠납니다. 장착한 장비는 가방으로 돌아옵니다. 되돌릴 수 없습니다." }))
+			{ "떠나보내기", function()
+				UI.Confirm({ title = "영웅 떠나보내기", ok = "떠나보내기", style = "red",
+					text = string.format("%s을(를) 떠나보내시겠습니까?\n장착한 장비는 가방으로 돌아오지만, 영웅은 되돌릴 수 없습니다.", H.Name(id)),
+					onOk = function()
+						if UI.Try(H.Dismiss(id)) then
+							page.sel = nil
+							Main.SelectHero(nil)
+						end
+					end })
+			end, "red", H.Count() <= 1, tip = { "떠나보내기", "영웅이 영영 떠납니다. 장착한 장비는 가방으로 돌아옵니다." } })
 		local view = { "영웅 화면", function() Main.SelectHero(id) Main.ShowTab("hero") end, "dark" }
 		if slot then
 			d:Actions({ "휴식", function()
@@ -1119,9 +1123,7 @@ local function open(page, opts)
 	end
 end
 
-local function tick(page)
-	if UI.ArmTick(page) then Main.Refresh() end
-end
+local function tick(page) end
 
 Main.RegisterTab({
 	key = "party", title = "편성", sub = "출전할 영웅을 정하고 새 영웅을 만듭니다",

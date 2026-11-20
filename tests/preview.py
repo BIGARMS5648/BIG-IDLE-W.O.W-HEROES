@@ -21,11 +21,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import run  # noqa: E402
 
 SCENES = [
-    "bar", "faction", "create", "create_druid", "pets", "pets_locked", "rename",
+    "bar", "bar_boss", "bar_wipe", "faction", "create", "create_druid", "pets", "pets_locked", "rename",
     "party", "party_bench", "party_slot", "party_dismiss",
-    "hero", "hero_slot", "hero_slot_empty", "hero_sheet", "hero_skills", "hero_skill_locked", "hero_tree", "hero_tree_locked", "hero_bench",
-    "bag", "bag_tooltip", "bag_locked", "bag_weapon", "bag_mats", "bag_bank_empty", "bag_bank", "bag_full",
-    "forge_fuse", "forge_fuse_ready", "forge_smelt", "forge_craft", "forge_craft_locked", "forge_craft_far", "forge_gem", "forge_ench",
+    "hero", "hero_slot", "hero_slot_empty", "hero_reset", "hero_skills", "hero_skill_locked", "hero_tree", "hero_tree_locked", "hero_bench",
+    "bag", "bag_tooltip", "bag_locked", "bag_weapon", "bag_mats", "bag_smelt_one", "bag_smelt_all", "bag_smelt_list", "bag_fuse_mats", "bag_bank_empty", "bag_bank", "bag_full",
+    "forge_fuse", "forge_fuse_grade", "forge_fuse_kind", "forge_fuse_ready", "forge_smelt", "forge_craft", "forge_craft_locked", "forge_craft_far", "forge_gem", "forge_ench",
     "forge_remove", "forge_seal", "forge_locked",
     "runes", "runes_locked", "runes_total",
     "map", "map_heroic", "map_raid", "map_locked",
@@ -114,8 +114,42 @@ function layoutText(e, wrapW) {
 
 function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
 
+// rotated or skewed texture coordinates (SetTexCoord with 8 numbers: the
+// corners UL, LL, UR, LR): map the image so each corner lands on its own
+function drawTex8(g, img, e, x, y, w, h) {
+  const [ulx, uly, llx, lly, urx, ury] = e.tc8;
+  const iw = img.width, ih = img.height;
+  const S = 2, cw = Math.max(1, Math.ceil(w * S)), ch = Math.max(1, Math.ceil(h * S));
+  const off = document.createElement('canvas'); off.width = cw; off.height = ch;
+  const o = off.getContext('2d');
+  const p0x = ulx * iw, p0y = uly * ih;
+  const ax = (urx - ulx) * iw, ay = (ury - uly) * ih;   // along the rect's width
+  const bx = (llx - ulx) * iw, by = (lly - uly) * ih;   // along its height
+  const det = ax * by - bx * ay;
+  if (Math.abs(det) < 1e-9) return;
+  const A = cw * by / det, C = -cw * bx / det, B = -ch * ay / det, D = ch * ax / det;
+  o.setTransform(A, B, C, D, -(A * p0x + C * p0y), -(B * p0x + D * p0y));
+  o.drawImage(img, 0, 0);
+  o.setTransform(1, 0, 0, 1, 0, 0);
+  const v = e.vertex;
+  if (v && (v[0] < 0.999 || v[1] < 0.999 || v[2] < 0.999)) {
+    o.globalCompositeOperation = 'multiply';
+    o.fillStyle = `rgb(${v[0]*255},${v[1]*255},${v[2]*255})`;
+    o.fillRect(0, 0, cw, ch);
+    o.globalCompositeOperation = 'destination-in';
+    o.setTransform(A, B, C, D, -(A * p0x + C * p0y), -(B * p0x + D * p0y));
+    o.drawImage(img, 0, 0);
+    o.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  g.save();
+  g.globalAlpha *= (v && v[3] != null ? v[3] : 1);
+  g.drawImage(off, x, y, w, h);
+  g.restore();
+}
+
 // draw part of an image (texture coordinates), tinted, into the rect
 function drawTex(g, img, e, x, y, w, h) {
+  if (e.tc8) return drawTex8(g, img, e, x, y, w, h);
   const tc = e.tc || [0, 1, 0, 1];
   const iw = img.width, ih = img.height;
   let [u0, u1, v0, v1] = tc;
@@ -341,10 +375,12 @@ function lint(scene, title) {
 
   const live = order.filter(e => vis(e) && !(e.kind === 'frame' && e.id === root));
   const tops = new Map(); live.forEach(e => tops.set(e, topOf(e)));
-  // modal dimmers: what is drawn before them in the same window is out of play
-  const dims = live.filter(e => e.kind === 'texture' && e.color && e.color[3] * alpha(e) >= 0.4 && tops.get(e)
-    && area(e._r) >= 0.85 * area(tops.get(e)._r));
-  const behind = e => dims.some(d => d._i > e._i && tops.get(d) === tops.get(e) && !isAnc(byId[d.parent], e));
+  // modal dimmers, and the click catcher of an open list: what is drawn before
+  // them in the same window is out of play
+  const dims = live.filter(e => (e.kind === 'texture' && e.color && e.color[3] * alpha(e) >= 0.4 && tops.get(e)
+    && area(e._r) >= 0.85 * area(tops.get(e)._r)) || (e.kind === 'frame' && e.catcher));
+  const owner = d => d.kind === 'frame' ? d : byId[d.parent];
+  const behind = e => dims.some(d => d._i > e._i && tops.get(d) === tops.get(e) && !isAnc(owner(d), e) && owner(d) !== e);
   const act = live.filter(e => !behind(e));
   const tooltip = e => (tops.get(e) && tops.get(e).strata === 'TOOLTIP');
   const texts = act.filter(e => e.kind === 'text' && e.text && e.text.trim() && !tooltip(e) && !e.moving);

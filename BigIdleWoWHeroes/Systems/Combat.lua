@@ -442,7 +442,6 @@ local function spawnWave()
 		index = index + 1
 		n = floor(n / 2)
 		if st.raid then ns.Sound("boss") end
-		fx(700, ns.N(stage.boss.name), 1, 0.4, 0.2, true, "mob")
 	end
 	local pool = {}
 	for _, e in ipairs(stage.mobs) do

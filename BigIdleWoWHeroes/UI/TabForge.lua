@@ -168,19 +168,20 @@ function ops.fuse(page, panel, cp)
 	panel.q, panel.cat = 2, "gear"
 	panel.head = UI.Section(panel, K.LIST_IN, "재료로 쓸 장비")
 	panel.head:SetPoint("TOPLEFT", panel, "TOPLEFT", K.PAD, -K.PAD)
-	panel.pick = UI.Chip(panel, 170, 30, "", function(_, button)
-		panel.q = panel.q + (button == "RightButton" and -1 or 1)
-		if panel.q > ns.MAX_QUALITY - 1 then panel.q = 1 elseif panel.q < 1 then panel.q = ns.MAX_QUALITY - 1 end
-		Main.Refresh()
-	end)
+	panel.pick = UI.Dropdown(panel, 170, 30, function()
+		local out = {}
+		for q = 1, ns.MAX_QUALITY - 1 do out[#out + 1] = { q, U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) } end
+		return out
+	end, function() return panel.q end, function(q) panel.q = q end, "등급: ")
 	panel.pick:SetPoint("TOPLEFT", panel, "TOPLEFT", K.PAD, -40)
-	UI.Tip(panel.pick, function() return UI.SimpleTip("재료 등급", "클릭: 한 등급 올리기 · 우클릭: 내리기\n이 등급의 장비 9개를 융합합니다.") end, "TOP")
-	panel.catBtn = UI.Chip(panel, 190, 30, "", function()
-		panel.cat = panel.cat == "gear" and "accessory" or "gear"
-		Main.Refresh()
-	end)
+	panel.pick.tipTitle = "재료 등급"
+	panel.pick.tipText = "이 등급의 장비 9개를 융합합니다. 눌러서 목록에서 고르세요."
+	panel.catBtn = UI.Dropdown(panel, 190, 30, function()
+		return { { "gear", "무기·방어구" }, { "accessory", "액세서리" } }
+	end, function() return panel.cat end, function(v) panel.cat = v end, "종류: ")
 	panel.catBtn:SetPoint("LEFT", panel.pick, "RIGHT", 8, 0)
-	UI.Tip(panel.catBtn, function() return UI.SimpleTip("재료 종류", "클릭: 무기·방어구 ↔ 액세서리\n결과도 같은 종류에서 무작위 부위로 나옵니다.") end, "TOP")
+	panel.catBtn.tipTitle = "재료 종류"
+	panel.catBtn.tipText = "결과도 같은 종류에서 무작위 부위로 나옵니다. 눌러서 목록에서 고르세요."
 	panel.inputs = {}
 	local step = (K.LIST_IN - CELL) / (ns.Forge.FUSE_COUNT - 1)
 	for i = 1, ns.Forge.FUSE_COUNT do
@@ -233,8 +234,8 @@ function ops.fuse(page, panel, cp)
 
 	return function(_, _, _, d)
 		local q = ns.QUALITY[panel.q]
-		panel.pick:SetLabel("등급: " .. U.col(q.hex, ns.N(q.name)))
-		panel.catBtn:SetLabel(panel.cat == "gear" and "종류: 무기·방어구" or "종류: 액세서리")
+		panel.pick:Refresh()
+		panel.catBtn:Refresh()
 		local n, kept = 0, 0
 		for _, it in ipairs(ns.db.bag) do
 			if not it.lock and it.q == panel.q and ns.Items.FuseCat(it) == panel.cat and not ns.Items.HasSockets(it) then
@@ -264,8 +265,11 @@ function ops.fuse(page, panel, cp)
 		cp.result:Refresh()
 		d:Head({ icon = OP_ICON.fuse, art = "forge_fuse", title = "융합", sub = string.format("%s 장비 9개 → 장비 1개", ns.N(q.name)) })
 		local can = n >= ns.Forge.FUSE_COUNT
-		d:Actions(UI.ArmSpec(page, "fuseAll", "가능한 만큼", "정말? 한 번 더", function() fuse(true) end, "dark", not can,
-			{ "가능한 만큼 융합", "재료가 떨어질 때까지(최대 20번) 계속 융합합니다." }),
+		d:Actions({ "가능한 만큼", function()
+			UI.Confirm({ title = "가능한 만큼 융합", ok = "융합", style = "primary",
+				text = string.format("%s 장비로 가능한 만큼(최대 20번) 융합하시겠습니까?\n재료로 쓴 장비는 사라집니다.", ns.N(q.name)),
+				onOk = function() fuse(true) end })
+		end, "dark", not can, tip = { "가능한 만큼 융합", "재료가 떨어질 때까지(최대 20번) 계속 융합합니다." } },
 			{ "융합하기", function() fuse(false) end, "primary", not can })
 		if not can then d:Reason(string.format("%s 장비가 %d개 더 필요합니다.", ns.N(q.name), ns.Forge.FUSE_COUNT - n)) end
 		if kept > 0 then
@@ -405,9 +409,11 @@ function ops.craft(page, panel, cp)
 			end, "primary", not okc })
 			if not okc then d:Reason(whyc) end
 		elseif ns.db.forge.level >= t.forge then
-			d:Actions(nil, UI.ArmSpec(page, "tier" .. panel.tier, string.format("%d단계 해금  %s G", panel.tier, U.fmt(t.gold * 5)), "정말 해금? 한 번 더", function()
-				UI.Try(ns.Forge.UnlockCraftTier(panel.tier))
-			end, "primary", not ns.CanAfford(t.gold * 5)))
+			d:Actions(nil, { string.format("%d단계 해금  %s G", panel.tier, U.fmt(t.gold * 5)), function()
+				UI.Confirm({ title = "제작 단계 해금", ok = "해금", style = "primary",
+					text = string.format("%d단계 제작을 해금하시겠습니까?\n%s 골드가 듭니다.", panel.tier, U.fmt(t.gold * 5)),
+					onOk = function() UI.Try(ns.Forge.UnlockCraftTier(panel.tier)) end })
+			end, "primary", not ns.CanAfford(t.gold * 5) })
 			if not ns.CanAfford(t.gold * 5) then d:Reason("골드가 부족합니다.") end
 		else
 			d:Actions(nil, { string.format("용광로 Lv %d에 열림", t.forge), nil, "primary", true })
@@ -551,10 +557,15 @@ function ops.remove(page, panel, cp)
 		local e = panel.rm and rows[panel.rm]
 		if e then
 			local cost = ns.Forge.RemoveCost(e[1], e[3][3])
-			d:Actions(nil, UI.ArmSpec(page, "remove" .. tostring(panel.rm), "추출  " .. U.fmt(cost) .. " G", "정말 추출? 재료는 돌아오지 않습니다", function()
-				UI.Try(ns.Forge.RemoveSocket(it, e[1], e[2], panel.pickedHero))
-				panel.rm = nil
-			end, "red", not ns.CanAfford(cost)))
+			d:Actions(nil, { "추출  " .. U.fmt(cost) .. " G", function()
+				UI.Confirm({ title = "추출", ok = "추출", style = "red",
+					text = string.format("'%s'을(를) 추출하시겠습니까?\n홈이 비워지고 사용했던 재료는 돌아오지 않습니다. %s 골드가 듭니다.",
+						ns.Stats.ModText(e[3][1], e[3][2]), U.fmt(cost)),
+					onOk = function()
+						UI.Try(ns.Forge.RemoveSocket(it, e[1], e[2], panel.pickedHero))
+						panel.rm = nil
+					end })
+			end, "red", not ns.CanAfford(cost) })
 			if not ns.CanAfford(cost) then d:Reason("골드가 부족합니다.") end
 		else
 			d:Actions(nil, { "추출하기", nil, "red", true })
@@ -731,9 +742,7 @@ local function open(page, opts)
 	if opts and opts.sub and ns.Forge.OpDef(opts.sub) then page.op = opts.sub end
 end
 
-local function tick(page)
-	if UI.ArmTick(page) then Main.Refresh() end
-end
+local function tick(page) end
 
 Main.RegisterTab({
 	key = "forge", title = "용광로", sub = "장비를 융합하고, 분해하고, 만들고, 강화합니다",

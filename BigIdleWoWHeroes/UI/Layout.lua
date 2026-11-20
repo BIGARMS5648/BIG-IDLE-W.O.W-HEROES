@@ -15,7 +15,8 @@
 -- Colours mean the same on every screen:
 --   gold  = the main action for what is chosen (always bottom right of the card)
 --   blue  = an action for the whole screen (bottom of the list)
---   dark  = a secondary action      red = something you lose (break down, reset)
+--   dark  = a secondary action      red = something you lose (break down,
+--   reset); those ask first in a confirmation window (UI.Confirm)
 -- What is selected always has a gold frame. Text is never smaller than 10.
 local _, ns = ...
 
@@ -253,36 +254,6 @@ function UI.HeroOrder()
 	return out
 end
 
--- Two-click confirmation for things that cannot be undone. The button shows
--- armedLabel for a few seconds after the first click.
-function UI.Arm(b, armedLabel, action)
-	b.armT = 0
-	b.armedLabel = armedLabel
-	b.armAction = action
-	b.onClick = function(self)
-		if self.off then return end
-		if self.armT > 0 then
-			self.armT = 0
-			self:SetLabel(self.baseLabel or "")
-			self.armAction()
-		else
-			self.armT = 4
-			self:SetLabel(self.armedLabel)
-		end
-	end
-	function b:SetBase(t)
-		self.baseLabel = t
-		if self.armT == 0 then self:SetLabel(t) end
-	end
-	function b:Disarm()
-		if self.armT > 0 then
-			self.armT = max(0, self.armT - 0.2)
-			if self.armT == 0 then self:SetLabel(self.baseLabel or "") end
-		end
-	end
-	return b
-end
-
 ------------------------------------------------------------------------
 -- Tabs: equal-width segments in one row
 ------------------------------------------------------------------------
@@ -492,18 +463,7 @@ function UI.Card(parent, w, h)
 		self.contentH = self.H - 80 - bottom
 	end
 	d:SetFooter(false)
-	-- for screens that tick: two-click buttons fall back
-	function d:Disarm()
-		for _, b in ipairs({ self.left, self.right, self.wide, self.x1, self.x2 }) do
-			if b.Disarm then b:Disarm() end
-		end
-	end
 	return d
-end
-
--- Turns a card button into a two-click one; Actions() keeps it armed.
-function UI.CardArm(b, armedLabel, action)
-	return UI.Arm(b, armedLabel, action)
 end
 
 ------------------------------------------------------------------------
@@ -567,32 +527,163 @@ function UI.Screen(page, opts)
 end
 
 ------------------------------------------------------------------------
--- Two-click actions for card buttons (they are re-labelled on every
--- refresh, so the armed state lives in a table of the screen).
+-- Confirmation window for anything that cannot be undone:
+--   UI.Confirm({ title = "분해", text = "정말 분해하시겠습니까?", ok = "분해",
+--                style = "red", onOk = function() ... end })
 ------------------------------------------------------------------------
--- state: a table kept by the screen; key: which action
-function UI.ArmSpec(state, key, label, armedLabel, action, style, off, tip)
-	state.arm = state.arm or {}
-	local armed = (state.arm[key] or 0) > 0
-	return { armed and armedLabel or label, function()
-		if (state.arm[key] or 0) > 0 then
-			state.arm[key] = 0
-			action()
-		else
-			state.arm[key] = 4
-		end
+local confirm = {}
+
+local function buildConfirm()
+	local c = ns.Main.ModalContent(400, 170)
+	confirm.frame = c
+	confirm.title = UI.Title(c, "", 16)
+	confirm.title:SetPoint("TOPLEFT", c, "TOPLEFT", 0, 0)
+	confirm.title:SetWidth(400)
+	confirm.title:SetWordWrap(false)
+	confirm.text = UI.Text(c, K.F_BODY)
+	confirm.text:SetPoint("TOPLEFT", c, "TOPLEFT", 0, -30)
+	confirm.text:SetWidth(400)
+	confirm.text:SetJustifyV("TOP")
+	confirm.text:SetSpacing(3)
+	confirm.no = UI.Button(c, 150, K.BTN_H, "취소", function() ns.Main.CloseModal() end, "dark")
+	confirm.no:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 0, 0)
+	confirm.yes = UI.Button(c, 200, K.BTN_H, "", nil, "red")
+	confirm.yes:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", 0, 0)
+	confirm.yes.onClick = function()
+		local fn = confirm.onOk
+		confirm.onOk = nil
+		ns.Main.CloseModal()
+		if fn then fn() end
 		ns.Main.Refresh()
-	end, style or "red", off, tip = tip }
+	end
 end
 
--- Call from the screen's tick (5 times a second); true when one ran out.
-function UI.ArmTick(state)
-	local out = false
-	for k, v in pairs(state.arm or {}) do
-		if v > 0 then
-			state.arm[k] = max(0, v - 0.2)
-			if state.arm[k] == 0 then out = true end
+-- (for tests) the confirmation window's buttons
+function UI.ConfirmButtons() return confirm.yes, confirm.no end
+
+function UI.Confirm(o)
+	if not confirm.frame then buildConfirm() end
+	confirm.title:SetText(o.title or "확인")
+	confirm.text:SetText(o.text or "")
+	confirm.yes:SetLabel(o.ok or "확인")
+	confirm.yes:SetStyle(o.style or "red")
+	confirm.onOk = o.onOk
+	ns.Main.ShowModal(confirm.frame)
+end
+
+------------------------------------------------------------------------
+-- A button that opens a list to choose from (instead of a button that
+-- changes its value on every click).
+--   items() -> { { value, label }, ... }; get() -> value; set(value)
+------------------------------------------------------------------------
+local list
+
+local function closeList()
+	if list then
+		list.catcher:Hide()
+		list.owner = nil
+	end
+end
+UI.CloseList = closeList
+
+local function ensureList()
+	if list then return list end
+	local host = ns.Main.Frame()
+	list = {}
+	-- clicking anywhere else closes the list
+	local catcher = CreateFrame("Button", nil, host)
+	catcher:SetAllPoints(host)
+	catcher:SetFrameLevel(host:GetFrameLevel() + 70)
+	catcher.isPopup = true
+	catcher.isCatcher = true
+	catcher:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	catcher:SetScript("OnClick", closeList)
+	catcher:Hide()
+	list.catcher = catcher
+	local box = UI.Panel(catcher, 180, 40, "card", true)
+	box:SetFrameLevel(catcher:GetFrameLevel() + 2)
+	box.isPopup = true
+	list.box = box
+	list.rows = {}
+	return list
+end
+
+local function openList(b)
+	local l = ensureList()
+	if l.owner == b and l.catcher:IsShown() then closeList() return end
+	local items = b.items()
+	local w = max(b:GetWidth(), 170)
+	local rowH = 26
+	for i, it in ipairs(items) do
+		local r = l.rows[i]
+		if not r then
+			r = CreateFrame("Button", nil, l.box)
+			r:SetHeight(rowH)
+			r.isItem = true
+			r.hl = r:CreateTexture(nil, "BACKGROUND")
+			r.hl:SetAllPoints(r)
+			UI.Fill(r.hl, 1, 0.82, 0.3, 0.18)
+			r.mark = UI.Glyph(r, "check", 14, K.SEL[1], K.SEL[2], K.SEL[3])
+			r.mark:SetPoint("LEFT", r, "LEFT", 6, 0)
+			r.label = UI.Text(r, K.F_BODY)
+			r.label:SetPoint("LEFT", r, "LEFT", 26, 0)
+			r.label:SetWordWrap(false)
+			r:RegisterForClicks("LeftButtonUp")
+			r:SetScript("OnClick", function(self)
+				ns.Sound("click")
+				local owner = l.owner
+				closeList()
+				if owner then owner.set(self.value) owner:Refresh() end
+				ns.Main.Refresh()
+			end)
+			r:SetScript("OnEnter", function(self) self.hl:Show() end)
+			r:SetScript("OnLeave", function(self) if not self.current then self.hl:Hide() end end)
+			l.rows[i] = r
+		end
+		r:ClearAllPoints()
+		r:SetPoint("TOPLEFT", l.box, "TOPLEFT", 6, -6 - (i - 1) * rowH)
+		r:SetWidth(w - 12)
+		r.label:SetWidth(w - 40)
+		r.value = it[1]
+		r.label:SetText(it[2])
+		r.current = it[1] == b.get()
+		r.mark:SetShown(r.current)
+		r.hl:SetShown(r.current)
+		r:Show()
+	end
+	for i = #items + 1, #l.rows do l.rows[i]:Hide() end
+	local boxH = #items * rowH + 12
+	l.box:SetSize(w, boxH)
+	l.box:ClearAllPoints()
+	-- open upward when there is no room below (a button in a footer)
+	local up = b.openUp
+	if not up then
+		local bb, hb = b:GetBottom(), ns.Main.Frame():GetBottom()
+		up = bb and hb and (bb - boxH - 2 < hb) or false
+	end
+	if up then
+		l.box:SetPoint("BOTTOMLEFT", b, "TOPLEFT", 0, 2)
+	else
+		l.box:SetPoint("TOPLEFT", b, "BOTTOMLEFT", 0, -2)
+	end
+	l.owner = b
+	l.catcher:Show()
+end
+
+function UI.Dropdown(parent, w, h, items, get, set, prefix)
+	local b = UI.Chip(parent, w, h, "", function(self) openList(self) end)
+	b.items, b.get, b.set, b.prefix = items, get, set, prefix or ""
+	b.caret = UI.Glyph(b, "arrow", 12, 0.85, 0.88, 0.95)
+	b.caret:SetPoint("RIGHT", b, "RIGHT", -10, 0)
+	b.caret:SetTexCoord(0, 1, 1, 1, 0, 0, 1, 0) -- the arrow turned to point down
+	b.label:ClearAllPoints()
+	b.label:SetPoint("CENTER", b, "CENTER", -8, 0)
+	function b:Refresh()
+		local cur = self.get()
+		for _, it in ipairs(self.items()) do
+			if it[1] == cur then self:SetLabel(self.prefix .. it[2]) end
 		end
 	end
-	return out
+	UI.Tip(b, function() return UI.SimpleTip(b.tipTitle or "고르기", b.tipText or "눌러서 목록에서 고르세요.") end, "TOP")
+	return b
 end

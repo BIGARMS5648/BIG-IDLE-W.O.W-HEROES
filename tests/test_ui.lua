@@ -140,7 +140,7 @@ local function enrich(round)
 end
 
 ns.AddGold(5e9)
-for _, id in ipairs({ "root", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "e1", "e2", "e3" }) do ns.Runes.Buy(id) end
+for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7", "e1", "e2", "e3" }) do ns.Runes.Buy(id) end
 for _, sid in ipairs({ "WARRIOR_PROT", "PRIEST_HOLY", "MAGE_FIRE", "ROGUE_ASSA", "DRUID_GUARDIAN", "SHAMAN_RESTO", "WARLOCK_DEMO" }) do H.Create(sid) end
 for _, id in ipairs(H.List()) do H.AddXP(id, 3e6) end
 enrich(1)
@@ -167,6 +167,12 @@ end
 local function tab(key, k)
 	local b = Main.Page(key).S.tabs:Get(k)
 	return press("tab " .. tostring(k), b)
+end
+-- answer the confirmation window
+local function confirmYes(what)
+	local yes = ns.UI.ConfirmButtons()
+	if not (yes and yes:IsVisible()) then fail("a confirmation window should ask first: " .. what) return false end
+	return press("confirm " .. what, yes)
 end
 
 -- party: pick a hero, act from the card
@@ -227,10 +233,8 @@ do
 	local n = H.Count()
 	press("dismiss", d.x2)
 	if H.Count() ~= n then fail("one click must not dismiss a hero") end
-	Main.Refresh()
-	if label(d.x2) ~= "정말요? 한 번 더" then fail("the dismiss button should ask again") end
-	press("dismiss confirm", d.x2)
-	if H.Count() ~= n - 1 or ns.db.heroes[benchId] then fail("two clicks should dismiss the hero") end
+	confirmYes("dismiss")
+	if H.Count() ~= n - 1 or ns.db.heroes[benchId] then fail("confirming should dismiss the hero") end
 	hoverAll()
 end
 
@@ -281,7 +285,7 @@ do
 	if label(d.left) ~= "장착" then fail("a learned, unequipped skill should offer to equip") end
 	local before = #H.ActiveSkills(id)
 	press("equip skill", d.left)
-	if #H.ActiveSkills(id) ~= before + 1 then fail("equipping a skill did not work") end
+	if #H.ActiveSkills(id) ~= before + 1 then fail("equipping a skill did not work (" .. before .. " active, " .. #ns.db.heroes[id].skills .. "/" .. ns.SkillSlots() .. " slots, " .. tostring((H.IsSkillEquipped(id, second))) .. ")") end
 	Main.Refresh()
 	press("auto skills", hp.autoSkills)
 	if H.SkillPointsFree(id) ~= 0 then fail("auto skills should spend every skill point") end
@@ -292,11 +296,11 @@ do
 	press("back to stats", d.close)
 	if hp.slot ~= nil then fail("closing the slot should go back to the hero") end
 	if label(d.right) ~= "일괄 장착" then fail("the hero card should offer to equip the best gear") end
+	if label(d.left) ~= "파티 전원 장착" then fail("the hero card's other button should equip the whole party") end
+	if find(function(b) return label(b) == "상세 능력치" end) then fail("there should be no detailed-stats button (the card shows every stat)") end
 	try("equip best", d.right.Click, d.right, "LeftButton")
-	click("equip party", labelIs("파티 전원 장착"))
-	press("detailed stats", d.left)
+	press("equip party", d.left)
 	hoverAll()
-	Main.CloseModal()
 end
 
 -- bags: select, equip, lock, bank, materials
@@ -336,7 +340,18 @@ do
 	bp.selItem = victim
 	Main.Refresh()
 	press("smelt one", d.left)
+	if #ns.db.bag ~= before then fail("breaking down must ask first") end
+	confirmYes("smelt one")
 	if #ns.db.bag ~= before - 1 then fail("the card's break-down button should break the item down") end
+	-- right-click asks too
+	local rc = ns.db.bag[#ns.db.bag]
+	if rc.lock then ns.Items.ToggleLock(rc) end
+	Main.Refresh()
+	local n1 = #ns.db.bag
+	click("right-click smelt", function(b) return b.data == rc end, "RightButton")
+	if #ns.db.bag ~= n1 then fail("right-click must ask before breaking down") end
+	confirmYes("right-click smelt")
+	if #ns.db.bag ~= n1 - 1 then fail("confirming a right-click should break the item down") end
 	local alt = ns.db.bag[#ns.db.bag]
 	local wasLocked = alt.lock
 	Mock.alt = true
@@ -347,10 +362,16 @@ do
 	ns.db.ui.smeltQ = ns.MAX_QUALITY
 	Main.Refresh()
 	local n0 = #ns.db.bag
-	try("bulk smelt (arm)", bp.smeltGo.Click, bp.smeltGo, "LeftButton")
-	if #ns.db.bag ~= n0 then fail("one click on bulk smelt must not smelt anything") end
-	try("bulk smelt (confirm)", bp.smeltGo.Click, bp.smeltGo, "LeftButton")
-	if #ns.db.bag == n0 and #ns.Forge.PickByQuality(ns.MAX_QUALITY) > 0 then fail("the second click should smelt") end
+	try("bulk smelt", bp.smeltGo.Click, bp.smeltGo, "LeftButton")
+	if #ns.db.bag ~= n0 then fail("bulk smelt must ask first") end
+	if #ns.Forge.PickByQuality(ns.MAX_QUALITY) > 0 then
+		confirmYes("bulk smelt")
+		if #ns.db.bag == n0 then fail("confirming should smelt") end
+	end
+	-- the threshold is picked from a list
+	press("threshold list", bp.smeltPick)
+	click("threshold 3", function(b) return b.value == 3 and b.label end)
+	if ns.db.ui.smeltQ ~= 3 then fail("picking from the threshold list did not set it") end
 	enrich(3)
 	Main.Refresh()
 	for _, t in ipairs({ "weapon", "armor", "acc", "mats", "bank", "all" }) do tab("bag", t) end
@@ -359,6 +380,12 @@ do
 	click("select bars", function(b) return b.data == "bar1" end)
 	press("fuse 9", d.right)
 	if ns.MatCount("bar1") ~= bars - 9 then fail("fusing nine materials from the card did not work") end
+	ns.AddMat("cloth1", 20)
+	Main.Refresh()
+	press("auto fuse", bp.autoFuse)
+	confirmYes("auto fuse")
+	if ns.MatCount("cloth1") >= 9 then fail("auto-fuse should leave fewer than nine of each material") end
+	press("sort materials", bp.sort)
 	tab("bag", "all")
 	enrich(2)
 	Main.Refresh()
@@ -386,10 +413,16 @@ do
 	if label(d.right) ~= "융합하기" then fail("the fusion card should offer to fuse") end
 	press("fuse", d.right)
 	if #ns.db.bag ~= before - 8 then fail("fusing through the forge should turn 9 items into 1") end
-	press("fuse all (arm)", d.left)
-	if label(d.left) ~= "정말? 한 번 더" then fail("fuse-all should ask again") end
-	press("fuse all (confirm)", d.left)
+	press("fuse all", d.left)
+	confirmYes("fuse all")
 	if #ns.db.bag ~= 3 then fail("fuse-all should leave 3 items, got " .. #ns.db.bag) end
+	local fp = Main.Page("forge").panels.fuse
+	press("fusion grade list", fp.pick)
+	click("grade 3", function(b) return b.value == 3 and b.label end)
+	if fp.q ~= 3 then fail("picking the fusion grade from the list did not work") end
+	press("fusion kind list", fp.catBtn)
+	click("accessories", function(b) return b.value == "accessory" end)
+	if fp.cat ~= "accessory" then fail("picking the fusion kind from the list did not work") end
 	tab("forge", "craft")
 	before = #ns.db.bag
 	press("craft", d.wide)
@@ -405,8 +438,8 @@ do
 	end
 	tab("forge", "remove")
 	click("item to clear", function(b) return b.data == epic end)
-	press("extract (arm)", d.wide)
-	press("extract (confirm)", d.wide)
+	press("extract", d.wide)
+	confirmYes("extract")
 	if (#(epic.g or {}) + #(epic.e or {}) + #(epic.i or {})) ~= 2 then fail("extraction should clear one stat") end
 	tab("forge", "seal")
 	before = #ns.db.bag
@@ -416,27 +449,36 @@ do
 	hoverAll()
 end
 
--- runes: select and learn
+-- runes: the tree; pick a rune, learn it from the bar
 do
 	Main.ShowTab("runes")
+	local rp = Main.Page("runes")
 	local lvl = ns.Runes.Level("w1")
-	tab("runes", "war")
 	click("rune w1", function(b) return b.node and b.node.id == "w1" end)
-	press("learn", card("runes").wide)
-	if ns.Runes.Level("w1") ~= lvl + 1 then fail("learning a rune from the card did not work") end
-	Main.ShowTab("runes", { rune = "c4" })
-	if Main.Page("runes").branch ~= "command" then fail("opening a rune should show its branch") end
+	if rp.sel ~= "w1" then fail("clicking a rune should select it") end
+	press("learn", rp.learn)
+	if ns.Runes.Level("w1") ~= lvl + 1 then fail("learning a rune did not work") end
+	if not ns.Runes.Available("w2") or not ns.Runes.Available("w3") then fail("a branch hub should open both of its lines") end
+	if ns.Runes.Available("w4") and ns.Runes.Level("w2") == 0 then fail("a rune on a line needs the one before it") end
+	click("rune w9", function(b) return b.node and b.node.id == "w9" end)
+	if ns.Runes.Level("w9") == 0 and rp.prevBtn:IsVisible() then
+		press("first rune to learn", rp.prevBtn)
+		if not ns.Runes.Available(rp.sel) then fail("'먼저 배울 룬' should select a rune that can be learned") end
+	end
+	press("totals", rp.totalBtn)
+	hoverAll()
+	Main.CloseModal()
 end
 
--- map: world, act, stage, travel
+-- stages: world, act, stage, travel
 do
 	Main.ShowTab("map")
 	ns.db.prog[1] = 30
-	tab("map", 1)
+	click("world Azeroth", function(b) return b.d == 1 end)
 	click("stage 3", function(b) return b.n == 3 and b.disc end)
-	press("travel", card("map").wide)
-	if ns.db.stage.idx ~= 3 or ns.db.stage.diff ~= 1 then fail("travelling through the map did not work") end
-	tab("map", 2)
+	click("travel", labelIs("이 스테이지로 이동"))
+	if ns.db.stage.idx ~= 3 or ns.db.stage.diff ~= 1 then fail("travelling from the stage screen did not work") end
+	click("world Outland", function(b) return b.d == 2 end)
 	hoverAll()
 end
 

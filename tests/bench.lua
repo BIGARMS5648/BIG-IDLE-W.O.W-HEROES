@@ -48,7 +48,7 @@ local function fresh()
 	ns.InitDB()
 	local db = ns.db
 	db.gold = 1e13
-	for _, id in ipairs({ "root", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9" }) do ns.Runes.Buy(id) end
+	for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7", "c8", "c9" }) do ns.Runes.Buy(id) end
 	db.opt.auto, db.opt.retreat = false, false
 	db.prog = { 30, 30, 30, 30 }
 	ns.Heroes.AddXP = function() return 0 end -- levels stay fixed during a run

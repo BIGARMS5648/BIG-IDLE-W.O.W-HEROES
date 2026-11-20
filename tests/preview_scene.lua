@@ -15,7 +15,7 @@ local db = ns.db
 db.faction = "ALLIANCE"
 ns.AddGold(123456789)
 ns.Heroes.Create("TINKER_MECH")
-for _, id in ipairs({ "root", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "w1", "w1", "w2", "g1", "m1", "x1", "e1", "e2", "e3" }) do ns.Runes.Buy(id) end
+for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7", "w1", "w1", "w2", "g1", "m1", "x1", "e1", "e2", "e3" }) do ns.Runes.Buy(id) end
 for _, sid in ipairs({ "MAGE_FIRE", "ROGUE_SUB", "TINKER_TURRET", "PRIEST_DISC", "DRUID_RESTO", "SHAMAN_ENH", "WARRIOR_PROT", "TINKER_MEDIC" }) do ns.Heroes.Create(sid) end
 for id in pairs(db.heroes) do ns.Heroes.AddXP(id, 2.5e6) end
 -- the longest name the generator can make, to test every place a name is shown
@@ -92,6 +92,27 @@ S.bar = function()
 	Mock.Update(0.05)
 end
 
+-- the battle window during a boss fight, then after a wipe
+S.bar_boss = function()
+	ns.Main.Toggle(false)
+	local st = ns.Combat.state
+	for _ = 1, 6000 do
+		local up
+		for _, m in ipairs(ns.Combat.mobs) do if m.boss and not m.dead then up = true end end
+		if up then break end
+		Mock.Update(0.1)
+	end
+	Mock.Update(0.05)
+end
+S.bar_wipe = function()
+	ns.Main.Toggle(false)
+	local st = ns.Combat.state
+	-- a wipe in the middle of a boss fight
+	S.bar_boss()
+	st.phase, st.result, st.timer = "result", "lose", 2.5
+	Mock.Update(0.05)
+end
+
 -- modals
 S.faction = function() show("party") ns.PickFaction() end
 S.create = function() show("party") ns.CreateHeroDialog("TINKER") end
@@ -147,11 +168,11 @@ S.hero_slot_empty = function()
 	p.slot = empty or "oh"
 	ns.Main.Refresh()
 end
-S.hero_sheet = function()
-	show("hero", { sub = "gear", hero = db.party[2] })
-	page("hero").slot = nil
+S.hero_reset = function()
+	local p = show("hero", { sub = "skills", hero = db.party[2] })
+	p.skill = nil
 	ns.Main.Refresh()
-	page("hero").S.card.left:Click()
+	p.resetSkills:Click()
 end
 S.hero_skills = function() local p = show("hero", { sub = "skills", hero = db.party[2] }) p.skill = nil ns.Main.Refresh() end
 S.hero_skill_locked = function()
@@ -192,6 +213,25 @@ end
 S.bag_locked = function() local p = show("bag") p.tab = "all" p.selItem = db.bag[3] ns.Main.Refresh() end
 S.bag_weapon = function() local p = show("bag") p.tab = "weapon" p.selItem = nil ns.Main.Refresh() end
 S.bag_mats = function() local p = show("bag") p.tab = "mats" p.selMat = "bar1" ns.Main.Refresh() end
+S.bag_smelt_one = function()
+	local p = show("bag")
+	p.tab = "all"
+	local it = db.bag[5]
+	if it.lock then ns.Items.ToggleLock(it) end
+	ns.Main.Refresh()
+	for _, c in ipairs(p.cells) do
+		if c.data == it then c:Click("RightButton") break end
+	end
+end
+S.bag_smelt_all = function() local p = show("bag") p.tab = "all" ns.Main.Refresh() p.smeltGo:Click() end
+S.bag_smelt_list = function() local p = show("bag") p.tab = "all" ns.Main.Refresh() p.smeltPick:Click() end
+S.bag_fuse_mats = function()
+	local p = show("bag")
+	p.tab = "mats"
+	ns.AddMat("cloth1", 20)
+	ns.Main.Refresh()
+	p.autoFuse:Click()
+end
 S.bag_bank_empty = function() local p = show("bag") p.tab = "bank" p.selItem = nil ns.Main.Refresh() end
 S.bag_bank = function()
 	ns.Items.ToBank(1)
@@ -211,6 +251,8 @@ end
 
 -- forge
 S.forge_fuse = function() show("forge", { sub = "fuse" }) end
+S.forge_fuse_grade = function() local p = show("forge", { sub = "fuse" }) p.panels.fuse.pick:Click() end
+S.forge_fuse_kind = function() local p = show("forge", { sub = "fuse" }) p.panels.fuse.catBtn:Click() end
 S.forge_fuse_ready = function()
 	local p = show("forge", { sub = "fuse" })
 	p.panels.fuse.q = 3

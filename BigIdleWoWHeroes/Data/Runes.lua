@@ -1,5 +1,7 @@
 -- Rune tree: account-wide upgrades bought with gold. One root rune and six
--- branches; every rune needs at least one level in the rune before it.
+-- branches. A branch starts with its first rune (the hub, which needs the
+-- root) and forks into two lines (ns.RUNE_TREE); every rune needs at least
+-- one level in the rune before it on its line.
 --
 -- Bonus keys are read through ns.Bonus(key) (see Systems/Runes.lua). Keys that
 -- match an affix name (atkPct, hpPct, ...) are applied to every hero.
@@ -83,6 +85,16 @@ ns.RUNE_BRANCHES = {
 		R("c9", "강력한 각성의 룬", "INV_Misc_Book_11", 1, "skillSlot", 1, 400000),
 		R("c10", "시간 왜곡의 룬", "Spell_Nature_TimeStop", 5, "speed", 4, 800000, 2.0),
 	} },
+}
+
+-- The two lines of each branch, after its hub (the branch's first rune).
+ns.RUNE_TREE = {
+	war     = { { "w2", "w4", "w7", "w9" }, { "w3", "w5", "w6", "w8" } },
+	guard   = { { "g2", "g4", "g7", "g9" }, { "g3", "g5", "g6", "g8" } },
+	wealth  = { { "m2", "m4", "m7", "m9" }, { "m3", "m5", "m6", "m8" } },
+	growth  = { { "x2", "x4", "x7", "x9" }, { "x3", "x5", "x6", "x8" } },
+	explore = { { "e2", "e4", "e7", "e9" }, { "e3", "e5", "e6", "e8" } },
+	command = { { "c2", "c3", "c5", "c7", "c10" }, { "c6", "c4", "c8", "c9" } },
 }
 
 -- How each bonus key reads in tooltips, with %s for the value.

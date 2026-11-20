@@ -55,48 +55,6 @@ local function skillLines(id, sid)
 	return lines
 end
 
-local KEY_STATS = {
-	{ "atk", "공격력", function(s) return U.fmt(s.atk) end },
-	{ "aspd", "공격 속도", function(s) return U.num(s.aspd, 2) .. "/초" end },
-	{ "crit", "치명타 확률 · 피해", function(s) return U.num(s.crit, 1) .. "% · " .. U.num(s.critdmg, 0) .. "%" end },
-	{ "multi", "초당 피해", function(s) return U.fmt(ns.Stats.DPS(s)) end },
-	{ "hp", "생명력", function(s) return U.fmt(s.hp) end },
-	{ "armor", "방어도", function(s) return U.fmt(s.armor) .. " (" .. U.num(ns.Stats.ArmorDR(s.armor, s.level) * 100, 0) .. "%)" end },
-	{ "dodge", "회피 · 막기", function(s) return U.num(s.dodge, 1) .. "% · " .. U.num(s.block, 1) .. "%" end },
-	{ "cdr", "재사용 대기시간 감소", function(s) return U.num(s.cdr, 1) .. "%" end },
-}
-
-------------------------------------------------------------------------
--- Detailed stats (modal)
-------------------------------------------------------------------------
-local sheet = {}
-
-local function openSheet(id)
-	if not sheet.frame then
-		local c = Main.ModalContent(540, 380)
-		sheet.frame = c
-		sheet.title = UI.Title(c, "", 18)
-		sheet.title:SetPoint("TOPLEFT", c, "TOPLEFT", 0, 0)
-		sheet.title:SetWidth(540)
-		sheet.title:SetWordWrap(false)
-		sheet.rows = {}
-		for i = 1, 24 do
-			local col, row = (i <= 12) and 0 or 1, (i - 1) % 12
-			local r = UI.StatRow(c, 260)
-			r:SetPoint("TOPLEFT", c, "TOPLEFT", col * 280, -34 - row * 24)
-			sheet.rows[i] = r
-		end
-		local close = UI.Button(c, 120, K.BTN_H, "닫기", function() Main.CloseModal() end, "dark")
-		close:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", 0, 0)
-	end
-	sheet.title:SetText(H.Name(id) .. " 상세 능력치")
-	local rows = ns.Stats.Sheet(id)
-	for i, r in ipairs(sheet.rows) do
-		local v = rows[i]
-		if v then r:Set(v[1], v[2]) r:Show() else r:Hide() end
-	end
-	Main.ShowModal(sheet.frame)
-end
 
 ------------------------------------------------------------------------
 -- 장비
@@ -168,17 +126,20 @@ local function buildGear(page)
 	p.hint:SetJustifyH("CENTER")
 	UI.Color(p.hint, UI.C.dim)
 
-	-- the card: hero stats, or the chosen slot
+	-- the card: every stat of the hero (always shown), or the chosen slot
 	local d = page.S.card
 	p.statRows = {}
-	for i = 1, #KEY_STATS do
-		local r = UI.StatRow(d.content, K.CARD_IN, UI.STAT_ICON[KEY_STATS[i][1]], UI.STAT_ART[KEY_STATS[i][1]])
-		r:SetPoint("TOPLEFT", d.content, "TOPLEFT", 0, -(i - 1) * 24)
+	for i = 1, 20 do
+		local r = UI.StatRow(d.content, K.CARD_IN)
+		r:SetHeight(14)
+		r.v:SetFont(ns.FONT, K.F_SMALL, "")
+		r:SetPoint("TOPLEFT", d.content, "TOPLEFT", 0, -(i - 1) * 14.6)
 		p.statRows[i] = r
 	end
 	p.ups = UI.Text(d.content, K.F_SMALL)
-	p.ups:SetPoint("TOPLEFT", d.content, "TOPLEFT", 0, -#KEY_STATS * 24 - 8)
+	p.ups:SetPoint("BOTTOMLEFT", d.content, "BOTTOMLEFT", 0, 0)
 	p.ups:SetWidth(K.CARD_IN)
+	p.ups:Hide()
 	p.itemLines = UI.Lines(d.content, K.CARD_IN, 4, K.F_SMALL, 88)
 	p.itemLines:SetPoint("TOPLEFT", d.content, "TOPLEFT", 0, 0)
 	p.candHead = UI.Section(d.content, K.CARD_IN)
@@ -260,13 +221,12 @@ local function refreshGear(page, id)
 		-- the hero
 		d:Head({ hero = id, title = H.Name(id), titleRGB = { U.rgb(ns.CLASSES[sp.class].hex) },
 			sub = string.format("Lv %d · %s", h.level, ns.SpecLabel(h.spec)) })
+		local rows = ns.Stats.Sheet(id)
 		for i, r in ipairs(p.statRows) do
-			r:Set(KEY_STATS[i][2], KEY_STATS[i][3](s))
-			r:Show()
+			local v = rows[i]
+			if v then r:Set(v[1], v[2]) r:Show() else r:Hide() end
 		end
-		p.ups:SetText(upSlots > 0 and U.col("60e070", string.format("가방에 더 좋은 장비가 있는 칸: %d개", upSlots))
-			or U.col("8a90a2", "가방에 더 좋은 장비가 없습니다."))
-		d:Actions({ "상세 능력치", function() openSheet(id) end, "dark" },
+		d:Actions({ "파티 전원 장착", equipAllParty, "blue", tip = { "파티 전원 장착", "출전 중인 영웅 모두에게 가방 속 더 좋은 장비를 장착합니다." } },
 			{ "일괄 장착", function()
 				local n = ns.Items.AutoEquip(id)
 				ns.Toast(n > 0 and string.format("%s: 장비 %d개를 바꿨습니다.", H.ShortName(id), n) or "가방에 더 좋은 장비가 없습니다.")
@@ -494,7 +454,7 @@ local function refreshSkills(page, id)
 		end, "blue", pts == 0 or full }, learn)
 	end
 	page.autoSkills:SetOff(free == 0)
-	page.resetSkills:SetBase("기술 초기화  " .. U.fmt(H.SkillResetCost(id)) .. " G")
+	page.resetSkills:SetLabel("기술 초기화  " .. U.fmt(H.SkillResetCost(id)) .. " G")
 	page.resetSkills:SetOff(H.SkillPointsSpent(id) <= 1 or not ns.CanAfford(H.SkillResetCost(id)))
 end
 
@@ -627,7 +587,7 @@ local function refreshTree(page, id)
 	d:Actions({ "최대까지", function() spend(true) end, "dark", not ok },
 		{ "1점 쓰기", function() spend(false) end, "primary", not ok })
 	page.autoTree:SetOff(free == 0)
-	page.resetTree:SetBase("특성 초기화  " .. U.fmt(H.ResetCost(id)) .. " G")
+	page.resetTree:SetLabel("특성 초기화  " .. U.fmt(H.ResetCost(id)) .. " G")
 	page.resetTree:SetOff(spent == 0 or not ns.CanAfford(H.ResetCost(id)))
 end
 
@@ -651,9 +611,7 @@ local function build(page)
 	page.strip:SetPoint("TOPLEFT", S.list, "TOPLEFT", K.PAD, -K.PAD + 2)
 
 	-- page-wide buttons (list footer); one set per tab
-	page.equipParty = S.FootButton(1, 150, "파티 전원 장착", equipAllParty, "blue")
-	UI.Tip(page.equipParty, function() return UI.SimpleTip("파티 전원 장착", "출전 중인 영웅 모두에게 가방 속 더 좋은 장비를 장착합니다.") end, "TOP")
-	page.toBag = S.FootButton(2, 130, "가방 열기", function() Main.ShowTab("bag", { slot = page.slot }) end, "blue")
+	page.toBag = S.FootButton(1, 130, "가방 열기", function() Main.ShowTab("bag", { slot = page.slot }) end, "blue")
 	page.autoSkills = UI.Button(S.list, 120, K.BTN_H, "자동 배분", function()
 		local id = heroOf()
 		if id then
@@ -662,10 +620,14 @@ local function build(page)
 		end
 	end, "blue")
 	page.autoSkills:SetPoint("BOTTOMLEFT", S.list, "BOTTOMLEFT", K.PAD, K.PAD)
-	page.resetSkills = UI.Arm(UI.Button(S.list, 200, K.BTN_H, "", nil, "red"), "정말 초기화? 한 번 더", function()
+	page.resetSkills = UI.Button(S.list, 200, K.BTN_H, "", function()
 		local id = heroOf()
-		if id then UI.Try(H.ResetSkills(id)) end
-	end)
+		if not id then return end
+		UI.Confirm({ title = "기술 초기화", ok = "초기화", style = "red",
+			text = string.format("%s의 기술을 초기화하시겠습니까?\n첫 기술을 뺀 모든 기술 점수를 돌려받고, %s 골드가 듭니다.",
+				H.Name(id), U.fmt(H.SkillResetCost(id))),
+			onOk = function() UI.Try(H.ResetSkills(id)) end })
+	end, "red")
 	page.resetSkills:SetPoint("LEFT", page.autoSkills, "RIGHT", 8, 0)
 	UI.Tip(page.resetSkills, function() return UI.SimpleTip("기술 초기화", "첫 기술을 뺀 모든 기술 점수를 돌려받습니다. 골드가 듭니다.") end, "TOP")
 	page.autoTree = UI.Button(S.list, 120, K.BTN_H, "자동 배분", function()
@@ -676,10 +638,14 @@ local function build(page)
 		end
 	end, "blue")
 	page.autoTree:SetPoint("BOTTOMLEFT", S.list, "BOTTOMLEFT", K.PAD, K.PAD)
-	page.resetTree = UI.Arm(UI.Button(S.list, 200, K.BTN_H, "", nil, "red"), "정말 초기화? 한 번 더", function()
+	page.resetTree = UI.Button(S.list, 200, K.BTN_H, "", function()
 		local id = heroOf()
-		if id then UI.Try(H.ResetTree(id)) end
-	end)
+		if not id then return end
+		UI.Confirm({ title = "특성 초기화", ok = "초기화", style = "red",
+			text = string.format("%s의 특성을 초기화하시겠습니까?\n쓴 특성 점수를 모두 돌려받고, %s 골드가 듭니다.",
+				H.Name(id), U.fmt(H.ResetCost(id))),
+			onOk = function() UI.Try(H.ResetTree(id)) end })
+	end, "red")
 	page.resetTree:SetPoint("LEFT", page.autoTree, "RIGHT", 8, 0)
 	UI.Tip(page.resetTree, function() return UI.SimpleTip("특성 초기화", "쓴 특성 점수를 모두 돌려받습니다. 골드가 듭니다.") end, "TOP")
 
@@ -712,7 +678,7 @@ local function refresh(page)
 		page.tree.state:SetText("")
 		page.tree.help:Hide()
 		for _, k in ipairs({ "gear", "skills", "tree" }) do S.tabs:SetBadge(k, nil) end
-		for _, b in ipairs({ page.equipParty, page.toBag, page.autoSkills, page.resetSkills, page.autoTree, page.resetTree }) do b:Hide() end
+		for _, b in ipairs({ page.toBag, page.autoSkills, page.resetSkills, page.autoTree, page.resetTree }) do b:Hide() end
 		S.Empty("영웅이 없습니다.\n'편성'에서 첫 영웅을 만드세요.")
 		d:Head({ title = "영웅이 없습니다" })
 		d:Extras(nil, nil)
@@ -731,7 +697,6 @@ local function refresh(page)
 	page.gear:SetShown(sub == "gear")
 	page.skills:SetShown(sub == "skills")
 	page.tree:SetShown(sub == "tree")
-	page.equipParty:SetShown(sub == "gear")
 	page.toBag:SetShown(sub == "gear")
 	page.autoSkills:SetShown(sub == "skills")
 	page.resetSkills:SetShown(sub == "skills")
@@ -764,10 +729,7 @@ local function refresh(page)
 	end
 end
 
-local function tick(page)
-	if page.resetSkills then page.resetSkills:Disarm() end
-	if page.resetTree then page.resetTree:Disarm() end
-end
+local function tick(page) end
 
 local function open(page, opts)
 	if opts and opts.sub then page.sub = opts.sub end

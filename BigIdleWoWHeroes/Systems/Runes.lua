@@ -10,13 +10,23 @@ Runes.prev = {}   -- [runeId] = id of the rune that must be learned first
 do
 	Runes.byId.root = ns.RUNE_ROOT
 	for _, br in ipairs(ns.RUNE_BRANCHES) do
-		local prev = "root"
+		local hub = br.nodes[1].id
 		for _, node in ipairs(br.nodes) do
 			Runes.byId[node.id] = node
-			Runes.prev[node.id] = prev
 			node.branch = br.key
-			prev = node.id
 		end
+		Runes.prev[hub] = "root"
+		-- the hub forks into the branch's lines (Data/Runes.lua ns.RUNE_TREE)
+		for _, line in ipairs(ns.RUNE_TREE[br.key]) do
+			local prev = hub
+			for _, id in ipairs(line) do
+				Runes.prev[id] = prev
+				prev = id
+			end
+		end
+	end
+	for id in pairs(Runes.byId) do
+		if id ~= "root" and not Runes.prev[id] then error("rune " .. id .. " is not on the tree") end
 	end
 end
 

@@ -86,7 +86,7 @@ local function build(page)
 	gm.sound:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD, -128)
 	gm.head3 = UI.Section(gm, K.LIST_IN, "진행 방식")
 	gm.head3:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD, -166)
-	gm.flow = UI.Text(gm, K.F_SMALL, "자동 진행, 전멸 시 물러나기, 다시 도전은 '지도' 화면 아래에서 바꿉니다.")
+	gm.flow = UI.Text(gm, K.F_SMALL, "자동 진행, 전멸 시 물러나기, 다시 도전은 '스테이지' 화면 아래에서 바꿉니다.")
 	gm.flow:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD, -194)
 	gm.flow:SetWidth(K.LIST_IN)
 	UI.Color(gm.flow, UI.C.sub)
@@ -170,19 +170,21 @@ local function refresh(page)
 			math.floor(ns.Offline.Efficiency() * 100 + 0.5), U.time(ns.Offline.Cap())))
 		d:Head({ icon = "INV_Misc_Note_01", title = "저장 데이터", sub = "모든 진행 상황" })
 		page.cardText:SetText("처음부터 다시 시작하려면 모든 진행 상황을 지울 수 있습니다.\n\n" .. U.col("ff9a7a", "영웅, 장비, 골드, 룬, 진행도가 모두 사라지며 되돌릴 수 없습니다."))
-		d:Actions(nil, UI.ArmSpec(page, "reset", "모든 진행 상황 초기화", "정말 초기화하려면 한 번 더", function()
-			ns.ResetDB()
-			ns.Toast("모든 진행 상황을 초기화했습니다.")
-			Main.SelectHero(nil)
-			Main.ShowTab("party")
-			ns.PickFaction(function() Main.ShowTab("party", { create = true }) end)
-		end, "red"))
+		d:Actions(nil, { "모든 진행 상황 초기화", function()
+			UI.Confirm({ title = "모든 진행 상황 초기화", ok = "초기화", style = "red",
+				text = "모든 진행 상황을 초기화하시겠습니까?\n영웅, 장비, 골드, 룬, 진행도가 모두 사라지며 되돌릴 수 없습니다.",
+				onOk = function()
+					ns.ResetDB()
+					ns.Toast("모든 진행 상황을 초기화했습니다.")
+					Main.SelectHero(nil)
+					Main.ShowTab("party")
+					ns.PickFaction(function() Main.ShowTab("party", { create = true }) end)
+				end })
+		end, "red" })
 	end
 end
 
-local function tick(page)
-	if UI.ArmTick(page) then Main.Refresh() end
-end
+local function tick(page) end
 
 Main.RegisterTab({
 	key = "options", title = "설정", sub = "화면, 게임, 정보", nav = false,

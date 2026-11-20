@@ -69,7 +69,10 @@ GUIDE = """# 그림 에셋 프롬프트 목록
 └───────────────────────────────────────────────────────────────────────┘
 알림 (ui_toast): 메뉴 창 위쪽 테두리에 잠깐   설명 창 (ui_tooltip): 마우스를 올리면
 잃는 행동 버튼 (ui_btn_danger) · 켜짐 버튼 (ui_btn_confirm) · 빨간 알림 점 (icon_badge)
-전투 창: 테두리 (ui_battle_frame) · 우두머리 막대 (ui_boss_bar) · 상자 (icons_misc)
+확인 창: 창 (ui_window) · [취소 ui_btn_neutral] [실행 ui_btn_danger 또는 ui_btn_primary]
+선택 버튼: 버튼 (ui_chip) + 아래 화살표 (icon_arrow를 돌려 씀) → 펼친 목록 (ui_card), 고른 줄 (icon_check)
+룬 화면: 트리 바탕 (ui_inset) · 룬 칸 (ui_slot, 아이콘) · 이어 주는 줄 (색만) · 아래 정보 줄 (ui_card)
+전투 창: 테두리 (ui_battle_frame) · 우두머리 막대 (ui_boss_bar, 맨 위 가운데) · 상자 (icons_misc)
 ```
 
 {ui_table}

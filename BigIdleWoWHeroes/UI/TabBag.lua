@@ -46,19 +46,41 @@ local function indexIn(list, it)
 	end
 end
 
+-- Breaks one item down after asking (from the card button and right-click).
 local function smeltOne(page, it)
 	if it.lock then
-		UI.Try(false, "보호된 장비입니다. 먼저 '보호 풀기'를 누르세요.")
+		UI.Try(false, "보호된 장비는 분해할 수 없습니다. 먼저 보호를 푸세요.")
+		return
 	elseif not ns.Forge.Unlocked("smelt") then
 		UI.Try(false, "용광로에서 '분해'를 먼저 해금하세요.")
-	else
+		return
+	end
+	local text = string.format("%s을(를) 분해하시겠습니까?\n%s 골드를 받습니다.", ns.Items.ColorName(it), U.fmt(ns.Items.SmeltGold(it)))
+	if ns.Items.PartyUpgrade(it) then
+		text = text .. "\n" .. U.col("ff9a7a", "파티에게 지금 장비보다 더 좋은 장비입니다.")
+	end
+	UI.Confirm({ title = "분해", ok = "분해", style = "red", text = text, onOk = function()
 		local ok, g = ns.Forge.Smelt({ it })
 		if UI.Try(ok, g) then
 			ns.Toast(string.format("분해: +%s 골드", U.fmt(g)))
-			page.selItem = nil
+			if page.selItem == it then page.selItem = nil end
 		end
+	end })
+end
+
+-- Materials in the order the player keeps them: new ones go to the end
+-- until '정리' puts everything back in kind and tier order.
+local function matList()
+	local db = ns.db
+	local out, seen = {}, {}
+	for _, id in ipairs(db.ui.matOrder or {}) do
+		if ns.MATS[id] and ns.MatCount(id) > 0 and not seen[id] then out[#out + 1] = id seen[id] = true end
 	end
-	Main.Refresh()
+	for _, id in ipairs(ns.MAT_ORDER) do
+		if ns.MatCount(id) > 0 and not seen[id] then out[#out + 1] = id seen[id] = true end
+	end
+	db.ui.matOrder = out
+	return out
 end
 
 ------------------------------------------------------------------------
@@ -76,10 +98,18 @@ local function build(page)
 	})
 	page.S = S
 	page.sort = S.Tool(90, "정리", function()
-		if page.tab == "bank" then ns.Items.Sort(ns.db.bank) else ns.Items.Sort(ns.db.bag) end
+		if page.tab == "mats" then
+			ns.db.ui.matOrder = nil
+		elseif page.tab == "bank" then
+			ns.Items.Sort(ns.db.bank)
+		else
+			ns.Items.Sort(ns.db.bag)
+		end
 		Main.Refresh()
 	end, "dark")
-	UI.Tip(page.sort, function() return UI.SimpleTip("정리", "등급과 레벨 순으로 다시 놓습니다.") end, "TOP")
+	UI.Tip(page.sort, function()
+		return UI.SimpleTip("정리", page.tab == "mats" and "재료를 종류와 단계 순으로 다시 놓습니다." or "등급과 레벨 순으로 다시 놓습니다.")
+	end, "TOP")
 
 	local list = S.list
 	page.head = UI.Section(list, K.LIST_IN)
@@ -93,13 +123,8 @@ local function build(page)
 				ns.Items.ToggleLock(self.data)
 				page.selItem, page.selMat = self.data, nil
 			elseif self.data and button == "RightButton" and page.tab ~= "bank" then
-				local it = self.data
-				if ns.Items.PartyUpgrade(it) and not it.lock and ns.Forge.Unlocked("smelt") then
-					UI.Try(false, "파티에게 더 좋은 장비라서 우클릭으로는 분해하지 않습니다. 오른쪽 '분해' 버튼을 쓰세요.")
-				else
-					smeltOne(page, it)
-					return
-				end
+				page.selItem, page.selMat = self.data, nil
+				smeltOne(page, self.data)
 			elseif self.data then
 				page.selItem, page.selMat = self.data, nil
 			end
@@ -125,43 +150,65 @@ local function build(page)
 		Main.Refresh()
 	end, "blue")
 	UI.Tip(page.open, function() return UI.SimpleTip("상자 모두 열기", "쌓인 상자를 모두 엽니다. 가방이 차면 남은 상자는 그대로 둡니다.") end, "TOP")
-	page.smeltGo = S.FootButton(2, 190, "", nil, "red")
-	UI.Arm(page.smeltGo, "", function()
-		local ok, gold, n = ns.Forge.Smelt((ns.Forge.PickByQuality(smeltQ())))
-		if UI.Try(ok, gold) then
-			ns.Toast(string.format("%d개 분해: +%s 골드", n, U.fmt(gold)))
-		end
-		page.selItem = nil
-		Main.Refresh()
-	end)
-	local armedClick = page.smeltGo.onClick
-	page.smeltGo.onClick = function(self)
+	page.smeltGo = S.FootButton(2, 190, "", function(self)
 		if not ns.Forge.Unlocked("smelt") then
 			Main.ShowTab("forge", { sub = "smelt" })
-		elseif self.off then
-			UI.Try(false, "기준 등급 이하인 장비가 없습니다. 기준 등급을 올려 보세요.")
-		else
-			self.armedLabel = "정말 분해? 한 번 더"
-			armedClick(self)
+			return
 		end
-	end
+		local picked, kept = ns.Forge.PickByQuality(smeltQ())
+		if #picked == 0 then
+			UI.Try(false, "기준 등급 이하인 장비가 없습니다. 기준 등급을 올려 보세요.")
+			return
+		end
+		local total = 0
+		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
+		local q = ns.QUALITY[smeltQ()]
+		UI.Confirm({ title = "일괄 분해", ok = "분해", style = "red",
+			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다. 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비%s는 남깁니다.",
+				U.col(q.hex, ns.N(q.name)), #picked, U.fmt(total), kept > 0 and string.format("(%d개)", kept) or ""),
+			onOk = function()
+				local ok, gold, n = ns.Forge.Smelt(picked)
+				if UI.Try(ok, gold) then ns.Toast(string.format("%d개 분해: +%s 골드", n, U.fmt(gold))) end
+				page.selItem = nil
+			end })
+	end, "red")
 	UI.Tip(page.smeltGo, function()
 		local picked, kept = ns.Forge.PickByQuality(smeltQ())
 		local body = string.format("기준 등급 이하의 장비 %d개를 골드로 바꿉니다. 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 남깁니다.", #picked)
 		if kept > 0 then body = body .. string.format("\n(파티에게 더 좋은 장비 %d개는 남김)", kept) end
-		return UI.SimpleTip("일괄 분해", body .. "\n누른 뒤 한 번 더 눌러야 실행됩니다.")
+		return UI.SimpleTip("일괄 분해", body)
 	end, "TOP")
-	page.smeltPick = UI.Chip(list, 146, K.BTN_H, "", function(_, button)
-		local q = smeltQ() + (button == "RightButton" and -1 or 1)
-		if q > ns.MAX_QUALITY then q = 1 elseif q < 1 then q = ns.MAX_QUALITY end
+	page.smeltPick = UI.Dropdown(list, 150, K.BTN_H, function()
+		local out = {}
+		for q = 1, ns.MAX_QUALITY do out[#out + 1] = { q, U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하" } end
+		return out
+	end, smeltQ, function(q)
 		ns.db.ui.smeltQ = q
 		if (ns.db.opt.autoSmelt or 0) > 0 then ns.db.opt.autoSmelt = q end
-		Main.Refresh()
-	end)
+	end, "기준: ")
 	page.smeltPick:SetPoint("LEFT", page.smeltGo, "RIGHT", 8, 0)
-	UI.Tip(page.smeltPick, function()
-		return UI.SimpleTip("분해 기준 등급",
-			"일괄 분해와 자동 분해(설정)가 이 등급 이하의 장비만 분해합니다. 클릭하면 한 등급 올리고, 우클릭하면 내립니다.")
+	page.smeltPick.openUp = true -- it sits in the footer
+	page.smeltPick.tipTitle = "분해 기준 등급"
+	page.smeltPick.tipText = "일괄 분해와 자동 분해(설정)가 이 등급 이하의 장비만 분해합니다. 눌러서 목록에서 고르세요."
+	-- materials: fuse everything that can be fused
+	page.autoFuse = UI.Button(list, 190, K.BTN_H, "재료 자동 융합", function()
+		local n = ns.Forge.MatFusionsReady()
+		if n == 0 then
+			UI.Try(false, string.format("같은 재료가 %d개 이상 모인 것이 없습니다.", ns.Forge.FUSE_COUNT))
+			return
+		end
+		UI.Confirm({ title = "재료 자동 융합", ok = "융합", style = "primary",
+			text = string.format("재료를 자동으로 융합하시겠습니까?\n같은 재료가 %d개 이상이면 다음 단계 1개로 합칩니다(약 %d번). 낮은 단계부터 합쳐서, 새로 생긴 재료도 다시 합칩니다.",
+				ns.Forge.FUSE_COUNT, n),
+			onOk = function()
+				local done = ns.Forge.FuseAllMats()
+				ns.Toast(string.format("재료 융합 %d번", done))
+			end })
+	end, "blue")
+	page.autoFuse:SetPoint("LEFT", page.open, "RIGHT", 8, 0)
+	page.autoFuse.clickWhenOff = true
+	UI.Tip(page.autoFuse, function()
+		return UI.SimpleTip("재료 자동 융합", string.format("같은 재료가 %d개 이상인 것을 모두 다음 단계로 합칩니다.", ns.Forge.FUSE_COUNT))
 	end, "TOP")
 
 	-- card content
@@ -223,9 +270,11 @@ local function refreshMat(page, mat)
 	fillLines(page, ns.Items.MatTooltip(mat))
 	local canFuse = count >= ns.Forge.FUSE_COUNT and m.tier < ns.MAT_MAX_TIER[m.kind]
 	local smelt = ns.Forge.Unlocked("smelt")
-	d:Extras(nil, UI.ArmSpec(page, "allMat" .. mat, "전부 분해 +" .. U.fmt(ns.Forge.MatSmeltGold(mat, count)), "정말 전부? 한 번 더", function()
-		UI.Try(ns.Forge.SmeltMat(mat, ns.MatCount(mat)))
-	end, "red", not smelt))
+	d:Extras(nil, { "전부 분해 +" .. U.fmt(ns.Forge.MatSmeltGold(mat, count)), function()
+		UI.Confirm({ title = "재료 분해", ok = "분해", style = "red",
+			text = string.format("%s %s개를 모두 분해하시겠습니까?\n%s 골드를 받습니다.", ns.N(m.name), U.fmt(count), U.fmt(ns.Forge.MatSmeltGold(mat, count))),
+			onOk = function() UI.Try(ns.Forge.SmeltMat(mat, ns.MatCount(mat))) end })
+	end, "red", not smelt })
 	d:Actions({ "1개 분해 +" .. U.fmt(ns.Forge.MatSmeltGold(mat, 1)), function()
 		UI.Try(ns.Forge.SmeltMat(mat, 1))
 		Main.Refresh()
@@ -327,7 +376,7 @@ local function refresh(page)
 	local db = ns.db
 	local S = page.S
 	S.tabs:Select(page.tab)
-	page.sort:SetShown(page.tab ~= "mats")
+	page.sort:Show()
 	local chests = ns.Loot.Count()
 	page.open:SetLabel(string.format("상자 열기 (%d)", chests))
 	page.open:SetOff(chests == 0)
@@ -338,17 +387,20 @@ local function refresh(page)
 		local picked = ns.Forge.PickByQuality(q)
 		local total = 0
 		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
-		page.smeltGo:SetBase(string.format("일괄 분해 %d개 +%s", #picked, U.fmt(total)))
+		page.smeltGo:SetLabel(string.format("일괄 분해 %d개 +%s", #picked, U.fmt(total)))
 		page.smeltGo:SetOff(#picked == 0)
 	else
-		page.smeltGo:SetBase("분해 해금하러 가기")
+		page.smeltGo:SetLabel("분해 해금하러 가기")
 		page.smeltGo:SetOff(false)
 	end
+	page.smeltPick:Refresh()
 	page.smeltGo:SetStyle(ns.Forge.Unlocked("smelt") and "red" or "blue")
 	local inBag = page.tab ~= "mats" and page.tab ~= "bank"
 	page.open:SetShown(page.tab ~= "bank")
 	page.smeltGo:SetShown(inBag)
 	page.smeltPick:SetShown(inBag)
+	page.autoFuse:SetShown(page.tab == "mats")
+	page.autoFuse:SetOff(ns.Forge.MatFusionsReady() == 0)
 
 	-- drop a selection that is gone
 	if page.selItem and not indexIn(page.tab == "bank" and db.bank or db.bag, page.selItem) then page.selItem = nil end
@@ -362,7 +414,7 @@ local function refresh(page)
 	if page.tab == "mats" then
 		page.head:Set("재료", "상자에서 얻고, 용광로에서 씁니다")
 		local n = 0
-		for _, id in ipairs(ns.MAT_ORDER) do
+		for _, id in ipairs(matList()) do
 			local count = ns.MatCount(id)
 			if count > 0 then
 				n = n + 1
@@ -438,10 +490,7 @@ local function refresh(page)
 	end
 end
 
-local function tick(page)
-	if page.smeltGo and page.smeltGo.Disarm then page.smeltGo:Disarm() end
-	if UI.ArmTick(page) then Main.Refresh() end
-end
+local function tick(page) end
 
 -- opts.slot: show the tab that holds this equipment slot
 local function open(page, opts)

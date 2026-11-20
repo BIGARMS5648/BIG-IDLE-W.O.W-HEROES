@@ -181,11 +181,28 @@ do
 	check(ok2 and ns.Heroes.PartySlot(id2) == nil, "party limit is 1 before the Command rune")
 end
 check(ns.PartyLimit() == 1, "party limit starts at 1")
-for _, id in ipairs({ "root", "c1", "c2", "c3", "c4", "c5", "c6", "c7" }) do
+for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7" }) do
 	local ok, why = ns.Runes.Buy(id)
 	check(ok, "buy rune " .. id .. ": " .. tostring(why))
 end
 check(ns.PartyLimit() == 5, "four Command runes give a party of 5")
+-- the rune tree: root -> branch hub -> two lines, each rune needs the one before it
+do
+	local R = ns.Runes
+	check(R.prev.w1 == "root" and R.prev.w2 == "w1" and R.prev.w3 == "w1", "a branch hub forks into two lines")
+	check(R.prev.w4 == "w2" and R.prev.w5 == "w3", "each line continues from its own rune")
+	local seen = 0
+	for _, br in ipairs(ns.RUNE_BRANCHES) do
+		local onTree = {}
+		for _, line in ipairs(ns.RUNE_TREE[br.key]) do for _, id in ipairs(line) do onTree[id] = (onTree[id] or 0) + 1 end end
+		for i, node in ipairs(br.nodes) do
+			seen = seen + 1
+			if i > 1 then check(onTree[node.id] == 1, "rune " .. node.id .. " sits on exactly one line") end
+		end
+	end
+	check(seen >= 50, "every branch has its runes")
+	check(not R.Available("w8"), "a rune deep in a line is closed before its line is learned")
+end
 check(ns.SkillSlots() == 2, "Awakening rune gives a second skill slot")
 check(ns.Heroes.Deploy(hero("PRIEST_HOLY")) and ns.Heroes.PartySlot(hero("PRIEST_HOLY")) == 5, "healer goes to slot 5")
 for _, sid in ipairs({ "WARRIOR_PROT", "DRUID_GUARDIAN", "MAGE_FIRE", "ROGUE_OUTLAW", "WARLOCK_AFF", "SHAMAN_RESTO", "DRUID_FERAL" }) do

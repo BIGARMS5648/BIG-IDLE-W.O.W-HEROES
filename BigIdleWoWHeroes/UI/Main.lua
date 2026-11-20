@@ -71,6 +71,7 @@ function Main.ShowTab(key, opts)
 	current = key
 	if def.nav ~= false then Main.lastNav = key end
 	Main.CloseModal()
+	if UI.CloseList then UI.CloseList() end
 	for _, t in ipairs(tabs) do
 		if t.page then t.page:Hide() end
 	end
