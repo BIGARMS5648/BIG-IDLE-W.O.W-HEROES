@@ -26,19 +26,27 @@ local function showOffline(r)
 			lines[#lines + 1] = string.format(T("영웅 레벨 +%d", "Hero levels +%d"), r.levels)
 		end
 	end
-	local f = UI.Panel(UIParent, 340, 170, UI.COLOR.bg)
+	local f = UI.Panel(UIParent, 360, 210, "panel", true)
 	f:SetFrameStrata("DIALOG")
 	f:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
 	f:EnableMouse(true)
-	local title = UI.Text(f, 14, T("오프라인 보상", "Offline Rewards"))
-	title:SetPoint("TOP", f, "TOP", 0, -12)
-	title:SetTextColor(1, 0.82, 0)
+	local glow = UI.Art(f, "glow", "BORDER", 1, 0.8, 0.3, 0.5)
+	glow:SetSize(120, 120)
+	glow:SetPoint("TOP", f, "TOP", 0, 30)
+	local icon = f:CreateTexture(nil, "ARTWORK")
+	icon:SetSize(40, 40)
+	icon:SetPoint("TOP", f, "TOP", 0, -12)
+	UI.SetIcon(icon, "INV_Misc_PocketWatch_01")
+	local title = UI.Title(f, T("오프라인 보상", "Offline Rewards"), 16)
+	title:SetPoint("TOP", f, "TOP", 0, -58)
+	title:SetJustifyH("CENTER")
 	local body = UI.Text(f, 12, table.concat(lines, "\n"))
-	body:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -40)
-	body:SetWidth(308)
+	body:SetPoint("TOP", f, "TOP", 0, -84)
+	body:SetWidth(320)
+	body:SetJustifyH("CENTER")
 	body:SetJustifyV("TOP")
-	local ok = UI.Button(f, 100, 24, T("확인", "OK"), function() f:Hide() end)
-	ok:SetPoint("BOTTOM", f, "BOTTOM", 0, 12)
+	local ok = UI.Button(f, 140, 32, T("받기", "Collect"), function() f:Hide() end, "primary")
+	ok:SetPoint("BOTTOM", f, "BOTTOM", 0, 14)
 	ns.Log(table.concat(lines, "  "))
 end
 
@@ -76,8 +84,9 @@ local function onLogin()
 	if report then showOffline(report) end
 	if ns.Heroes.Count() == 0 then
 		ns.Main.Toggle(true)
-		ns.Print(ns.T("환영합니다! '파티' 탭에서 첫 영웅을 무료로 영입하세요. (/biwh 로 메뉴를 엽니다)",
-			"Welcome! Recruit your first hero for free on the Party tab. (/biwh opens the menu)"))
+		ns.Main.ShowTab("party", { create = true })
+		ns.Print(ns.T("환영합니다! 첫 영웅은 무료입니다. 직업과 전문화를 골라 만들어 보세요. (/biwh 로 메뉴를 엽니다)",
+			"Welcome! Your first hero is free - pick a class and specialization. (/biwh opens the menu)"))
 	else
 		ns.Print(ns.T("불러왔습니다. /biwh 로 메뉴를 엽니다.", "Loaded. Type /biwh to open the menu."))
 	end
@@ -108,8 +117,7 @@ driver:SetScript("OnUpdate", onUpdate)
 -- Notifications
 ------------------------------------------------------------------------
 ns.On("LEVEL", function(id, level)
-	local c = ns.CLASSES[id]
-	ns.Log(string.format(ns.T("%s 레벨 %d 달성", "%s reached level %d"), U.col(c.hex, ns.N(c.name)), level))
+	ns.Log(string.format(ns.T("%s 레벨 %d 달성", "%s reached level %d"), ns.Heroes.ColorName(id), level))
 end)
 
 ------------------------------------------------------------------------

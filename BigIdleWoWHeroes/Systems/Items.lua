@@ -12,7 +12,7 @@ local U = ns.U
 local Items = {}
 ns.Items = Items
 
-local BASE_ORDER = { "atk", "hp", "armor", "aspd", "crit", "block", "cast", "heal" }
+local BASE_ORDER = { "atk", "hp", "armor", "aspd", "crit", "critdmg", "block", "cast", "heal" }
 
 local function roundValue(v)
 	if v >= 20 then return floor(v + 0.5) end
@@ -126,14 +126,19 @@ function Items.Value(it)
 	return gold, fxp
 end
 
-function Items.CanUse(heroId, it)
-	local c = ns.CLASSES[heroId]
+function Items.SpecCanUse(specId, it)
+	local sp = ns.SPECS[specId]
 	if it.s == "mh" then
-		return U.contains(c.mh, it.t)
+		return U.contains(sp.mh, it.t)
 	elseif it.s == "oh" then
-		return U.contains(c.oh, it.t)
+		return U.contains(sp.oh, it.t)
 	end
 	return true
+end
+
+function Items.CanUse(heroId, it)
+	local h = ns.db.heroes[heroId]
+	return h ~= nil and Items.SpecCanUse(h.spec, it)
 end
 
 function Items.CanEquip(heroId, it)
@@ -147,14 +152,22 @@ function Items.CanEquip(heroId, it)
 	return true
 end
 
+-- "Arms / Fury Warrior, Retribution Paladin ..." for weapon tooltips
 function Items.UsableBy(it)
-	local names = {}
-	for _, id in ipairs(ns.CLASS_ORDER) do
-		if Items.CanUse(id, it) then
-			names[#names + 1] = U.col(ns.CLASSES[id].hex, ns.N(ns.CLASSES[id].name))
+	local parts = {}
+	for _, cid in ipairs(ns.CLASS_ORDER) do
+		local c = ns.CLASSES[cid]
+		local specs = {}
+		for _, sid in ipairs(c.specs) do
+			if Items.SpecCanUse(sid, it) then specs[#specs + 1] = ns.N(ns.SPECS[sid].name) end
+		end
+		if #specs == #c.specs then
+			parts[#parts + 1] = U.col(c.hex, ns.N(c.name))
+		elseif #specs > 0 then
+			parts[#parts + 1] = U.col(c.hex, ns.N(c.name) .. "(" .. table.concat(specs, "/") .. ")")
 		end
 	end
-	return table.concat(names, ", ")
+	return table.concat(parts, ", ")
 end
 
 ------------------------------------------------------------------------
@@ -177,8 +190,9 @@ local function partyTypes(slot)
 	local set, list = {}, {}
 	for i = 1, ns.PARTY_SIZE do
 		local id = ns.db.party[i]
-		if id then
-			for _, t in ipairs(ns.CLASSES[id][slot]) do
+		local sp = id and ns.Heroes.Spec(id)
+		if sp then
+			for _, t in ipairs(sp[slot]) do
 				if not set[t] then
 					set[t] = true
 					list[#list + 1] = t
@@ -472,7 +486,7 @@ function Items.Tooltip(it, heroId)
 		local r = Items.Compare(heroId, it)
 		if r then
 			local pct = (r - 1) * 100
-			local name = ns.N(ns.CLASSES[heroId].name)
+			local name = ns.Heroes.Name(heroId)
 			if pct > 0.2 then
 				add(string.format(T("%s 전투력 +%s%%", "%s power +%s%%"), name, U.num(pct, 1)), nil, 0.2, 1, 0.2)
 			elseif pct < -0.2 then

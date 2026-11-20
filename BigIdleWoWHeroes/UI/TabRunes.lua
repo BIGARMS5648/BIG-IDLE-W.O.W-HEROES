@@ -1,125 +1,192 @@
--- Rune tree page: one root rune and six branches bought with gold.
+-- Rune tree: a root rune and six branches, bought with gold. Tap a rune to
+-- see it in the side card and learn it there.
 local _, ns = ...
 
+local floor = math.floor
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
+local R = ns.Runes
 
-local COL_W = 121
+local COL_W = 104
+local NODE = 34
 local ROW_H = 38
-local TOP = -70
+local TOP = -60
+local SIDE_X = 6 * COL_W + 8
 
-local function runeTip(self)
-	local T = ns.T
-	local node = self.node
-	local lvl = ns.Runes.Level(node.id)
-	local lines = { { ns.N(node.name), string.format(T("레벨 %d/%d", "Level %d/%d"), lvl, node.max), 1, 0.82, 0 } }
-	lines[#lines + 1] = { T("레벨당: ", "Per level: ") .. ns.BonusText(node.stat, node.per), nil, 1, 1, 1 }
-	if lvl > 0 then
-		lines[#lines + 1] = { T("현재: ", "Now: ") .. ns.BonusText(node.stat, node.per * lvl), nil, 0.3, 1, 0.3 }
-	end
-	local cost = ns.Runes.NextCost(node.id)
-	if not ns.Runes.Available(node.id) then
-		local prev = ns.Runes.byId[ns.Runes.prev[node.id]]
-		lines[#lines + 1] = { string.format(T("먼저 '%s'을(를) 배워야 합니다.", "Requires %s first."), ns.N(prev.name)), nil, 1, 0.3, 0.3 }
-	end
-	if cost then
-		local ok = ns.CanAfford(cost)
-		lines[#lines + 1] = { T("다음 레벨 비용", "Next level"), U.fmt(cost) .. " G", ok and 1 or 1, ok and 0.82 or 0.3, ok and 0 or 0.3 }
-		lines[#lines + 1] = { T("클릭: 배우기", "Click: learn"), nil, 0.4, 0.8, 1 }
-	else
-		lines[#lines + 1] = { T("최대 레벨", "Maximum level"), nil, 0.3, 1, 0.3 }
-	end
-	return lines
-end
-
-local function summaryTip()
-	local T = ns.T
-	local lines = { { T("룬과 동료의 보너스 합계", "Total bonuses from runes and companions"), nil, 1, 0.82, 0 } }
-	local keys = {}
-	for k in pairs(ns.Runes.All()) do keys[#keys + 1] = k end
-	table.sort(keys)
-	for _, k in ipairs(keys) do
-		local v = ns.Bonus(k)
-		if v ~= 0 then lines[#lines + 1] = { ns.BonusText(k, v), nil, 1, 1, 1 } end
-	end
-	if #lines == 1 then
-		lines[2] = { T("아직 배운 룬이 없습니다.", "No runes learned yet."), nil, 0.7, 0.7, 0.7 }
-	end
-	return lines
-end
-
-local function makeNode(page, node, x, y)
-	local b = UI.IconButton(page, 30, function(self)
-		UI.Try(ns.Runes.Buy(self.node.id))
-		Main.Refresh()
-	end)
-	b.node = node
-	b:SetIconName(node.icon)
+local function runeNode(page, node, x, y)
+	local b = CreateFrame("Button", nil, page)
+	b:SetSize(NODE, NODE)
 	b:SetPoint("TOPLEFT", page, "TOPLEFT", x, y)
-	UI.Tip(b, runeTip)
+	b.disc = UI.Art(b, "circle", "BACKGROUND", 0.05, 0.06, 0.1)
+	b.disc:SetAllPoints(b)
+	b.icon = b:CreateTexture(nil, "ARTWORK")
+	b.icon:SetPoint("TOPLEFT", b, "TOPLEFT", 5, -5)
+	b.icon:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -5, 5)
+	UI.SetIcon(b.icon, node.icon)
+	b.ringT = UI.Art(b, "ring", "OVERLAY")
+	b.ringT:SetAllPoints(b)
+	b.hl = UI.Art(b, "glow", "BACKGROUND", 1, 0.85, 0.35, 0.9)
+	b.hl:SetPoint("TOPLEFT", b, "TOPLEFT", -10, 10)
+	b.hl:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 10, -10)
+	b.hl:Hide()
 	b.text = UI.Text(page, 10)
 	b.text:SetPoint("LEFT", b, "RIGHT", 4, 0)
-	b.text:SetWidth(COL_W - 40)
+	b.text:SetWidth(COL_W - NODE - 6)
+	b.badge = UI.Badge(b, 12)
+	b.node = node
+	b:RegisterForClicks("LeftButtonUp")
+	b:SetScript("OnClick", function(self)
+		ns.Sound("click")
+		page.sel = self.node.id
+		Main.Refresh()
+	end)
+	b.onEnter = function(self) self.hl:Show() end
+	b.onLeave = function(self) if page.sel ~= self.node.id then self.hl:Hide() end end
+	b:SetScript("OnEnter", function(self) self.onEnter(self) end)
+	b:SetScript("OnLeave", function(self) self.onLeave(self) end)
 	return b
 end
 
 local function build(page)
 	local T = ns.T
+	page.sel = "root"
 	page.nodes = {}
-	page.root = makeNode(page, ns.RUNE_ROOT, 0, 0)
+	-- root, centered over the branches
+	page.root = runeNode(page, ns.RUNE_ROOT, 3 * COL_W - NODE / 2 - 4, 0)
 	page.nodes[1] = page.root
-	page.rootHint = UI.Text(page, 10, T("모든 룬의 시작점입니다. 룬은 골드로 배우며 계정 전체(모든 영웅)에 적용됩니다. 각 갈래는 위에서 아래로 차례대로 열립니다.",
-		"Every rune starts here. Runes cost gold and apply to the whole account (all heroes). Each branch opens from top to bottom."))
-	page.rootHint:SetPoint("TOPLEFT", page, "TOPLEFT", 130, -2)
-	page.rootHint:SetWidth(430)
-	page.rootHint:SetTextColor(0.7, 0.7, 0.7)
-	page.summary = UI.Button(page, 150, 22, T("보너스 합계 보기", "Show total bonuses"))
-	page.summary:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, 0)
-	UI.Tip(page.summary, summaryTip)
+	page.root.text:ClearAllPoints()
+	page.root.text:SetPoint("LEFT", page.root, "RIGHT", 6, 0)
+	page.root.text:SetWidth(120)
 
 	for ci, br in ipairs(ns.RUNE_BRANCHES) do
 		local x = (ci - 1) * COL_W
-		local head = UI.Text(page, 12, ns.N(br.name))
-		head:SetPoint("TOPLEFT", page, "TOPLEFT", x, TOP + 22)
-		head:SetTextColor(U.rgb(br.hex))
+		local r, g, b = U.rgb(br.hex)
+		local head = UI.Pill(page, COL_W - 8, 20, r * 0.45, g * 0.45, b * 0.45, 0.95)
+		head:SetLabel(ns.N(br.name))
+		head:SetPoint("TOPLEFT", page, "TOPLEFT", x, TOP + 24)
 		for ri, node in ipairs(br.nodes) do
 			local y = TOP - (ri - 1) * ROW_H
+			local link
 			if ri > 1 then
-				local link = page:CreateTexture(nil, "ARTWORK")
-				link:SetSize(2, ROW_H - 30)
-				link:SetPoint("TOPLEFT", page, "TOPLEFT", x + 14, y + (ROW_H - 30))
-				UI.Fill(link, 0.3, 0.3, 0.3, 1)
+				link = page:CreateTexture(nil, "BORDER")
+				link:SetSize(3, ROW_H - NODE + 2)
+				link:SetPoint("TOPLEFT", page, "TOPLEFT", x + NODE / 2 - 1, y + ROW_H - NODE + 1)
+				UI.Fill(link, r * 0.5, g * 0.5, b * 0.5, 0.9)
 			end
-			page.nodes[#page.nodes + 1] = makeNode(page, node, x, y)
+			local nb = runeNode(page, node, x, y)
+			nb.link = link
+			page.nodes[#page.nodes + 1] = nb
 		end
 	end
+
+	-- side card
+	local side = UI.Panel(page, Main.PAGE_W - SIDE_X, Main.PAGE_H, "card")
+	side:SetPoint("TOPLEFT", page, "TOPLEFT", SIDE_X, 0)
+	page.side = side
+	side.icon = UI.IconButton(side, 48)
+	side.icon:SetPoint("TOPLEFT", side, "TOPLEFT", 12, -12)
+	side.icon:EnableMouse(false)
+	side.name = UI.Title(side, "", 14)
+	side.name:SetPoint("TOPLEFT", side, "TOPLEFT", 68, -14)
+	side.name:SetWidth(150)
+	side.lvl = UI.Text(side, 11)
+	side.lvl:SetPoint("TOPLEFT", side, "TOPLEFT", 68, -36)
+	UI.Color(side.lvl, UI.C.sub)
+	side.per = UI.Text(side, 11)
+	side.per:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -74)
+	side.per:SetWidth(200)
+	side.now = UI.Text(side, 11)
+	side.now:SetPoint("TOPLEFT", side.per, "BOTTOMLEFT", 0, -6)
+	side.now:SetWidth(200)
+	side.req = UI.Text(side, 11)
+	side.req:SetPoint("TOPLEFT", side.now, "BOTTOMLEFT", 0, -8)
+	side.req:SetWidth(200)
+	side.buy = UI.Button(side, 200, 40, "", function()
+		UI.Try(R.Buy(page.sel))
+		Main.Refresh()
+	end, "primary")
+	side.buy:SetPoint("TOP", side, "TOP", 0, -172)
+	side.totalTitle = UI.Title(side, T("보너스 합계", "Total bonuses"), 12)
+	side.totalTitle:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -228)
+	side.total = UI.Text(side, 10)
+	side.total:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -248)
+	side.total:SetWidth(200)
+	side.total:SetJustifyV("TOP")
+	side.total:SetMaxLines(14)
+end
+
+local function nodeState(id)
+	local node = R.byId[id]
+	local lvl = R.Level(id)
+	local cost = R.NextCost(id)
+	return node, lvl, cost, R.Available(id)
 end
 
 local function refresh(page)
+	local T = ns.T
 	for _, b in ipairs(page.nodes) do
-		local node = b.node
-		local lvl = ns.Runes.Level(node.id)
-		local available = ns.Runes.Available(node.id)
-		local cost = ns.Runes.NextCost(node.id)
-		b:SetDim(not available)
+		local node, lvl, cost, available = nodeState(b.node.id)
+		local affordable = cost and available and ns.CanAfford(cost)
 		if lvl >= node.max then
-			b:SetBorderRGB(0.3, 1, 0.3)
-		elseif cost and available and ns.CanAfford(cost) then
-			b:SetBorderRGB(1, 0.82, 0)
+			b.ringT:SetVertexColor(0.4, 0.95, 0.5)
+		elseif affordable then
+			b.ringT:SetVertexColor(1, 0.82, 0.3)
 		elseif lvl > 0 then
-			b:SetBorderRGB(0.3, 0.7, 1)
+			b.ringT:SetVertexColor(0.45, 0.7, 1)
 		else
-			b:SetQuality(nil)
+			b.ringT:SetVertexColor(0.3, 0.33, 0.42)
 		end
-		local line = U.col(lvl >= node.max and "40ff40" or (lvl > 0 and "ffffff" or "808080"), lvl .. "/" .. node.max)
+		b.icon:SetDesaturated(not available)
+		b.icon:SetAlpha(available and 1 or 0.45)
+		if b.link then b.link:SetAlpha(lvl > 0 and 1 or 0.35) end
+		local line = U.col(lvl >= node.max and "6af07a" or (lvl > 0 and "ffffff" or "8a90a2"), lvl .. "/" .. node.max)
 		if cost then
-			line = line .. "\n" .. U.col((available and ns.CanAfford(cost)) and "ffd100" or "806a30", U.fmt(cost))
+			line = line .. "\n" .. U.col(affordable and "ffd24a" or "7a6a40", U.fmt(cost))
 		end
 		b.text:SetText(line)
+		b.badge:Set(affordable and lvl == 0)
+		if page.sel == b.node.id then b.hl:Show() elseif not b:IsMouseOver() then b.hl:Hide() end
 	end
+
+	local side = page.side
+	local node, lvl, cost, available = nodeState(page.sel)
+	side.icon:SetIconName(node.icon)
+	side.icon:SetBorderRGB(lvl > 0 and 0.45 or 0.3, lvl > 0 and 0.7 or 0.33, lvl > 0 and 1 or 0.42)
+	side.name:SetText(ns.N(node.name))
+	side.lvl:SetText(string.format(T("레벨 %d / %d", "Level %d / %d"), lvl, node.max))
+	side.per:SetText(T("레벨당  ", "Per level  ") .. U.col("ffffff", ns.BonusText(node.stat, node.per)))
+	side.now:SetText(lvl > 0 and (T("현재  ", "Now  ") .. U.col("6af07a", ns.BonusText(node.stat, node.per * lvl))) or "")
+	if not available then
+		local prev = R.byId[R.prev[page.sel]]
+		side.req:SetText(U.col("ff6a5a", string.format(T("먼저 '%s'을(를) 배워야 합니다.", "Learn %s first."), ns.N(prev.name))))
+	else
+		side.req:SetText("")
+	end
+	if cost then
+		side.buy:SetLabel(T("배우기  ", "Learn  ") .. U.fmt(cost) .. " G")
+		side.buy:SetOff(not available or not ns.CanAfford(cost))
+	else
+		side.buy:SetLabel(T("최대 레벨", "Maxed"))
+		side.buy:SetOff(true)
+	end
+
+	local keys = {}
+	for k in pairs(R.All()) do keys[#keys + 1] = k end
+	table.sort(keys)
+	local parts = {}
+	for _, k in ipairs(keys) do
+		local v = ns.Bonus(k)
+		if v ~= 0 then parts[#parts + 1] = ns.BonusText(k, v) end
+	end
+	side.total:SetText(#parts > 0 and table.concat(parts, "\n") or T("아직 배운 룬이 없습니다.", "No runes yet."))
+end
+
+local function open(page, opts)
+	if opts and opts.rune and R.byId[opts.rune] then page.sel = opts.rune end
 end
 
 Main.RegisterTab({
-	key = "runes", title = { "룬", "Runes" }, build = build, refresh = refresh,
+	key = "runes", title = { "룬", "Runes" }, sub = { "골드로 배우는 계정 전체 강화입니다", "Account-wide upgrades bought with gold" },
+	icon = "INV_Misc_Rune_01", build = build, refresh = refresh, open = open,
 	events = { "RUNES", "RESET", "PETS", "GOLD" },
 })

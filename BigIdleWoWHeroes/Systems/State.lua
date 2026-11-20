@@ -1,7 +1,7 @@
--- Saved data: defaults, repair of missing fields and the gold purse.
+-- Saved data: defaults, migration, repair of missing fields and the gold purse.
 local _, ns = ...
 
-local DB_VERSION = 1
+local DB_VERSION = 2
 
 local function fill(t, defaults)
 	for k, v in pairs(defaults) do
@@ -17,9 +17,9 @@ local function fill(t, defaults)
 end
 
 local DEFAULTS = {
-	v = DB_VERSION,
 	gold = 0,
-	heroes = {},                 -- [classId] = { level, xp, tree = {}, skills = {}, gear = {} }
+	heroes = {},                 -- [heroId] = { id, spec, name, level, xp, tree = {}, skills = {}, gear = {} }
+	heroSeq = 0,
 	party = { false, false, false, false, false },
 	bag = {},                    -- array of item tables
 	bank = {},
@@ -39,11 +39,61 @@ local DEFAULTS = {
 	retry = 0,                   -- clears since the last failed push
 }
 
+-- Version 1 kept one hero per class, keyed by class. Each becomes a hero of
+-- the specialization that played the same role, keeps its level and gear, and
+-- gets its talent points back (the trees are different now).
+local V1_SPEC = {
+	WARRIOR = "WARRIOR_PROT", DRUID = "DRUID_GUARDIAN", HUNTER = "HUNTER_MM", MAGE = "MAGE_FIRE", ROGUE = "ROGUE_OUTLAW",
+	WARLOCK = "WARLOCK_DESTRO", SHAMAN = "SHAMAN_ELE", PRIEST = "PRIEST_HOLY", PALADIN = "PALADIN_HOLY",
+}
+
+local function migrateV1(db)
+	local old = db.heroes or {}
+	local oldParty = db.party or {}
+	db.heroes = {}
+	db.heroSeq = 0
+	local newId = {}
+	for _, classId in ipairs({ "WARRIOR", "DRUID", "HUNTER", "MAGE", "ROGUE", "WARLOCK", "SHAMAN", "PRIEST", "PALADIN" }) do
+		local o = old[classId]
+		local specId = V1_SPEC[classId]
+		if type(o) == "table" and ns.SPECS[specId] then
+			local sp = ns.SPECS[specId]
+			db.heroSeq = db.heroSeq + 1
+			local id = "h" .. db.heroSeq
+			local h = {
+				id = id, spec = specId, name = ns.Names.Roll(), level = o.level or 1, xp = o.xp or 0,
+				tree = { [13] = 1 }, skills = { sp.tree[1][3].s }, gear = type(o.gear) == "table" and o.gear or {},
+			}
+			-- gear the new specialization cannot wield goes back to the bag
+			for _, slot in ipairs({ "mh", "oh" }) do
+				local it = h.gear[slot]
+				if it and not ns.U.contains(sp[slot], it.t) then
+					h.gear[slot] = nil
+					db.bag = db.bag or {}
+					db.bag[#db.bag + 1] = it
+				end
+			end
+			db.heroes[id] = h
+			newId[classId] = id
+		end
+	end
+	db.party = { false, false, false, false, false }
+	for i = 1, 5 do
+		local id = newId[oldParty[i]]
+		if id then db.party[i] = id end
+	end
+	db.ui = db.ui or {}
+	db.ui.barPos, db.ui.mainPos, db.ui.tab = nil, nil, nil -- the windows changed shape
+end
+
 function ns.InitDB()
 	if type(BigIdleWoWHeroesDB) ~= "table" then
 		BigIdleWoWHeroesDB = {}
 	end
 	local db = BigIdleWoWHeroesDB
+	if (db.v or DB_VERSION) < 2 and type(db.heroes) == "table" then
+		migrateV1(db)
+	end
 	fill(db, DEFAULTS)
 	db.v = DB_VERSION
 	for i = 1, ns.PARTY_SIZE do
@@ -56,12 +106,24 @@ function ns.InitDB()
 		db.autoT[i] = db.autoT[i] or 0
 	end
 	-- drop references to data that no longer exists
-	for id in pairs(db.heroes) do
-		if not ns.CLASSES[id] then db.heroes[id] = nil end
+	for id, h in pairs(db.heroes) do
+		if type(h) ~= "table" or not ns.SPECS[h.spec] then
+			db.heroes[id] = nil
+		else
+			h.id = id
+			h.level = h.level or 1
+			h.xp = h.xp or 0
+			h.tree = h.tree or {}
+			h.skills = h.skills or {}
+			h.gear = h.gear or {}
+			if type(h.name) ~= "table" then h.name = ns.Names.Roll() end
+			local n = tonumber(tostring(id):sub(2)) or 0
+			if n > db.heroSeq then db.heroSeq = n end
+		end
 	end
 	for i = 1, ns.PARTY_SIZE do
 		local id = db.party[i]
-		if id and not (ns.CLASSES[id] and db.heroes[id]) then db.party[i] = false end
+		if id and not db.heroes[id] then db.party[i] = false end
 	end
 	for id in pairs(db.mats) do
 		if not ns.MATS[id] then db.mats[id] = nil end

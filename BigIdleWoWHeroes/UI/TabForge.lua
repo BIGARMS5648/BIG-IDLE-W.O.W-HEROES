@@ -4,9 +4,14 @@ local _, ns = ...
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
 
-local PX = 182          -- left edge of the operation panel
-local PW = 546
+local PX = 248          -- left edge of the operation panel
+local PW = 580
 local GRID_COLS, GRID_ROWS = 11, 2
+
+local OP_ICON = {
+	fuse = "Spell_Nature_WispSplode", smelt = "Spell_Fire_Fire", craft = "Trade_BlackSmithing", gem = "INV_Misc_Gem_Ruby_02",
+	remove = "INV_Hammer_20", ench = "Trade_Engraving", seal = "INV_Misc_Coin_02", insc = "INV_Scroll_03",
+}
 
 local function qualityOdds(weights)
 	local total = 0
@@ -115,13 +120,13 @@ function builders.fuse(panel)
 	local T = ns.T
 	panel.q = 2
 	panel.cat = "gear"
-	panel.pick = UI.Button(panel, 150, 22, "", function(_, button)
+	panel.pick = UI.Chip(panel, 170, 26, "", function(_, button)
 		panel.q = panel.q + (button == "RightButton" and -1 or 1)
 		if panel.q > ns.MAX_QUALITY - 1 then panel.q = 1 elseif panel.q < 1 then panel.q = ns.MAX_QUALITY - 1 end
 		Main.Refresh()
 	end)
 	panel.pick:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, 0)
-	panel.catBtn = UI.Button(panel, 150, 22, "", function()
+	panel.catBtn = UI.Chip(panel, 170, 26, "", function()
 		panel.cat = panel.cat == "gear" and "accessory" or "gear"
 		Main.Refresh()
 	end)
@@ -159,9 +164,9 @@ function builders.fuse(panel)
 		end
 		Main.Refresh()
 	end
-	panel.go = UI.Button(panel, 150, 24, T("융합", "Fuse"), function() fuse(false) end)
+	panel.go = UI.Button(panel, 170, 34, T("융합", "Fuse"), function() fuse(false) end, "primary")
 	panel.go:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -92)
-	panel.goAll = UI.Button(panel, 150, 24, T("가능한 만큼 융합", "Fuse as many as possible"), function() fuse(true) end)
+	panel.goAll = UI.Button(panel, 190, 34, T("가능한 만큼 융합", "Fuse as many as possible"), function() fuse(true) end, "blue")
 	panel.goAll:SetPoint("LEFT", panel.go, "RIGHT", 6, 0)
 	addResult(panel, 0, -132)
 	panel.note = UI.Text(panel, 10, T("가장 낮은 레벨의 잠기지 않은 장비부터 자동으로 사용합니다. 아끼는 장비는 가방에서 Alt+클릭으로 잠그세요.\n결과 아이템의 레벨은 재료 9개의 평균 레벨 부근입니다. 재료 아이템 융합은 '가방 > 재료 가방'에서 합니다.",
@@ -199,7 +204,7 @@ function builders.smelt(panel)
 		fs:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -70 - (q - 1) * 18)
 		panel.rows[q] = fs
 	end
-	panel.toBag = UI.Button(panel, 150, 22, T("가방 탭으로 이동", "Go to the Bags tab"), function() Main.ShowTab("bag") end)
+	panel.toBag = UI.Button(panel, 170, 32, T("가방에서 분해하기", "Smelt from the bags"), function() Main.ShowTab("bag") end, "blue")
 	panel.toBag:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -226)
 	return function()
 		local level = math.max(1, ns.db.forge.level)
@@ -217,16 +222,16 @@ function builders.craft(panel)
 	panel.group, panel.tier = 1, 1
 	panel.groups = {}
 	for i, g in ipairs(ns.CRAFT_GROUPS) do
-		local b = UI.Button(panel, 74, 22, ns.N(g.name), function()
+		local b = UI.Chip(panel, 78, 24, ns.N(g.name), function()
 			panel.group = i
 			Main.Refresh()
 		end)
-		b:SetPoint("TOPLEFT", panel, "TOPLEFT", (i - 1) * 78, 0)
+		b:SetPoint("TOPLEFT", panel, "TOPLEFT", (i - 1) * 82, 0)
 		panel.groups[i] = b
 	end
 	panel.tiers = {}
 	for i, d in ipairs(ns.CRAFT_TIERS) do
-		local b = UI.Button(panel, 104, 34, "", function()
+		local b = UI.Button(panel, 110, 36, "", function()
 			if ns.Forge.CraftTierUnlocked(i) then
 				panel.tier = i
 			else
@@ -234,7 +239,7 @@ function builders.craft(panel)
 			end
 			Main.Refresh()
 		end)
-		b:SetPoint("TOPLEFT", panel, "TOPLEFT", (i - 1) * 108, -30)
+		b:SetPoint("TOPLEFT", panel, "TOPLEFT", (i - 1) * 116, -32)
 		UI.Tip(b, function()
 			local lines = { { string.format(T("%d단계 제작 (레벨 %d~%d)", "Tier %d crafting (levels %d-%d)"), i, d.lo, d.hi), nil, 1, 0.82, 0 } }
 			if not ns.Forge.CraftTierUnlocked(i) then
@@ -267,7 +272,7 @@ function builders.craft(panel)
 	panel.odds = UI.Text(panel, 11)
 	panel.odds:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -168)
 	panel.odds:SetWidth(PW)
-	panel.go = UI.Button(panel, 150, 24, T("제작", "Craft"), function()
+	panel.go = UI.Button(panel, 170, 34, T("제작", "Craft"), function()
 		local ok, it = ns.Forge.Craft(panel.group, panel.tier)
 		if UI.Try(ok, it) then
 			showResult(panel, it, ns.T("제작 완료!", "Crafted!"))
@@ -275,6 +280,7 @@ function builders.craft(panel)
 		Main.Refresh()
 	end)
 	panel.go:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -206)
+	panel.go:SetStyle("primary")
 	addResult(panel, 0, -244)
 
 	return function()
@@ -288,7 +294,7 @@ function builders.craft(panel)
 				b:SetLabel(string.format(T("잠김 (용광로 %d)\n%s G", "Locked (forge %d)\n%s G"), d.forge, U.fmt(d.gold * 5)))
 			end
 			b:SetOn(open and i == panel.tier)
-			b:SetTextRGB(open and 1 or 0.6, open and 0.9 or 0.6, open and 0.6 or 0.6)
+			b:SetStyle(open and "blue" or "dark")
 		end
 		if not ns.Forge.CraftTierUnlocked(panel.tier) then panel.tier = 1 end
 		local cost, gold = ns.Forge.CraftCost(panel.group, panel.tier)
@@ -345,7 +351,7 @@ local function socketBuilder(kind)
 			UI.Tip(b, function(self) return ns.Items.MatTooltip(self.data) end, "TOP")
 			panel.mats[i] = b
 		end
-		panel.go = UI.Button(panel, 150, 24, ns.N(ns.SOCKET[kind].name), function()
+		panel.go = UI.Button(panel, 170, 34, ns.N(ns.SOCKET[kind].name), function()
 			if not panel.picked or not panel.mat then return end
 			local ok, entry = ns.Forge.Socket(panel.picked, kind, panel.mat, panel.pickedHero)
 			if UI.Try(ok, entry) then
@@ -354,6 +360,7 @@ local function socketBuilder(kind)
 			Main.Refresh()
 		end)
 		panel.go:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -266)
+		panel.go:SetStyle("primary")
 		panel.lastText = UI.Text(panel, 12)
 		panel.lastText:SetPoint("LEFT", panel.go, "RIGHT", 10, 0)
 		panel.note = UI.Text(panel, 10, T("부여되는 능력치는 장비 종류(무기/방어구/장신구)에 따라 정해진 목록에서 무작위로 결정됩니다. 마음에 들지 않으면 '추출'로 비우고 다시 시도할 수 있습니다.",
@@ -409,13 +416,14 @@ function builders.remove(panel)
 	panel.info:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -122)
 	panel.rows = {}
 	for i = 1, 6 do
-		local b = UI.Button(panel, PW, 22, "", function(self)
+		local b = UI.Button(panel, PW, 24, "", function(self)
 			if panel.picked and self.kind then
 				UI.Try(ns.Forge.RemoveSocket(panel.picked, self.kind, self.index, panel.pickedHero))
 				Main.Refresh()
 			end
 		end)
-		b:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -144 - (i - 1) * 26)
+		b:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -144 - (i - 1) * 28)
+		b:SetStyle("red")
 		panel.rows[i] = b
 	end
 	panel.note = UI.Text(panel, 10, T("추출하면 홈이 비워지지만 사용했던 재료는 돌아오지 않습니다. 비용은 재료 단계가 높을수록 비쌉니다.",
@@ -473,7 +481,7 @@ function builders.seal(panel)
 		b.odds:SetPoint("TOPLEFT", panel, "TOPLEFT", 52, y - 20)
 		b.odds:SetWidth(PW - 150)
 		b.odds:SetText(qualityOdds(d.q))
-		b.go = UI.Button(panel, 86, 24, T("굴림", "Roll"), function()
+		b.go = UI.Button(panel, 96, 30, T("굴림", "Roll"), function()
 			local ok, it = ns.Forge.BonusRoll(i)
 			if UI.Try(ok, it) then
 				showResult(panel, it, ns.T("보너스 굴림 결과:", "Bonus roll result:"))
@@ -481,6 +489,7 @@ function builders.seal(panel)
 			Main.Refresh()
 		end)
 		b.go:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 0, y - 8)
+		b.go:SetStyle("primary")
 		panel.rows[i] = b
 	end
 	addResult(panel, 0, -256)
@@ -502,69 +511,113 @@ function builders.seal(panel)
 end
 
 ------------------------------------------------------------------------
--- Page
+-- Screen
 ------------------------------------------------------------------------
 local function build(page)
 	local T = ns.T
 	page.op = "fuse"
-	page.title = UI.Text(page, 13)
-	page.title:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
-	page.title:SetTextColor(1, 0.82, 0)
-	page.xp = UI.Bar(page, 170, 13, 0.9, 0.5, 0.15)
-	page.xp:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -20)
+	-- forge level card
+	page.lvCard = UI.Panel(page, 236, 70, "card")
+	page.lvCard:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
+	page.anvil = page.lvCard:CreateTexture(nil, "ARTWORK")
+	page.anvil:SetSize(40, 40)
+	page.anvil:SetPoint("TOPLEFT", page.lvCard, "TOPLEFT", 12, -12)
+	UI.SetIcon(page.anvil, "Trade_BlackSmithing")
+	page.title = UI.Title(page.lvCard, "", 14)
+	page.title:SetPoint("TOPLEFT", page.lvCard, "TOPLEFT", 60, -12)
+	page.xp = UI.Bar(page.lvCard, 162, 14, 0.95, 0.55, 0.15)
+	page.xp:SetPoint("TOPLEFT", page.lvCard, "TOPLEFT", 60, -36)
+	UI.Tip(page.lvCard, function()
+		return UI.SimpleTip(ns.T("용광로 레벨", "Forge level"), ns.T("아이템을 분해·융합·제작해 소모하면 경험치가 오릅니다. 레벨이 오르면 새 기능과 제작 단계가 열립니다.",
+			"Consuming items (smelting, fusion, crafting) levels the forge, which opens new operations and crafting tiers."))
+	end)
 
+	-- operation tiles
 	page.ops = {}
 	page.panels = {}
 	page.refreshers = {}
 	for i, d in ipairs(ns.FORGE_OPS) do
-		local b = UI.Button(page, 170, 28, "", function()
-			page.op = d.key
+		local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
+		local b = CreateFrame("Button", nil, page)
+		b:SetSize(115, 86)
+		b:SetPoint("TOPLEFT", page, "TOPLEFT", col * 121, -80 - row * 96)
+		b.bg = UI.Slice(b, "card", "BACKGROUND")
+		b.sel = UI.Slice(b, "frame", "OVERLAY", 11)
+		b.sel:SetColor(1, 0.82, 0.3, 1)
+		b.icon = UI.IconButton(b, 40)
+		b.icon:SetPoint("TOP", b, "TOP", 0, -8)
+		b.icon:EnableMouse(false)
+		b.icon:SetIconName(OP_ICON[d.key])
+		b.name = UI.Text(b, 12, ns.N(d.name))
+		b.name:SetPoint("TOP", b.icon, "BOTTOM", 0, -4)
+		b.name:SetJustifyH("CENTER")
+		b.lv = UI.Text(b, 9)
+		b.lv:SetPoint("TOP", b.name, "BOTTOM", 0, -1)
+		b.lv:SetJustifyH("CENTER")
+		b.badge = UI.Badge(b, 15)
+		b.badge:ClearAllPoints()
+		b.badge:SetPoint("TOPRIGHT", b, "TOPRIGHT", -4, -4)
+		b.key = d.key
+		b:RegisterForClicks("LeftButtonUp")
+		b:SetScript("OnClick", function(self)
+			ns.Sound("click")
+			page.op = self.key
 			Main.Refresh()
 		end)
-		b:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -44 - (i - 1) * 32)
 		UI.Tip(b, function()
-			local lines = { { ns.N(d.name), nil, 1, 0.82, 0 }, { ns.N(d.desc), nil, 1, 1, 1 } }
+			local lines = { { ns.N(d.name), nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] }, { ns.N(d.desc), nil, 1, 1, 1 } }
 			if not ns.Forge.Unlocked(d.key) then
 				lines[#lines + 1] = { string.format(ns.T("용광로 %d레벨 필요", "Requires forge level %d"), d.level), nil, 1, 0.5, 0.3 }
-				lines[#lines + 1] = { ns.T("해금 비용", "Unlock cost"), U.fmt(d.cost) .. " G", 1, 0.82, 0 }
+				lines[#lines + 1] = { ns.T("해금 비용", "Unlock cost"), U.fmt(d.cost) .. " G", UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] }
 			end
 			return lines
 		end)
 		page.ops[i] = b
+	end
 
+	-- the operation card
+	page.card = UI.Panel(page, Main.PAGE_W - PX + 12, Main.PAGE_H, "card")
+	page.card:SetPoint("TOPLEFT", page, "TOPLEFT", PX - 12, 0)
+	page.opIcon = UI.IconButton(page.card, 40)
+	page.opIcon:SetPoint("TOPLEFT", page.card, "TOPLEFT", 14, -12)
+	page.opIcon:EnableMouse(false)
+	page.opName = UI.Title(page.card, "", 17)
+	page.opName:SetPoint("TOPLEFT", page.card, "TOPLEFT", 62, -12)
+	page.opDesc = UI.Text(page.card, 11)
+	page.opDesc:SetPoint("TOPLEFT", page.card, "TOPLEFT", 62, -34)
+	page.opDesc:SetWidth(PW - 50)
+	UI.Color(page.opDesc, UI.C.sub)
+	for _, d in ipairs(ns.FORGE_OPS) do
 		local panel = CreateFrame("Frame", nil, page)
 		panel:SetSize(PW, 380)
-		panel:SetPoint("TOPLEFT", page, "TOPLEFT", PX, -64)
+		panel:SetPoint("TOPLEFT", page, "TOPLEFT", PX, -70)
+		panel:SetFrameLevel(page.card:GetFrameLevel() + 2)
 		panel:Hide()
 		page.panels[d.key] = panel
 		page.refreshers[d.key] = builders[d.key](panel)
 	end
 
-	page.opName = UI.Text(page, 14)
-	page.opName:SetPoint("TOPLEFT", page, "TOPLEFT", PX, 0)
-	page.opName:SetTextColor(1, 0.82, 0)
-	page.opDesc = UI.Text(page, 11)
-	page.opDesc:SetPoint("TOPLEFT", page, "TOPLEFT", PX, -22)
-	page.opDesc:SetWidth(PW)
-	page.opDesc:SetTextColor(0.85, 0.85, 0.85)
-
 	page.locked = CreateFrame("Frame", nil, page)
-	page.locked:SetSize(PW, 120)
-	page.locked:SetPoint("TOPLEFT", page, "TOPLEFT", PX, -64)
-	page.lockText = UI.Text(page.locked, 12)
-	page.lockText:SetPoint("TOPLEFT", page.locked, "TOPLEFT", 0, 0)
-	page.lockText:SetWidth(PW)
-	page.unlock = UI.Button(page.locked, 170, 26, "", function()
+	page.locked:SetSize(PW, 200)
+	page.locked:SetPoint("TOPLEFT", page, "TOPLEFT", PX, -90)
+	page.locked:SetFrameLevel(page.card:GetFrameLevel() + 2)
+	page.lockG = UI.Glyph(page.locked, "lock", 56, 0.6, 0.55, 0.45)
+	page.lockG:SetPoint("TOP", page.locked, "TOP", 0, -10)
+	page.lockText = UI.Text(page.locked, 13)
+	page.lockText:SetPoint("TOP", page.locked, "TOP", 0, -80)
+	page.lockText:SetWidth(PW - 40)
+	page.lockText:SetJustifyH("CENTER")
+	page.unlock = UI.Button(page.locked, 220, 38, "", function()
 		UI.Try(ns.Forge.Unlock(page.op))
 		Main.Refresh()
-	end)
-	page.unlock:SetPoint("TOPLEFT", page.locked, "TOPLEFT", 0, -50)
+	end, "primary")
+	page.unlock:SetPoint("TOP", page.lockText, "BOTTOM", 0, -18)
 end
 
 local function refresh(page)
 	local T = ns.T
 	local f = ns.db.forge
-	page.title:SetText(string.format(T("티탄 용광로  Lv %d", "Titan Forge  Lv %d"), f.level))
+	page.title:SetText(string.format(T("티탄 용광로 Lv %d", "Titan Forge Lv %d"), f.level))
 	if f.level >= ns.FORGE_MAX then
 		page.xp:SetValue(1)
 		page.xp:SetLabel(T("최대 레벨", "Max level"))
@@ -576,17 +629,22 @@ local function refresh(page)
 	for i, d in ipairs(ns.FORGE_OPS) do
 		local b = page.ops[i]
 		local open = ns.Forge.Unlocked(d.key)
+		b.sel:SetShown(page.op == d.key)
+		b.icon:SetDim(not open)
+		b.icon:SetLocked(not open)
 		if open then
-			b:SetLabel(ns.N(d.name))
-			b:SetTextRGB(1, 0.9, 0.6)
+			b.lv:SetText("")
+			UI.Color(b.name, UI.C.text)
 		else
-			b:SetLabel(ns.N(d.name) .. "  " .. string.format(T("(Lv %d)", "(Lv %d)"), d.level))
-			b:SetTextRGB(0.55, 0.55, 0.55)
+			b.lv:SetText(string.format(T("Lv %d · %s G", "Lv %d · %s G"), d.level, U.fmt(d.cost)))
+			b.lv:SetTextColor(f.level >= d.level and 0.4 or 0.6, f.level >= d.level and 1 or 0.55, f.level >= d.level and 0.45 or 0.5)
+			UI.Color(b.name, UI.C.dim)
 		end
-		b:SetOn(page.op == d.key)
+		b.badge:Set(not open and f.level >= d.level and ns.CanAfford(d.cost))
 		page.panels[d.key]:Hide()
 	end
 	local d = ns.Forge.OpDef(page.op)
+	page.opIcon:SetIconName(OP_ICON[d.key])
 	page.opName:SetText(ns.N(d.name))
 	page.opDesc:SetText(ns.N(d.desc))
 	if ns.Forge.Unlocked(page.op) then
@@ -596,15 +654,20 @@ local function refresh(page)
 	else
 		page.locked:Show()
 		local okLevel = f.level >= d.level
-		page.lockText:SetText(string.format(T("이 기능은 용광로 %s레벨에 열리며, 해금 비용은 %s 골드입니다.\n용광로 레벨은 아이템을 용해·융합·제작하면 오릅니다.",
-			"This operation opens at forge level %s and costs %s gold to unlock.\nThe forge levels up when it consumes items: smelting, fusion and crafting."),
-			U.col(okLevel and "40ff40" or "ff5050", tostring(d.level)), U.col(ns.CanAfford(d.cost) and "ffd100" or "ff5050", U.fmt(d.cost))))
-		page.unlock:SetLabel(T("해금", "Unlock") .. " (" .. U.fmt(d.cost) .. " G)")
+		page.lockText:SetText(string.format(T("용광로 %s레벨에 열리며, 해금 비용은 %s 골드입니다.\n용광로 레벨은 아이템을 분해·융합·제작하면 오릅니다.",
+			"Opens at forge level %s and costs %s gold to unlock.\nThe forge levels up when it consumes items: smelting, fusion and crafting."),
+			U.col(okLevel and "6af07a" or "ff6a5a", tostring(d.level)), U.col(ns.CanAfford(d.cost) and "ffd24a" or "ff6a5a", U.fmt(d.cost))))
+		page.unlock:SetLabel(T("해금하기", "Unlock") .. "  " .. U.fmt(d.cost) .. " G")
 		page.unlock:SetOff(not okLevel or not ns.CanAfford(d.cost))
 	end
 end
 
+local function open(page, opts)
+	if opts and opts.sub and ns.Forge.OpDef(opts.sub) then page.op = opts.sub end
+end
+
 Main.RegisterTab({
-	key = "forge", title = { "용광로", "Forge" }, build = build, refresh = refresh,
+	key = "forge", title = { "용광로", "Forge" }, sub = { "장비를 융합하고, 분해하고, 만들고, 강화합니다", "Fuse, smelt, craft and enhance gear" },
+	icon = "Trade_BlackSmithing", build = build, refresh = refresh, open = open,
 	events = { "FORGE", "BAG", "MATS", "GEAR", "RESET", "GOLD" },
 })

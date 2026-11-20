@@ -21,6 +21,9 @@ Combat.heroes = {}
 Combat.mobs = {}
 Combat.fields = {}
 Combat.fx = {}
+Combat.meter = {}      -- [heroId] = { dmg, heal, taken, deaths } for the running stage
+Combat.lastMeter = {}  -- the same for the stage before
+Combat.sum = {}        -- [heroId] = totals across stages (filled in by tests/bench.lua)
 Combat.state = { phase = "idle", wave = 0, waves = 0, timer = 0, time = 0 }
 
 local heroes, mobs, fields, fxList = Combat.heroes, Combat.mobs, Combat.fields, Combat.fx
@@ -108,7 +111,7 @@ local function collectAuras()
 		if not u.dead then
 			for _, sid in ipairs(u.skills) do
 				local sk = ns.SKILLS[sid]
-				if sk.kind == "aura" then
+				if sk.kind == "aura" and not sk.self then
 					local lvl = u.slv[sid] or 1
 					for _, m in ipairs(sk.mods) do
 						mods[#mods + 1] = { m[1], m[2] + m[3] * (lvl - 1) }
@@ -125,6 +128,15 @@ local function recalc(u, auras)
 	for i = 1, #auras do extra[#extra + 1] = auras[i] end
 	for _, b in ipairs(u.buffs) do
 		for _, m in ipairs(b.mods) do extra[#extra + 1] = m end
+	end
+	for _, sid in ipairs(u.skills) do -- auras that only affect their owner
+		local sk = ns.SKILLS[sid]
+		if sk.kind == "aura" and sk.self then
+			local lvl = u.slv[sid] or 1
+			for _, m in ipairs(sk.mods) do
+				extra[#extra + 1] = { m[1], m[2] + m[3] * (lvl - 1) }
+			end
+		end
 	end
 	local s = ns.Stats.Compute(u.id, extra)
 	local ratio = u.maxhp and u.maxhp > 0 and (u.hp / u.maxhp) or 1
@@ -154,6 +166,16 @@ local function loadSkills(u)
 		end
 		u.cnt[sid] = u.cnt[sid] or 0
 	end
+	-- permanent companions (pet skills): each attacks on its own timer
+	local pets = {}
+	for _, sid in ipairs(u.skills) do
+		local sk = ns.SKILLS[sid]
+		if sk.kind == "pet" then
+			local old = u.pets and u.pets[sid]
+			pets[sid] = { sk = sk, mult = ns.SkillValue(sid, u.slv[sid]) / 100, t = old and old.t or sk.tick }
+		end
+	end
+	u.pets = pets
 end
 
 local function recalcAll()
@@ -175,13 +197,21 @@ end
 ------------------------------------------------------------------------
 -- Healing and shields
 ------------------------------------------------------------------------
-local function heal(src, tgt, amount)
+local function meter(u, key, amount)
+	local m = Combat.meter[u.id]
+	if m then m[key] = m[key] + amount end
+	m = Combat.sum[u.id] -- running totals, only kept when a benchmark asks for them
+	if m then m[key] = (m[key] or 0) + amount end
+end
+
+local function heal(src, tgt, amount, quiet)
 	if tgt.dead or amount <= 0 then return 0 end
-	if src and src.s then amount = amount * (1 + (src.s.heal or 0) / 100) end
+	if src and src.s then amount = amount * (1 + (src.s.heal or 0) / 100) * (src.s.healMult or 1) end
 	local before = tgt.hp
 	tgt.hp = min(tgt.maxhp, tgt.hp + amount)
 	local done = tgt.hp - before
-	if done >= tgt.maxhp * 0.03 then
+	if src and done > 0 then meter(src, "heal", done) end
+	if not quiet and done >= tgt.maxhp * 0.03 then
 		fx(tgt.x, "+" .. U.fmt(done), 0.3, 1, 0.3, false, "hero")
 	end
 	return done
@@ -195,7 +225,7 @@ local function applyStatus(tgt, kind, hit, power, dur, school)
 	local def = ns.STATUS[kind]
 	if not def then return end
 	dur = dur or def.dur
-	if kind == "stun" or kind == "freeze" then
+	if def.kind == "cc" then
 		if (tgt.ccImmune or 0) > 0 then return end
 		if tgt.boss then dur = dur * 0.5 end
 		tgt.ccImmune = dur + (tgt.boss and 8 or 4)
@@ -207,18 +237,17 @@ local function applyStatus(tgt, kind, hit, power, dur, school)
 		fx(tgt.x, ns.N(def.name), 1, 0.9, 0.4, false, tgt.hero and "hero" or "mob")
 	end
 	e.t = max(e.t or 0, dur)
-	if kind == "ignite" or kind == "bleed" then
+	local k = def.kind
+	if k == "hitdot" then
 		e.dps = max(e.dps or 0, (hit or 0) * def.power / 100)
 		e.school = def.school
-	elseif kind == "poison" or kind == "corrupt" then
+	elseif k == "dot" then
 		e.dps = max(e.dps or 0, power or ((hit or 0) * 0.2))
 		e.school = school or def.school
-	elseif kind == "shock" then
+	elseif k == "slow" then
 		e.v = def.power
-	elseif kind == "chill" then
-		e.v = def.power
-	elseif kind == "weaken" or kind == "curse" then
-		e.v = max(e.v or 0, power or 0)
+	elseif k == "vuln" or k == "weak" then
+		e.v = max(e.v or 0, power or def.power or 0)
 	end
 end
 
@@ -281,6 +310,7 @@ local function damageMob(src, m, amount, school, crit, quiet)
 	if m.st.curse then amount = amount * (1 + m.st.curse.v / 100) end
 	if (m.drT or 0) > 0 then amount = amount * (1 - m.dr / 100) end
 	amount = max(1, amount)
+	if src and src.hero then meter(src, "dmg", min(amount, m.hp)) end
 	m.hp = m.hp - amount
 	m.flash = 0.12
 	if not quiet then
@@ -329,8 +359,10 @@ local function damageHero(h, amount, school, src, isDot)
 		local a = min(h.shield, amount)
 		h.shield = h.shield - a
 		amount = amount - a
+		if h.shieldSrc then meter(h.shieldSrc, "heal", a) end
 		if amount <= 0 then return 0 end
 	end
+	meter(h, "taken", amount)
 	h.hp = h.hp - amount
 	h.flash = 0.12
 	if not isDot and amount >= h.maxhp * 0.04 then
@@ -343,7 +375,8 @@ local function damageHero(h, amount, school, src, isDot)
 		h.st = {}
 		h.buffs = {}
 		h.shield = 0
-		h.hot = nil
+		h.hots = {}
+		meter(h, "deaths", 1)
 		fx(h.x, ns.T("쓰러짐!", "Down!"), 1, 0.2, 0.2, true, "hero")
 		Combat.dirty = true -- auras from this hero end
 	end
@@ -390,7 +423,7 @@ local function newMob(def, isBoss, index, summoned)
 end
 
 local function spawnWave()
-	local stage = ns.STAGES[st.idx]
+	local stage = ns.Stage(st.diff, st.idx)
 	local n = ns.MobsPerWave(st.diff, st.idx)
 	local isBossWave = st.wave == st.waves
 	local index = 1
@@ -620,7 +653,9 @@ local function cast(u, sid, target)
 		local list = pickTargets(target, sk.targets or 1)
 		for _, m in ipairs(list) do
 			for _ = 1, sk.hits or 1 do
-				local dealt = heroHit(u, m, v / 100, sk.school, sk.critBonus)
+				local mult = v / 100
+				if sk.exec and m.hp / m.maxhp * 100 <= sk.exec[1] then mult = mult * sk.exec[2] end
+				local dealt = heroHit(u, m, mult, sk.school, sk.critBonus)
 				if dealt > 0 then
 					if sk.status and random() < sk.status[2] then
 						applyStatus(m, sk.status[1], dealt)
@@ -637,6 +672,13 @@ local function cast(u, sid, target)
 			for i = 1, #heroes do
 				heal(u, heroes[i], heroes[i].maxhp * pct / 100)
 			end
+		end
+		if sk.atone then
+			local t = lowestAlly(1)
+			if t then heal(u, t, t.maxhp * (sk.atone[1] + sk.atone[2] * (lvl - 1)) / 100) end
+		end
+		if sk.selfHeal and not u.dead then
+			heal(u, u, u.maxhp * (sk.selfHeal[1] + sk.selfHeal[2] * (lvl - 1)) / 100)
 		end
 	elseif kind == "dot" then
 		if not target then return false end
@@ -656,32 +698,47 @@ local function cast(u, sid, target)
 			applyStatus(m, sk.status, nil, v, sk.dur)
 		end
 	elseif kind == "heal" then
-		if sk.target == "self" then
+		-- one application: instant, or a heal over time keyed by the skill
+		local function apply(t)
+			if t.dead then return end
 			if sk.hot then
-				u.hot = { t = sk.hot, per = u.maxhp * v / 100, src = u }
+				t.hots[sid] = { t = sk.hot, per = t.maxhp * v / 100, src = u }
+				if sk.instant then heal(u, t, t.maxhp * (sk.instant[1] + sk.instant[2] * (lvl - 1)) / 100) end
 			else
-				heal(u, u, u.maxhp * v / 100)
+				heal(u, t, t.maxhp * v / 100)
 			end
+		end
+		if sk.target == "self" then
+			apply(u)
 		elseif sk.target == "all" then
-			for i = 1, #heroes do
-				heal(u, heroes[i], heroes[i].maxhp * v / 100)
-			end
+			for i = 1, #heroes do apply(heroes[i]) end
 		else
-			local t = lowestAlly(sk.when and sk.when.ally or 1)
-			if not t then return false end
-			heal(u, t, t.maxhp * v / 100)
+			local list = {}
+			for i = 1, #heroes do
+				local t = heroes[i]
+				if not t.dead and t.hp < t.maxhp then list[#list + 1] = t end
+			end
+			if #list == 0 then return false end
+			table.sort(list, function(a, b) return a.hp / a.maxhp < b.hp / b.maxhp end)
+			if list[1].hp / list[1].maxhp >= (sk.when and sk.when.ally or 1) then return false end
+			for i = 1, min(sk.targets or 1, #list) do apply(list[i]) end
 		end
 	elseif kind == "shield" then
 		local function shield(t)
 			if not t.dead then
-				t.shield = max(t.shield, t.maxhp * v / 100 * (1 + (u.s.heal or 0) / 100))
+				t.shield = max(t.shield, t.maxhp * v / 100 * (1 + (u.s.heal or 0) / 100) * (u.s.healMult or 1))
 				t.shieldT = sk.dur
+				t.shieldSrc = u
 			end
 		end
 		if sk.target == "all" then
 			for i = 1, #heroes do shield(heroes[i]) end
 		elseif sk.target == "self" then
 			shield(u)
+		elseif sk.target == "tank" then
+			local t = frontHero()
+			if not t or t.shield > 0 then return false end
+			shield(t)
 		else
 			local t = lowestAlly(sk.when and sk.when.ally or 1)
 			if not t then return false end
@@ -698,6 +755,10 @@ local function cast(u, sid, target)
 				local t = heroes[i]
 				if not t.dead then t.buffs[#t.buffs + 1] = { mods = mods, t = sk.dur } end
 			end
+		elseif sk.target == "lowest" then
+			local t = lowestAlly(sk.when and sk.when.ally or 1)
+			if not t then return false end
+			t.buffs[#t.buffs + 1] = { mods = mods, t = sk.dur }
 		else
 			u.buffs[#u.buffs + 1] = { mods = mods, t = sk.dur }
 		end
@@ -739,10 +800,10 @@ local function stepHero(u)
 	if regen > 0 and u.hp < u.maxhp then
 		u.hp = min(u.maxhp, u.hp + regen * STEP)
 	end
-	if u.hot then
-		u.hot.t = u.hot.t - STEP
-		u.hp = min(u.maxhp, u.hp + u.hot.per * STEP * (1 + (s.heal or 0) / 100))
-		if u.hot.t <= 0 then u.hot = nil end
+	for key, hot in pairs(u.hots) do
+		hot.t = hot.t - STEP
+		heal(hot.src, u, hot.per * STEP, true)
+		if hot.t <= 0 then u.hots[key] = nil end
 	end
 	if u.shield > 0 then
 		u.shieldT = u.shieldT - STEP
@@ -786,6 +847,17 @@ local function stepHero(u)
 			end
 			if u.x < limit then
 				u.x = min(limit, u.x + heroSpeed(u) * STEP)
+			end
+		end
+	end
+
+	-- companions attack whatever is closest, wherever the hero stands
+	if target then
+		for _, pet in pairs(u.pets) do
+			pet.t = pet.t - STEP
+			if pet.t <= 0 then
+				pet.t = pet.sk.tick
+				if not target.dead then heroHit(u, target, pet.mult, pet.sk.school) end
 			end
 		end
 	end
@@ -904,13 +976,20 @@ function Combat.StartStage()
 	for slot = 1, ns.PARTY_SIZE do
 		local id = db.party[slot]
 		if id and db.heroes[id] then
-			local c = ns.CLASSES[id]
+			local c = ns.SPECS[db.heroes[id].spec]
 			heroes[#heroes + 1] = {
-				hero = true, id = id, slot = slot, role = c.role, name = c.name, ranged = c.ranged or false,
-				range = c.range, school = c.school, x = 0, homeX = 0, atkT = 0.2 + random() * 0.4,
-				buffs = {}, st = {}, shield = 0, shieldT = 0, flash = 0, anim = 0, dead = false, reviveT = 0,
+				hero = true, id = id, slot = slot, role = c.role, class = c.class, spec = c.id, name = db.heroes[id].name,
+				ranged = c.ranged or false, range = c.range, school = c.school, x = 0, homeX = 0, atkT = 0.2 + random() * 0.4,
+				buffs = {}, st = {}, hots = {}, pets = {}, skills = {}, slv = {},
+				shield = 0, shieldT = 0, flash = 0, anim = 0, dead = false, reviveT = 0,
 			}
 		end
+	end
+	-- keep the finished stage's numbers around for the statistics display
+	if next(Combat.meter) then Combat.lastMeter = Combat.meter end
+	Combat.meter = {}
+	for i = 1, #heroes do
+		Combat.meter[heroes[i].id] = { dmg = 0, heal = 0, taken = 0, deaths = 0 }
 	end
 	if #heroes == 0 then
 		st.phase = "idle"
@@ -919,7 +998,7 @@ function Combat.StartStage()
 	st.diff = db.stage.diff
 	st.idx = db.stage.idx
 	st.level = ns.StageLevel(st.diff, st.idx)
-	st.raid = ns.STAGES[st.idx].raid or false
+	st.raid = ns.Stage(st.diff, st.idx).raid or false
 	st.waves = st.raid and 4 or ns.WAVES
 	st.wave = 0
 	st.phase = "travel"

@@ -1,7 +1,9 @@
--- UI smoke test: start the addon the way the game does, open every page,
--- hover everything that has a tooltip and click buttons at random.
+-- UI test: start the addon the way the game does, walk through every screen
+-- like a player would, hover everything that has a tooltip and click buttons
+-- at random.
 local ns = NS
 local Mock = WoWMock
+local Main, H = ns.Main, ns.Heroes
 local failures = 0
 
 local function fail(msg)
@@ -17,22 +19,6 @@ local function try(what, fn, ...)
 	if not ok then fail(what .. "\n" .. tostring(err)) end
 	return ok
 end
-
-math.randomseed(777)
-BigIdleWoWHeroesDB = nil
-
--- start-up sequence
-try("ADDON_LOADED", Mock.FireEvent, "ADDON_LOADED", "SomeOtherAddon")
-try("ADDON_LOADED", Mock.FireEvent, "ADDON_LOADED", "BigIdleWoWHeroes")
-try("PLAYER_LOGIN", Mock.FireEvent, "PLAYER_LOGIN")
-if not ns.db then
-	fail("saved variables were not initialised")
-	return false
-end
-if not ns.Main.IsShown() then fail("the menu should open by itself for a new player") end
-if ns.Main.Current() ~= "party" then fail("a new player should land on the Party page") end
-if not SlashCmdList.BIGIDLEWOWHEROES then fail("slash command missing") end
-if type(BigIdleWoWHeroes_OnAddonCompartmentClick) ~= "function" then fail("addon compartment function missing") end
 
 local function frames(n, dt)
 	for _ = 1, n do
@@ -52,40 +38,82 @@ local function hoverAll()
 	return true
 end
 
-local tabs = { "party", "hero", "bag", "forge", "runes", "map", "options" }
--- the forge has by far the most controls, so the random clicking visits it more often
-local clickTabs = { "party", "hero", "bag", "forge", "forge", "forge", "runes", "map", "options", "bag" }
+local function find(pred)
+	for _, f in ipairs(Mock.frames) do
+		if f:IsVisible() and (f.__type == "Button" or f.__type == "CheckButton") and pred(f) then return f end
+	end
+end
 
--- an empty save: every page must render without a hero
+local function click(what, pred, mouse)
+	local b = find(pred)
+	if not b then
+		fail("not found: " .. what)
+		return false
+	end
+	return try("click " .. what, b.Click, b, mouse or "LeftButton")
+end
+
+local function label(b) return b.label and b.label.__text end
+local function labelIs(ko, en) return function(b) return label(b) == ns.T(ko, en) end end
+
+math.randomseed(777)
+BigIdleWoWHeroesDB = nil
+
+------------------------------------------------------------------------
+-- start-up
+------------------------------------------------------------------------
+try("ADDON_LOADED", Mock.FireEvent, "ADDON_LOADED", "SomeOtherAddon")
+try("ADDON_LOADED", Mock.FireEvent, "ADDON_LOADED", "BigIdleWoWHeroes")
+try("PLAYER_LOGIN", Mock.FireEvent, "PLAYER_LOGIN")
+if not ns.db then
+	fail("saved variables were not initialised")
+	return false
+end
+if not Main.IsShown() then fail("the menu should open by itself for a new player") end
+if Main.Current() ~= "party" then fail("a new player should land on the party screen") end
+if not find(function(b) return b.cid == "WARRIOR" end) then fail("the hero creation dialog should be open for a new player") end
+if not SlashCmdList.BIGIDLEWOWHEROES then fail("slash command missing") end
+if type(BigIdleWoWHeroes_OnAddonCompartmentClick) ~= "function" then fail("addon compartment function missing") end
+local goal = ns.Guide.Current()
+if not (goal.create and goal.tab == "party") then fail("the first goal should be to create a hero") end
+
+local tabs = { "party", "hero", "bag", "forge", "runes", "map", "options" }
+
+-- every screen must render with no hero at all
+Main.CloseModal()
 for _, key in ipairs(tabs) do
-	try("show tab " .. key .. " (empty save)", ns.Main.ShowTab, key)
+	try("show " .. key .. " (empty save)", Main.ShowTab, key)
 	hoverAll()
 end
 frames(20)
 
--- recruit the first hero through the UI and let the fight run
-try("show party", ns.Main.ShowTab, "party")
-do
-	local clicked = false
-	for _, b in ipairs(Mock.VisibleButtons()) do
-		if b.classId == "HUNTER" and b.label then
-			try("recruit", b.Click, b, "LeftButton")
-			clicked = true
-			break
-		end
-	end
-	if not clicked then fail("recruit button not found") end
-end
-if not ns.db.heroes.HUNTER then fail("recruiting through the UI did not work") end
+------------------------------------------------------------------------
+-- create the first hero through the dialog: class -> specialization -> create
+------------------------------------------------------------------------
+try("show party", Main.ShowTab, "party")
+local page = Main.Page("party")
+try("open create dialog", page.create.Click, page.create, "LeftButton")
+click("class Hunter", function(b) return b.cid == "HUNTER" end)
+click("spec Marksmanship", function(b) return b.sid == "HUNTER_MM" end)
+click("create", function(b) return label(b) == ns.T("영웅 만들기", "Create Hero") and b.__h == 38 end)
+if H.Count() ~= 1 then fail("creating through the dialog did not make a hero") end
+local first = H.List()[1]
+if first and ns.db.heroes[first].spec ~= "HUNTER_MM" then fail("the hero has the wrong specialization") end
+if first and H.PartySlot(first) ~= 2 then fail("the first damage dealer should join slot 2") end
+local name0 = first and ns.db.heroes[first].name[1]
+click("reroll name", labelIs("이름 다시 뽑기", "Roll another name"))
+click("ok", function(b) return label(b) == ns.T("확인", "OK") and b.__w == 160 end)
+if first and type(ns.db.heroes[first].name) ~= "table" then fail("hero name missing") end
 frames(300)
-if ns.db.stat.kills == 0 then fail("the battle should run once a hero is recruited") end
+if ns.db.stat.kills == 0 then fail("the battle should run once a hero exists") end
 
--- a rich save so that every page has something to show.
--- (The reset button replaces the saved table, so always go through ns.db.)
+------------------------------------------------------------------------
+-- a rich save so that every screen has something to show
+------------------------------------------------------------------------
 local function enrich(round)
 	local db = ns.db
 	if db.gold < 1e9 then ns.AddGold(5e9) end
-	if ns.Heroes.Count() == 0 then ns.Heroes.Unlock("MAGE") end
+	if H.Count() == 0 then H.Create("MAGE_FROST") end
 	if #db.bag < 12 then
 		for i = 1, 20 do ns.Items.AddToBag(ns.Items.New(ns.SLOTS[(i % #ns.SLOTS) + 1], 10 + i, 1 + (i + round) % ns.MAX_QUALITY)) end
 	end
@@ -103,208 +131,269 @@ local function enrich(round)
 		for t = 1, 3 do ns.Loot.AddChest(t, 30, 2) end
 	end
 end
-local db = ns.db
+
 ns.AddGold(5e9)
 for _, id in ipairs({ "root", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "e1", "e2", "e3" }) do ns.Runes.Buy(id) end
-for _, id in ipairs(ns.CLASS_ORDER) do
-	if not db.heroes[id] then ns.Heroes.Unlock(id) end
-	ns.Heroes.AddXP(id, 3e6)
-end
-db.forge.level = 40
-for i = 1, 40 do
-	ns.Items.AddToBag(ns.Items.New(ns.SLOTS[(i % #ns.SLOTS) + 1], 20 + i % 15, 1 + i % ns.MAX_QUALITY))
-end
-for _, id in ipairs(ns.MAT_ORDER) do ns.AddMat(id, 30) end
-for t = 1, 3 do for _ = 1, 4 do ns.Loot.AddChest(t, 25, 1) end end
-db.prog = { 30, 12, 0, 0 }
-db.kills = { beast = 6000, undead = 100 }
+for _, sid in ipairs({ "WARRIOR_PROT", "PRIEST_HOLY", "MAGE_FIRE", "ROGUE_ASSA", "DRUID_GUARDIAN", "SHAMAN_RESTO", "WARLOCK_DEMO" }) do H.Create(sid) end
+for _, id in ipairs(H.List()) do H.AddXP(id, 3e6) end
+enrich(1)
+ns.db.prog = { 30, 12, 0, 0 }
+ns.db.kills = { beast = 6000, undead = 100 }
 ns.CheckPets()
 frames(50)
+if H.PartyCount() ~= 5 then fail("the party should be full: " .. H.PartyCount()) end
 
 for _, key in ipairs(tabs) do
-	try("show tab " .. key, ns.Main.ShowTab, key)
+	try("show " .. key, Main.ShowTab, key)
 	frames(3)
 	hoverAll()
 end
 
--- walk through each forge operation the way a player would
-local function clickLabel(ko, en, mouse)
-	local text = ns.T(ko, en)
-	for _, b in ipairs(Mock.VisibleButtons()) do
-		local t = b.label and b.label.__text
-		if t and t:find(text, 1, true) then
-			try("click " .. text, b.Click, b, mouse or "LeftButton")
-			return true
-		end
+------------------------------------------------------------------------
+-- walkthroughs
+------------------------------------------------------------------------
+-- party: bench hero swaps in, rest a hero, field again
+do
+	Main.ShowTab("party")
+	local bench
+	for _, id in ipairs(H.List()) do
+		if not H.PartySlot(id) and H.Role(id) == "TANK" then bench = id end
 	end
-	fail("button not found: " .. text)
-	return false
-end
--- exact label, optionally a specific button width (operation buttons are 170 wide, actions 150)
-local function clickExact(ko, en, width)
-	local text = ns.T(ko, en)
-	for _, b in ipairs(Mock.VisibleButtons()) do
-		if b.label and b.label.__text == text and (not width or b.__w == width) then
-			try("click " .. text, b.Click, b, "LeftButton")
-			return true
-		end
+	local tankBefore = ns.db.party[1]
+	local card
+	for _, c in ipairs(Main.Page("party").roster) do
+		if c.heroId == bench then card = c end
 	end
-	fail("button not found: " .. text)
-	return false
+	if card then try("swap", card.action.Click, card.action, "LeftButton") end
+	if ns.db.party[1] ~= bench or tankBefore == bench then fail("swapping a bench tank in did not work") end
+	local slot5 = Main.Page("party").slots[5]
+	try("rest healer", slot5.action.Click, slot5.action, "LeftButton")
+	if ns.db.party[5] then fail("resting the healer did not free slot 5") end
+	frames(2)
+	try("field from empty slot", slot5.action.Click, slot5.action, "LeftButton")
+	if not ns.db.party[5] then fail("the empty slot's button should field the bench healer") end
 end
-local function clickIcon(pred, what)
-	for _, b in ipairs(Mock.VisibleButtons()) do
-		if b.icon and b.data ~= nil and pred(b) then
-			try("click icon " .. what, b.Click, b, "LeftButton")
-			return true
-		end
+
+-- hero: talents, auto-assign, skills, gear
+do
+	local id = ns.db.party[2]
+	Main.SelectHero(id)
+	Main.ShowTab("hero", { sub = "tree" })
+	local hp = Main.Page("hero")
+	ns.db.heroes[id].tree = {}
+	ns.db.heroes[id].skills = {}
+	ns.Stats.Invalidate(id)
+	Main.Refresh()
+	local free = H.PointsFree(id)
+	click("talent node", function(b) return b.tier == 1 and b.n == 3 end)
+	if H.PointsFree(id) ~= free - 1 then fail("clicking a talent should spend a point") end
+	click("auto-assign", labelIs("자동 배분", "Auto-assign"))
+	if H.PointsFree(id) ~= 0 then fail("auto-assign should spend every point") end
+	for _, c in ipairs(hp.card.chips) do
+		if c.key == "skills" then try("skills chip", c.Click, c, "LeftButton") end
 	end
-	fail("icon not found: " .. what)
-	return false
+	if hp.sub ~= "skills" then fail("the skills chip did not switch the sub-page") end
+	local active = #H.ActiveSkills(id)
+	click("remove skill", labelIs("해제", "Remove"))
+	if #H.ActiveSkills(id) ~= active - 1 then fail("removing a skill from its card did not work") end
+	Main.Refresh()
+	click("equip skill", labelIs("장착", "Equip"))
+	if #H.ActiveSkills(id) ~= active then fail("equipping a skill from its card did not work") end
+	for _, c in ipairs(hp.card.chips) do
+		if c.key == "gear" then try("gear chip", c.Click, c, "LeftButton") end
+	end
+	click("equip best", labelIs("일괄 장착", "Equip best"))
+	click("equip party", labelIs("파티 전원 일괄 장착", "Equip best: whole party"))
+	click("rename", labelIs("이름 변경", "Rename"))
+	-- dismiss a bench hero: two clicks
+	local benchId
+	for _, hid in ipairs(H.List()) do
+		if not H.PartySlot(hid) then benchId = hid end
+	end
+	Main.SelectHero(benchId)
+	Main.Refresh()
+	local n = H.Count()
+	click("dismiss", labelIs("떠나보내기", "Dismiss"))
+	if H.Count() ~= n then fail("one click must not dismiss a hero") end
+	Main.Refresh()
+	click("dismiss confirm", labelIs("정말요?", "Sure?"))
+	if H.Count() ~= n - 1 or ns.db.heroes[benchId] then fail("two clicks should dismiss the hero") end
+	hoverAll()
 end
+
+-- bags: select, equip, lock, bank, materials
+do
+	Main.ShowTab("bag")
+	local bp = Main.Page("bag")
+	local id = ns.db.party[1]
+	Main.SelectHero(id)
+	local sword = ns.Items.New("mh", 5, 4, H.Spec(id).mh[1])
+	ns.db.bag = {}
+	ns.Items.AddToBag(sword)
+	for i = 1, 6 do ns.Items.AddToBag(ns.Items.New("head", 5 + i, 2)) end
+	Main.Refresh()
+	click("select sword", function(b) return b.data == sword end)
+	if bp.selItem ~= sword then fail("clicking an item should select it") end
+	try("equip", bp.detail.b1.Click, bp.detail.b1, "LeftButton")
+	if ns.db.heroes[id].gear.mh ~= sword then fail("the detail card's equip button should equip the item") end
+	local junk = ns.db.bag[1]
+	bp.selItem = junk
+	Main.Refresh()
+	try("lock", bp.detail.b3.Click, bp.detail.b3, "LeftButton")
+	if not junk.lock then fail("the lock button should lock the item") end
+	try("to bank", bp.detail.b4.Click, bp.detail.b4, "LeftButton")
+	if ns.db.bank[1] ~= junk then fail("the bank button should move the item to the bank") end
+	click("bank view", function(b) return b.key == "bank" end)
+	click("select banked", function(b) return b.data == junk end)
+	try("from bank", bp.detail.b1.Click, bp.detail.b1, "LeftButton")
+	if not ns.Items.IndexInBag(junk) then fail("taking an item out of the bank did not work") end
+	bp.view = "bag"
+	Main.Refresh()
+	local before = #ns.db.bag
+	local victim
+	for _, it in ipairs(ns.db.bag) do
+		if not it.lock then victim = it end
+	end
+	bp.selItem = victim
+	Main.Refresh()
+	try("smelt one", bp.detail.b2.Click, bp.detail.b2, "LeftButton")
+	if #ns.db.bag ~= before - 1 then fail("the smelt button should smelt the item") end
+	for i, c in ipairs(bp.filters) do try("filter " .. i, c.Click, c, "LeftButton") end
+	click("materials", function(b) return b.key == "mats" end)
+	local bars = ns.MatCount("bar1")
+	click("select bars", function(b) return b.data == "bar1" end)
+	try("fuse 9", bp.detail.b1.Click, bp.detail.b1, "LeftButton")
+	if ns.MatCount("bar1") ~= bars - 9 then fail("fusing nine materials from the detail card did not work") end
+	bp.view = "bag"
+	enrich(2)
+	Main.Refresh()
+	click("open chests", function(b) return label(b) and label(b):find(ns.T("상자 모두 열기", "Open chests"), 1, true) end)
+	hoverAll()
+end
+
+-- forge: every operation
 do
 	local F = ns.Forge
 	for _, op in ipairs(ns.FORGE_OPS) do if not F.Unlocked(op.key) then F.Unlock(op.key) end end
 	ns.db.bag = {}
 	for _ = 1, 27 do ns.Items.AddToBag(ns.Items.New("head", 20, 2)) end
-	try("forge tab", ns.Main.ShowTab, "forge")
-	clickExact("융합", "Fusion", 170)
+	Main.ShowTab("forge", { sub = "fuse" })
 	local before = #ns.db.bag
-	clickExact("융합", "Fuse", 150)
-	if #ns.db.bag ~= before - 8 then fail("fusing through the UI should turn 9 items into 1") end
-	clickLabel("가능한 만큼 융합", "Fuse as many as possible")
+	click("fuse", function(b) return label(b) == ns.T("융합", "Fuse") and b.__w == 170 end)
+	if #ns.db.bag ~= before - 8 then fail("fusing through the forge should turn 9 items into 1") end
+	click("fuse all", labelIs("가능한 만큼 융합", "Fuse as many as possible"))
 	if #ns.db.bag ~= 3 then fail("fuse-all should leave 3 items, got " .. #ns.db.bag) end
-
-	clickExact("제작", "Craft", 170)
+	click("craft tile", function(b) return b.key == "craft" end)
 	before = #ns.db.bag
-	local crafted = clickExact("제작", "Craft", 150)
-	if not crafted or #ns.db.bag ~= before + 1 then fail("crafting through the UI should add one item") end
-
-	-- sockets: an epic chest piece in the bag, a gem, an enchant
+	click("craft", function(b) return label(b) == ns.T("제작", "Craft") and b.__w == 170 end)
+	if #ns.db.bag ~= before + 1 then fail("crafting should add one item") end
 	local epic = ns.Items.New("chest", 30, 6)
 	ns.Items.AddToBag(epic)
-	for _, step in ipairs({ { "보석 세공", "Gem Socket", "gem2", "g" }, { "마법부여", "Enchant", "dust2", "e" }, { "룬 각인", "Inscription", "scroll2", "i" } }) do
-		clickExact(step[1], step[2], 170)
-		clickIcon(function(b) return b.data == epic end, "target item")
-		clickIcon(function(b) return b.data == step[3] end, "material " .. step[3])
-		local applied = clickExact(step[1], step[2], 150)
-		if not applied or not epic[step[4]] or #epic[step[4]] ~= 1 then fail(step[2] .. " through the UI did not add a stat") end
+	for _, step in ipairs({ { "gem", "gem2", "g" }, { "ench", "dust2", "e" }, { "insc", "scroll2", "i" } }) do
+		click(step[1] .. " tile", function(b) return b.key == step[1] end)
+		click("target", function(b) return b.data == epic end)
+		click("material", function(b) return b.data == step[2] end)
+		click("apply " .. step[1], function(b) return b.__w == 170 and b.__h == 34 and label(b) == ns.N(ns.SOCKET[step[1]].name) end)
+		if not epic[step[3]] or #epic[step[3]] ~= 1 then fail(step[1] .. " did not add a stat") end
 	end
-	clickExact("추출", "Extraction", 170)
-	clickIcon(function(b) return b.data == epic end, "item to clear")
-	local removed = false
-	for _, b in ipairs(Mock.VisibleButtons()) do
-		if b.kind and b.index and not removed then
-			try("extract", b.Click, b, "LeftButton")
-			removed = true
-		end
-	end
-	if not removed or (#(epic.g or {}) + #(epic.e or {}) + #(epic.i or {})) ~= 2 then fail("extraction through the UI should clear one stat") end
-
-	clickExact("보너스 굴림", "Bonus Roll", 170)
+	click("extraction tile", function(b) return b.key == "remove" end)
+	click("item to clear", function(b) return b.data == epic end)
+	click("extract", function(b) return b.kind and b.index end)
+	if (#(epic.g or {}) + #(epic.e or {}) + #(epic.i or {})) ~= 2 then fail("extraction should clear one stat") end
+	click("seal tile", function(b) return b.key == "seal" end)
 	before = #ns.db.bag
-	clickExact("굴림", "Roll")
-	if #ns.db.bag ~= before + 1 then fail("a bonus roll through the UI should add one item") end
-	clickExact("용해", "Smelt", 170)
+	click("roll", labelIs("굴림", "Roll"))
+	if #ns.db.bag ~= before + 1 then fail("a bonus roll should add one item") end
+	click("smelt tile", function(b) return b.key == "smelt" end)
 	hoverAll()
-
-	-- bags: equip by clicking, lock with Alt, bank with Shift, bulk smelt
-	try("bag tab", ns.Main.ShowTab, "bag")
-	ns.Main.SelectHero("WARRIOR")
-	local sword = ns.Items.New("mh", 5, 4, "sword")
-	ns.Items.AddToBag(sword)
-	try("refresh", ns.Main.Refresh)
-	clickIcon(function(b) return b.data == sword end, "sword")
-	if ns.db.heroes.WARRIOR.gear.mh ~= sword then fail("clicking a bag item should equip it on the selected hero") end
-	local junk = ns.db.bag[1]
-	Mock.alt = true
-	clickIcon(function(b) return b.data == junk end, "lock")
-	Mock.alt = false
-	if not junk.lock then fail("Alt+click should lock an item") end
-	Mock.shift = true
-	clickIcon(function(b) return b.data == junk end, "to bank")
-	Mock.shift = false
-	if ns.db.bank[1] ~= junk then fail("Shift+click should move an item to the bank") end
-	clickLabel("은행", "Bank")
-	clickIcon(function(b) return b.data == junk end, "from bank")
-	if ns.Items.IndexInBag(junk) == nil then fail("clicking a bank item should return it to the bags") end
-	clickLabel("재료 가방", "Reagents")
-	hoverAll()
-	local bars = ns.MatCount("bar1")
-	clickIcon(function(b) return b.data == "bar1" end, "fuse bars")
-	if ns.MatCount("bar1") ~= bars - 9 then fail("clicking a material should fuse nine of them") end
-	clickLabel("가방 ", "Bags ")
-
-	-- hero page: spend a point, equip a skill with a right-click, auto-equip
-	try("hero tab", ns.Main.ShowTab, "hero")
-	local free = ns.Heroes.PointsFree("WARRIOR")
-	for _, b in ipairs(Mock.VisibleButtons()) do
-		if b.tier == 1 and b.n == 1 then try("spend point", b.Click, b, "LeftButton") end
-	end
-	if ns.Heroes.PointsFree("WARRIOR") ~= free - 1 then fail("clicking a talent should spend a point") end
-	clickLabel("최적 장비 자동 착용", "Equip best gear")
-
-	-- map: travel
-	try("map tab", ns.Main.ShowTab, "map")
-	ns.db.prog[1] = 30
-	try("refresh", ns.Main.Refresh)
-	clickLabel("1-3 ", "1-3 ")
-	clickLabel("이 스테이지로 이동", "Travel to this stage")
-	if ns.db.stage.idx ~= 3 or ns.db.stage.diff ~= 1 then fail("travelling through the map did not work") end
-
-	-- runes: buy by clicking
-	try("runes tab", ns.Main.ShowTab, "runes")
-	local lvl = ns.Runes.Level("w1")
-	for _, b in ipairs(Mock.VisibleButtons()) do
-		if b.node and b.node.id == "w1" then try("buy rune", b.Click, b, "LeftButton") end
-	end
-	if ns.Runes.Level("w1") ~= lvl + 1 then fail("clicking a rune should buy a level") end
 end
 
--- click everything, several rounds, with random mouse buttons and modifiers
+-- runes: select and learn
+do
+	Main.ShowTab("runes")
+	local lvl = ns.Runes.Level("w1")
+	click("rune w1", function(b) return b.node and b.node.id == "w1" end)
+	click("learn", function(b) return label(b) and label(b):find(ns.T("배우기", "Learn"), 1, true) end)
+	if ns.Runes.Level("w1") ~= lvl + 1 then fail("learning a rune from the side card did not work") end
+end
+
+-- map: world, act, stage, travel
+do
+	Main.ShowTab("map")
+	ns.db.prog[1] = 30
+	click("world Azeroth", function(b) return b.d == 1 end)
+	click("stage 3", function(b) return b.n == 3 and b.__h == 98 end)
+	click("travel", labelIs("이 스테이지로 이동", "Travel here"))
+	if ns.db.stage.idx ~= 3 or ns.db.stage.diff ~= 1 then fail("travelling through the map did not work") end
+	click("world Outland", function(b) return b.d == 2 end)
+	hoverAll()
+end
+
+-- HUD: goal, auto toggle, chests, menu shortcuts
+do
+	local bar = BigIdleWoWHeroesBar
+	if not bar then
+		fail("HUD frame missing")
+	else
+		Main.Toggle(false)
+		local auto = ns.db.opt.auto
+		try("auto toggle", bar.auto.Click, bar.auto, "LeftButton")
+		if ns.db.opt.auto == auto then fail("the HUD auto button should toggle auto-advance") end
+		try("auto toggle back", bar.auto.Click, bar.auto, "LeftButton")
+		ns.Loot.AddChest(1, 10, 1)
+		try("chest", bar.chests[1].Click, bar.chests[1], "LeftButton")
+		for _, mb in ipairs(bar.menu) do
+			try("menu " .. mb.key, mb.Click, mb, "LeftButton")
+			if Main.Current() ~= mb.key then fail("HUD menu button " .. mb.key .. " should open its screen") end
+		end
+		-- the goal button either acts or opens a screen; give it something to do
+		local hid = ns.db.party[2]
+		ns.Heroes.AddXP(hid, ns.XPForLevel(ns.db.heroes[hid].level) + 1)
+		ns.Guide.Invalidate()
+		Main.Toggle(false)
+		try("goal", bar.goal.Click, bar.goal, "LeftButton")
+		if not (Main.IsShown() and Main.Current() == "hero") then fail("the goal button should open the hero screen for skill points") end
+		try("drag start", bar.__scripts.OnDragStart, bar)
+		try("drag stop", bar.__scripts.OnDragStop, bar)
+		try("bar right-click", bar.__scripts.OnMouseUp, bar, "RightButton")
+		if not (ns.db.ui.barPos and ns.db.ui.barPos[1]) then fail("HUD position was not saved") end
+		ns.db.ui.compact = true
+		try("compact", ns.Bar.ApplyCompact)
+		ns.db.ui.compact = nil
+		try("full", ns.Bar.ApplyCompact)
+	end
+end
+
+------------------------------------------------------------------------
+-- click everything, several rounds, with random mouse buttons
+------------------------------------------------------------------------
+local clickTabs = { "party", "hero", "bag", "forge", "forge", "runes", "map", "options", "bag", "hero" }
 local clicks = 0
-for round = 1, 60 do
+for round = 1, 50 do
 	for _, key in ipairs(clickTabs) do
-		if not ns.Main.IsShown() then try("reopen", ns.Main.Toggle, true) end
-		try("show tab " .. key, ns.Main.ShowTab, key)
-		local buttons = Mock.VisibleButtons()
+		if not Main.IsShown() then try("reopen", Main.Toggle, true) end
+		try("show " .. key, Main.ShowTab, key)
 		for _ = 1, 14 do
-			if not ns.Main.IsShown() then
-				-- the close button (or Escape) was hit: open the window again
-				try("reopen", ns.Main.Toggle, true)
-				try("show tab " .. key, ns.Main.ShowTab, key)
+			if not Main.IsShown() then
+				try("reopen", Main.Toggle, true)
+				try("show " .. key, Main.ShowTab, key)
 			end
-			buttons = Mock.VisibleButtons()
+			local buttons = Mock.VisibleButtons()
 			local b = #buttons > 0 and buttons[math.random(1, #buttons)] or nil
 			if b and b:IsVisible() and not b.__disabled then
-				Mock.shift = math.random() < 0.15
-				Mock.ctrl = math.random() < 0.15
-				Mock.alt = math.random() < 0.1
 				local mouse = math.random() < 0.3 and "RightButton" or "LeftButton"
-				local label = b.label and b.label.__text or (b.data and "icon") or "?"
 				clicks = clicks + 1
-				if not try("click [" .. key .. "] " .. tostring(label) .. " " .. mouse, b.Click, b, mouse) then break end
+				if not try("click [" .. key .. "] " .. tostring(label(b) or (b.data and "icon") or "?") .. " " .. mouse, b.Click, b, mouse) then break end
 				Mock.Hover(b)
 			end
 		end
-		Mock.shift, Mock.ctrl, Mock.alt = false, false, false
 		frames(4)
-		-- keep the save rich so later rounds still have things to click
 		enrich(round)
 	end
 end
 print("  clicked " .. clicks .. " buttons")
 
--- battle bar: drag, right-click, hide / show
-local bar = BigIdleWoWHeroesBar
-if not bar then
-	fail("battle bar frame missing")
-else
-	try("drag start", bar.__scripts.OnDragStart, bar)
-	try("drag stop", bar.__scripts.OnDragStop, bar)
-	try("bar right-click", bar.__scripts.OnMouseUp, bar, "RightButton")
-	if not (ns.db.ui.barPos and ns.db.ui.barPos[1]) then fail("bar position was not saved") end
-end
+-- slash commands, compartment
 try("slash", SlashCmdList.BIGIDLEWOWHEROES, "")
 try("slash bar", SlashCmdList.BIGIDLEWOWHEROES, "bar")
 frames(20)
@@ -315,10 +404,11 @@ try("slash lang", SlashCmdList.BIGIDLEWOWHEROES, "lang en")
 try("compartment", BigIdleWoWHeroes_OnAddonCompartmentClick)
 ns.db.lang = nil
 
--- a long stretch of frames with a full party fighting (floating text, statuses ...)
-if ns.Heroes.Count() == 0 then ns.Heroes.Unlock("MAGE") end
+-- a long stretch with a full party fighting, then lag spikes
+enrich(1)
+if H.PartyCount() == 0 then H.Create("MAGE_FROST") end
 frames(2500, 0.05)
-frames(40, 2.0) -- lag spikes
+frames(40, 2.0)
 
 -- log out, stay away two hours, log back in: offline report
 enrich(1)
@@ -328,15 +418,22 @@ Mock.wall = Mock.wall + 7200
 local goldBefore = ns.db.gold
 try("PLAYER_LOGIN again", Mock.FireEvent, "PLAYER_LOGIN")
 if ns.db.gold <= goldBefore then fail("offline rewards were not paid on login") end
+frames(10)
 local st = ns.db.stat
 print(string.format("  after the run: %d kills, %d clears, %d chests opened, forge level %d, %d heroes",
-	st.kills, st.clears, st.chests, ns.db.forge.level, ns.Heroes.Count()))
-frames(10)
+	st.kills, st.clears, st.chests, ns.db.forge.level, H.Count()))
 
--- no icon may be requested with an empty or malformed path
+-- every texture path must be well-formed; addon textures must exist on disk
 for path in pairs(Mock.textures) do
 	if path:find("Interface\\Icons\\") and (path:find("%s") or path:sub(-1) == "\\") then
 		fail("malformed icon path: " .. path)
+	end
+	local media = path:match("\\Media\\([%w_]+)%.tga$")
+	if media then
+		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigIdleWoWHeroes/Media/" .. media .. ".tga"), "rb")
+		if f then f:close() else fail("missing texture file: Media/" .. media .. ".tga") end
+	elseif path:find("AddOns") then
+		fail("unexpected addon texture path: " .. path)
 	end
 end
 

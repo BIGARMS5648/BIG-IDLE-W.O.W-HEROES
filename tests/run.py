@@ -3,7 +3,7 @@
 
     python3 tests/run.py                 # all checks (systems, UI smoke test, short balance run)
     python3 tests/run.py balance 40      # only the balance run, 40 simulated hours
-    python3 tests/run.py balance 2 MAGE  # ... starting with another class
+    python3 tests/run.py balance 2 MAGE_FIRE   # ... starting with another specialization
     python3 tests/run.py cover           # line coverage of the addon under the tests
     python3 tests/run.py ui              # only the UI smoke test
 
@@ -126,10 +126,16 @@ def main(argv):
 
     if what in ("all", "balance"):
         hours = float(argv[2]) if len(argv) > 2 else 6
-        starter = argv[3] if len(argv) > 3 else "HUNTER"
+        starter = argv[3] if len(argv) > 3 else "HUNTER_MM"
         print("== balance run (%g simulated hours, starting as %s) ==" % (hours, starter))
         lua = new_runtime()
         ok = run_script(lua, "test_balance.lua", hours, starter) and ok
+
+    if what == "bench":
+        # specialization benchmark / tuner (takes several minutes)
+        passes = int(argv[2]) if len(argv) > 2 else 3
+        lua = new_runtime()
+        ok = run_script(lua, "bench.lua", passes) and ok
 
     if what == "cover":
         # line coverage of the addon under the systems + UI tests (slow)

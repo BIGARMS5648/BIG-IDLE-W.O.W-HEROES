@@ -136,6 +136,7 @@ function Texture:SetTexture(t, a, b, c)
 	check(t == nil or type(t) == "string" or type(t) == "number", "SetTexture: path or file id expected")
 	check(a == nil or type(a) ~= "number", "SetTexture(r, g, b, a) is gone on modern clients; use SetColorTexture")
 	self.__tex = t
+	self.__color = nil -- (texture coordinates survive SetTexture, as in the game)
 	Mock.textures[tostring(t)] = true
 	return true
 end
@@ -149,6 +150,7 @@ function Texture:SetTexCoord(...)
 	local n = select("#", ...)
 	check(n == 4 or n == 8, "SetTexCoord: 4 or 8 numbers expected")
 	for i = 1, n do check(type((select(i, ...))) == "number", "SetTexCoord: numbers expected") end
+	if n == 4 then self.__tc = { ... } end
 end
 function Texture:SetVertexColor(r, g, b, a)
 	check(type(r) == "number" and type(g) == "number" and type(b) == "number", "SetVertexColor: numbers expected")
@@ -156,7 +158,7 @@ function Texture:SetVertexColor(r, g, b, a)
 end
 function Texture:SetBlendMode(m) check(m == "ADD" or m == "BLEND" or m == "DISABLE" or m == "MOD" or m == "ALPHAKEY", "SetBlendMode: bad mode") end
 function Texture:SetDrawLayer(l, sub) check(LAYERS[l], "SetDrawLayer: bad layer") self.__layer = l end
-function Texture:SetDesaturated(v) end
+function Texture:SetDesaturated(v) self.__desat = v and true or nil end
 function Texture:SetRotation(r) check(type(r) == "number", "SetRotation: number expected") end
 
 ------------------------------------------------------------------------
@@ -430,6 +432,8 @@ function Mock.Export()
 			e.color = w.__color
 			e.tex = (w.__tex ~= "color") and w.__tex or nil
 			e.vertex = w.__vertex
+			e.tc = w.__tc
+			e.desat = w.__desat
 		elseif kind == "text" then
 			e.layer = w.__layer
 			e.text = w.__text

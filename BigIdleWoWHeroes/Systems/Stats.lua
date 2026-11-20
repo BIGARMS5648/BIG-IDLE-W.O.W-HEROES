@@ -52,7 +52,7 @@ local CAPS = { dodge = 60, block = 75, dr = 75, cdr = 60, res_fire = 75, res_fro
 -- gear:  optional replacement gear table (used to preview upgrades)
 function Stats.Compute(heroId, extra, gear)
 	local h = ns.db.heroes[heroId]
-	local c = ns.CLASSES[heroId]
+	local c = ns.SPECS[h.spec]
 	local acc = {}
 
 	gear = gear or h.gear
@@ -101,8 +101,8 @@ function Stats.Compute(heroId, extra, gear)
 
 	local L = h.level
 	local s = { level = L }
-	s.atk = max(1, fin("atk", ns.BaseAtLevel(c, "atk", L)))
-	s.hp = max(1, floor(fin("hp", ns.BaseAtLevel(c, "hp", L))))
+	s.atk = max(1, fin("atk", ns.BaseAtLevel(c, "atk", L)) * ns.SpecTune(c.id, "atk"))
+	s.hp = max(1, floor(fin("hp", ns.BaseAtLevel(c, "hp", L)) * ns.SpecTune(c.id, "hp")))
 	s.armor = max(0, fin("armor", ns.BaseAtLevel(c, "armor", L)))
 	s.aspd = max(0.1, fin("aspd", c.base.aspd))
 	for i = 1, #PLAIN do
@@ -115,6 +115,8 @@ function Stats.Compute(heroId, extra, gear)
 	s.skills = floor(s.skills + 0.001)
 	s.school = c.school
 	s.range = c.range
+	s.role = c.role
+	s.healMult = ns.SpecTune(c.id, "heal")
 	return s
 end
 
@@ -148,7 +150,7 @@ end
 -- One number used to compare gear for a hero; weights depend on the role.
 function Stats.Power(heroId, gear)
 	local s = gear and Stats.Compute(heroId, nil, gear) or Stats.Get(heroId)
-	local role = ns.CLASSES[heroId].role
+	local role = s.role
 	local dps, ehp = Stats.DPS(s), Stats.EHP(s)
 	if role == "TANK" then
 		return dps ^ 0.35 * ehp ^ 0.65

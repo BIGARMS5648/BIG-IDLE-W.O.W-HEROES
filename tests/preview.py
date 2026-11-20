@@ -2,15 +2,18 @@
 """Draw the addon's UI without the game.
 
 The mocked WoW API records where every frame, texture and text is anchored.
-This script arranges a few scenes, exports them, and writes tests/out/preview.html,
-a page that resolves the anchors and paints each scene as a wireframe: boxes in
-their real colors, icon placeholders with the icon's name, and the actual text.
-It is a layout check (overlaps, overflow, missing labels), not a pixel-accurate
-rendering of the game.
+This script arranges a few scenes, exports them, and writes
+tests/out/preview_<locale>.html, a page that resolves the anchors and paints
+each scene: the addon's own textures (Media/, embedded as PNG) with their
+texture coordinates and tints, the real text, and stand-ins for game art the
+repository cannot contain (item / spell icons and class portraits).
+It is a layout check, not a pixel-accurate rendering of the game.
 
-    python3 tests/preview.py            # Korean
-    python3 tests/preview.py enUS       # English
+    python3 tools/make_art.py          # once, to have the PNG twins of Media/
+    python3 tests/preview.py           # Korean
+    python3 tests/preview.py enUS      # English
 """
+import base64
 import json
 import os
 import sys
@@ -19,30 +22,34 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import run  # noqa: E402
 
 SCENES = [
-    "bar", "party", "hero", "hero_tooltip", "bag", "bag_tooltip",
-    "forge_fuse", "forge_craft", "forge_gem", "forge_remove", "forge_seal",
-    "runes", "map", "options",
+    "bar", "party", "create", "created", "hero", "hero_tree", "hero_skills", "bag", "bag_tooltip",
+    "forge_fuse", "forge_craft", "forge_gem", "forge_locked", "runes", "map", "map_heroic", "options",
 ]
 
 PAGE = r"""<!doctype html>
 <html><head><meta charset="utf-8"><title>Layout preview</title>
 <style>
-  body { background:#20232a; color:#ddd; font:13px sans-serif; margin:16px; }
+  body { background:#1b1f27; color:#ddd; font:13px sans-serif; margin:16px; }
   h2 { font-size:14px; margin:18px 0 6px; }
-  canvas { background:#2c3a2f; display:block; }
+  canvas { background:#3b4a40; display:block; }
 </style></head><body>
 <h1 style="font-size:16px">Big Idle W.O.W Heroes - layout preview (__LOCALE__)</h1>
 <div id="root"></div>
 <script>
 const SCENES = __DATA__;
+const MEDIA = __MEDIA__;
 const FONT = '"WenQuanYi Zen Hei","Noto Sans CJK KR","Malgun Gothic",sans-serif';
 const LAYER = { BACKGROUND:0, BORDER:1, ARTWORK:2, OVERLAY:3, HIGHLIGHT:4 };
 const STRATA = { BACKGROUND:0, LOW:1, MEDIUM:2, HIGH:3, DIALOG:4, FULLSCREEN:5, FULLSCREEN_DIALOG:6, TOOLTIP:7 };
 const W = 1920, H = 1080;
+const CLASS = { // texcoord left,top of the class circle sheet (2 decimals) -> color, initial
+  '0,0':['#c79c6e','W'], '0.25,0':['#69ccf0','M'], '0.5,0':['#fff569','R'], '0.74,0':['#ff7d0a','D'],
+  '0,0.25':['#abd473','H'], '0.25,0.25':['#2e8bff','S'], '0.5,0.25':['#ffffff','P'], '0.74,0.25':['#9482c9','L'],
+  '0,0.5':['#f58cba','Pa'] };
 const mctx = document.createElement('canvas').getContext('2d');
+const images = {};
 
 function segments(text) {
-  // "|cffRRGGBBtext|r" -> [{color, text}]
   const out = []; let color = null; let i = 0;
   const re = /\|c[0-9a-fA-F]{8}|\|r/g; let m;
   while ((m = re.exec(text))) {
@@ -53,7 +60,6 @@ function segments(text) {
   if (i < text.length) out.push({ color, text: text.slice(i) });
   return out;
 }
-function plain(text) { return text.replace(/\|c[0-9a-fA-F]{8}|\|r/g, ''); }
 
 function layoutText(e) {
   mctx.font = e.size + 'px ' + FONT;
@@ -61,7 +67,6 @@ function layoutText(e) {
   for (const raw of e.text.split('\n')) {
     const segs = segments(raw);
     if (!(e.w > 0) || e.nowrap) { lines.push(segs); continue; }
-    // greedy wrap; break at spaces, or anywhere inside CJK runs
     let cur = [], width = 0;
     for (const s of segs) {
       const parts = s.text.match(/[　-鿿가-힯]|[^\s　-鿿가-힯]+|\s+/g) || [];
@@ -82,6 +87,40 @@ function layoutText(e) {
   return { lines, width: maxw, height: lines.length * e.size * 1.22 };
 }
 
+function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+
+// draw part of an image (texture coordinates), tinted, into the rect
+function drawTex(g, img, e, x, y, w, h) {
+  const tc = e.tc || [0, 1, 0, 1];
+  const iw = img.width, ih = img.height;
+  let [u0, u1, v0, v1] = tc;
+  const flipX = u1 < u0, flipY = v1 < v0;
+  const sx = Math.min(u0, u1) * iw, sw = Math.max(1e-3, Math.abs(u1 - u0) * iw);
+  const sy = Math.min(v0, v1) * ih, sh = Math.max(1e-3, Math.abs(v1 - v0) * ih);
+  const S = 2, cw = Math.max(1, Math.ceil(w * S)), ch = Math.max(1, Math.ceil(h * S));
+  const off = document.createElement('canvas'); off.width = cw; off.height = ch;
+  const o = off.getContext('2d');
+  o.save();
+  o.translate(flipX ? cw : 0, flipY ? ch : 0); o.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  o.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+  o.restore();
+  const v = e.vertex;
+  if (v && (v[0] < 0.999 || v[1] < 0.999 || v[2] < 0.999)) {
+    o.globalCompositeOperation = 'multiply';
+    o.fillStyle = `rgb(${v[0]*255},${v[1]*255},${v[2]*255})`;
+    o.fillRect(0, 0, cw, ch);
+    o.globalCompositeOperation = 'destination-in';
+    o.save(); o.translate(flipX ? cw : 0, flipY ? ch : 0); o.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+    o.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch); o.restore();
+  }
+  if (e.desat) g.filter = 'grayscale(1)';
+  const a = g.globalAlpha;
+  if (v && v[3] != null) g.globalAlpha = a * v[3];
+  g.drawImage(off, x, y, w, h);
+  g.globalAlpha = a;
+  g.filter = 'none';
+}
+
 function draw(scene, title) {
   const byId = {}; for (const e of scene.items) byId[e.id] = e;
   const root = scene.root;
@@ -93,7 +132,7 @@ function draw(scene, title) {
   function rect(e) {
     if (e._r) return e._r;
     if (e.id === root) return (e._r = { l:0, b:0, r:W, t:H });
-    e._r = { l:0, b:0, r:0, t:0 }; // guard against cycles
+    e._r = { l:0, b:0, r:0, t:0 };
     let w = e.w, h = e.h;
     if (e.kind === 'text') {
       e._t = layoutText(e);
@@ -115,8 +154,6 @@ function draw(scene, title) {
     else if (CY != null) { B = CY - h / 2; T = CY + h / 2; } else { B = 0; T = h; e._unanchored = true; }
     return (e._r = { l:L, b:B, r:R, t:T });
   }
-  // paint order: strata of the top-level frame, then creation order; inside a
-  // frame its own regions by layer, then child frames
   const children = {}; for (const e of scene.items) (children[e.parent] = children[e.parent] || []).push(e);
   const order = [];
   function walk(f) {
@@ -128,19 +165,21 @@ function draw(scene, title) {
   const tops = scene.items.filter(e => e.kind === 'frame' && (e.parent === root)).sort((a, b) => (STRATA[a.strata || 'MEDIUM'] - STRATA[b.strata || 'MEDIUM']) || (a.order - b.order));
   tops.forEach(walk);
 
-  // bounding box of what is shown
   let bx0 = W, by0 = H, bx1 = 0, by1 = 0;
   for (const e of order) {
     const r = rect(e); if (e._unanchored || r.r - r.l <= 0) continue;
     bx0 = Math.min(bx0, r.l); bx1 = Math.max(bx1, r.r); by0 = Math.min(by0, r.b); by1 = Math.max(by1, r.t);
   }
-  const pad = 12; bx0 = Math.max(0, bx0 - pad); by0 = Math.max(0, by0 - pad); bx1 = Math.min(W, bx1 + pad); by1 = Math.min(H, by1 + pad);
+  const pad = 16; bx0 = Math.max(0, bx0 - pad); by0 = Math.max(0, by0 - pad); bx1 = Math.min(W, bx1 + pad); by1 = Math.min(H, by1 + pad);
   const cw = Math.max(50, bx1 - bx0), ch = Math.max(30, by1 - by0);
 
   const h2 = document.createElement('h2'); h2.textContent = title; document.getElementById('root').appendChild(h2);
   const c = document.createElement('canvas'); c.id = 'scene-' + title; c.width = cw * 2; c.height = ch * 2; c.style.width = cw + 'px'; c.style.height = ch + 'px';
   document.getElementById('root').appendChild(c);
   const g = c.getContext('2d'); g.scale(2, 2); g.translate(-bx0, 0);
+  // a stand-in for the game world behind the UI
+  const bg = g.createLinearGradient(0, 0, 0, ch); bg.addColorStop(0, '#41566a'); bg.addColorStop(1, '#2a3a2e');
+  g.fillStyle = bg; g.fillRect(bx0, 0, cw, ch);
   const Y = y => (by1 - y);
 
   function alphaOf(e) { let a = 1; for (let x = e; x; x = byId[x.parent]) a *= (x.alpha == null ? 1 : x.alpha); return a; }
@@ -153,13 +192,32 @@ function draw(scene, title) {
         g.fillStyle = `rgba(${Math.round(e.color[0]*255)},${Math.round(e.color[1]*255)},${Math.round(e.color[2]*255)},${e.color[3]})`;
         g.fillRect(x, y, w, h);
       } else if (e.tex) {
-        const name = String(e.tex).split('\\').pop();
-        let hash = 0; for (const ch2 of name) hash = (hash * 31 + ch2.charCodeAt(0)) >>> 0;
-        g.fillStyle = `hsl(${hash % 360},35%,32%)`; g.fillRect(x, y, w, h);
-        g.fillStyle = 'rgba(255,255,255,0.85)'; g.font = '7px ' + FONT; g.textBaseline = 'top';
-        const label = name.replace(/^(INV|Spell|Ability)_/, '').replace(/^Misc_/, '');
-        for (let i = 0, yy = y + 1; i < label.length && yy < y + h - 6; i += Math.max(4, Math.floor(w / 4.2)), yy += 7)
-          g.fillText(label.slice(i, i + Math.max(4, Math.floor(w / 4.2))), x + 1, yy);
+        const path = String(e.tex);
+        const name = path.split('\\').pop().replace(/\.tga$/i, '');
+        if (path.includes('\\Media\\') && images[name]) {
+          drawTex(g, images[name], e, x, y, w, h);
+        } else if (path.includes('UI-Classes-Circles')) {
+          const r2 = v => String(Math.round(v * 100) / 100);
+          const key = e.tc ? r2(e.tc[0]) + ',' + r2(e.tc[2]) : '0,0';
+          const [col, ini] = CLASS[key] || ['#888', '?'];
+          if (e.desat) g.filter = 'grayscale(1)';
+          g.fillStyle = col; g.beginPath(); g.arc(x + w / 2, y + h / 2, Math.min(w, h) / 2, 0, Math.PI * 2); g.fill();
+          g.fillStyle = 'rgba(0,0,0,0.55)'; g.font = 'bold ' + Math.round(h * 0.42) + 'px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(ini, x + w / 2, y + h / 2 + 1); g.textAlign = 'left'; g.filter = 'none';
+        } else {
+          // a game icon: a shaded tile with a short label
+          const hue = hash(name) % 360;
+          if (e.desat) g.filter = 'grayscale(1)';
+          const grd = g.createLinearGradient(x, y, x, y + h);
+          grd.addColorStop(0, `hsl(${hue},45%,46%)`); grd.addColorStop(1, `hsl(${hue},50%,22%)`);
+          g.fillStyle = grd; g.fillRect(x, y, w, h);
+          if (w >= 18) {
+            const label = name.replace(/^(INV|Spell|Ability|Trade)_/, '').replace(/^(Misc|Nature|Holy|Shadow|Fire|Frost|Hunter|Warrior|Rogue|Druid)_/, '');
+            g.fillStyle = 'rgba(255,255,255,0.8)'; g.font = Math.max(6, Math.round(w / 6)) + 'px ' + FONT; g.textBaseline = 'top';
+            g.fillText(label.slice(0, Math.max(3, Math.floor(w / 5))), x + 2, y + 2);
+          }
+          g.filter = 'none';
+        }
       }
     } else if (e.kind === 'text') {
       if (!e._t) e._t = layoutText(e);
@@ -170,7 +228,7 @@ function draw(scene, title) {
       for (const line of t.lines) {
         let x = r.l; if (e.jh === 'CENTER') x += (boxW - line.width) / 2; else if (e.jh === 'RIGHT') x += boxW - line.width;
         for (const s of line) {
-          g.fillStyle = '#000'; g.fillText(s.text, x + 1, y + 1);
+          g.fillStyle = 'rgba(0,0,0,0.85)'; g.fillText(s.text, x + 1, y + 1);
           g.fillStyle = s.color || base; g.fillText(s.text, x, y);
           x += g.measureText(s.text).width;
         }
@@ -180,10 +238,28 @@ function draw(scene, title) {
   }
   g.globalAlpha = 1;
 }
-for (const [title, scene] of SCENES) draw(scene, title);
-document.title = 'ready';
+
+const loads = Object.entries(MEDIA).map(([k, src]) => new Promise(res => {
+  const im = new Image(); im.onload = () => { images[k] = im; res(); }; im.onerror = res; im.src = src;
+}));
+Promise.all(loads).then(() => {
+  for (const [title, scene] of SCENES) draw(scene, title);
+  document.title = 'ready';
+});
 </script></body></html>
 """
+
+
+def media():
+    d = os.path.join(run.HERE, "out", "media")
+    out = {}
+    if not os.path.isdir(d):
+        sys.exit("run tools/make_art.py first (it writes the PNG twins of Media/)")
+    for f in sorted(os.listdir(d)):
+        if f.endswith(".png"):
+            with open(os.path.join(d, f), "rb") as fh:
+                out[f[:-4]] = "data:image/png;base64," + base64.b64encode(fh.read()).decode("ascii")
+    return out
 
 
 def main(argv):
@@ -198,8 +274,9 @@ def main(argv):
     out_dir = os.path.join(run.HERE, "out")
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "preview_%s.html" % locale)
+    page = PAGE.replace("__LOCALE__", locale).replace("__MEDIA__", json.dumps(media())).replace("__DATA__", json.dumps(data, ensure_ascii=False))
     with open(path, "w", encoding="utf-8") as f:
-        f.write(PAGE.replace("__LOCALE__", locale).replace("__DATA__", json.dumps(data, ensure_ascii=False)))
+        f.write(page)
     print("wrote %s (%d scenes)" % (path, len(data)))
     return 0
 

@@ -1,4 +1,5 @@
--- Main window: a hero strip on the left, tabs on top, one content page per tab.
+-- Main window: a header with the screen title and gold, the screen itself, and
+-- a bottom navigation bar with notification badges.
 local _, ns = ...
 
 local UI, U = ns.UI, ns.U
@@ -6,20 +7,22 @@ local UI, U = ns.UI, ns.U
 local Main = {}
 ns.Main = Main
 
-Main.W, Main.H = 800, 540
-Main.PAGE_X, Main.PAGE_Y = 64, -58
-Main.PAGE_W, Main.PAGE_H = 728, 474
+Main.W, Main.H = 880, 604
+Main.PAGE_X, Main.PAGE_Y = 16, -58
+Main.PAGE_W, Main.PAGE_H = 848, 468
+local NAV_H = 70
 
 local frame
-local tabs = {}        -- ordered
+local tabs = {}
 local tabByKey = {}
 local current
-local dirty = {}       -- [tabKey] = true when its page needs a refresh
+local dirty = {}
 
 ------------------------------------------------------------------------
--- Tab registry (each UI/Tab*.lua file registers itself)
+-- Screen registry (each UI/Tab*.lua file registers itself)
 ------------------------------------------------------------------------
--- def: { key, title = { ko, en }, build = function(page), refresh = function(page), events = { ... } }
+-- def: { key, title = { ko, en }, sub = { ko, en }, icon, build(page), refresh(page),
+--        open(page, opts) optional, tick(page) optional, events = { ... } }
 function Main.RegisterTab(def)
 	tabs[#tabs + 1] = def
 	tabByKey[def.key] = def
@@ -37,7 +40,7 @@ function Main.MarkDirty(key)
 end
 
 ------------------------------------------------------------------------
--- Selected hero (shared by the Hero, Bag and Forge pages)
+-- Selected hero (shared by several screens)
 ------------------------------------------------------------------------
 function Main.SelectedHero()
 	local db = ns.db
@@ -48,77 +51,25 @@ function Main.SelectedHero()
 			return Main.sel
 		end
 	end
-	for _, id in ipairs(ns.CLASS_ORDER) do
-		if db.heroes[id] then
-			Main.sel = id
-			return id
-		end
-	end
-	Main.sel = nil
-	return nil
+	Main.sel = ns.Heroes.List()[1]
+	return Main.sel
 end
 
 function Main.SelectHero(id)
 	Main.sel = id
 	Main.MarkDirty()
-	Main.RefreshStrip()
-end
-
-local function heroTip(self)
-	local id = self.classId
-	local c = ns.CLASSES[id]
-	local h = ns.db.heroes[id]
-	local r, g, b = U.rgb(c.hex)
-	local lines = { { ns.N(c.name), ns.N(ns.ROLE[c.role].name), r, g, b } }
-	if h then
-		lines[#lines + 1] = { string.format(ns.T("레벨 %d", "Level %d"), h.level), nil, 1, 1, 1 }
-		if h.level < ns.HERO_MAX_LEVEL then
-			lines[#lines + 1] = { ns.T("경험치", "Experience"), U.fmt(h.xp) .. " / " .. U.fmt(ns.XPForLevel(h.level)), 0.8, 0.8, 0.8 }
-		end
-		local free = ns.Heroes.PointsFree(id)
-		if free > 0 then
-			lines[#lines + 1] = { string.format(ns.T("사용하지 않은 기술 점수 %d", "%d unspent skill points"), free), nil, 0.3, 1, 0.3 }
-		end
-		lines[#lines + 1] = { ns.Heroes.PartySlot(id) and ns.T("파티에 참여 중", "In the party") or ns.T("대기 중", "On the bench"), nil, 0.7, 0.7, 0.7 }
-	else
-		lines[#lines + 1] = { ns.T("아직 영입하지 않았습니다. '파티' 탭에서 영입하세요.", "Not recruited yet. Recruit on the Party tab."), nil, 0.7, 0.7, 0.7 }
-	end
-	lines[#lines + 1] = { ns.N(c.desc), nil, 1, 0.82, 0 }
-	return lines
-end
-
-function Main.RefreshStrip()
-	if not frame then return end
-	local sel = Main.SelectedHero()
-	for i, id in ipairs(ns.CLASS_ORDER) do
-		local b = frame.strip[i]
-		local h = ns.db.heroes[id]
-		b:SetDim(not h)
-		b:SetSelected(id == sel)
-		if h then
-			b:SetCount(tostring(h.level))
-			local r, g, bl = U.rgb(ns.ROLE[ns.CLASSES[id].role].hex)
-			if ns.Heroes.PartySlot(id) then b:SetBorderRGB(r, g, bl) else b:SetQuality(nil) end
-			local free = ns.Heroes.PointsFree(id)
-			b:SetMark(free > 0 and "+" or "", 0.3, 1, 0.3)
-		else
-			b:SetCount("")
-			b:SetMark("")
-			b:SetQuality(nil)
-		end
-	end
 end
 
 ------------------------------------------------------------------------
--- Showing pages
+-- Showing screens
 ------------------------------------------------------------------------
-function Main.ShowTab(key)
+function Main.ShowTab(key, opts)
 	local def = tabByKey[key]
 	if not def or not frame then return end
 	current = key
+	Main.CloseModal()
 	for _, t in ipairs(tabs) do
 		if t.page then t.page:Hide() end
-		if t.button then t.button:SetOn(t.key == key) end
 	end
 	if not def.page then
 		def.page = CreateFrame("Frame", nil, frame)
@@ -126,10 +77,16 @@ function Main.ShowTab(key)
 		def.page:SetPoint("TOPLEFT", frame, "TOPLEFT", Main.PAGE_X, Main.PAGE_Y)
 		def.build(def.page)
 	end
+	frame.title:SetText(ns.N(def.title))
+	frame.sub:SetText(def.sub and ns.N(def.sub) or "")
+	frame.titleIcon:SetShown(def.icon ~= nil)
+	if def.icon then UI.SetIcon(frame.titleIcon, def.icon) end
 	def.page:Show()
+	if def.open then def.open(def.page, opts) end
 	def.refresh(def.page)
 	dirty[key] = nil
 	ns.db.ui.tab = key
+	Main.RefreshNav()
 end
 
 function Main.Current()
@@ -141,8 +98,61 @@ function Main.Refresh()
 		local def = tabByKey[current]
 		if def.page then def.refresh(def.page) end
 		dirty[current] = nil
-		Main.RefreshStrip()
+		Main.RefreshNav()
 		UI.RefreshTip()
+	end
+end
+
+function Main.RefreshNav()
+	if not frame then return end
+	local badges = ns.Guide.Badges()
+	for _, b in ipairs(frame.nav) do
+		local on = b.key == current
+		if on then
+			b.bg:SetColor(1.0, 0.86, 0.45, 1)
+			b.label:SetTextColor(1, 0.86, 0.35)
+			b.glow:Show()
+		else
+			local k = b.hover and 0.75 or 0.55
+			b.bg:SetColor(k, k * 1.05, k * 1.25, 1)
+			b.label:SetTextColor(0.78, 0.82, 0.92)
+			b.glow:Hide()
+		end
+		b.badge:Set(badges[b.key])
+	end
+end
+
+------------------------------------------------------------------------
+-- Modal layer (used for hero creation and confirmations)
+------------------------------------------------------------------------
+-- Creates (once) a content frame for the modal box; show it with ShowModal.
+function Main.ModalContent(w, h)
+	local box = frame.modal.box
+	local c = CreateFrame("Frame", nil, box)
+	c:SetSize(w, h)
+	c:SetPoint("CENTER", box, "CENTER", 0, 0)
+	c:Hide()
+	box.contents[#box.contents + 1] = c
+	return c
+end
+
+function Main.ShowModal(content, onClose)
+	local m = frame.modal
+	for _, c in ipairs(m.box.contents) do c:Hide() end
+	m.box:SetSize(content:GetWidth() + 32, content:GetHeight() + 32)
+	content:Show()
+	m.onClose = onClose
+	m:Show()
+end
+
+function Main.CloseModal()
+	if frame and frame.modal then
+		frame.modal:Hide()
+		if frame.modal.onClose then
+			local f = frame.modal.onClose
+			frame.modal.onClose = nil
+			f()
+		end
 	end
 end
 
@@ -150,13 +160,12 @@ local refreshT = 0
 local function onUpdate(_, elapsed)
 	refreshT = refreshT - elapsed
 	if refreshT > 0 then return end
-	refreshT = 0.15
-	if current and dirty[current] then
-		Main.Refresh()
-	end
+	refreshT = 0.2
+	if current and dirty[current] then Main.Refresh() end
 	local def = current and tabByKey[current]
 	if def and def.tick and def.page then def.tick(def.page) end
-	frame.gold:SetText(UI.Gold(ns.db.gold))
+	frame.gold:SetLabel(U.fmt(ns.db.gold))
+	Main.RefreshNav()
 end
 
 ------------------------------------------------------------------------
@@ -169,7 +178,8 @@ function Main.Create()
 	frame:SetFrameStrata("HIGH")
 	frame:SetClampedToScreen(true)
 	frame:SetToplevel(true)
-	UI.Box(frame, UI.COLOR.bg)
+	UI.Slice(frame, "shadow", "BACKGROUND", nil, 14)
+	UI.Slice(frame, "panel", "BACKGROUND")
 	frame:SetMovable(true)
 	frame:EnableMouse(true)
 	frame:RegisterForDrag("LeftButton")
@@ -183,45 +193,107 @@ function Main.Create()
 	if pos and pos[1] then
 		frame:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
 	else
-		frame:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
+		frame:SetPoint("CENTER", UIParent, "CENTER", 0, 60)
 	end
 	frame:SetScale(ns.db.ui.scale or 1)
 
-	frame.title = UI.Text(frame, 14, "Big Idle W.O.W Heroes")
-	frame.title:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -9)
-	frame.title:SetTextColor(1, 0.82, 0)
-	frame.gold = UI.Text(frame, 13)
-	frame.gold:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -44, -10)
-	frame.gold:SetJustifyH("RIGHT")
-	frame.close = UI.Button(frame, 24, 20, "X", function() Main.Toggle(false) end)
-	frame.close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -6)
+	-- header
+	local head = UI.Art(frame, "grad_v", "BORDER", 0.30, 0.42, 0.75, 0.35)
+	head:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
+	head:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -3)
+	head:SetHeight(46)
+	frame.titleIcon = frame:CreateTexture(nil, "ARTWORK")
+	frame.titleIcon:SetSize(28, 28)
+	frame.titleIcon:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -12)
+	frame.title = UI.Title(frame, "", 18)
+	frame.title:SetPoint("TOPLEFT", frame, "TOPLEFT", 52, -11)
+	frame.sub = UI.Text(frame, 11)
+	frame.sub:SetPoint("TOPLEFT", frame, "TOPLEFT", 52, -32)
+	UI.Color(frame.sub, UI.C.sub)
+	local brand = UI.Text(frame, 10, "Big Idle W.O.W Heroes")
+	brand:SetPoint("TOP", frame, "TOP", 0, -8)
+	UI.Color(brand, UI.C.dim)
 
-	-- tabs
-	local x = 64
-	for _, def in ipairs(tabs) do
-		local b = UI.Button(frame, 98, 22, ns.N(def.title), function() Main.ShowTab(def.key) end)
-		b:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -32)
-		def.button = b
-		x = x + 102
+	frame.gold = UI.Pill(frame, 150, 28, 0.02, 0.03, 0.07, 0.85)
+	frame.gold:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -56, -12)
+	frame.gold.text:ClearAllPoints()
+	frame.gold.text:SetPoint("RIGHT", frame.gold, "RIGHT", -12, 0)
+	frame.gold.text:SetJustifyH("RIGHT")
+	frame.gold.text:SetFont(ns.FONT, 14, "")
+	UI.Color(frame.gold.text, UI.C.gold)
+	local coin = frame.gold:CreateTexture(nil, "OVERLAY")
+	coin:SetSize(20, 20)
+	coin:SetPoint("LEFT", frame.gold, "LEFT", 5, 0)
+	UI.SetIcon(coin, "INV_Misc_Coin_01")
+
+	frame.close = UI.Button(frame, 36, 32, "", function() Main.Toggle(false) end, "red")
+	frame.close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -10)
+	local x = UI.Glyph(frame.close, "close", 16)
+	x:SetPoint("CENTER", frame.close, "CENTER", 0, 0)
+
+	-- bottom navigation
+	local navBg = UI.Art(frame, "grad_v", "BORDER", 0, 0, 0, 0.45)
+	navBg:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 3, 3)
+	navBg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -3, 3)
+	navBg:SetHeight(NAV_H)
+	navBg:SetTexCoord(0, 1, 1, 0) -- dark at the bottom
+	frame.nav = {}
+	local n = #tabs
+	local bw = math.floor((Main.W - 32 - (n - 1) * 6) / n)
+	for i, def in ipairs(tabs) do
+		local b = CreateFrame("Button", nil, frame)
+		b:SetSize(bw, NAV_H - 14)
+		b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16 + (i - 1) * (bw + 6), 8)
+		b.key = def.key
+		b.glow = UI.Art(b, "glow", "BACKGROUND", 1, 0.75, 0.25, 0.35)
+		b.glow:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 10)
+		b.glow:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 0, -6)
+		b.bg = UI.Slice(b, "card", "BACKGROUND")
+		b.icon = b:CreateTexture(nil, "ARTWORK")
+		b.icon:SetSize(26, 26)
+		b.icon:SetPoint("TOP", b, "TOP", 0, -6)
+		UI.SetIcon(b.icon, def.icon)
+		b.label = UI.Text(b, 12, ns.N(def.title))
+		b.label:SetPoint("BOTTOM", b, "BOTTOM", 0, 6)
+		b.label:SetJustifyH("CENTER")
+		b.badge = UI.Badge(b, 16)
+		b.badge:ClearAllPoints()
+		b.badge:SetPoint("TOPRIGHT", b, "TOPRIGHT", -4, 6)
+		b:RegisterForClicks("LeftButtonUp")
+		b:SetScript("OnClick", function(self)
+			ns.Sound("click")
+			Main.ShowTab(self.key)
+		end)
+		b.onEnter = function(self) self.hover = true Main.RefreshNav() end
+		b.onLeave = function(self) self.hover = false Main.RefreshNav() end
+		b:SetScript("OnEnter", function(self) self.onEnter(self) end)
+		b:SetScript("OnLeave", function(self) self.onLeave(self) end)
+		frame.nav[i] = b
 	end
 
-	-- hero strip
-	frame.strip = {}
-	for i, id in ipairs(ns.CLASS_ORDER) do
-		local b = UI.IconButton(frame, 44, function(self) Main.SelectHero(self.classId) end)
-		b.classId = id
-		b:SetClass(id)
-		b:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -58 - (i - 1) * 48)
-		UI.Tip(b, heroTip)
-		frame.strip[i] = b
-	end
+	-- modal layer over the page area
+	local modal = CreateFrame("Frame", nil, frame)
+	modal:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
+	modal:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -3, 3)
+	modal:SetFrameLevel(frame:GetFrameLevel() + 40)
+	modal:EnableMouse(true)
+	local dim = modal:CreateTexture(nil, "BACKGROUND")
+	dim:SetAllPoints(modal)
+	UI.Fill(dim, 0, 0, 0, 0.65)
+	modal.box = UI.Panel(modal, 600, 400, "panel", true)
+	modal.box:SetPoint("CENTER", modal, "CENTER", 0, 10)
+	modal.box.contents = {}
+	modal:Hide()
+	frame.modal = modal
 
 	frame:SetScript("OnUpdate", onUpdate)
 	frame:SetScript("OnShow", function()
-		Main.RefreshStrip()
 		if current then Main.ShowTab(current) end
 	end)
-	frame:SetScript("OnHide", function() UI.HideTip() end)
+	frame:SetScript("OnHide", function()
+		UI.HideTip()
+		Main.CloseModal()
+	end)
 	if UISpecialFrames then
 		UISpecialFrames[#UISpecialFrames + 1] = "BigIdleWoWHeroesMain" -- close with Escape
 	end
@@ -253,9 +325,11 @@ function Main.ApplyScale()
 	if frame then frame:SetScale(ns.db.ui.scale or 1) end
 end
 
--- hero strip follows anything that changes levels or the party
-for _, ev in ipairs({ "HEROES", "PARTY", "LEVEL", "TREE", "RESET" }) do
-	ns.On(ev, function()
-		if frame and frame:IsShown() then Main.RefreshStrip() end
-	end)
+function Main.Frame()
+	return frame
+end
+
+-- The built frame of a screen (nil until it was first shown).
+function Main.Page(key)
+	return tabByKey[key] and tabByKey[key].page
 end

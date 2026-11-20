@@ -4,25 +4,27 @@ local ns = NS
 
 local Bot = {}
 
--- Order in which the bot recruits: a healer second, then a tank, then damage.
-Bot.recruit = { "HUNTER", "PRIEST", "WARRIOR", "MAGE", "ROGUE", "SHAMAN", "WARLOCK", "DRUID", "PALADIN" }
+-- Order in which the bot recruits after its starter: a healer second, then a
+-- tank, then damage dealers. Entries the party has no room for are skipped.
+Bot.recruit = { "PRIEST_HOLY", "WARRIOR_PROT", "MAGE_FIRE", "ROGUE_OUTLAW", "HUNTER_MM" }
 
-function Bot.Start(starter)
-	ns.Heroes.Unlock(starter or Bot.recruit[1])
+function Bot.Start(starter, recruit)
+	if recruit then Bot.recruit = recruit end
+	ns.Heroes.Create(starter or "HUNTER_MM")
 end
 
-local function spendPoints(id)
-	local c = ns.CLASSES[id]
+function Bot.SpendPoints(id)
+	local tree = ns.Heroes.Tree(id)
 	local guard = 0
 	while ns.Heroes.PointsFree(id) > 0 and guard < 300 do
 		guard = guard + 1
 		local done = false
-		-- learn every reachable active skill first, then top them up, then passives
+		-- learn every reachable active skill first, then passives, then top up skills
 		for pass = 1, 3 do
-			for t = 1, #c.tree do
+			for t = 1, #tree do
 				if ns.Heroes.TierOpen(id, t) then
-					for n = 1, #c.tree[t] do
-						local node = c.tree[t][n]
+					for n = 1, #tree[t] do
+						local node = tree[t][n]
 						local lvl = ns.Heroes.NodeLevel(id, t, n)
 						local want = false
 						if pass == 1 then want = node.s and lvl == 0 end
@@ -41,9 +43,9 @@ local function spendPoints(id)
 		if not done then break end
 	end
 	-- fill empty skill slots
-	for t = 1, #c.tree do
-		for n = 1, #c.tree[t] do
-			local node = c.tree[t][n]
+	for t = 1, #tree do
+		for n = 1, #tree[t] do
+			local node = tree[t][n]
 			if node.s and ns.Heroes.NodeLevel(id, t, n) > 0 then
 				ns.Heroes.EquipSkill(id, node.s, true)
 			end
@@ -77,19 +79,14 @@ end
 
 local function recruit()
 	if ns.Heroes.PartyCount() >= ns.PartyLimit() then return end
-	for _, id in ipairs(Bot.recruit) do
-		if not ns.db.heroes[id] then
-			local role = ns.CLASSES[id].role
-			local free = false
-			for i = 1, ns.PARTY_SIZE do
-				if ns.PARTY_ROLES[i] == role and not ns.db.party[i] then free = true end
+	local have = {}
+	for _, h in pairs(ns.db.heroes) do have[h.spec] = true end
+	for _, specId in ipairs(Bot.recruit) do
+		if not have[specId] and ns.Heroes.FreeSlot(ns.SPECS[specId].role) then
+			if ns.db.gold >= ns.Heroes.CreateCost() then
+				ns.Heroes.Create(specId)
 			end
-			if free then
-				if ns.db.gold >= ns.Heroes.UnlockCost() then
-					ns.Heroes.Unlock(id)
-				end
-				return
-			end
+			return
 		end
 	end
 end
@@ -122,7 +119,7 @@ function Bot.Tick()
 		local id = ns.db.party[i]
 		if id then
 			ns.Items.AutoEquip(id)
-			spendPoints(id)
+			Bot.SpendPoints(id)
 		end
 	end
 	forge()

@@ -3,7 +3,7 @@
 local ns = NS
 local hours, starter = ...
 hours = hours or 6
-starter = starter or "HUNTER"
+starter = starter or "HUNTER_MM"
 local Bot = dofile(debug.getinfo(1, "S").source:sub(2):gsub("test_balance%.lua$", "bot.lua"))
 
 math.randomseed(20261120)
@@ -25,7 +25,10 @@ local function partyText()
 	local parts = {}
 	for i = 1, ns.PARTY_SIZE do
 		local id = db.party[i]
-		if id then parts[#parts + 1] = id:sub(1, 3) .. db.heroes[id].level end
+		if id then
+			local sp = ns.SPECS[db.heroes[id].spec]
+			parts[#parts + 1] = sp.class:sub(1, 3) .. "/" .. sp.id:match("_(%a+)$"):sub(1, 3) .. db.heroes[id].level
+		end
 	end
 	return table.concat(parts, " ")
 end
