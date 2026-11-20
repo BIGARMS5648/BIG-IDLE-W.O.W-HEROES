@@ -190,26 +190,6 @@ local function build(page)
 	page.smeltPick.openUp = true -- it sits in the footer
 	page.smeltPick.tipTitle = "분해 기준 등급"
 	page.smeltPick.tipText = "일괄 분해와 자동 분해(설정)가 이 등급 이하의 장비만 분해합니다. 눌러서 목록에서 고르세요."
-	-- materials: fuse everything that can be fused
-	page.autoFuse = UI.Button(list, 190, K.BTN_H, "재료 자동 융합", function()
-		local n = ns.Forge.MatFusionsReady()
-		if n == 0 then
-			UI.Try(false, string.format("같은 재료가 %d개 이상 모인 것이 없습니다.", ns.Forge.FUSE_COUNT))
-			return
-		end
-		UI.Confirm({ title = "재료 자동 융합", ok = "융합", style = "primary",
-			text = string.format("재료를 자동으로 융합하시겠습니까?\n같은 재료가 %d개 이상이면 다음 단계 1개로 합칩니다(약 %d번). 낮은 단계부터 합쳐서, 새로 생긴 재료도 다시 합칩니다.",
-				ns.Forge.FUSE_COUNT, n),
-			onOk = function()
-				local done = ns.Forge.FuseAllMats()
-				ns.Toast(string.format("재료 융합 %d번", done))
-			end })
-	end, "blue")
-	page.autoFuse:SetPoint("LEFT", page.open, "RIGHT", 8, 0)
-	page.autoFuse.clickWhenOff = true
-	UI.Tip(page.autoFuse, function()
-		return UI.SimpleTip("재료 자동 융합", string.format("같은 재료가 %d개 이상인 것을 모두 다음 단계로 합칩니다.", ns.Forge.FUSE_COUNT))
-	end, "TOP")
 
 	-- card content
 	local d = S.card
@@ -260,6 +240,28 @@ local function fillLines(page, tl, skip, maxLines)
 	page.lines:Set(list)
 end
 
+-- materials: fuse everything that can be fused (the card's gold button in
+-- the materials tab)
+local function autoFuseAction()
+	return { "재료 자동 융합", function()
+		local n = ns.Forge.MatFusionsReady()
+		if n == 0 then return end
+		UI.Confirm({ title = "재료 자동 융합", ok = "융합", style = "primary",
+			text = string.format("재료를 자동으로 융합하시겠습니까?\n같은 재료가 %d개 이상이면 다음 단계 1개로 합칩니다(약 %d번). 낮은 단계부터 합쳐서, 새로 생긴 재료도 다시 합칩니다.",
+				ns.Forge.FUSE_COUNT, n),
+			onOk = function()
+				local done = ns.Forge.FuseAllMats()
+				ns.Toast(string.format("재료 융합 %d번", done))
+			end })
+	end, "primary", ns.Forge.MatFusionsReady() == 0,
+	tip = { "재료 자동 융합", string.format("같은 재료가 %d개 이상인 것을 모두 다음 단계로 합칩니다.", ns.Forge.FUSE_COUNT) } }
+end
+local function autoFuseReason(d)
+	if ns.Forge.MatFusionsReady() == 0 then
+		d:Reason(string.format("같은 재료가 %d개 이상 모인 것이 없습니다.", ns.Forge.FUSE_COUNT))
+	end
+end
+
 local function refreshMat(page, mat)
 	local d = page.S.card
 	local m = ns.MATS[mat]
@@ -270,20 +272,23 @@ local function refreshMat(page, mat)
 	fillLines(page, ns.Items.MatTooltip(mat))
 	local canFuse = count >= ns.Forge.FUSE_COUNT and m.tier < ns.MAT_MAX_TIER[m.kind]
 	local smelt = ns.Forge.Unlocked("smelt")
-	d:Extras(nil, { "전부 분해 +" .. U.fmt(ns.Forge.MatSmeltGold(mat, count)), function()
+	-- small row: break down one / all; footer: fuse nine / auto-fuse everything
+	d:Extras({ "1개 분해 +" .. U.fmt(ns.Forge.MatSmeltGold(mat, 1)), function()
+		UI.Try(ns.Forge.SmeltMat(mat, 1))
+		Main.Refresh()
+	end, "red", not smelt },
+	{ "전부 분해 +" .. U.fmt(ns.Forge.MatSmeltGold(mat, count)), function()
 		UI.Confirm({ title = "재료 분해", ok = "분해", style = "red",
 			text = string.format("%s %s개를 모두 분해하시겠습니까?\n%s 골드를 받습니다.", ns.N(m.name), U.fmt(count), U.fmt(ns.Forge.MatSmeltGold(mat, count))),
 			onOk = function() UI.Try(ns.Forge.SmeltMat(mat, ns.MatCount(mat))) end })
 	end, "red", not smelt })
-	d:Actions({ "1개 분해 +" .. U.fmt(ns.Forge.MatSmeltGold(mat, 1)), function()
-		UI.Try(ns.Forge.SmeltMat(mat, 1))
-		Main.Refresh()
-	end, "red", not smelt },
-	{ ns.Forge.FUSE_COUNT .. "개 융합 → 1개", function()
+	d:Actions({ ns.Forge.FUSE_COUNT .. "개 융합 → 1개", function()
 		local ok, res = ns.Forge.FuseMat(mat)
 		if UI.Try(ok, res) then ns.Fire("TOAST", string.format("융합 성공: %s", ns.N(ns.MATS[res].name))) end
 		Main.Refresh()
-	end, "primary", not canFuse, tip = { "재료 융합", string.format("같은 재료 %d개를 한 단계 높은 재료 1개로 만듭니다.", ns.Forge.FUSE_COUNT) } })
+	end, "blue", not canFuse, tip = { "재료 융합", string.format("같은 재료 %d개를 한 단계 높은 재료 1개로 만듭니다.", ns.Forge.FUSE_COUNT) } },
+	autoFuseAction())
+	autoFuseReason(d)
 end
 
 local function refreshItem(page, it)
@@ -399,8 +404,6 @@ local function refresh(page)
 	page.open:SetShown(page.tab ~= "bank")
 	page.smeltGo:SetShown(inBag)
 	page.smeltPick:SetShown(inBag)
-	page.autoFuse:SetShown(page.tab == "mats")
-	page.autoFuse:SetOff(ns.Forge.MatFusionsReady() == 0)
 
 	-- drop a selection that is gone
 	if page.selItem and not indexIn(page.tab == "bank" and db.bank or db.bag, page.selItem) then page.selItem = nil end
@@ -485,8 +488,14 @@ local function refresh(page)
 	else
 		d:Head({ title = page.tab == "mats" and "재료" or (page.tab == "bank" and "은행" or "가방"), sub = empty and "비어 있음" or "고른 것이 없습니다" })
 		page.lines:Set({ { empty or "왼쪽에서 아이템을 누르면 여기에서 자세히 보고 장착하거나 분해할 수 있습니다.", 0.67, 0.70, 0.78 } })
-		d:Actions(nil, nil)
-		d.wide:Hide()
+		if page.tab == "mats" then
+			-- nothing picked: auto-fuse still fills the footer
+			d:Actions(nil, autoFuseAction())
+			autoFuseReason(d)
+		else
+			d:Actions(nil, nil)
+			d.wide:Hide()
+		end
 	end
 end
 

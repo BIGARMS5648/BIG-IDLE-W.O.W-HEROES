@@ -30,7 +30,7 @@ SCENES = [
     "runes", "runes_locked", "runes_total",
     "map", "map_heroic", "map_raid", "map_locked",
     "options", "options_game", "options_info", "options_reset",
-    "new_party", "new_hero", "new_bag", "new_forge", "new_one", "new_one_slot", "new_one_hero", "new_map", "new_runes",
+    "new_party", "new_hero", "new_bag", "new_bag_mats", "new_forge", "new_one", "new_one_slot", "new_one_hero", "new_map", "new_runes",
 ]
 
 PAGE = r"""<!doctype html>

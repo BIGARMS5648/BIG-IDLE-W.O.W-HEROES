@@ -229,8 +229,9 @@ S.bag_fuse_mats = function()
 	local p = show("bag")
 	p.tab = "mats"
 	ns.AddMat("cloth1", 20)
+	p.selMat = "cloth1"
 	ns.Main.Refresh()
-	p.autoFuse:Click()
+	p.S.card.right:Click()
 end
 S.bag_bank_empty = function() local p = show("bag") p.tab = "bank" p.selItem = nil ns.Main.Refresh() end
 S.bag_bank = function()
@@ -314,6 +315,8 @@ S.new_party = function()
 end
 S.new_hero = function() show("hero") end
 S.new_bag = function() show("bag") end
+-- no materials yet: nothing to pick, auto-fuse alone in the footer
+S.new_bag_mats = function() local p = show("bag") p.tab = "mats" p.selMat = nil ns.Main.Refresh() p.tab = "all" end
 S.new_forge = function() show("forge", { sub = "craft" }) end
 S.new_one = function()
 	ns.Heroes.Create("WARRIOR_PROT")
@@ -330,6 +333,10 @@ S.new_runes = function() show("runes") end
 
 return function(name)
 	ns.UI.HideTip()
+	-- the mouse leaves whatever an earlier scene pointed at
+	for _, f in ipairs(Mock.frames) do
+		if f.hover and f.__scripts and f.__scripts.OnLeave then f.__scripts.OnLeave(f) end
+	end
 	ns.Main.CloseModal()
 	if name ~= "bar" then ns.Main.Toggle(true) end
 	local fn = S[name]

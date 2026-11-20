@@ -378,11 +378,20 @@ do
 	tab("bag", "mats")
 	local bars = ns.MatCount("bar1")
 	click("select bars", function(b) return b.data == "bar1" end)
-	press("fuse 9", d.right)
+	-- the material card: [1개 분해][전부 분해] above, [9개 융합][재료 자동 융합] below
+	if not (label(d.x1) or ""):find("^1개 분해") then fail("the small left button should break down one, got " .. tostring(label(d.x1))) end
+	if not (label(d.x2) or ""):find("^전부 분해") then fail("the small right button should break down all, got " .. tostring(label(d.x2))) end
+	if not (label(d.left) or ""):find("^9개 융합") then fail("the footer's left button should fuse nine, got " .. tostring(label(d.left))) end
+	if label(d.right) ~= "재료 자동 융합" then fail("the footer's right button should auto-fuse, got " .. tostring(label(d.right))) end
+	if find(function(b) return b ~= d.right and label(b) == "재료 자동 융합" end) then fail("auto-fuse should be on the card only") end
+	press("fuse 9", d.left)
 	if ns.MatCount("bar1") ~= bars - 9 then fail("fusing nine materials from the card did not work") end
+	local b1 = ns.MatCount("bar1")
+	press("smelt one material", d.x1)
+	if ns.MatCount("bar1") ~= b1 - 1 then fail("breaking down one material did not work") end
 	ns.AddMat("cloth1", 20)
 	Main.Refresh()
-	press("auto fuse", bp.autoFuse)
+	press("auto fuse", d.right)
 	confirmYes("auto fuse")
 	if ns.MatCount("cloth1") >= 9 then fail("auto-fuse should leave fewer than nine of each material") end
 	press("sort materials", bp.sort)
