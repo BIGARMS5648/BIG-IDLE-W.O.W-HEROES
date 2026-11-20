@@ -103,7 +103,7 @@ end
 
 -- The twelve raid bosses (last zone of each act) have drawings of their own.
 local RAID_ART = {
-	{ "라그나로스", "ragnaros" }, { "쑨", "cthun" }, { "켈투자드", "kelthuzad" }, { "마그테리돈", "magtheridon" },
+	{ "라그나로스", "ragnaros" }, { "크툰", "cthun" }, { "켈투자드", "kelthuzad" }, { "마그테리돈", "magtheridon" },
 	{ "캘타스", "kaelthas" }, { "킬제덴", "kiljaeden" }, { "말리고스", "malygos" }, { "요그사론", "yoggsaron" },
 	{ "리치 왕", "lichking" }, { "데스윙", "deathwing" }, { "가로쉬", "garrosh" }, { "아르거스", "argus" },
 }

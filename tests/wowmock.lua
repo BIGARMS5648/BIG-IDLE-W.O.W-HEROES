@@ -264,7 +264,7 @@ function Frame:Lower() end
 function Frame:SetID(id) self.__id = id end
 function Frame:GetID() return self.__id or 0 end
 function Frame:IsMouseOver() return false end
-function Frame:SetClipsChildren(v) end
+function Frame:SetClipsChildren(v) self.__clips = v and true or nil end
 function Frame:SetHitRectInsets(a, b, c, d) end
 
 local Button = setmetatable({}, { __index = Frame })
@@ -450,9 +450,16 @@ function Mock.Export()
 			e.jh = w.__jh or "CENTER"
 			e.jv = w.__jv or "MIDDLE"
 			e.nowrap = w.__nowrap or false
+			e.moving = w.moving or false
 		else
 			e.strata = w.__strata
 			e.level = w.__level
+			e.ftype = w.__type
+			e.nomouse = (w.__mouse == false)
+			e.item = w.isItem or false
+			e.clips = w.__clips or false
+			e.click = (w.__scripts and w.__scripts.OnClick) and true or false
+			e.off = w.__disabled or false
 		end
 		out[#out + 1] = e
 	end

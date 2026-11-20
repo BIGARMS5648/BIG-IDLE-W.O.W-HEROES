@@ -124,6 +124,27 @@ def main(argv):
             lua = new_runtime(locale)
             ok = run_script(lua, "test_ui.lua") and ok
 
+    if what in ("all", "layout"):
+        # every scene of tests/preview.py drawn in a browser and checked for
+        # text that is cut off, spills out or wraps badly, overlaps, things
+        # hidden under other things, things outside the window, the same
+        # button twice and text smaller than 10
+        print("== layout check (tests/preview.py + tests/layout_check.js) ==")
+        import subprocess
+        here = os.path.dirname(os.path.abspath(__file__))
+        r1 = subprocess.run([sys.executable, os.path.join(here, "preview.py")], capture_output=True, text=True)
+        if r1.returncode != 0:
+            print(r1.stdout[-2000:] + r1.stderr[-2000:])
+            ok = False
+        else:
+            r2 = subprocess.run(["node", os.path.join(here, "layout_check.js")], capture_output=True, text=True)
+            lines = (r2.stdout or "").splitlines()
+            bad = [l for l in lines if not l.startswith("ok ")]
+            print("\n".join(bad[-60:]) if bad else "")
+            print("  %d scenes checked" % sum(1 for l in lines if l.startswith(("ok ", "FAIL "))))
+            if r2.returncode != 0:
+                ok = False
+
     if what in ("all", "balance"):
         hours = float(argv[2]) if len(argv) > 2 else 6
         starter = argv[3] if len(argv) > 3 else "HUNTER_MM"

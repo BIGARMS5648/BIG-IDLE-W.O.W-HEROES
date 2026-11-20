@@ -21,8 +21,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import run  # noqa: E402
 
 SCENES = [
-    "bar", "faction", "party", "create", "create_druid", "pets", "hero", "hero_tree", "hero_skills", "bag", "bag_tooltip",
-    "forge_fuse", "forge_craft", "forge_gem", "forge_locked", "runes", "map", "map_heroic", "options",
+    "bar", "faction", "create", "create_druid", "pets", "pets_locked", "rename",
+    "party", "party_bench", "party_slot", "party_dismiss",
+    "hero", "hero_slot", "hero_slot_empty", "hero_sheet", "hero_skills", "hero_skill_locked", "hero_tree", "hero_tree_locked", "hero_bench",
+    "bag", "bag_tooltip", "bag_locked", "bag_weapon", "bag_mats", "bag_bank_empty", "bag_bank", "bag_full",
+    "forge_fuse", "forge_fuse_ready", "forge_smelt", "forge_craft", "forge_craft_locked", "forge_craft_far", "forge_gem", "forge_ench",
+    "forge_remove", "forge_seal", "forge_locked",
+    "runes", "runes_locked", "runes_total",
+    "map", "map_heroic", "map_raid", "map_locked",
+    "options", "options_game", "options_info", "options_reset",
+    "new_party", "new_hero", "new_bag", "new_forge", "new_one", "new_one_slot", "new_one_hero", "new_map", "new_runes",
 ]
 
 PAGE = r"""<!doctype html>
@@ -60,26 +68,44 @@ function segments(text) {
   return out;
 }
 
-function layoutText(e) {
+// Lines as the game would wrap them: at spaces between words; a word longer
+// than the line is split (e._split marks that, the layout check reports it).
+function layoutText(e, wrapW) {
   mctx.font = e.size + 'px ' + FONT;
   const lines = [];
+  e._split = false;
   for (const raw of e.text.split('\n')) {
     const segs = segments(raw);
-    if (!(e.w > 0) || e.nowrap) { lines.push(segs); continue; }
+    if (!(wrapW > 0) || e.nowrap) { lines.push(segs); continue; }
     let cur = [], width = 0;
+    const push = () => { lines.push(cur); cur = []; width = 0; };
     for (const s of segs) {
-      const parts = s.text.match(/[　-鿿가-힯]|[^\s　-鿿가-힯]+|\s+/g) || [];
+      const parts = s.text.match(/\S+|\s+/g) || [];
       for (const p of parts) {
         const pw = mctx.measureText(p).width;
-        if (width + pw > e.w && width > 0 && p.trim() !== '') { lines.push(cur); cur = []; width = 0; }
-        if (cur.length === 0 && p.trim() === '') continue;
-        cur.push({ color: s.color, text: p }); width += pw;
+        if (p.trim() === '') {
+          if (cur.length === 0) continue;
+          cur.push({ color: s.color, text: p }); width += pw; continue;
+        }
+        if (width + pw <= wrapW + 0.5) { cur.push({ color: s.color, text: p }); width += pw; continue; }
+        if (cur.length > 0) push();
+        if (pw <= wrapW + 0.5) { cur.push({ color: s.color, text: p }); width += pw; continue; }
+        // the word alone is too long: split it
+        e._split = true;
+        for (const ch of Array.from(p)) {
+          const cw = mctx.measureText(ch).width;
+          if (width + cw > wrapW + 0.5 && cur.length > 0) push();
+          cur.push({ color: s.color, text: ch }); width += cw;
+        }
       }
     }
+    // drop trailing spaces
+    while (cur.length && cur[cur.length - 1].text.trim() === '') cur.pop();
     lines.push(cur);
   }
   let maxw = 0;
   for (const l of lines) {
+    while (l.length && l[l.length - 1].text.trim() === '') l.pop();
     let w = 0; for (const s of l) w += mctx.measureText(s.text).width;
     l.width = w; if (w > maxw) maxw = w;
   }
@@ -120,8 +146,9 @@ function drawTex(g, img, e, x, y, w, h) {
   g.filter = 'none';
 }
 
-function draw(scene, title) {
-  const byId = {}; for (const e of scene.items) byId[e.id] = e;
+// Where everything is: rectangles (WoW coordinates, y up) and the draw order.
+function resolve(scene) {
+  const byId = {}; for (const e of scene.items) { byId[e.id] = e; delete e._r; delete e._t; delete e._unanchored; }
   const root = scene.root;
   function point(r, p) {
     const x = p.includes('LEFT') ? r.l : p.includes('RIGHT') ? r.r : (r.l + r.r) / 2;
@@ -133,19 +160,23 @@ function draw(scene, title) {
     if (e.id === root) return (e._r = { l:0, b:0, r:W, t:H });
     e._r = { l:0, b:0, r:0, t:0 };
     let w = e.w, h = e.h;
-    if (e.kind === 'text') {
-      e._t = layoutText(e);
-      if (!(w > 0)) w = e._t.width;
-      if (!(h > 0)) h = e._t.height;
-    }
-    let L, R, T, B, CX, CY;
+    let L, R, T, B, CX, CY, all = null;
     for (const a of e.anchors) {
       const rel = byId[a[1]]; if (!rel) continue;
       const rr = rect(rel);
-      if (a[0] === 'ALL') return (e._r = { l:rr.l, b:rr.b, r:rr.r, t:rr.t });
+      if (a[0] === 'ALL') { all = rr; break; }
       const [ax, ay] = point(rr, a[2]); const x = ax + a[3], y = ay + a[4]; const P = a[0];
       if (P.includes('LEFT')) L = x; else if (P.includes('RIGHT')) R = x; else CX = x;
       if (P.includes('TOP')) T = y; else if (P.includes('BOTTOM')) B = y; else CY = y;
+    }
+    if (all) { L = all.l; R = all.r; T = all.t; B = all.b; }
+    if (e.kind === 'text') {
+      // the wrap width: both side anchors, else an explicit width, else none
+      const wrapW = (L != null && R != null) ? R - L : (w > 0 ? w : 0);
+      e._t = layoutText(e, wrapW);
+      e._wrapW = wrapW;
+      if (!(w > 0)) w = e._t.width;
+      if (!(h > 0)) h = e._t.height;
     }
     if (L != null && R != null) w = R - L; else if (L != null) R = L + w; else if (R != null) L = R - w;
     else if (CX != null) { L = CX - w / 2; R = CX + w / 2; } else { L = 0; R = w; e._unanchored = true; }
@@ -163,7 +194,35 @@ function draw(scene, title) {
   }
   const tops = scene.items.filter(e => e.kind === 'frame' && (e.parent === root)).sort((a, b) => (STRATA[a.strata || 'MEDIUM'] - STRATA[b.strata || 'MEDIUM']) || (a.order - b.order));
   tops.forEach(walk);
+  order.forEach((e, i) => { e._i = i; rect(e); });
+  // what a clipping ancestor (SetClipsChildren) lets show
+  for (const e of order) {
+    e._clip = null;
+    for (let x = byId[e.parent]; x; x = byId[x.parent]) if (x.clips) { e._clip = x._r; break; }
+  }
+  return { byId, order, rect, root, children };
+}
 
+// The area a text really paints (lines placed by its justification).
+function textBox(e) {
+  const r = e._r, t = e._t; if (!t) return r;
+  const boxW = r.r - r.l, boxH = r.t - r.b;
+  let top = r.t; if (e.jv === 'MIDDLE') top -= (boxH - t.height) / 2; else if (e.jv === 'BOTTOM') top -= boxH - t.height;
+  let l = Infinity, rr = -Infinity;
+  for (const line of t.lines) {
+    if (!line.width) continue;
+    let x = r.l; if (e.jh === 'CENTER') x += (boxW - line.width) / 2; else if (e.jh === 'RIGHT') x += boxW - line.width;
+    l = Math.min(l, x); rr = Math.max(rr, x + line.width);
+  }
+  if (l === Infinity) return null;
+  // glyphs sit inside the line box: trim the leading so touching lines are not "overlaps"
+  const pad = e.size * 0.11;
+  return { l, r: rr, t: top - pad, b: top - t.height + pad };
+}
+
+function draw(scene, title) {
+  const R = resolve(scene);
+  const byId = R.byId, order = R.order, rect = R.rect;
   let bx0 = W, by0 = H, bx1 = 0, by1 = 0;
   for (const e of order) {
     const r = rect(e); if (e._unanchored || r.r - r.l <= 0) continue;
@@ -219,7 +278,7 @@ function draw(scene, title) {
         }
       }
     } else if (e.kind === 'text') {
-      if (!e._t) e._t = layoutText(e);
+      if (!e._t) e._t = layoutText(e, e._wrapW || 0);
       const t = e._t; g.font = e.size + 'px ' + FONT; g.textBaseline = 'top';
       const base = e.color ? `rgb(${Math.round(e.color[0]*255)},${Math.round(e.color[1]*255)},${Math.round(e.color[2]*255)})` : '#fff';
       const boxW = r.r - r.l, boxH = r.t - r.b;
@@ -238,11 +297,162 @@ function draw(scene, title) {
   g.globalAlpha = 1;
 }
 
+// ---------------------------------------------------------------------------
+// Layout check: problems a player would see. Every visible item of a scene is
+// tested; tests/layout_check.js prints the list and fails on any problem.
+// ---------------------------------------------------------------------------
+const SEE_THROUGH = new Set(['glow','ring','frame','shadow','grad_h','grad_v','check','lock','star','crown','arrow','plus',
+  'close','auto','skull','role_tank','role_dps','role_heal','circle','bar']);
+const SLICES = new Set(['panel','card','inset','button','pill','slot','menu']);
+function texName(e) { return e.tex ? String(e.tex).split('\\').pop().replace(/\.tga$/i, '') : null; }
+
+function lint(scene, title) {
+  const R = resolve(scene); const byId = R.byId, order = R.order, root = R.root;
+  const out = [];
+  const alpha = e => { let a = 1; for (let x = e; x; x = byId[x.parent]) a *= (x.alpha == null ? 1 : x.alpha); return a; };
+  const topOf = e => { let x = e; while (x && x.parent !== root && byId[x.parent]) x = byId[x.parent]; return x; };
+  const isAnc = (a, b) => { for (let x = byId[b.parent]; x; x = byId[x.parent]) if (x === a) return true; return false; };
+  const area = r => Math.max(0, r.r - r.l) * Math.max(0, r.t - r.b);
+  const inter = (a, b) => ({ l: Math.max(a.l, b.l), r: Math.min(a.r, b.r), t: Math.min(a.t, b.t), b: Math.max(a.b, b.b) });
+  const contains = (a, b) => a.l <= b.l + 0.5 && a.r >= b.r - 0.5 && a.t >= b.t - 0.5 && a.b <= b.b + 0.5;
+  const vis = e => alpha(e) > 0.05;
+  const opaque = e => {
+    if (e.kind !== 'texture' || !vis(e)) return false;
+    const a = alpha(e);
+    if (e.color) return e.color[3] * a >= 0.8;
+    const n = texName(e); if (!n) return false;
+    const va = (e.vertex && e.vertex[3] != null) ? e.vertex[3] : 1;
+    if (String(e.tex).includes('\\Media\\') && !String(e.tex).includes('\\Art\\')) {
+      if (SEE_THROUGH.has(n) || !SLICES.has(n)) return false;
+      return va * a >= 0.8;
+    }
+    return va * a >= 0.8;
+  };
+  const label = f => {
+    const kids = (R.children[f.id] || []).filter(k => k.kind === 'text' && vis(k) && k.text);
+    return kids.map(k => k.text.replace(/\|c[0-9a-fA-F]{8}|\|r/g, '')).join(' ').trim();
+  };
+  const name = e => {
+    if (e.kind === 'text') return '"' + e.text.replace(/\|c[0-9a-fA-F]{8}|\|r/g, '').replace(/\n/g, '⏎').slice(0, 40) + '"';
+    if (e.kind === 'frame') { const l = label(e); return (e.ftype === 'Button' ? '버튼' : '틀') + (l ? ' "' + l.slice(0, 30) + '"' : '#' + e.id); }
+    return '그림 ' + (texName(e) || 'color') + '#' + e.id;
+  };
+  const add = (kind, msg, ...items) => out.push({ scene: title, kind, msg, items: items.map(name) });
+
+  const live = order.filter(e => vis(e) && !(e.kind === 'frame' && e.id === root));
+  const tops = new Map(); live.forEach(e => tops.set(e, topOf(e)));
+  // modal dimmers: what is drawn before them in the same window is out of play
+  const dims = live.filter(e => e.kind === 'texture' && e.color && e.color[3] * alpha(e) >= 0.4 && tops.get(e)
+    && area(e._r) >= 0.85 * area(tops.get(e)._r));
+  const behind = e => dims.some(d => d._i > e._i && tops.get(d) === tops.get(e) && !isAnc(byId[d.parent], e));
+  const act = live.filter(e => !behind(e));
+  const tooltip = e => (tops.get(e) && tops.get(e).strata === 'TOOLTIP');
+  const texts = act.filter(e => e.kind === 'text' && e.text && e.text.trim() && !tooltip(e) && !e.moving);
+  const buttons = act.filter(e => e.kind === 'frame' && (e.ftype === 'Button' || e.ftype === 'CheckButton') && e.click && !e.nomouse
+    && area(e._r) > 4 && !tooltip(e));
+  const covers = act.filter(e => opaque(e) && area(e._r) > 30);
+  const box = e => e.kind === 'text' ? textBox(e) : e._r;
+
+  for (const e of act) {
+    if (e._unanchored && (e.kind !== 'frame' || e.parent !== root) && area(e._r) > 0) add('unanchored', '위치가 지정되지 않음', e);
+  }
+  for (const e of texts) {
+    const r = e._r, t = e._t, tb = textBox(e); if (!tb) continue;
+    const boxW = r.r - r.l, boxH = r.t - r.b;
+    if (e.size < 10) add('small', '글자 크기 ' + e.size + ' (최소 10)', e);
+    if (e.nowrap && e._wrapW > 0 && t.width > e._wrapW + 1) add('clip', '한 줄 글자가 칸보다 김: ' + Math.round(t.width) + ' > ' + Math.round(e._wrapW) + ' (잘려서 …로 보임)', e);
+    if (t.lines.length > 1 && t.height > boxH + e.size * 0.35) add('clip', '여러 줄 글자가 높이를 넘침: ' + t.lines.length + '줄, 높이 ' + Math.round(boxH), e);
+    if (e._split) add('wrap', '단어가 중간에서 끊겨 다음 줄로 넘어감', e);
+    const plain = e.text.replace(/\|c[0-9a-fA-F]{8}|\|r/g, '');
+    if (t.lines.length > 1 && !plain.includes('\n') && plain.length <= 14) add('wrap', '짧은 글자가 두 줄로 나뉨', e);
+    const p = byId[e.parent];
+    if (p && p.kind === 'frame' && p.id !== root && area(p._r) > 16) {
+      const pr = p._r;
+      if (tb.l < pr.l - 2 || tb.r > pr.r + 2 || tb.t > pr.t + 3 || tb.b < pr.b - 3)
+        add('outside', '글자가 자기 틀 밖으로 나감 (' + name(p) + ')', e);
+    }
+  }
+  // outside the window
+  for (const e of act) {
+    const top = tops.get(e); if (!top || top === e || tooltip(e)) continue;
+    const n = texName(e);
+    if (e.kind === 'texture' && (!opaque(e) || SEE_THROUGH.has(n))) continue;
+    if (e.kind === 'frame' && !(buttons.includes(e))) continue;
+    let b = box(e); if (!b || area(b) <= 0) continue;
+    if (e._clip) { b = inter(b, e._clip); if (b.r - b.l <= 0 || b.t - b.b <= 0) continue; }
+    const tr = top._r, tol = 6;
+    if (b.l < tr.l - tol || b.r > tr.r + tol || b.t > tr.t + tol || b.b < tr.b - tol) add('window', '창 밖으로 나감', e);
+  }
+  // overlaps between texts, and text on someone else's button
+  const coveredBetween = (a, b, ir) => covers.some(c => c._i > a._i && c._i < b._i && contains(c._r, ir) && !isAnc(c, a));
+  for (let i = 0; i < texts.length; i++) {
+    const A = texts[i], ab = textBox(A); if (!ab) continue;
+    for (let j = i + 1; j < texts.length; j++) {
+      const B = texts[j], bb = textBox(B); if (!bb) continue;
+      const ir = inter(ab, bb);
+      if (ir.r - ir.l > 2 && ir.t - ir.b > 2) {
+        const [x, y] = A._i < B._i ? [A, B] : [B, A];
+        if (!coveredBetween(x, y, ir)) add('overlap', '글자끼리 겹침', A, B);
+      }
+    }
+    for (const Bt of buttons) {
+      if (isAnc(Bt, A) || tops.get(Bt) !== tops.get(A)) continue;
+      const ir = inter(ab, Bt._r);
+      if (ir.r - ir.l > 2 && ir.t - ir.b > 2 && area(ir) > 6) {
+        if (A._i > Bt._i && !coveredBetween(Bt, A, ir)) add('onbutton', '글자가 다른 버튼 위에 겹침', A, Bt);
+      }
+    }
+  }
+  // hidden under something drawn later
+  for (const X of texts.concat(buttons)) {
+    const xb = box(X); if (!xb || area(xb) <= 0) continue;
+    let covered = 0, by = null;
+    for (const c of covers) {
+      if (c._i <= X._i || isAnc(X, c) || tooltip(c)) continue;
+      // another window over this one: only a problem when it covers a button
+      if (tops.get(c) !== tops.get(X) && X.kind === 'text') continue;
+      const ir = inter(xb, c._r);
+      if (ir.r - ir.l > 1 && ir.t - ir.b > 1 && area(ir) > 20) { covered += area(ir); by = by || c; }
+    }
+    // text under something solid is (partly) unreadable; a button under it cannot be clicked there
+    if (covered >= (X.kind === 'text' ? 0.08 : 0.3) * area(xb)) add('hidden', '다른 것에 가려짐 (' + name(byId[by.parent] || by) + ')', X);
+  }
+  // buttons on top of each other; the same button twice
+  const seen = new Map();
+  for (let i = 0; i < buttons.length; i++) {
+    const A = buttons[i];
+    for (let j = i + 1; j < buttons.length; j++) {
+      const B = buttons[j];
+      if (isAnc(A, B) || isAnc(B, A) || tops.get(A) !== tops.get(B)) continue;
+      const ir = inter(A._r, B._r);
+      if (ir.r - ir.l > 2 && ir.t - ir.b > 2) add('overlap', '버튼끼리 겹침', A, B);
+    }
+    const l = label(A);
+    if (l && l.length >= 2 && !A.item && !/^[0-9.,\s/%+:-]+$/.test(l)) {
+      const key = tops.get(A).id + '|' + l;
+      if (seen.has(key)) add('duplicate', '같은 버튼이 두 번 있음', seen.get(key), A); else seen.set(key, A);
+    }
+    const hasLook = (function walk(f) {
+      for (const k of (R.children[f.id] || [])) {
+        if (!vis(k)) continue;
+        if (k.kind === 'text' && k.text && k.text.trim()) return true;
+        if (k.kind === 'texture' && area(k._r) > 0) return true;
+        if (k.kind === 'frame' && walk(k)) return true;
+      }
+      return false;
+    })(A);
+    if (!hasLook) add('invisible', '보이지 않는 버튼(누를 수 있는 빈 칸)', A);
+  }
+  return out;
+}
+
 const loads = Object.entries(MEDIA).map(([k, src]) => new Promise(res => {
   const im = new Image(); im.onload = () => { images[k] = im; res(); }; im.onerror = res; im.src = src;
 }));
 Promise.all(loads).then(() => {
   for (const [title, scene] of SCENES) draw(scene, title);
+  window.LINT = [];
+  for (const [title, scene] of SCENES) window.LINT.push(...lint(scene, title));
   document.title = 'ready';
 });
 </script></body></html>

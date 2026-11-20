@@ -895,8 +895,9 @@ function Bar.Create()
 	frame.fxOn = next((ns.ART and ns.ART.fx) or {}) ~= nil
 
 	for i = 1, MAX_FLOATS do
-		local fs = UI.Text(over, 11, nil, "OUTLINE")
+		local fs = UI.Text(over, 12, nil, "OUTLINE")
 		fs:SetJustifyH("CENTER")
+		fs.moving = true -- combat numbers fly over everything (the layout check skips them)
 		fs:Hide()
 		floats[i] = { fs = fs, active = false }
 	end
@@ -948,7 +949,7 @@ function Bar.Create()
 	auto.ringT:SetPoint("TOP", auto, "TOP", 0, 0)
 	auto.glyph = UI.Glyph(auto, "auto", 22)
 	auto.glyph:SetPoint("CENTER", auto.disc, "CENTER", 0, 0)
-	auto.caption = UI.Text(auto, 9)
+	auto.caption = UI.Text(auto, 10)
 	auto.caption:SetPoint("TOP", auto.disc, "BOTTOM", 0, -1)
 	auto.caption:SetJustifyH("CENTER")
 	UI.Color(auto.caption, UI.C.sub)

@@ -350,7 +350,7 @@ for aid, title, look, users in MONSTERS:
 # 7. Raid bosses (the last zone of each act) ------------------------------------
 BOSSES = [
     ("boss_ragnaros", "라그나로스(화산 심장부)", "용암과 불꽃으로 된 거대한 불의 군주, 큰 망치"),
-    ("boss_cthun", "쑨(안퀴라즈)", "땅에서 솟은 거대한 눈알 촉수 괴물"),
+    ("boss_cthun", "크툰(안퀴라즈)", "땅에서 솟은 거대한 눈알 촉수 괴물"),
     ("boss_kelthuzad", "켈투자드(낙스라마스)", "푸른 서리 기운을 두른 해골 리치 마법사"),
     ("boss_magtheridon", "마그테리돈", "쇠사슬에 묶였던 거대한 붉은 뿔 악마"),
     ("boss_kaelthas", "캘타스", "불사조 날개를 펼친 화려한 엘프 마법사 왕자"),

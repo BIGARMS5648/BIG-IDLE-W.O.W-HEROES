@@ -93,8 +93,9 @@ end
 -- Parts can join into a word the game already uses ("레" + "벨" = "레벨",
 -- "자리", "오라") or into a famous character's name; those are rolled again.
 local BLOCKED = {}
-for _, w in ipairs({ "레벨", "마나", "마리", "바로", "오라", "자리", "가로쉬", "일리단", "티란데", "에드윈", "그론",
-	"헬스크림", "선스트라이더", "스톰레이지" }) do
+for _, w in ipairs({ "레벨", "마나", "마리", "바로", "오라", "자리",
+	"가로쉬", "그롬마쉬", "말퓨리온", "볼진", "일리단", "티란데", "케른", "오그림", "바인", "이렐", "실바나", "카엘", "벨렌",
+	"에드윈", "그론", "그레이메인", "둠해머", "브론즈비어드", "선스트라이더", "스톰레이지", "헬스크림" }) do
 	BLOCKED[w] = true
 end
 ns.Names.BLOCKED = BLOCKED

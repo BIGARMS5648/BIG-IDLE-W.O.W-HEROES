@@ -179,7 +179,7 @@ ns.STAGES[1] = finish({
 		B("무적의 오시리안", "INV_Misc_AhnQirajTrinket_04", "giant", 900, 16, 0.6,
 			{ skills = { smash(8, 2.6), shield(20, 6, 70), enrage(0.3, 1.3) } })),
 	st("안퀴라즈 사원", "shadow", { { "anubisath", 40 }, { "qiraji", 60 } },
-		B("쑨", "INV_Misc_Eye_01", "aberration", 1900, 15, 0.7,
+		B("크툰", "INV_Misc_Eye_01", "aberration", 1900, 15, 0.7,
 			{ school = "shadow", res = { shadow = 50 }, skills = {
 				aoe(9, 1.0, "shadow"), summon(18, "eye_tentacle", 2), shield(30, 7, 75), enrage(0.2, 1.5) } })),
 	-- Act 3
