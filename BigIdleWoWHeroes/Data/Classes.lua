@@ -385,7 +385,7 @@ spec("TINKER_MECH", "TINKER", "기갑", {
 	arch = "TANK", a = "dmg_fire", g = "block",
 	skills = { "rocket_punch", "flamethrower", "mech_stomp", "defense_protocol", "shield_generator", "emergency_repair" },
 })
-spec("TINKER_TURRET", "TINKER", "포탑", {
+spec("TINKER_TURRET", "TINKER", "섬멸", {
 	role = "DPS", school = "phys", range = 680, ranged = true, icon = "INV_Weapon_Rifle_01",
 	desc = "기관총 포탑과 로켓 포탑을 깔아 두고 뒤에서 총을 쏘는 원거리 딜러.",
 	base = { atk = 8.5, aspd = 1.00, crit = 5, critdmg = 155, hp = 145, armor = 20 },
@@ -393,7 +393,7 @@ spec("TINKER_TURRET", "TINKER", "포탑", {
 	arch = "RANGED", a = "dmg_phys", b = "dmg_fire",
 	skills = { "gun_turret", "bomb_toss", "net_launcher", "rocket_turret", "overcharge", "goblin_mortar" },
 })
-spec("TINKER_MEDIC", "TINKER", "정비", {
+spec("TINKER_MEDIC", "TINKER", "재생", {
 	role = "HEALER", school = "fire", range = 520, ranged = true, icon = "Ability_Repair",
 	desc = "치유 드론을 띄우고 치유 포탑을 세워 파티를 고치는 힐러. 쓰러진 동료는 점퍼 케이블로 깨웁니다.",
 	base = { atk = 7, aspd = 0.90, crit = 3, critdmg = 150, hp = 160, armor = 22 },
