@@ -345,6 +345,7 @@ function Main.Toggle(show)
 	if show then
 		if not current then
 			local key = ns.db.ui.tab
+			if key == "bag" then key = "hero" end -- the bag is on the hero screen now
 			if not tabByKey[key] then key = tabs[1].key end
 			if ns.Heroes.Count() == 0 then key = "party" end
 			current = key

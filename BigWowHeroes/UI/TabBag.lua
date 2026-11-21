@@ -1,9 +1,11 @@
--- Bags screen (가방), built from the screen kit (UI/Layout.lua):
---   tabs: 전체 · 무기 · 방어구 · 액세서리 · 은행, and under them the
---         materials: 제작 · 보석 세공 · 마법 부여 · 룬 각인 · 행운의 인장 재료
---   list: the item grid; at the bottom, chests and breaking down in bulk;
---   card: the chosen item and what to do with it (equip, break down,
---         protect, bank).
+-- The bag (가방), shown on the hero screen under the hero's equipment row
+-- (UI/TabHero.lua builds it with BagView.Build):
+--   two rows of tabs: 전체 · 무기 · 방어구 · 액세서리 · 은행 [정리], and the
+--     materials: 제작 · 보석 세공 · 마법 부여 · 룬 각인 · 행운의 인장 재료;
+--   the grid;
+--   at the bottom: [상자 열기] [기준 ▾] [일괄 분해] [자동 분해];
+--   on the card (BagView.Card): the chosen item or material and what to do
+--     with it (equip on the chosen hero, break down, protect, bank, fuse).
 -- Shortcuts on an item: Alt+click protects it, right-click breaks it down.
 local _, ns = ...
 
@@ -12,18 +14,20 @@ local UI, U = ns.UI, ns.U
 local Main = ns.Main
 local K = UI.K
 
--- seven rows hold the largest bag (70 with every bag rune)
-local COLS, ROWS, CELL = 10, 7, 40
+local BagView = {}
+ns.BagView = BagView
+
+-- six rows of twelve hold the largest bag (70 with every bag rune)
+local COLS, ROWS, CELL = 12, 6, 36
 local STEP_X = (K.LIST_IN - CELL) / (COLS - 1)
-local STEP_Y = 45
-local GRID_Y = -36
--- the materials' tab row sits between the tabs and the list
-local MAT_ROW_H, MAT_ROW_GAP = 28, 4
+local STEP_Y = 41
+local TABS_Y, MATS_Y, GRID_Y = -62, -90, -122
+local CHIP_H = 24
 
 local TABS = {
 	{ "all", "전체" }, { "weapon", "무기" }, { "armor", "방어구" }, { "acc", "액세서리" }, { "bank", "은행" },
 }
--- material tabs: the kinds each holds, what the forge uses them for
+-- material tabs: the kinds each holds
 local MAT_TABS = {
 	{ "mat_craft", "제작 재료" }, { "mat_gem", "보석 세공 재료" }, { "mat_ench", "마법 부여 재료" },
 	{ "mat_insc", "룬 각인 재료" }, { "mat_seal", "행운의 인장 재료" },
@@ -37,6 +41,7 @@ local MAT_USE = {
 	mat_insc = "용광로 '각인'에 씁니다", mat_seal = "용광로 '보너스'에 씁니다",
 }
 local function isMats(tab) return MAT_KINDS_OF[tab] ~= nil end
+BagView.IsMats = isMats
 local function tabName(tab)
 	for _, t in ipairs(MAT_TABS) do if t[1] == tab then return t[2] end end
 	for _, t in ipairs(TABS) do if t[1] == tab then return t[2] end end
@@ -51,6 +56,7 @@ local SLOTS_OF = {
 local function smeltQ()
 	return U.clamp(ns.db.ui.smeltQ or 2, 1, ns.MAX_QUALITY)
 end
+local function autoSmeltOn() return (ns.db.opt.autoSmelt or 0) > 0 end
 
 local function itemList(page)
 	local src = page.tab == "bank" and ns.db.bank or ns.db.bag
@@ -92,8 +98,8 @@ local function smeltOne(page, it)
 end
 
 -- Materials in the order the player keeps them: new ones go to the end
--- until '정리' sorts them (sortMats).
--- (the order is kept for every material; a tab shows its own kinds)
+-- until '정리' sorts them (sortMats). The order is kept for every
+-- material; a tab shows its own kinds.
 local function matList(tab)
 	local db = ns.db
 	local out, seen = {}, {}
@@ -113,7 +119,7 @@ local function matList(tab)
 	return shown
 end
 
--- '정리' in the materials tab: like the item tabs, the highest grade first
+-- '정리' in a materials tab: like the item tabs, the highest grade first
 -- (a material's grade follows its tier); the same tier in kind order.
 local function sortMats()
 	local idx = {}
@@ -131,30 +137,25 @@ local function sortMats()
 end
 
 ------------------------------------------------------------------------
--- Build
+-- Build: host is the frame over the hero screen's list; the card is the
+-- screen's card
 ------------------------------------------------------------------------
-local function build(page)
-	page.tab = "all"
-	local S = UI.Screen(page, {
-		tabs = TABS,
-		onTab = function(key)
-			page.tab = key
-			page.selItem, page.selMat = nil, nil
-			Main.Refresh()
-		end,
-	})
-	page.S = S
-	page.matTabs = UI.Tabs(page, K.LIST_W, MAT_TABS, function(key)
+function BagView.Build(page, host)
+	page.tab = page.tab or "all"
+	local function pickTab(key)
 		page.tab = key
-		page.selItem, page.selMat = nil, nil
+		page.selItem, page.selMat, page.slot = nil, nil, nil
 		Main.Refresh()
-	end, true, MAT_ROW_H)
-	page.matTabs:SetPoint("TOPLEFT", S.tabs, "BOTTOMLEFT", 0, -MAT_ROW_GAP)
-	S.list:ClearAllPoints()
-	S.list:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -(K.TOP + MAT_ROW_H + MAT_ROW_GAP))
-	S.list:SetHeight(K.BODY_H - MAT_ROW_H - MAT_ROW_GAP)
-	-- 정리 sorts the grid: it sits in the grid's header
-	page.sort = UI.Button(S.list, 56, 22, "정리", function()
+	end
+	page.bagTabs = UI.Tabs(host, 300, TABS, pickTab, true, CHIP_H)
+	page.bagTabs:SetPoint("TOPLEFT", host, "TOPLEFT", K.PAD, TABS_Y)
+	page.matTabs = UI.Tabs(host, K.LIST_IN, MAT_TABS, pickTab, true, CHIP_H)
+	page.matTabs:SetPoint("TOPLEFT", host, "TOPLEFT", K.PAD, MATS_Y)
+	for _, t in ipairs(MAT_TABS) do
+		UI.Tip(page.matTabs:Get(t[1]), function() return UI.SimpleTip(t[2], MAT_USE[t[1]]) end, "TOP")
+	end
+	-- 정리 sorts the grid, at the end of the tab row; the count beside it
+	page.sort = UI.Button(host, 56, CHIP_H, "정리", function()
 		if isMats(page.tab) then
 			sortMats()
 		elseif page.tab == "bank" then
@@ -164,17 +165,20 @@ local function build(page)
 		end
 		Main.Refresh()
 	end, "dark")
+	page.sort:SetPoint("TOPRIGHT", host, "TOPLEFT", K.PAD + K.LIST_IN, TABS_Y)
 	UI.Tip(page.sort, function()
 		return UI.SimpleTip("정리", isMats(page.tab) and "재료를 높은 등급(단계)부터 다시 놓습니다. 같은 단계는 종류 순입니다." or "등급과 레벨 순으로 다시 놓습니다.")
 	end, "TOP")
+	page.count = UI.Text(host, K.F_SMALL)
+	page.count:SetPoint("RIGHT", page.sort, "LEFT", -8, 0)
+	page.count:SetWidth(K.LIST_IN - 300 - 56 - 16)
+	page.count:SetJustifyH("RIGHT")
+	page.count:SetWordWrap(false)
+	UI.Color(page.count, UI.C.sub)
 
-	local list = S.list
-	page.head = UI.Section(list, K.LIST_IN)
-	page.head:SetPoint("TOPLEFT", list, "TOPLEFT", K.PAD, -K.PAD)
-	page.head:AddTool(page.sort)
 	page.cells = {}
 	for i = 1, COLS * ROWS do
-		local b = UI.IconButton(list, CELL, function(self, button)
+		local b = UI.IconButton(host, CELL, function(self, button)
 			if isMats(page.tab) then
 				page.selMat, page.selItem = self.data, nil
 			elseif self.data and IsAltKeyDown and IsAltKeyDown() then
@@ -186,10 +190,11 @@ local function build(page)
 			elseif self.data then
 				page.selItem, page.selMat = self.data, nil
 			end
+			page.slot = nil
 			Main.Refresh()
 		end)
 		local col, row = (i - 1) % COLS, floor((i - 1) / COLS)
-		b:SetPoint("TOPLEFT", list, "TOPLEFT", floor(K.PAD + col * STEP_X), GRID_Y - row * STEP_Y)
+		b:SetPoint("TOPLEFT", host, "TOPLEFT", floor(K.PAD + col * STEP_X), GRID_Y - row * STEP_Y)
 		UI.Tip(b, function(self)
 			if not self.data then return nil end
 			if isMats(page.tab) then return ns.Items.MatTooltip(self.data) end
@@ -201,14 +206,39 @@ local function build(page)
 		end)
 		page.cells[i] = b
 	end
+	page.bagHost = host
+	page.empty = UI.Text(host, 13)
+	page.empty:SetPoint("TOP", host, "TOPLEFT", K.PAD + K.LIST_IN / 2, GRID_Y - 90)
+	page.empty:SetWidth(K.LIST_IN - 40)
+	page.empty:SetJustifyH("CENTER")
+	UI.Color(page.empty, UI.C.sub)
 
-	-- list footer: open the chests | pick the grade, then break down up to it
-	page.open = S.FootButton(1, 160, "", function()
+	-- the bottom row: open the chests | the grade, then break down up to it
+	-- (now, or by itself whenever the bag is full)
+	local function foot(w, label, onClick, style)
+		local b = UI.Button(host, w, K.BTN_H, label, onClick, style)
+		b.clickWhenOff = true
+		return b
+	end
+	page.open = foot(118, "", function()
 		ns.Loot.OpenAll()
 		Main.Refresh()
 	end, "blue")
+	page.open:SetPoint("BOTTOMLEFT", host, "BOTTOMLEFT", K.PAD, K.PAD)
 	UI.Tip(page.open, function() return UI.SimpleTip("상자 모두 열기", "쌓인 상자를 모두 엽니다. 가방이 차면 남은 상자는 그대로 둡니다.") end, "TOP")
-	page.smeltGo = UI.Button(list, 190, K.BTN_H, "", function(self)
+	page.smeltPick = UI.Dropdown(host, 130, K.BTN_H, function()
+		local out = {}
+		for q = 1, ns.MAX_QUALITY do out[#out + 1] = { q, U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하" } end
+		return out
+	end, smeltQ, function(q)
+		ns.db.ui.smeltQ = q
+		if autoSmeltOn() then ns.db.opt.autoSmelt = q end
+	end, "기준: ")
+	page.smeltPick:SetPoint("LEFT", page.open, "RIGHT", 6, 0)
+	page.smeltPick.openUp = true -- it sits at the bottom
+	page.smeltPick.tipTitle = "분해 기준 등급"
+	page.smeltPick.tipText = "일괄 분해와 자동 분해가 이 등급 이하의 장비만 분해합니다. 눌러서 목록에서 고르세요."
+	page.smeltGo = foot(150, "", function()
 		if not ns.Forge.Unlocked("smelt") then
 			Main.ShowTab("forge", { sub = "smelt" })
 			return
@@ -230,48 +260,36 @@ local function build(page)
 				page.selItem = nil
 			end })
 	end, "red")
+	page.smeltGo:SetPoint("LEFT", page.smeltPick, "RIGHT", 6, 0)
 	UI.Tip(page.smeltGo, function()
 		local picked, kept = ns.Forge.PickByQuality(smeltQ())
-		local body = string.format("기준 등급 이하의 장비 %d개를 골드로 바꿉니다. 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 남깁니다.", #picked)
+		local total = 0
+		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
+		local body = string.format("기준 등급 이하의 장비 %d개를 골드로 바꿉니다 (+%s 골드). 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 남깁니다.", #picked, U.fmt(total))
 		if kept > 0 then body = body .. string.format("\n(파티에게 더 좋은 장비 %d개는 남김)", kept) end
 		return UI.SimpleTip("일괄 분해", body)
 	end, "TOP")
-	page.smeltPick = UI.Dropdown(list, 150, K.BTN_H, function()
-		local out = {}
-		for q = 1, ns.MAX_QUALITY do out[#out + 1] = { q, U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하" } end
-		return out
-	end, smeltQ, function(q)
-		ns.db.ui.smeltQ = q
-		if (ns.db.opt.autoSmelt or 0) > 0 then ns.db.opt.autoSmelt = q end
-	end, "기준: ")
-	page.smeltPick:SetPoint("LEFT", page.open, "RIGHT", 8, 0)
-	page.smeltGo:SetPoint("LEFT", page.smeltPick, "RIGHT", 8, 0)
-	page.smeltGo.clickWhenOff = true
-	page.smeltPick.openUp = true -- it sits in the footer
-	page.smeltPick.tipTitle = "분해 기준 등급"
-	page.smeltPick.tipText = "일괄 분해와 자동 분해(설정)가 이 등급 이하의 장비만 분해합니다. 눌러서 목록에서 고르세요."
+	page.autoSmelt = foot(92, "", function()
+		if not ns.Forge.Unlocked("smelt") then
+			UI.Try(false, "용광로에서 '분해'를 먼저 해금하세요.")
+			return
+		end
+		ns.db.opt.autoSmelt = autoSmeltOn() and 0 or smeltQ()
+		ns.Toast(autoSmeltOn() and "자동 분해를 켰습니다." or "자동 분해를 껐습니다.")
+		Main.Refresh()
+	end, "dark")
+	page.autoSmelt:SetPoint("LEFT", page.smeltGo, "RIGHT", 6, 0)
+	UI.Tip(page.autoSmelt, function()
+		local q = ns.QUALITY[smeltQ()]
+		return UI.SimpleTip("자동 분해 " .. (autoSmeltOn() and "(켜짐)" or "(꺼짐)"),
+			string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다. 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 남깁니다.",
+				U.col(q.hex, ns.N(q.name))))
+	end, "TOP")
 
 	-- card content
-	local d = S.card
+	local d = page.S.card
 	page.lines = UI.Lines(d.content, K.CARD_IN, 14, K.F_SMALL, 174)
 	page.lines:SetPoint("TOPLEFT", d.content, "TOPLEFT", 0, 0)
-	page.targetHead = UI.Section(d.content, K.CARD_IN, "착용 대상 (출전 중인 영웅)")
-	page.targetHead:SetPoint("BOTTOMLEFT", d.content, "BOTTOMLEFT", 0, 62)
-	page.targets = {}
-	for i = 1, ns.PARTY_SIZE do
-		local b = UI.Portrait(d.content, 30, function(self)
-			if self.heroId then
-				Main.SelectHero(self.heroId)
-				Main.Refresh()
-			end
-		end)
-		b:SetPoint("BOTTOMLEFT", d.content, "BOTTOMLEFT", 2 + (i - 1) * 38, 24)
-		b.lvl:Hide()
-		UI.Tip(b, function(self)
-			return self.heroId and UI.SimpleTip(ns.Heroes.Name(self.heroId), "클릭: 이 영웅에게 장착할지 비교합니다.") or nil
-		end, "TOP")
-		page.targets[i] = b
-	end
 	page.compare = UI.Text(d.content, K.F_SMALL)
 	page.compare:SetPoint("BOTTOMLEFT", d.content, "BOTTOMLEFT", 0, 2)
 	page.compare:SetWidth(K.CARD_IN)
@@ -281,17 +299,15 @@ end
 ------------------------------------------------------------------------
 -- Card
 ------------------------------------------------------------------------
-local function clearCard(page)
+function BagView.ClearCard(page)
 	page.lines:Set(nil)
-	for _, b in ipairs(page.targets) do b:Hide() end
-	page.targetHead:Hide()
 	page.compare:SetText("")
 end
 
 -- The tooltip lines (without the name and type) in the card, as many as fit
--- above the "who can wear it" block (targets) or the card's footer. Call
--- it after the card's buttons are set: they decide the room left.
-local function fillLines(page, tl, skip, targets)
+-- above the compare line or the card's footer. Call it after the card's
+-- buttons are set: they decide the room left.
+local function fillLines(page, tl, skip, compare)
 	local list = {}
 	for i = 3, #tl do
 		local text = tl[i][1] or ""
@@ -299,13 +315,11 @@ local function fillLines(page, tl, skip, targets)
 			list[#list + 1] = { text .. (tl[i][2] and ("  " .. tl[i][2]) or ""), tl[i][3], tl[i][4], tl[i][5] }
 		end
 	end
-	local room = (page.S.card.contentH or 200) - (targets and 90 or 4)
+	local room = (page.S.card.contentH or 200) - (compare and 22 or 4)
 	page.lines:Set(list, room)
 end
 
--- materials: fuse everything that can be fused (the card's gold button in
--- the materials tab)
--- (only the materials of the tab on screen)
+-- materials: fuse everything of this tab that can be fused
 local function autoFuseAction(tab)
 	local kinds, name = MAT_KINDS_OF[tab], tabName(tab)
 	return { "재료 자동 융합", function()
@@ -336,7 +350,7 @@ local function refreshMat(page, mat)
 		sub = ns.N(ns.MAT_KIND_NAME[m.kind]) .. " · " .. string.format("%d단계 · %s개", m.tier, U.fmt(count)), band = { U.rgb(q.hex) } })
 	local canFuse = count >= ns.Forge.FUSE_COUNT and m.tier < ns.MAT_MAX_TIER[m.kind]
 	local smelt = ns.Forge.Unlocked("smelt")
-	-- small row: break down one / all; footer: fuse nine / auto-fuse everything
+	-- small row: break down one / all; footer: fuse nine / auto-fuse the tab
 	d:Extras({ "1개 분해 +" .. U.fmt(ns.Forge.MatSmeltGold(mat, 1)), function()
 		UI.Try(ns.Forge.SmeltMat(mat, 1))
 		Main.Refresh()
@@ -361,11 +375,12 @@ local function refreshItem(page, it)
 	local q = ns.QUALITY[it.q]
 	d:Head({ icon = ns.Items.Icon(it), quality = it.q, count = tostring(it.l), locked = it.lock, data = it,
 		title = ns.Items.Name(it), titleRGB = { U.rgb(q.hex) },
-		sub = string.format("%s %s · 아이템 레벨 %d", ns.N(q.name), ns.N(ns.SLOT[it.s].name), it.l), band = { U.rgb(q.hex) } })
-	local function lines()
+		sub = string.format("%s %s · 아이템 레벨 %d", ns.N(q.name), ns.N(ns.SLOT[it.s].name), it.l), band = { U.rgb(q.hex) },
+		close = function() page.selItem = nil Main.Refresh() end })
+	local function lines(compare)
 		fillLines(page, ns.Items.Tooltip(it, nil), function(text)
 			return text:find("분해 가치", 1, true) or text:find("보호됨", 1, true)
-		end, page.tab ~= "bank")
+		end, compare)
 	end
 	local lock = { it.lock and "보호 풀기" or "보호하기", function() ns.Items.ToggleLock(it) Main.Refresh() end, "dark",
 		tip = { "보호", "보호한 장비는 분해·융합되지 않습니다. 가방에서 Alt+클릭으로도 바꿀 수 있습니다." } }
@@ -377,40 +392,14 @@ local function refreshItem(page, it)
 			if idx and UI.Try(ns.Items.FromBank(idx)) then page.selItem = nil end
 			Main.Refresh()
 		end, "primary", ns.Items.BagFree() <= 0 })
-		lines()
+		lines(false)
 		return
 	end
 
-	-- who could wear it: the party (the chosen hero if fielded, else the one it helps most)
+	-- the hero in the row above: compare with and equip on that hero
 	local id = Main.SelectedHero()
-	if not (id and ns.Heroes.PartySlot(id)) then
-		local best, br
-		for i = 1, ns.PARTY_SIZE do
-			local pid = ns.db.party[i]
-			local rr = pid and ns.Items.Compare(pid, it)
-			if pid and (not best or (rr or 0) > (br or 0)) then best, br = pid, rr end
-		end
-		id = best
-	end
-	page.targetHead:Show()
-	local k = 0
-	for i = 1, ns.PARTY_SIZE do
-		local pid = ns.db.party[i]
-		if pid then
-			k = k + 1
-			local pb = page.targets[k]
-			pb:SetHero(pid)
-			UI.SetHeroIcon(pb.icon, pid)
-			pb.lvl:Hide()
-			pb:SetSelected(pid == id)
-			local rr = ns.Items.Compare(pid, it)
-			pb:SetDim(not ns.Items.CanUse(pid, it))
-			pb:SetBadge(rr and rr > 1.01)
-			pb:Show()
-		end
-	end
 	if id then
-		local who = ns.Heroes.Name(id)
+		local who = ns.Heroes.ShortName(id)
 		local rr = ns.Items.Compare(id, it)
 		if rr then
 			local pct = (rr - 1) * 100
@@ -438,87 +427,100 @@ local function refreshItem(page, it)
 		local idx = indexIn(ns.db.bag, it)
 		if idx and UI.Try(ns.Items.Equip(id, idx)) then page.selItem = nil end
 		Main.Refresh()
-	end, "primary", not canEquip, tip = { "장착", "위에서 고른 영웅에게 장착합니다. 영웅은 초상화를 눌러 바꿉니다." } })
+	end, "primary", not canEquip, tip = { "장착", "위 줄에서 고른 영웅에게 장착합니다. 영웅은 맨 위 초상화를 눌러 바꿉니다." } })
 	if it.lock and ns.Forge.Unlocked("smelt") then d:Reason("보호한 장비는 분해할 수 없습니다.") end
-	lines()
+	lines(id ~= nil)
+end
+
+-- Draws the card for what is chosen in the bag; false when nothing there
+-- is chosen (the hero screen then shows the hero or the chosen slot).
+function BagView.Card(page)
+	local d = page.S.card
+	if isMats(page.tab) then
+		if page.selMat then
+			refreshMat(page, page.selMat)
+		else
+			d:Head({ title = tabName(page.tab), sub = "비어 있음" })
+			page.lines:Set({ { page.emptyText or "", 0.67, 0.70, 0.78 } })
+			d:Actions(nil, autoFuseAction(page.tab))
+			autoFuseReason(d, page.tab)
+		end
+		return true
+	end
+	if page.selItem then
+		refreshItem(page, page.selItem)
+		return true
+	end
+	return false
 end
 
 ------------------------------------------------------------------------
--- Refresh
+-- Refresh (the list part)
 ------------------------------------------------------------------------
-local function refresh(page)
+function BagView.Refresh(page)
 	local db = ns.db
-	local S = page.S
-	S.tabs:Select(page.tab)
+	page.bagTabs:Select(page.tab)
 	page.matTabs:Select(page.tab)
-	page.sort:Show()
 	local chests = ns.Loot.Count()
 	page.open:SetLabel(string.format("상자 열기 (%d)", chests))
 	page.open:SetOff(chests == 0)
 	page.open:SetBadge(chests > 0 and chests or nil)
 	local q = smeltQ()
 	page.smeltPick:SetLabel("기준: " .. U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하")
-	if ns.Forge.Unlocked("smelt") then
+	local unlocked = ns.Forge.Unlocked("smelt")
+	if unlocked then
 		local picked = ns.Forge.PickByQuality(q)
-		local total = 0
-		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
-		page.smeltGo:SetLabel(string.format("일괄 분해 %d개 +%s", #picked, U.fmt(total)))
+		page.smeltGo:SetLabel(string.format("일괄 분해 %d개", #picked))
 		page.smeltGo:SetOff(#picked == 0)
 	else
-		page.smeltGo:SetLabel("분해 해금하러 가기")
+		page.smeltGo:SetLabel("분해 해금하기")
 		page.smeltGo:SetOff(false)
 	end
 	page.smeltPick:Refresh()
-	page.smeltGo:SetStyle(ns.Forge.Unlocked("smelt") and "red" or "blue")
+	page.smeltGo:SetStyle(unlocked and "red" or "blue")
+	page.autoSmelt:SetLabel(autoSmeltOn() and "자동 분해 켬" or "자동 분해 끔")
+	page.autoSmelt:SetStyle(autoSmeltOn() and "green" or "dark")
+	page.autoSmelt:SetOff(not unlocked)
 	local inBag = not isMats(page.tab) and page.tab ~= "bank"
 	page.open:SetShown(page.tab ~= "bank")
 	page.smeltGo:SetShown(inBag)
 	page.smeltPick:SetShown(inBag)
+	page.autoSmelt:SetShown(inBag)
 
 	-- drop a selection that is gone
 	if page.selItem and not indexIn(page.tab == "bank" and db.bank or db.bag, page.selItem) then page.selItem = nil end
 	if page.selMat and ns.MatCount(page.selMat) <= 0 then page.selMat = nil end
 
-	-- the hero the grid's "+" marks compare with: the chosen hero if fielded
+	-- the "+" marks compare with the hero in the row above
 	local sel = Main.SelectedHero()
-	if not (sel and ns.Heroes.PartySlot(sel)) then sel = db.party[1] or db.party[2] or db.party[3] or db.party[4] or db.party[5] end
 	local cells = page.cells
 	local empty
 	if isMats(page.tab) then
-		page.head:Set(tabName(page.tab), MAT_USE[page.tab])
-		local n = 0
-		for _, id in ipairs(matList(page.tab)) do
-			local count = ns.MatCount(id)
-			if count > 0 then
-				n = n + 1
+		local list = matList(page.tab)
+		page.count:SetText(string.format("%d종", #list))
+		for i, b in ipairs(cells) do
+			local id = list[i]
+			b:Clear()
+			b:SetShown(id ~= nil or i <= COLS * 2)
+			if id then
 				if not page.selMat then page.selMat = id end
-				local b = cells[n]
-				if b then
-					local m = ns.MATS[id]
-					b:Clear()
-					b.data = id
-					b:SetIconName(m.icon)
-					b:SetQuality(m.q)
-					b:SetCount(U.fmt(count))
-					if count >= ns.Forge.FUSE_COUNT and m.tier < ns.MAT_MAX_TIER[m.kind] then b:SetMark("9+", 0.5, 0.85, 1) end
-					b:SetSelected(page.selMat == id)
-					b:Show()
-				end
+				local m = ns.MATS[id]
+				local count = ns.MatCount(id)
+				b.data = id
+				b:SetIconName(m.icon)
+				b:SetQuality(m.q)
+				b:SetCount(U.fmt(count))
+				if count >= ns.Forge.FUSE_COUNT and m.tier < ns.MAT_MAX_TIER[m.kind] then b:SetMark("9+", 0.5, 0.85, 1) end
+				b:SetSelected(page.selMat == id)
 			end
 		end
-		for i = n + 1, #cells do cells[i]:Clear() cells[i]:SetShown(i <= COLS * 2) end
-		if n == 0 then empty = tabName(page.tab) .. "가 없습니다. 상자에서 얻을 수 있습니다." end
+		if #list == 0 then empty = tabName(page.tab) .. "가 없습니다. 상자에서 얻을 수 있습니다." end
 	else
 		local list = itemList(page)
 		local bank = page.tab == "bank"
 		local cap = bank and ns.BankSize() or ns.BagSize()
 		local filtered = SLOTS_OF[page.tab] ~= nil
-		if bank then
-			page.head:Set(string.format("은행  %d / %d", #db.bank, cap), "아끼는 장비를 보관합니다")
-		else
-			page.head:Set(string.format("가방  %d / %d", #db.bag, cap), "Alt+클릭: 보호 · 우클릭: 분해")
-		end
-		if not page.selItem then page.selItem = list[1] end
+		page.count:SetText(string.format("%s %d / %d", bank and "은행" or "가방", bank and #db.bank or #db.bag, cap))
 		local shown = filtered and max(#list, COLS) or max(cap, #list)
 		for i, b in ipairs(cells) do
 			local it = list[i]
@@ -546,43 +548,25 @@ local function refresh(page)
 				or (filtered and "이 종류의 장비가 없습니다." or "가방이 비어 있습니다. 상자를 열어 장비를 얻으세요.")
 		end
 	end
-	S.Empty(nil)
-
-	local d = S.card
-	clearCard(page)
-	d:Extras(nil, nil)
-	if isMats(page.tab) and page.selMat then
-		refreshMat(page, page.selMat)
-	elseif not isMats(page.tab) and page.selItem then
-		refreshItem(page, page.selItem)
-	else
-		d:Head({ title = isMats(page.tab) and tabName(page.tab) or (page.tab == "bank" and "은행" or "가방"), sub = empty and "비어 있음" or "고른 것이 없습니다" })
-		page.lines:Set({ { empty or "왼쪽에서 아이템을 누르면 여기에서 자세히 보고 장착하거나 분해할 수 있습니다.", 0.67, 0.70, 0.78 } })
-		if isMats(page.tab) then
-			-- nothing picked: auto-fuse still fills the footer
-			d:Actions(nil, autoFuseAction(page.tab))
-			autoFuseReason(d, page.tab)
-		else
-			d:Actions(nil, nil)
-			d.wide:Hide()
-		end
-	end
+	page.emptyText = empty
+	page.empty:SetText(empty or "")
+	page.empty:SetShown(empty ~= nil)
+	-- under the empty cells that are shown
+	local shownCells = 0
+	for _, b in ipairs(cells) do if b:IsShown() then shownCells = shownCells + 1 end end
+	page.empty:ClearAllPoints()
+	page.empty:SetPoint("TOP", page.bagHost, "TOPLEFT", K.PAD + K.LIST_IN / 2,
+		GRID_Y - math.ceil(shownCells / COLS) * STEP_Y - 6)
 end
 
-local function tick(page) end
-
--- opts.slot: show the tab that holds this equipment slot
-local function open(page, opts)
-	if opts and opts.slot then
+-- opts.slot: the tab that holds this equipment slot; opts.tab: that tab
+function BagView.Open(page, opts)
+	if not opts then return end
+	if opts.tab then page.tab = opts.tab end
+	if opts.slot then
 		for key, set in pairs(SLOTS_OF) do
 			if set[opts.slot] then page.tab = key end
 		end
 		page.selItem = nil
 	end
 end
-
-Main.RegisterTab({
-	key = "bag", title = "가방", sub = "상자를 열고 장비를 장착하거나 분해합니다",
-	icon = "INV_Misc_Bag_10", art = "icon_bag", build = build, refresh = refresh, tick = tick, open = open,
-	events = { "BAG", "MATS", "CHESTS", "GEAR", "RUNES", "FORGE", "LEVEL", "RESET", "PARTY" },
-})

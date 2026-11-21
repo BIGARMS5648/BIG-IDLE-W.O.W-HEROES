@@ -302,7 +302,7 @@ function ops.smelt(page, panel, cp)
 			r:Set(U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)), U.col("ffd24a", U.fmt(gold)) .. " G")
 		end
 		d:Head({ icon = OP_ICON.smelt, art = "forge_smelt", title = "분해", sub = "장비 → 골드, 용광로 경험치" })
-		d:Actions(nil, { "가방에서 분해하기", function() Main.ShowTab("bag") end, "primary" })
+		d:Actions(nil, { "가방에서 분해하기", function() Main.ShowTab("hero", { tab = "all" }) end, "primary" })
 	end
 end
 

@@ -107,15 +107,15 @@ local function candidates()
 	end
 	local chests = ns.Loot.Count()
 	if chests >= 3 and ns.Items.BagFree() > 0 then
-		add({ text = string.format("상자 %d개 열기", chests), tab = "bag", act = function() ns.Loot.OpenAll() end })
+		add({ text = string.format("상자 %d개 열기", chests), tab = "hero", mode = "gear", act = function() ns.Loot.OpenAll() end })
 	end
 	if ns.Items.BagFree() <= 3 then
 		if not ns.Forge.Unlocked("smelt") then
 			add({ text = "가방이 가득 찼어요: 용광로 '분해' 해금 (10 G)", tab = "forge", sub = "smelt", wait = not ns.CanAfford(10) })
 		elseif #ns.Forge.PickByQuality(db.opt.smeltQ or 1) > 0 then
-			add({ text = "가방이 가득 찼어요: 일괄 분해", tab = "bag", bulk = true })
+			add({ text = "가방이 가득 찼어요: 일괄 분해", tab = "hero", mode = "gear", bulk = true })
 		else
-			add({ text = "가방이 가득 찼어요: 분해 기준 등급 올리기", tab = "bag", bulk = true })
+			add({ text = "가방이 가득 찼어요: 분해 기준 등급 올리기", tab = "hero", mode = "gear", bulk = true })
 		end
 	end
 	if Guide.UpgradeCount() > 0 then
@@ -205,10 +205,9 @@ local function computeBadges()
 	for _, id in ipairs(partyHeroes()) do
 		if Guide.HeroNeeds(id) then n = n + 1 end
 	end
-	if n > 0 then b.hero = n end
-	-- bags: chests waiting
+	-- (the bag is on the hero screen: chests waiting show a dot there too)
 	local chests = ns.Loot.Count()
-	if chests > 0 then b.bag = chests end
+	if n > 0 then b.hero = n elseif chests > 0 then b.hero = true end
 	-- forge: an operation that can be unlocked now
 	for _, op in ipairs(ns.FORGE_OPS) do
 		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and ns.CanAfford(op.cost) then b.forge = true end

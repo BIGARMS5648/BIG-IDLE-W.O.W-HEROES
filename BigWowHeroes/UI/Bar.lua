@@ -789,7 +789,6 @@ end
 local MENU = {
 	{ "party", "INV_Misc_GroupNeedMore", "편성" },
 	{ "hero",  "INV_Helmet_06",          "영웅" },
-	{ "bag",   "INV_Misc_Bag_10",        "가방" },
 	{ "forge", "Trade_BlackSmithing",    "용광로" },
 	{ "runes", "INV_Misc_Rune_01",       "룬" },
 	{ "map",   "INV_Misc_Map_01",        "스테이지" },

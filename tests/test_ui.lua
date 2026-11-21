@@ -80,8 +80,8 @@ if type(BigWowHeroes_OnAddonCompartmentClick) ~= "function" then fail("addon com
 local goal = ns.Guide.Current()
 if not (goal.create and goal.tab == "party") then fail("the first goal should be to create a hero") end
 
-local tabs = { "party", "hero", "bag", "forge", "runes", "map", "options" }
-if #Main.Frame().nav ~= 6 then fail("the bottom bar should have six screens (settings is in the header)") end
+local tabs = { "party", "hero", "forge", "runes", "map", "options" }
+if #Main.Frame().nav ~= 5 then fail("the bottom bar should have five screens (the bag is on the hero screen, settings in the header)") end
 
 -- every screen must render with no hero at all
 Main.CloseModal()
@@ -261,8 +261,8 @@ do
 	if find(function(b) return b.tier and b.n and b.n > 2 end) then fail("the talent tree must not show skills") end
 	press("auto-assign", hp.autoTree)
 	if H.PointsFree(id) ~= 0 then fail("auto-assign should spend every talent point") end
-	tab("hero", "skills")
-	if hp.sub ~= "skills" then fail("the skills tab did not switch the sub-page") end
+	press("switch to skills", hp.modeTabs:Get("skills"))
+	if hp.mode ~= "skills" then fail("the skills tab did not switch the view") end
 	ns.db.heroes[id].sk = { [H.SkillList(id)[1]] = 1 }
 	ns.db.heroes[id].skills = { H.SkillList(id)[1] }
 	Main.Refresh()
@@ -289,7 +289,19 @@ do
 	Main.Refresh()
 	press("auto skills", hp.autoSkills)
 	if H.SkillPointsFree(id) ~= 0 then fail("auto skills should spend every skill point") end
-	tab("hero", "gear")
+	press("back to gear and bag", hp.back)
+	if hp.mode ~= "gear" then fail("'장비·가방으로' should go back") end
+	hp.selItem, hp.slot = nil, nil
+	if hp.tab ~= "all" then press("bag tab all", hp.bagTabs:Get("all")) end
+	Main.Refresh()
+	-- the hero card opens 기술 and 특성
+	if label(d.x1) ~= "기술" or label(d.x2) ~= "특성" then fail("the hero card should have 기술 and 특성 buttons") end
+	press("open skills from the hero card", d.x1)
+	if hp.mode ~= "skills" then fail("기술 on the hero card should open the skills") end
+	press("back", hp.back)
+	press("open talents from the hero card", d.x2)
+	if hp.mode ~= "tree" then fail("특성 on the hero card should open the talents") end
+	press("back", hp.back)
 	click("slot ring", function(b) return b.slot == "ring" end)
 	if hp.slot ~= "ring" then fail("clicking an equipment slot should show it on the card") end
 	if not d.close:IsVisible() then fail("a chosen slot should have a close button on the card") end
@@ -305,9 +317,11 @@ end
 
 -- bags: select, equip, lock, bank, materials
 do
-	Main.ShowTab("bag")
-	local bp = Main.Page("bag")
-	local d = card("bag")
+	Main.ShowTab("hero", { tab = "all" })
+	local bp = Main.Page("hero")
+	local d = card("hero")
+	local function bagTab(k) return press("bag tab " .. k, bp.bagTabs:Get(k)) end
+	if bp.mode ~= "gear" then fail("the bag should be on the hero screen") end
 	local id = ns.db.party[1]
 	Main.SelectHero(id)
 	local sword = ns.Items.New("mh", 5, 4, H.Spec(id).mh[1])
@@ -327,11 +341,11 @@ do
 	if not junk.lock then fail("the lock button should lock the item") end
 	press("to bank", d.x2)
 	if ns.db.bank[1] ~= junk then fail("the bank button should move the item to the bank") end
-	tab("bag", "bank")
+	bagTab("bank")
 	click("select banked", function(b) return b.data == junk end)
 	press("from bank", d.wide)
 	if not ns.Items.IndexInBag(junk) then fail("taking an item out of the bank did not work") end
-	tab("bag", "all")
+	bagTab("all")
 	local before = #ns.db.bag
 	local victim
 	for _, it in ipairs(ns.db.bag) do
@@ -372,10 +386,21 @@ do
 	press("threshold list", bp.smeltPick)
 	click("threshold 3", function(b) return b.value == 3 and b.label end)
 	if ns.db.ui.smeltQ ~= 3 then fail("picking from the threshold list did not set it") end
+	-- the auto break-down switch sits next to the threshold and uses it
+	if ns.Forge.Unlocked("smelt") then
+		ns.db.opt.autoSmelt = 0
+		Main.Refresh()
+		if label(bp.autoSmelt) ~= "자동 분해 끔" then fail("the auto break-down button should say it is off, got " .. tostring(label(bp.autoSmelt))) end
+		press("auto break-down on", bp.autoSmelt)
+		if ns.db.opt.autoSmelt ~= 3 then fail("turning auto break-down on should use the threshold, got " .. tostring(ns.db.opt.autoSmelt)) end
+		if label(bp.autoSmelt) ~= "자동 분해 켬" then fail("the auto break-down button should say it is on") end
+		press("auto break-down off", bp.autoSmelt)
+		if ns.db.opt.autoSmelt ~= 0 then fail("pressing again should turn auto break-down off") end
+	end
 	enrich(3)
 	Main.Refresh()
-	for _, t in ipairs({ "weapon", "armor", "acc", "bank", "all" }) do tab("bag", t) end
-	if bp.S.tabs:Get("mats") then fail("there should be no single materials tab") end
+	for _, t in ipairs({ "weapon", "armor", "acc", "bank", "all" }) do bagTab(t) end
+	if bp.bagTabs:Get("mats") then fail("there should be no single materials tab") end
 	-- the materials' own row of tabs: each shows only its kinds
 	local MAT_TABS = {
 		mat_craft = { bar = true, leather = true, cloth = true }, mat_gem = { gem = true },
@@ -445,7 +470,7 @@ do
 		end
 		if not prev then fail("the materials tab should show materials") end
 	end
-	tab("bag", "all")
+	bagTab("all")
 	enrich(2)
 	Main.Refresh()
 	click("open chests", function(b) return label(b) and label(b):find("상자 열기", 1, true) end)
@@ -605,7 +630,7 @@ end
 ------------------------------------------------------------------------
 -- click everything, several rounds, with random mouse buttons
 ------------------------------------------------------------------------
-local clickTabs = { "party", "hero", "bag", "forge", "forge", "runes", "map", "options", "bag", "hero" }
+local clickTabs = { "party", "hero", "forge", "forge", "runes", "map", "options", "hero", "hero" }
 local clicks = 0
 for round = 1, 50 do
 	for _, key in ipairs(clickTabs) do

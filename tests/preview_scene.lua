@@ -68,6 +68,11 @@ local function clickWhere(pred)
 end
 local function page(key) return ns.Main.Page(key) end
 local function show(key, opts)
+	-- each scene starts from the hero screen's usual view
+	local p = page(key)
+	if key == "hero" and p and p.S then
+		p.selItem, p.selMat, p.slot, p.tab, p.mode = nil, nil, nil, "all", "gear"
+	end
 	ns.Main.ShowTab(key, opts)
 	return page(key)
 end
@@ -201,19 +206,19 @@ local function bestItem()
 	end
 	return best
 end
-S.bag = function() local p = show("bag") p.tab = "all" p.selItem = bestItem() ns.Main.Refresh() end
+S.bag = function() local p = show("hero", { mode = "gear" }) p.tab = "all" p.selItem = bestItem() ns.Main.Refresh() end
 S.bag_tooltip = function()
-	local p = show("bag")
+	local p = show("hero", { mode = "gear" })
 	p.tab = "all"
 	p.selItem = bestItem()
 	ns.Main.Refresh()
 	local cell = find(function(f) return f.data == db.bag[5] and f.tipFn end)
 	if cell then cell.__scripts.OnEnter(cell) end
 end
-S.bag_locked = function() local p = show("bag") p.tab = "all" p.selItem = db.bag[3] ns.Main.Refresh() end
-S.bag_weapon = function() local p = show("bag") p.tab = "weapon" p.selItem = nil ns.Main.Refresh() end
-S.bag_mats = function() local p = show("bag") p.tab = "mat_craft" p.selMat = "bar1" ns.Main.Refresh() end
-S.bag_mats_sorted = function() local p = show("bag") p.tab = "mat_craft" p.selMat = "bar1" ns.Main.Refresh() p.sort:Click() end
+S.bag_locked = function() local p = show("hero", { mode = "gear" }) p.tab = "all" p.selItem = db.bag[3] ns.Main.Refresh() end
+S.bag_weapon = function() local p = show("hero", { mode = "gear" }) p.tab = "weapon" p.selItem = nil ns.Main.Refresh() end
+S.bag_mats = function() local p = show("hero", { mode = "gear" }) p.tab = "mat_craft" p.selMat = "bar1" ns.Main.Refresh() end
+S.bag_mats_sorted = function() local p = show("hero", { mode = "gear" }) p.tab = "mat_craft" p.selMat = "bar1" ns.Main.Refresh() p.sort:Click() end
 -- a ring with every socket filled with the longest socket stat there is
 -- (cooldown reduction at the top tier, the highest roll)
 local stress
@@ -232,9 +237,9 @@ local function stressRing()
 	ns.Items.AddToBag(stress)
 	return stress
 end
-S.bag_sockets = function() local p = show("bag") p.tab = "all" p.selItem = stressRing() ns.Main.Refresh() end
+S.bag_sockets = function() local p = show("hero", { mode = "gear" }) p.tab = "all" p.selItem = stressRing() ns.Main.Refresh() end
 S.bag_sockets_tip = function()
-	local p = show("bag")
+	local p = show("hero", { mode = "gear" })
 	p.tab = "all"
 	p.selItem = stressRing()
 	ns.Main.Refresh()
@@ -243,7 +248,7 @@ S.bag_sockets_tip = function()
 	end
 end
 S.bag_smelt_one = function()
-	local p = show("bag")
+	local p = show("hero", { mode = "gear" })
 	p.tab = "all"
 	local it = db.bag[5]
 	if it.lock then ns.Items.ToggleLock(it) end
@@ -252,21 +257,21 @@ S.bag_smelt_one = function()
 		if c.data == it then c:Click("RightButton") break end
 	end
 end
-S.bag_smelt_all = function() local p = show("bag") p.tab = "all" ns.Main.Refresh() p.smeltGo:Click() end
-S.bag_smelt_list = function() local p = show("bag") p.tab = "all" ns.Main.Refresh() p.smeltPick:Click() end
+S.bag_smelt_all = function() local p = show("hero", { mode = "gear" }) p.tab = "all" ns.Main.Refresh() p.smeltGo:Click() end
+S.bag_smelt_list = function() local p = show("hero", { mode = "gear" }) p.tab = "all" ns.Main.Refresh() p.smeltPick:Click() end
 S.bag_fuse_mats = function()
-	local p = show("bag")
+	local p = show("hero", { mode = "gear" })
 	p.tab = "mat_craft"
 	ns.AddMat("cloth1", 20)
 	p.selMat = "cloth1"
 	ns.Main.Refresh()
 	p.S.card.right:Click()
 end
-S.bag_bank_empty = function() local p = show("bag") p.tab = "bank" p.selItem = nil ns.Main.Refresh() end
+S.bag_bank_empty = function() local p = show("hero", { mode = "gear" }) p.tab = "bank" p.selItem = nil ns.Main.Refresh() end
 S.bag_bank = function()
 	ns.Items.ToBank(1)
 	ns.Items.ToBank(1)
-	local p = show("bag")
+	local p = show("hero", { mode = "gear" })
 	p.tab = "bank"
 	p.selItem = nil
 	ns.Main.Refresh()
@@ -277,7 +282,7 @@ S.bag_max = function()
 	db.runes.c2, db.runes.c8 = 5, 5
 	ns.Runes.Invalidate()
 	while #db.bag < ns.BagSize() do ns.Items.AddToBag(ns.Items.New("feet", 30, 2)) end
-	local p = show("bag")
+	local p = show("hero", { mode = "gear" })
 	p.tab = "all"
 	p.selItem = db.bag[#db.bag]
 	ns.Main.Refresh()
@@ -288,11 +293,11 @@ S.bag_max = function()
 		while #db.bag > ns.BagSize() do table.remove(db.bag) end
 	end
 end
-S.bag_gem_mats = function() local p = show("bag") p.tab = "mat_gem" p.selMat = nil ns.Main.Refresh() end
-S.bag_seal_mats = function() local p = show("bag") p.tab = "mat_seal" p.selMat = nil ns.Main.Refresh() end
+S.bag_gem_mats = function() local p = show("hero", { mode = "gear" }) p.tab = "mat_gem" p.selMat = nil ns.Main.Refresh() end
+S.bag_seal_mats = function() local p = show("hero", { mode = "gear" }) p.tab = "mat_seal" p.selMat = nil ns.Main.Refresh() end
 S.bag_full = function()
 	while #db.bag < ns.BagSize() do ns.Items.AddToBag(ns.Items.New("hands", 30, 3)) end
-	local p = show("bag")
+	local p = show("hero", { mode = "gear" })
 	p.tab = "all"
 	p.selItem = db.bag[#db.bag]
 	ns.Main.Refresh()
@@ -370,9 +375,9 @@ S.new_party = function()
 	show("party")
 end
 S.new_hero = function() show("hero") end
-S.new_bag = function() show("bag") end
+S.new_bag = function() show("hero", { mode = "gear" }) end
 -- no materials yet: nothing to pick, auto-fuse alone in the footer
-S.new_bag_mats = function() local p = show("bag") p.tab = "mat_craft" p.selMat = nil ns.Main.Refresh() p.tab = "all" end
+S.new_bag_mats = function() local p = show("hero", { mode = "gear" }) p.tab = "mat_craft" p.selMat = nil ns.Main.Refresh() p.tab = "all" end
 S.new_forge = function() show("forge", { sub = "craft" }) end
 S.new_one = function()
 	ns.Heroes.Create("WARRIOR_PROT")
