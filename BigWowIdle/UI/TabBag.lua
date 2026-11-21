@@ -359,7 +359,7 @@ local MAT_KINDS_OF = {
 }
 local MAT_USE = {
 	mat_craft = "장비 '제작'에 씁니다", mat_gem = "장비 '보석'에 씁니다", mat_ench = "장비 '마법부여'에 씁니다",
-	mat_insc = "장비 '각인'에 씁니다", mat_seal = "'굴리기'로 장비를 하나 얻습니다",
+	mat_insc = "장비 '각인'에 씁니다", mat_seal = "[굴리기]로 장비 1개",
 }
 MatsView.KINDS_OF = MAT_KINDS_OF
 local ROW_H, ROW_STEP, LIST_Y, MAT_ROWS = 54, 58, -70, 6
@@ -481,10 +481,8 @@ end
 function MatsView.Refresh(page)
 	local kinds = MAT_KINDS_OF[page.matTab]
 	page.matTabs:Select(page.matTab)
-	page.matNote:SetWidth(page.matTab == "mat_seal" and W or W - 130)
 	page.matNote:SetText(MAT_USE[page.matTab] .. " · 같은 재료 9개 → 다음 단계 1개 · 남는 재료는 골드로 분해")
 	page.autoFuse:SetOff(ns.Forge.MatFusionsReady(kinds) == 0)
-	page.autoFuse:SetShown(page.matTab ~= "mat_seal")
 	local list = {}
 	for _, id in ipairs(ns.MAT_ORDER) do
 		if kinds[ns.MATS[id].kind] and ns.MatCount(id) > 0 then list[#list + 1] = id end
