@@ -16,6 +16,7 @@ local K = UI.K
 
 local LEFT_W, RIGHT_X, RIGHT_W = 270, 280, 640
 local CARD_W, CARD_H, CARD_STEP, LIST_Y, VISIBLE = 246, 56, 62, -36, 7
+local NAME_W = CARD_W - 62 - 10 -- the name line of a hero card
 local BODY_X, BODY_Y, BODY_W, BODY_H = 12, -172, 616, 366
 -- which rune opens each skill slot (slot 1 is always open)
 local SLOT_RUNE = { [2] = "c4", [3] = "c9" }
@@ -63,23 +64,26 @@ local function buildList(page)
 		c.portrait:SetPoint("LEFT", c, "LEFT", 14, 0)
 		c.portrait:EnableMouse(false)
 		c.portrait.lvl:Hide()
+		-- the full name gets the whole first line; 출전 n / 대기 sits on the second
 		c.name = UI.Text(c, 13)
 		c.name:SetPoint("TOPLEFT", c, "TOPLEFT", 62, -8)
-		c.name:SetWidth(120)
+		c.name:SetWidth(NAME_W)
 		c.name:SetWordWrap(false)
+		-- second line: level · specialization ... role icon, 출전 n / 대기
 		c.slot = UI.Text(c, 11)
-		c.slot:SetPoint("TOPRIGHT", c, "TOPRIGHT", -10, -9)
+		c.slot:SetPoint("TOPRIGHT", c, "TOPRIGHT", -10, -27)
+		c.slot:SetWidth(36)
 		c.slot:SetJustifyH("RIGHT")
 		c.info = UI.Text(c, 11)
-		c.info:SetPoint("TOPLEFT", c, "TOPLEFT", 62, -26)
-		c.info:SetWidth(150)
+		c.info:SetPoint("TOPLEFT", c, "TOPLEFT", 62, -27)
+		c.info:SetWidth(NAME_W - 60)
 		c.info:SetWordWrap(false)
 		UI.Color(c.info, UI.C.sub)
 		c.xp = UI.Bar(c, 150, 4, 0.55, 0.40, 1)
 		c.xp:SetPoint("TOPLEFT", c, "TOPLEFT", 62, -44)
 		c.xp.text:Hide()
-		c.role = UI.Glyph(c, "role_tank", 16)
-		c.role:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", -10, 8)
+		c.role = UI.Glyph(c, "role_tank", 14)
+		c.role:SetPoint("TOPRIGHT", c, "TOPRIGHT", -50, -26)
 		c.badge = UI.Badge(c, 14)
 		c.badge:ClearAllPoints()
 		c.badge:SetPoint("TOPRIGHT", c.portrait, "TOPRIGHT", 3, 3) -- clear of "출전 n"
@@ -148,7 +152,10 @@ local function refreshList(page)
 			c.portrait:SetHero(id)
 			UI.SetHeroIcon(c.portrait.icon, id)
 			c.portrait.lvl:Hide()
-			c.name:SetText(U.col(id == sel and "ffb84a" or "ffd27a", H.ShortName(id)))
+			-- the full name; a very long one steps down a size rather than being cut
+			c.name:SetFont(ns.FONT, 13, "")
+			c.name:SetText(U.col(id == sel and "ffb84a" or "ffd27a", H.Name(id)))
+			if c.name:GetStringWidth() > NAME_W then c.name:SetFont(ns.FONT, 12, "") end
 			local slot = H.PartySlot(id)
 			c.slot:SetText(slot and U.col("ffd24a", "출전 " .. slot) or U.col("8a90a2", "대기"))
 			c.info:SetText(string.format("Lv %d · %s", h.level, ns.SpecLabel(h.spec)))
