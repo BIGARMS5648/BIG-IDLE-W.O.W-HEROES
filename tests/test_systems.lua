@@ -342,6 +342,37 @@ do
 	check(ns.Items.AutoEquip(M) >= 1 and db.heroes[M].gear.mh == staff, "auto-equip picks the best weapon")
 end
 
+-- every random stat on an item lies in the range its tooltip shows
+do
+	local I = ns.Items
+	local outside, ranged, fixed = 0, 0, 0
+	for _, slot in ipairs(ns.SLOTS) do
+		for q = 2, ns.MAX_QUALITY do
+			for _, lvl in ipairs({ 1, 23, 60, 100 }) do
+				for _ = 1, 6 do
+					local it = I.New(slot, lvl, q)
+					for _, a in ipairs(it.a or {}) do
+						local lo, hi = I.AffixRange(it, a[1])
+						if lo then
+							ranged = ranged + 1
+							if a[2] < lo or a[2] > hi or lo >= hi then outside = outside + 1 end
+							if not I.AffixText(it, a):find("~", 1, true) then outside = outside + 1 end
+						else
+							fixed = fixed + 1
+							if a[1] ~= "skills" then outside = outside + 1 end
+						end
+					end
+				end
+			end
+		end
+	end
+	check(ranged > 500 and outside == 0, string.format("every item stat lies in its shown range (%d checked, %d outside)", ranged, outside))
+	local it = I.New("mh", 40, 5, "sword")
+	local found
+	for _, l in ipairs(I.Tooltip(it)) do if l[1]:find("~", 1, true) then found = true end end
+	check(found, "the item tooltip shows the ranges of its random stats")
+end
+
 ------------------------------------------------------------------------
 section("stat layers")
 do

@@ -173,16 +173,42 @@ end
 ------------------------------------------------------------------------
 -- Generation
 ------------------------------------------------------------------------
+-- An affix is rolled between its pool entry's two numbers times this.
+local function affixMult(key, level, quality)
+	local a = ns.AFFIX[key]
+	if a.s then return ns.Scale[a.s](level) * ns.QUALITY[quality].mult end
+	return (1 + level / 200) * (0.86 + 0.07 * quality)
+end
+
 local function rollAffix(entry, level, quality)
 	local key, lo, hi = entry[1], entry[2], entry[3]
-	local a = ns.AFFIX[key]
-	local v
-	if a.s then
-		v = U.rnd(lo, hi) * ns.Scale[a.s](level) * ns.QUALITY[quality].mult
-	else
-		v = U.rnd(lo, hi) * (1 + level / 200) * (0.86 + 0.07 * quality)
+	return { key, roundValue(U.rnd(lo, hi) * affixMult(key, level, quality)) }
+end
+
+-- The range a random stat of this item could have rolled in, for its slot,
+-- level and grade (nil for a fixed one, such as +1 to all skills).
+function Items.AffixRange(it, key)
+	local cat = ns.SLOT[it.s] and ns.SLOT[it.s].cat
+	local pool = cat and ns.AFFIX_POOL[cat]
+	if not (pool and ns.AFFIX[key]) then return nil end
+	for _, e in ipairs(pool) do
+		if e[1] == key then
+			if e[2] == e[3] then return nil end
+			local m = affixMult(key, it.l, it.q)
+			return roundValue(e[2] * m), roundValue(e[3] * m)
+		end
 	end
-	return { key, roundValue(v) }
+end
+
+-- "+9.6% 공격력 (6.2~12.4)": the stat and the range it could have rolled in.
+function Items.AffixText(it, a)
+	local text = ns.Stats.ModText(a[1], a[2])
+	local lo, hi = Items.AffixRange(it, a[1])
+	if lo then
+		local function n(v) return (ns.Stats.FormatValue(a[1], v):gsub("%%", "")) end
+		text = text .. " " .. U.col("9aa3b5", "(" .. n(lo) .. "~" .. n(hi) .. ")")
+	end
+	return text
 end
 
 -- Weapon types the current party can actually use ("personal loot").
@@ -510,7 +536,7 @@ function Items.Tooltip(it, heroId)
 	end
 	if it.a then
 		for _, a in ipairs(it.a) do
-			add(ns.Stats.ModText(a[1], a[2]), nil, 0.2, 1, 0.2)
+			add(Items.AffixText(it, a), nil, 0.2, 1, 0.2) -- with the range it could have rolled in
 		end
 	end
 	-- sockets, kind by kind (보석, then 마법부여, then 룬 각인): each filled
