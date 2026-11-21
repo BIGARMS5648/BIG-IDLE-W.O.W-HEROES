@@ -273,10 +273,10 @@ local function locked(op, fn)
 		S.restore = function() ns.db.forge.ops[op] = was end
 	end
 end
--- no seal in the bag yet: every seal row (and its [굴리기]) is still there
-S.mats_seal_empty = function()
+-- only some seals in the bag: only those have a row
+S.mats_seal_some = function()
 	local had = {}
-	for _, d in ipairs(ns.SEAL) do had[d.mat] = ns.MatCount(d.mat) ns.AddMat(d.mat, -had[d.mat]) end
+	for _, id in ipairs({ "seal2", "seal4" }) do had[id] = ns.MatCount(id) ns.AddMat(id, -had[id]) end
 	local p = equip("mats")
 	p.matTab = "mat_seal"
 	ns.Main.Refresh()

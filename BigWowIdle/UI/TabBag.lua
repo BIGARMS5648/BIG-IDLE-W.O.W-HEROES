@@ -494,8 +494,7 @@ function MatsView.Refresh(page)
 	page.autoFuse:SetOff(ns.Forge.MatFusionsReady(kinds) == 0)
 	local list = {}
 	for _, id in ipairs(ns.MAT_ORDER) do
-		-- every seal has its row (and its [굴리기]), even with none in the bag
-		if kinds[ns.MATS[id].kind] and (ns.MatCount(id) > 0 or sealIndex(id)) then list[#list + 1] = id end
+		if kinds[ns.MATS[id].kind] and ns.MatCount(id) > 0 then list[#list + 1] = id end
 	end
 	local pages = max(1, math.ceil(#list / MAT_ROWS))
 	page.matPage = U.clamp(page.matPage or 1, 1, pages)
@@ -528,13 +527,12 @@ function MatsView.Refresh(page)
 			r.all:SetShown(seal == nil and not top)
 			if seal then
 				local s = ns.SEAL[seal]
-				r.sub:SetText(count > 0 and ("굴리면 장비 1개 · 비용 " .. U.fmt(s.gold) .. " G")
-					or U.col("ff9a7a", "인장 없음") .. " · 상자에서 얻습니다")
+				r.sub:SetText("굴리면 장비 1개 · 비용 " .. U.fmt(s.gold) .. " G")
 				if ns.Forge.Unlocked("seal") then
 					local full = ns.Items.BagFree() <= 0
 					r.roll:SetStyle("primary")
-					r.roll:SetLabel(full and count > 0 and "가방이 가득 참" or ("굴리기 " .. U.fmt(s.gold) .. " G"))
-					r.roll:SetOff(count <= 0 or full or not ns.CanAfford(s.gold))
+					r.roll:SetLabel(full and "가방이 가득 참" or ("굴리기 " .. U.fmt(s.gold) .. " G"))
+					r.roll:SetOff(full or not ns.CanAfford(s.gold))
 				else
 					local label, off, style = Unlock.Label("seal", "굴리기")
 					r.roll:SetStyle(style)
