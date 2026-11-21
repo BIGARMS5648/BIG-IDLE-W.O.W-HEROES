@@ -394,7 +394,21 @@ do
 	press("auto fuse", d.right)
 	confirmYes("auto fuse")
 	if ns.MatCount("cloth1") >= 9 then fail("auto-fuse should leave fewer than nine of each material") end
+	-- 정리: the highest tier first, the same tier in kind order
+	ns.AddMat("gem2", 3) ns.AddMat("bar1", 5) ns.AddMat("cloth3", 2)
+	Main.Refresh()
 	press("sort materials", bp.sort)
+	do
+		local prev
+		for _, c in ipairs(bp.cells) do
+			if c.data and c:IsShown() then
+				local m = ns.MATS[c.data]
+				if prev and prev.tier < m.tier then fail("정리 should put higher-tier materials first: " .. prev.id .. " before " .. m.id) break end
+				prev = m
+			end
+		end
+		if not prev then fail("the materials tab should show materials") end
+	end
 	tab("bag", "all")
 	enrich(2)
 	Main.Refresh()

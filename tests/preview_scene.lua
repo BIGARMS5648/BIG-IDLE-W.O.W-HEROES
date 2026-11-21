@@ -213,6 +213,7 @@ end
 S.bag_locked = function() local p = show("bag") p.tab = "all" p.selItem = db.bag[3] ns.Main.Refresh() end
 S.bag_weapon = function() local p = show("bag") p.tab = "weapon" p.selItem = nil ns.Main.Refresh() end
 S.bag_mats = function() local p = show("bag") p.tab = "mats" p.selMat = "bar1" ns.Main.Refresh() end
+S.bag_mats_sorted = function() local p = show("bag") p.tab = "mats" p.selMat = "bar1" ns.Main.Refresh() p.sort:Click() end
 S.bag_smelt_one = function()
 	local p = show("bag")
 	p.tab = "all"

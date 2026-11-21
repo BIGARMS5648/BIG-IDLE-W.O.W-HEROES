@@ -69,7 +69,7 @@ local function smeltOne(page, it)
 end
 
 -- Materials in the order the player keeps them: new ones go to the end
--- until '정리' puts everything back in kind and tier order.
+-- until '정리' sorts them (sortMats).
 local function matList()
 	local db = ns.db
 	local out, seen = {}, {}
@@ -81,6 +81,23 @@ local function matList()
 	end
 	db.ui.matOrder = out
 	return out
+end
+
+-- '정리' in the materials tab: like the item tabs, the highest grade first
+-- (a material's grade follows its tier); the same tier in kind order.
+local function sortMats()
+	local idx = {}
+	for i, id in ipairs(ns.MAT_ORDER) do idx[id] = i end
+	local list = {}
+	for _, id in ipairs(ns.MAT_ORDER) do
+		if ns.MatCount(id) > 0 then list[#list + 1] = id end
+	end
+	table.sort(list, function(a, b)
+		local ta, tb = ns.MATS[a].tier, ns.MATS[b].tier
+		if ta ~= tb then return ta > tb end
+		return idx[a] < idx[b]
+	end)
+	ns.db.ui.matOrder = list
 end
 
 ------------------------------------------------------------------------
@@ -99,7 +116,7 @@ local function build(page)
 	page.S = S
 	page.sort = S.Tool(90, "정리", function()
 		if page.tab == "mats" then
-			ns.db.ui.matOrder = nil
+			sortMats()
 		elseif page.tab == "bank" then
 			ns.Items.Sort(ns.db.bank)
 		else
@@ -108,7 +125,7 @@ local function build(page)
 		Main.Refresh()
 	end, "dark")
 	UI.Tip(page.sort, function()
-		return UI.SimpleTip("정리", page.tab == "mats" and "재료를 종류와 단계 순으로 다시 놓습니다." or "등급과 레벨 순으로 다시 놓습니다.")
+		return UI.SimpleTip("정리", page.tab == "mats" and "재료를 높은 등급(단계)부터 다시 놓습니다. 같은 단계는 종류 순입니다." or "등급과 레벨 순으로 다시 놓습니다.")
 	end, "TOP")
 
 	local list = S.list
