@@ -100,7 +100,13 @@ local function build(page)
 	gm.head = section(gm, -K.PAD, "가방")
 	gm.autoSmelt = UI.Check(gm, "가방이 차면 자동 분해",
 		function() return (ns.db.opt.autoSmelt or 0) > 0 end,
-		function(v) ns.db.opt.autoSmelt = v and U.clamp(ns.db.ui.smeltQ or 2, 1, ns.MAX_QUALITY) or 0 end)
+		function(v)
+			if v and not ns.Forge.Unlocked("smelt") then
+				UI.Try(false, "분해가 아직 잠겨 있습니다. 장비 > 가방 아래의 [분해 해금]을 먼저 누르세요.")
+				return
+			end
+			ns.db.opt.autoSmelt = v and U.clamp(ns.db.ui.smeltQ or 2, 1, ns.MAX_QUALITY) or 0
+		end)
 	gm.autoSmelt:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD, -40)
 	gm.smeltNote = note(gm, K.PAD + 30, -66, "")
 	gm.head2 = section(gm, -100, "소리")
@@ -168,7 +174,7 @@ local function refresh(page)
 		gm.autoSmelt:Refresh()
 		gm.sound:Refresh()
 		local q = U.clamp(db.ui.smeltQ or 2, 1, ns.MAX_QUALITY)
-		gm.smeltNote:SetText("기준: " .. U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하 · 보호한 장비와 파티에게 더 좋은 장비는 남깁니다. 기준 등급은 가방 화면 아래에서 바꿉니다.")
+		gm.smeltNote:SetText("기준: " .. U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하 · 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 남깁니다. 기준 등급은 장비 > 가방 아래 '분해 등급'에서 바꿉니다.")
 		local fid = ns.Faction() or "ALLIANCE"
 		local f = ns.FACTIONS[fid]
 		gm.factionIcon:SetIconName(f.icon)
@@ -191,7 +197,7 @@ local function refresh(page)
 			"• '다음 목표'를 누르면 지금 할 일을 바로 하거나 그 화면을 엽니다.\n" ..
 			"• 빨간 점은 지금 할 수 있는 일이 있다는 표시입니다.\n" ..
 			"• 레벨마다 특성 점수(능력치), 4레벨마다 기술 점수(기술)가 생깁니다.\n" ..
-			"• 가방에서 Alt+클릭은 장비 보호, 우클릭은 분해입니다.\n" ..
+			"• 가방에서 클릭은 장착, 우클릭은 분해, Alt+클릭은 보호, Shift+클릭은 은행입니다.\n" ..
 			"• 게임을 꺼 두어도 오프라인 보상이 쌓입니다 (지금 효율 %d%%, 최대 %s).",
 			math.floor(ns.Offline.Efficiency() * 100 + 0.5), U.time(ns.Offline.Cap())))
 	end

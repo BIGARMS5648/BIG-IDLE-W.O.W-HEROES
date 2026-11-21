@@ -81,6 +81,8 @@ local function buildList(page)
 		c.role = UI.Glyph(c, "role_tank", 16)
 		c.role:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", -10, 8)
 		c.badge = UI.Badge(c, 14)
+		c.badge:ClearAllPoints()
+		c.badge:SetPoint("TOPRIGHT", c.portrait, "TOPRIGHT", 3, 3) -- clear of "출전 n"
 		c:RegisterForClicks("LeftButtonUp")
 		c:SetScript("OnClick", function(self)
 			if not self.heroId then return end

@@ -16,6 +16,46 @@ local K = UI.K
 local BagView, MatsView = {}, {}
 ns.BagView, ns.MatsView = BagView, MatsView
 
+------------------------------------------------------------------------
+-- Forge functions are unlocked where they are used: the button that needs
+-- one says "… 해금 N G" (or the forge level it waits for) and unlocks it.
+------------------------------------------------------------------------
+local Unlock = {}
+ns.ForgeUnlock = Unlock
+
+-- label, off, style for a button whose function is still locked
+function Unlock.Label(op, verb)
+	local d = ns.Forge.OpDef(op)
+	if ns.db.forge.level < d.level then
+		return string.format("용광로 Lv %d 필요", d.level), true, "dark"
+	end
+	return string.format("%s 해금 %s G", verb, U.fmt(d.cost)), not ns.CanAfford(d.cost), "primary"
+end
+
+-- asks, then unlocks
+function Unlock.Ask(op)
+	local d = ns.Forge.OpDef(op)
+	if ns.db.forge.level < d.level then
+		UI.Try(false, string.format("'%s'은(는) 용광로 Lv %d에 열립니다. 장비를 융합·제작·분해하면 용광로 레벨이 오릅니다.", ns.N(d.name), d.level))
+		return
+	end
+	if not ns.CanAfford(d.cost) then
+		UI.Try(false, string.format("'%s' 해금에 %s 골드가 필요합니다.", ns.N(d.name), U.fmt(d.cost)))
+		return
+	end
+	UI.Confirm({ title = ns.N(d.name) .. " 해금", ok = "해금", style = "primary",
+		text = string.format("용광로의 '%s'을(를) 해금하시겠습니까?\n%s\n%s 골드가 듭니다.", ns.N(d.name), ns.N(d.desc), U.fmt(d.cost)),
+		onOk = function()
+			if UI.Try(ns.Forge.Unlock(op)) then ns.Toast(string.format("'%s'을(를) 해금했습니다.", ns.N(d.name))) end
+		end })
+end
+
+-- the tooltip line for a locked function
+function Unlock.Tip(op)
+	local d = ns.Forge.OpDef(op)
+	return string.format("아직 잠겨 있습니다: 용광로 Lv %d · 해금 %s G", d.level, U.fmt(d.cost))
+end
+
 local W = 526 -- body width
 local COLS, ROWS, CELL, STEP = 10, 6, 46, 52
 local PER_PAGE = COLS * ROWS
@@ -54,7 +94,7 @@ local function smeltOne(it)
 		UI.Try(false, "보호된 장비는 분해할 수 없습니다. 먼저 보호를 푸세요 (Alt+클릭).")
 		return
 	elseif not ns.Forge.Unlocked("smelt") then
-		UI.Try(false, "용광로의 '분해'를 먼저 해금하세요.")
+		UI.Try(false, "분해가 아직 잠겨 있습니다. 가방 아래의 [분해 해금]을 누르세요.")
 		return
 	end
 	local text = string.format("%s을(를) 분해하시겠습니까?\n%s 골드를 받습니다.", ns.Items.ColorName(it), U.fmt(ns.Items.SmeltGold(it)))
@@ -180,7 +220,7 @@ function BagView.Build(page, f)
 	page.smeltPick.tipText = "일괄 분해와 자동 분해가 이 등급 이하의 장비만 분해합니다."
 	page.smeltGo = UI.Button(f, 150, 32, "", function()
 		if not ns.Forge.Unlocked("smelt") then
-			UI.Try(false, "용광로의 '분해'를 먼저 해금하세요.")
+			Unlock.Ask("smelt")
 			return
 		end
 		local picked, kept = ns.Forge.PickByQuality(smeltQ())
@@ -211,7 +251,7 @@ function BagView.Build(page, f)
 	end, "TOP")
 	page.autoSmelt = UI.Check(f, "자동 분해", autoSmeltOn, function(v)
 		if v and not ns.Forge.Unlocked("smelt") then
-			UI.Try(false, "용광로의 '분해'를 먼저 해금하세요.")
+			UI.Try(false, "분해가 아직 잠겨 있습니다. 왼쪽의 [분해 해금]을 먼저 누르세요.")
 			return
 		end
 		ns.db.opt.autoSmelt = v and smeltQ() or 0
@@ -286,11 +326,14 @@ function BagView.Refresh(page)
 	page.smeltPick:Refresh()
 	if unlocked then
 		local picked = ns.Forge.PickByQuality(smeltQ())
+		page.smeltGo:SetStyle("red")
 		page.smeltGo:SetLabel(string.format("일괄 분해 %d개", #picked))
 		page.smeltGo:SetOff(#picked == 0)
 	else
-		page.smeltGo:SetLabel("분해 잠김")
-		page.smeltGo:SetOff(true)
+		local label, off, style = Unlock.Label("smelt", "분해")
+		page.smeltGo:SetStyle(style)
+		page.smeltGo:SetLabel(label)
+		page.smeltGo:SetOff(off)
 	end
 	page.autoSmelt:Refresh()
 	for _, w in ipairs({ page.smeltLabel, page.smeltPick, page.smeltGo, page.autoSmelt }) do w:SetShown(not bank) end
@@ -307,7 +350,7 @@ end
 -- 재료
 ------------------------------------------------------------------------
 local MAT_TABS = {
-	{ "mat_craft", "제작 재료" }, { "mat_gem", "보석 세공 재료" }, { "mat_ench", "마법 부여 재료" },
+	{ "mat_craft", "제작 재료" }, { "mat_gem", "보석 세공 재료" }, { "mat_ench", "마법부여 재료" },
 	{ "mat_insc", "룬 각인 재료" }, { "mat_seal", "행운의 인장 재료" },
 }
 local MAT_KINDS_OF = {
@@ -319,7 +362,7 @@ local MAT_USE = {
 	mat_insc = "장비 '각인'에 씁니다", mat_seal = "'굴리기'로 장비를 하나 얻습니다",
 }
 MatsView.KINDS_OF = MAT_KINDS_OF
-local ROW_H, ROW_STEP, LIST_Y, MAT_ROWS = 56, 60, -70, 6
+local ROW_H, ROW_STEP, LIST_Y, MAT_ROWS = 54, 58, -70, 6
 
 local function sealIndex(id)
 	for i, s in ipairs(ns.SEAL) do if s.mat == id then return i end end
@@ -368,6 +411,7 @@ function MatsView.Build(page, f)
 		r.sub:SetWordWrap(false)
 		UI.Color(r.sub, UI.C.sub)
 		r.smelt = UI.Button(r, 92, 26, "모두 분해", function()
+			if not ns.Forge.Unlocked("smelt") then Unlock.Ask("smelt") return end
 			local id = r.id
 			local count = ns.MatCount(id)
 			UI.Confirm({ title = "재료 분해", ok = "분해", style = "red",
@@ -400,6 +444,7 @@ function MatsView.Build(page, f)
 		r.one.clickWhenOff = true
 		-- seals: a bonus roll instead of fusing
 		r.roll = UI.Button(r, 118, 26, "", function()
+			if not ns.Forge.Unlocked("seal") then Unlock.Ask("seal") return end
 			local si = sealIndex(r.id)
 			local ok, it = ns.Forge.BonusRoll(si)
 			if UI.Try(ok, it) then ns.Toast("굴림 결과: " .. ns.Items.ColorName(it)) end
@@ -413,7 +458,9 @@ function MatsView.Build(page, f)
 			for q = 1, ns.MAX_QUALITY do
 				if (s.q[q] or 0) > 0 then parts[#parts + 1] = U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name) .. " " .. s.q[q] .. "%") end
 			end
-			return UI.SimpleTip("굴리기", "인장 1개와 골드로 장비를 하나 얻습니다. 레벨은 지금까지 간 가장 높은 스테이지를 따릅니다.\n" .. table.concat(parts, "  "))
+			local body = "인장 1개와 골드로 장비를 하나 얻습니다. 레벨은 지금까지 간 가장 높은 스테이지를 따릅니다.\n" .. table.concat(parts, "  ")
+			if not ns.Forge.Unlocked("seal") then body = body .. "\n" .. U.col("ff9a7a", Unlock.Tip("seal")) end
+			return UI.SimpleTip("굴리기", body)
 		end, "TOP")
 		r.isRow = true -- the same buttons on every row
 		page.matRows[i] = r
@@ -457,7 +504,16 @@ function MatsView.Refresh(page)
 			r.icon:SetQuality(m.q)
 			r.name:SetText(U.col(ns.QUALITY[m.q].hex, ns.N(m.name)) .. "  " .. U.fmt(count))
 			r.price:SetText("개당 " .. U.fmt(ns.Forge.MatSmeltGold(id, 1)) .. " G")
-			r.smelt:SetOff(not smelt)
+			if smelt then
+				r.smelt:SetLabel("모두 분해")
+				r.smelt:SetStyle("red")
+				r.smelt:SetOff(false)
+			else
+				local label, off, style = Unlock.Label("smelt", "분해")
+				r.smelt:SetLabel(label)
+				r.smelt:SetStyle(style)
+				r.smelt:SetOff(off)
+			end
 			local seal = sealIndex(id)
 			r.roll:SetShown(seal ~= nil)
 			r.one:SetShown(seal == nil and not top)
@@ -465,8 +521,16 @@ function MatsView.Refresh(page)
 			if seal then
 				local s = ns.SEAL[seal]
 				r.sub:SetText("굴리면 장비 1개 · 비용 " .. U.fmt(s.gold) .. " G")
-				r.roll:SetLabel("굴리기 " .. U.fmt(s.gold) .. " G")
-				r.roll:SetOff(not ns.CanAfford(s.gold) or ns.Items.BagFree() <= 0)
+				if ns.Forge.Unlocked("seal") then
+					r.roll:SetStyle("primary")
+					r.roll:SetLabel("굴리기 " .. U.fmt(s.gold) .. " G")
+					r.roll:SetOff(not ns.CanAfford(s.gold) or ns.Items.BagFree() <= 0)
+				else
+					local label, off, style = Unlock.Label("seal", "굴리기")
+					r.roll:SetStyle(style)
+					r.roll:SetLabel(label)
+					r.roll:SetOff(off)
+				end
 			elseif top then
 				r.sub:SetText("가장 높은 단계 (융합 없음)")
 			else

@@ -44,6 +44,28 @@ function Guide.UpgradeCount()
 end
 
 -- Does this hero have something to do (points to spend or a better item)?
+-- Whether unlocking a forge function now leads anywhere: its button lives
+-- where it is used, so 추출 needs a filled socket and 굴리기 a lucky seal.
+function Guide.UnlockUseful(op)
+	if op == "remove" then
+		local function filled(it)
+			for _, k in ipairs({ "g", "e", "i" }) do
+				for _, e in ipairs(it[k] or {}) do if e then return true end end
+			end
+			return false
+		end
+		for _, it in ipairs(ns.db.bag) do if filled(it) then return true end end
+		for _, id in ipairs(partyHeroes()) do
+			for _, it in pairs(ns.db.heroes[id].gear) do if filled(it) then return true end end
+		end
+		return false
+	elseif op == "seal" then
+		for _, s in ipairs(ns.SEAL) do if ns.MatCount(s.mat) > 0 then return true end end
+		return false
+	end
+	return true
+end
+
 function Guide.HeroNeeds(id)
 	return ns.Heroes.PointsFree(id) > 0 or ns.Heroes.SkillPointsFree(id) > 0 or Guide.UpgradeHeroes()[id] == true
 end
@@ -111,7 +133,7 @@ local function candidates()
 	end
 	if ns.Items.BagFree() <= 3 then
 		if not ns.Forge.Unlocked("smelt") then
-			add({ text = "가방이 가득 찼어요: 용광로 '분해' 해금 (10 G)", tab = "forge", sub = "smelt", wait = not ns.CanAfford(10) })
+			add({ text = "가방이 가득 찼어요: 분해 해금 (10 G)", tab = "equip", sub = "bag", wait = not ns.CanAfford(10) })
 		elseif #ns.Forge.PickByQuality(db.opt.smeltQ or 1) > 0 then
 			add({ text = "가방이 가득 찼어요: 일괄 분해", tab = "equip", sub = "bag", bulk = true })
 		else
@@ -125,7 +147,7 @@ local function candidates()
 			end })
 	end
 	if not ns.Forge.Unlocked("smelt") then
-		add({ text = "용광로 '분해' 해금 (10 G)", tab = "forge", sub = "smelt", wait = not ns.CanAfford(10) })
+		add({ text = "분해 해금하기 (장비 > 가방, 10 G)", tab = "equip", sub = "bag", wait = not ns.CanAfford(10) })
 	end
 	local limit = ns.PartyLimit()
 	local role = missingRole()
@@ -159,7 +181,7 @@ local function candidates()
 		end
 	end
 	for _, op in ipairs(ns.FORGE_OPS) do
-		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level then
+		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and Guide.UnlockUseful(op.key) then
 			add({ text = string.format("용광로 '%s' 해금 (%s G)", ns.N(op.name), ns.U.fmt(op.cost)), tab = "forge", sub = op.key,
 				wait = not ns.CanAfford(op.cost) })
 			break
@@ -213,7 +235,8 @@ local function computeBadges()
 	if chests > 0 then b.equip = chests end
 	if not b.equip and next(Guide.UpgradeHeroes()) then b.equip = true end
 	for _, op in ipairs(ns.FORGE_OPS) do
-		if not b.equip and not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and ns.CanAfford(op.cost) then b.equip = true end
+		if not b.equip and not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and ns.CanAfford(op.cost)
+			and Guide.UnlockUseful(op.key) then b.equip = true end
 	end
 	-- runes: something affordable
 	local _, rcost = cheapestRune()

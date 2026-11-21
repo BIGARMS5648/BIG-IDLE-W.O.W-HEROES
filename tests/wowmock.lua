@@ -459,7 +459,11 @@ function Mock.Export()
 			e.jv = w.__jv or "MIDDLE"
 			e.nowrap = w.__nowrap or false
 			e.moving = w.moving or false
+			e.overlay = w.isOverlay or false -- a message drawn over the scene on purpose
 		else
+			e.badge = w.isBadge or false
+			e.overlay = w.isOverlay or false
+			e.popup = w.isPopup or false
 			e.strata = w.__strata
 			e.level = w.__level
 			e.ftype = w.__type

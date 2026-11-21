@@ -116,7 +116,7 @@ click("class Hunter", function(b) return b.cid == "HUNTER" end)
 click("spec Marksmanship", function(b) return b.sid == "HUNTER_MM" end)
 click("female", function(b) return b.sex == "F" end)
 click("reroll name", labelIs("다시"))
-click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 220 end)
+click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 210 end)
 if H.Count() ~= 1 then fail("creating through the dialog did not make a hero") end
 local first = H.List()[1]
 if first and ns.db.heroes[first].spec ~= "HUNTER_MM" then fail("the hero has the wrong specialization") end
@@ -408,6 +408,15 @@ do
 	if #ns.db.bag ~= n1 then fail("right-click must ask before breaking down") end
 	confirmYes("break down")
 	if #ns.db.bag ~= n1 - 1 then fail("confirming should break the item down") end
+	-- the forge level shows under the bag too; a locked 분해 unlocks right here
+	if not ep.forgeBar:IsVisible() then fail("the forge level should show under the bag") end
+	ns.db.forge.ops.smelt = nil
+	Main.Refresh()
+	if not (label(ep.smeltGo) or ""):find("분해 해금", 1, true) then fail("a locked 분해 should offer to unlock it, got " .. tostring(label(ep.smeltGo))) end
+	press("unlock 분해", ep.smeltGo)
+	if ns.Forge.Unlocked("smelt") then fail("unlocking must ask first") end
+	confirmYes("unlock 분해")
+	if not ns.Forge.Unlocked("smelt") then fail("[분해 해금] should unlock breaking down") end
 	-- break down by grade, or by itself
 	press("grade list", ep.smeltPick)
 	click("grade 3", function(b) return b.value == 3 and b.label end)
@@ -500,14 +509,19 @@ do
 		confirmYes("break all down")
 		if ns.MatCount("bar1") ~= 0 then fail("confirming should break every bar down") end
 	end
-	-- the lucky seals roll an item
+	-- the lucky seals roll an item (unlocked from the row itself)
 	Main.ShowTab("equip", { sub = "mats", tab = "mat_seal" })
 	ns.AddMat("seal1", 3)
+	ns.db.forge.ops.seal = nil
 	Main.Refresh()
 	local s = rowOf("seal1")
 	if not (s and s.roll:IsVisible()) then
 		fail("a seal row should have a roll button")
 	else
+		if not (label(s.roll) or ""):find("해금", 1, true) then fail("a locked roll should offer to unlock it, got " .. tostring(label(s.roll))) end
+		press("unlock the roll", s.roll)
+		confirmYes("unlock the roll")
+		if not ns.Forge.Unlocked("seal") then fail("the roll button should unlock 인장 굴리기") end
 		local before = #ns.db.bag
 		press("roll", s.roll)
 		if #ns.db.bag ~= before + 1 then fail("rolling a seal should add one item") end
@@ -570,11 +584,16 @@ do
 		if not epic[step[3]] or #epic[step[3]] ~= 1 then fail(step[1] .. " did not add a stat") end
 		hoverAll()
 	end
-	-- extraction sits on the socket's line
+	-- extraction sits on the socket's line (and unlocks there)
 	press("gem tab", ep.tabs:Get("gem"))
 	local gp = ep.forge.gem
 	gp.picked = epic
+	ns.db.forge.ops.remove = nil
 	Main.Refresh()
+	if not (label(gp.card.rows[1].remove) or ""):find("추출 해금", 1, true) then fail("a locked 추출 should offer to unlock it") end
+	press("unlock 추출", gp.card.rows[1].remove)
+	confirmYes("unlock 추출")
+	if not F.Unlocked("remove") then fail("the socket line should unlock 추출") end
 	press("extract", gp.card.rows[1].remove)
 	confirmYes("extract")
 	if #(epic.g or {}) ~= 0 then fail("추출 should clear the gem") end
@@ -583,6 +602,7 @@ do
 	press("locked tab", ep.tabs:Get("insc"))
 	if not ep.bodies.locked:IsVisible() then fail("a locked forge tab should show how to unlock it") end
 	press("unlock", ep.lockView.go)
+	confirmYes("unlock")
 	if not F.Unlocked("insc") then fail("해금하기 should unlock the function") end
 	hoverAll()
 end
@@ -594,18 +614,17 @@ do
 	local lvl = ns.Runes.Level("w1")
 	click("rune w1", function(b) return b.node and b.node.id == "w1" end)
 	if rp.sel ~= "w1" then fail("clicking a rune should select it") end
-	press("learn", rp.learn)
+	press("learn", rp.side.buy)
 	if ns.Runes.Level("w1") ~= lvl + 1 then fail("learning a rune did not work") end
 	if not ns.Runes.Available("w2") or not ns.Runes.Available("w3") then fail("a branch hub should open both of its lines") end
 	if ns.Runes.Available("w4") and ns.Runes.Level("w2") == 0 then fail("a rune on a line needs the one before it") end
 	click("rune w9", function(b) return b.node and b.node.id == "w9" end)
-	if ns.Runes.Level("w9") == 0 and rp.prevBtn:IsVisible() then
-		press("first rune to learn", rp.prevBtn)
+	if ns.Runes.Level("w9") == 0 and rp.side.goPrev:IsVisible() then
+		press("first rune to learn", rp.side.goPrev)
 		if not ns.Runes.Available(rp.sel) then fail("'먼저 배울 룬' should select a rune that can be learned") end
 	end
-	press("totals", rp.totalBtn)
+	if not (rp.side.total.__text or ""):find("%S") then fail("the rune card should list the total of the learned runes") end
 	hoverAll()
-	Main.CloseModal()
 end
 
 -- stages: world, act, stage, travel

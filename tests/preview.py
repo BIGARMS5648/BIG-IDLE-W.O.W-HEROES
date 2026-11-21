@@ -21,18 +21,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import run  # noqa: E402
 
 SCENES = [
-    "bar", "bar_boss", "bar_wipe", "faction", "create", "create_druid", "rename",
+    "bar", "bar_boss", "bar_wipe", "bar_compact", "offline", "faction", "create", "create_druid", "rename",
     "hero", "hero_skills", "hero_tree", "hero_bench", "hero_tank", "hero_reset", "hero_dismiss", "hero_scroll",
-    "equip", "equip_tooltip", "equip_slot", "equip_bank", "equip_smelt_list", "equip_smelt_all", "equip_max",
+    "equip", "equip_tooltip", "equip_slot", "equip_bank", "equip_smelt_list", "equip_view_list", "equip_smelt_all", "equip_max",
     "equip_sockets_tip", "equip_mixed_tip", "equip_slot_tip",
     "fuse", "fuse_ready", "fuse_high", "craft", "craft_locked", "craft_far", "gem", "gem_stress", "ench", "insc_locked",
-    "mats", "mats_gem", "mats_seal", "mats_page2",
+    "mats", "mats_gem", "mats_seal", "mats_page2", "mats_seal_locked", "gem_remove_locked", "bag_smelt_locked",
     "party", "party_open",
-    "runes", "runes_locked", "runes_total",
+    "runes", "runes_locked",
     "map", "map_heroic", "map_raid", "map_locked",
     "pets", "pets_locked",
     "options", "options_game", "options_info", "options_reset",
-    "new_hero", "new_equip", "new_mats", "new_party", "new_one", "new_one_skills", "new_one_equip", "new_one_party",
+    "new_hero", "new_equip", "new_mats", "new_party", "new_create", "new_one", "new_one_skills", "new_one_equip", "new_one_party",
     "new_map", "new_runes", "new_pets",
 ]
 
@@ -371,7 +371,11 @@ function lint(scene, title) {
   };
   const name = e => {
     if (e.kind === 'text') return '"' + e.text.replace(/\|c[0-9a-fA-F]{8}|\|r/g, '').replace(/\n/g, '⏎').slice(0, 40) + '"';
-    if (e.kind === 'frame') { const l = label(e); return (e.ftype === 'Button' ? '버튼' : '틀') + (l ? ' "' + l.slice(0, 30) + '"' : '#' + e.id); }
+    if (e.kind === 'frame') {
+      const l = label(e), r = e._r;
+      const at = r ? ' [' + Math.round(r.l) + ',' + Math.round(r.b) + ' ' + Math.round(r.r - r.l) + 'x' + Math.round(r.t - r.b) + ']' : '';
+      return (e.ftype === 'Button' ? '버튼' : '틀') + (l ? ' "' + l.slice(0, 30) + '"' : '#' + e.id + at);
+    }
     return '그림 ' + (texName(e) || 'color') + '#' + e.id;
   };
   const add = (kind, msg, ...items) => out.push({ scene: title, kind, msg, items: items.map(name) });
@@ -447,7 +451,7 @@ function lint(scene, title) {
     const xb = box(X); if (!xb || area(xb) <= 0) continue;
     let covered = 0, by = null;
     for (const c of covers) {
-      if (c._i <= X._i || isAnc(X, c) || tooltip(c)) continue;
+      if (c._i <= X._i || isAnc(X, c) || tooltip(c) || (tops.get(c) && tops.get(c).popup)) continue;
       // another window over this one: only a problem when it covers a button
       if (tops.get(c) !== tops.get(X) && X.kind === 'text') continue;
       const ir = inter(xb, c._r);
@@ -456,6 +460,115 @@ function lint(scene, title) {
     // text under something solid is (partly) unreadable; a button under it cannot be clicked there
     if (covered >= (X.kind === 'text' ? 0.08 : 0.3) * area(xb)) add('hidden', '다른 것에 가려짐 (' + name(byId[by.parent] || by) + ')', X);
   }
+  // too close: a text and a separate thing beside it on the same line (an
+  // icon, a pill, a mark, another text, a button) with less than GAP between
+  // them, or a text partly over such a thing. The preview's Korean glyphs
+  // are a little wider than the game's, so a gap that passes here is at
+  // least as wide in the game.
+  const GAP = 6;
+  const SOFT = new Set(['glow', 'shadow', 'grad_h', 'grad_v', 'bar', 'frame']);
+  const units = [];
+  {
+    const sliceOf = new Map();
+    for (const e of act) {
+      if (e.kind !== 'texture' || tooltip(e) || area(e._r) <= 0) continue;
+      const n = texName(e);
+      if (n && SOFT.has(n)) continue;
+      const w = e._r.r - e._r.l, h = e._r.t - e._r.b;
+      if (!n && (w < 6 || h < 6)) continue;          // colour stripes, lines, scroll bars
+      if (n && SLICES.has(n)) {                      // a nine-slice: one unit per frame
+        const f = byId[e.parent];
+        let u = sliceOf.get(f);
+        if (!u) { u = { el: f, r: { ...e._r }, _i: e._i }; sliceOf.set(f, u); units.push(u); }
+        u.r = { l: Math.min(u.r.l, e._r.l), r: Math.max(u.r.r, e._r.r), t: Math.max(u.r.t, e._r.t), b: Math.min(u.r.b, e._r.b) };
+        continue;
+      }
+      units.push({ el: e, r: e._r, _i: e._i });
+    }
+  }
+  const sameRow = (a, b) => {
+    const ov = Math.min(a.t, b.t) - Math.max(a.b, b.b);
+    return ov >= 0.6 * Math.min(a.t - a.b, b.t - b.b);
+  };
+  const gapOf = (a, b) => Math.max(b.l - a.r, a.l - b.r);
+  const crossing = (a, b) => { const ir = inter(a, b); return ir.r - ir.l > 1 && ir.t - ir.b > 1; };
+  const tightSeen = new Set();
+  const tight = (A, B, msg) => {
+    const key = A.id + '|' + (B.el ? B.el.id : B.id);
+    if (tightSeen.has(key)) return;
+    tightSeen.add(key);
+    add('tight', msg, A, B.el || B);
+  };
+  // a red dot sits on its owner's corner on purpose: it may cover the owner,
+  // but its number must fit inside it and it must stay clear of everything else
+  const overlaid = e => { for (let x = e; x; x = byId[x.parent]) if (x.overlay) return true; return false; };
+  const badgeOf = e => { for (let x = e.kind === 'frame' ? e : byId[e.parent]; x; x = byId[x.parent]) if (x.badge) return x; return null; };
+  const ownedBy = (owner, x) => x === owner || isAnc(owner, x);
+  for (const Bd of act.filter(e => e.kind === 'frame' && e.badge && area(e._r) > 0)) {
+    const owner = byId[Bd.parent];
+    for (const T of texts) {
+      if (badgeOf(T) !== Bd) continue;
+      const tb = textBox(T);
+      if (tb && (tb.l < Bd._r.l - 0.5 || tb.r > Bd._r.r + 0.5)) add('badge', '알림 숫자가 빨간 점 밖으로 나감', T);
+    }
+    const others = units.map(u => ({ el: u.el, r: u.r })).concat(buttons.map(b => ({ el: b, r: b._r })))
+      .concat(texts.map(t => ({ el: t, r: textBox(t) })).filter(o => o.r));
+    for (const O of others) {
+      if (badgeOf(O.el) === Bd || tops.get(O.el) !== tops.get(Bd) || contains(O.r, Bd._r) || isAnc(O.el, Bd)) continue;
+      const cross = (() => { const ir = inter(O.r, Bd._r); return ir.r - ir.l > 1 && ir.t - ir.b > 1; })();
+      if (ownedBy(owner, O.el)) {
+        if (cross && O.el.kind === 'text') add('badge', '알림 점이 글자를 가림', Bd, O.el);
+        continue;
+      }
+      const gx = Math.max(O.r.l - Bd._r.r, Bd._r.l - O.r.r), gy = Math.max(O.r.b - Bd._r.t, Bd._r.b - O.r.t);
+      if (cross) add('badge', '알림 점이 다른 것에 걸침', Bd, O.el);
+      else if (Math.max(gx, gy) < 2) add('badge', '알림 점이 다른 것에 붙음', Bd, O.el);
+    }
+  }
+  // boxes (panels, cards, buttons, pills, slots): one partly over another, or edges touching
+  {
+    const boxes = [];
+    for (const U of units) if (U.el.kind === 'frame' && !badgeOf(U.el) && !overlaid(U.el)) boxes.push({ el: U.el, r: U.r });
+    // a button counts when it draws a box of its own (not a bare list line)
+    const body = Bt => (R.children[Bt.id] || []).some(k => k.kind === 'texture' && vis(k) && texName(k)
+      && !SOFT.has(texName(k)) && area(k._r) >= 0.8 * area(Bt._r));
+    for (const Bt of buttons) if (!badgeOf(Bt) && !overlaid(Bt) && body(Bt) && !boxes.some(u => u.el === Bt)) boxes.push({ el: Bt, r: Bt._r });
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const A = boxes[i], B = boxes[j];
+        if (tops.get(A.el) !== tops.get(B.el) || isAnc(A.el, B.el) || isAnc(B.el, A.el)) continue;
+        if (contains(A.r, B.r) || contains(B.r, A.r)) continue;
+        const ir = inter(A.r, B.r);
+        const ox = ir.r - ir.l, oy = ir.t - ir.b;
+        if (ox > 0.5 && oy > 0.5) { add('box', '테두리끼리 겹침', A.el, B.el); continue; }
+        const gx = Math.max(B.r.l - A.r.r, A.r.l - B.r.r), gy = Math.max(B.r.b - A.r.t, A.r.b - B.r.t);
+        if ((gx >= -0.5 && gx < 2 && oy > 4) || (gy >= -0.5 && gy < 2 && ox > 4)) add('box', '테두리끼리 닿음', A.el, B.el);
+      }
+    }
+  }
+  for (const A of texts) {
+    const ab = textBox(A); if (!ab || badgeOf(A) || overlaid(A)) continue;
+    for (const U of units) {
+      if (badgeOf(U.el) || overlaid(U.el)) continue;
+      if (tops.get(U.el) !== tops.get(A) || contains(U.r, ab) || contains(ab, U.r)) continue;
+      if (U.el.kind === 'frame' && isAnc(U.el, A)) continue;
+      const g = gapOf(ab, U.r);
+      if (sameRow(ab, U.r) && g < GAP) tight(A, U, '글자가 옆 그림에 너무 붙음 (간격 ' + Math.round(g) + ')');
+      else if (crossing(ab, U.r) && !sameRow(ab, U.r)) tight(A, U, '글자가 그림에 걸침');
+    }
+    for (const B of texts) {
+      if (B === A || B._i < A._i || badgeOf(B) || overlaid(B)) continue;
+      const bb = textBox(B); if (!bb || !sameRow(ab, bb)) continue;
+      const g = gapOf(ab, bb);
+      if (g < GAP && !crossing(ab, bb)) tight(A, B, '글자끼리 너무 붙음 (간격 ' + Math.round(g) + ')');
+    }
+    for (const Bt of buttons) {
+      if (isAnc(Bt, A) || tops.get(Bt) !== tops.get(A) || contains(Bt._r, ab) || badgeOf(Bt)) continue;
+      const g = gapOf(ab, Bt._r);
+      if (sameRow(ab, Bt._r) && g < GAP && g > -2) tight(A, Bt, '글자가 버튼에 너무 붙음 (간격 ' + Math.round(g) + ')');
+    }
+  }
+
   // buttons on top of each other; the same button twice
   const seen = new Map();
   for (let i = 0; i < buttons.length; i++) {

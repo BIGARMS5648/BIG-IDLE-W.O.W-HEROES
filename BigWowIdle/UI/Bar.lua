@@ -55,6 +55,7 @@ end
 
 local function newHero(parent)
 	local u = CreateFrame("Frame", nil, parent)
+	u.isOverlay = true -- fighters overlap as they move
 	u:SetSize(UNIT, UNIT)
 	u.shadow = UI.Art(u, "glow", "BACKGROUND", 0, 0, 0, 0.7)
 	u.shadow:SetSize(UNIT + 8, 10)
@@ -89,6 +90,7 @@ end
 
 local function newMob(parent)
 	local u = CreateFrame("Frame", nil, parent)
+	u.isOverlay = true -- fighters overlap as they move
 	u:SetSize(MOB, MOB)
 	u.shadow = UI.Art(u, "glow", "BACKGROUND", 0, 0, 0, 0.7)
 	u.shadow:SetSize(MOB + 8, 10)
@@ -897,6 +899,8 @@ function Bar.Create()
 	frame.bossBar:Hide()
 
 	frame.result = UI.Text(over, 26, nil, "OUTLINE")
+
+	frame.result.isOverlay = true -- "승리!" / "전멸..." over the fight
 	frame.result:SetPoint("CENTER", scene, "CENTER", 0, -6)
 	frame.result:SetJustifyH("CENTER")
 	frame.result:Hide()
@@ -922,7 +926,7 @@ function Bar.Create()
 	frame.dock = dock
 
 	local goal = CreateFrame("Button", nil, dock)
-	goal:SetSize(270, 46)
+	goal:SetSize(262, 46)
 	goal:SetPoint("LEFT", dock, "LEFT", 0, 0)
 	goal.bg = UI.Slice(goal, "card", "BACKGROUND")
 	goal.bg:SetColor(1, 1, 1, 1)
@@ -936,12 +940,12 @@ function Bar.Create()
 	UI.Color(goal.head, UI.C.gold)
 	goal.text = UI.Text(goal, 11)
 	goal.text:SetPoint("TOPLEFT", goal.head, "BOTTOMLEFT", 0, -2)
-	goal.text:SetWidth(208)
+	goal.text:SetWidth(200)
 	goal.text:SetJustifyV("TOP")
 	if goal.text.SetMaxLines then goal.text:SetMaxLines(2) end
 	-- the heading and the goal (one or two lines) sit in the middle of the box
 	function goal:Center()
-		local lines = (self.text:GetStringWidth() > 206) and 2 or 1
+		local lines = (self.text:GetStringWidth() > 198) and 2 or 1
 		self.text:SetHeight(lines * 13 + 1)
 		local h = 12 + 2 + lines * 13 + 1
 		self.head:ClearAllPoints()
@@ -1007,7 +1011,8 @@ function Bar.Create()
 	for i, m in ipairs(MENU) do
 		local mb = UI.MenuButton(dock, 36, m[2], ns.N(m[3]), function(self) Bar.OpenMenu(self.key) end)
 		mb.key = m[1]
-		mb:SetPoint("TOPLEFT", auto, "TOPRIGHT", 8 + #ns.CHEST * 41 + 2 + (i - 1) * 40, 0)
+		-- 44 apart: the captions (스테이지 is the widest) keep clear of each other
+		mb:SetPoint("TOPLEFT", auto, "TOPRIGHT", 8 + #ns.CHEST * 41 + 2 + (i - 1) * 44, 0)
 		frame.menu[i] = mb
 	end
 

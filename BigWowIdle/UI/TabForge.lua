@@ -397,7 +397,7 @@ local function buildSocket(kind)
 				local e = l and l[i]
 				if not e then return end
 				if not ns.Forge.Unlocked("remove") then
-					UI.Try(false, "용광로의 '추출'이 아직 잠겨 있습니다.")
+					ns.ForgeUnlock.Ask("remove")
 					return
 				end
 				local cost = ns.Forge.RemoveCost(kind, e[3])
@@ -528,8 +528,16 @@ local function buildSocket(kind)
 					if e then
 						r.socket:Set(kind, ns.Items.SocketIcon(kind, e[3]))
 						r.text:SetText(U.col("66ccff", ns.Items.SocketText(it, kind, e)))
-						r.remove:SetLabel("추출 " .. U.fmt(ns.Forge.RemoveCost(kind, e[3])) .. " G")
-						r.remove:SetOff(not ns.Forge.Unlocked("remove") or not ns.CanAfford(ns.Forge.RemoveCost(kind, e[3])))
+						if ns.Forge.Unlocked("remove") then
+							r.remove:SetStyle("red")
+							r.remove:SetLabel("추출 " .. U.fmt(ns.Forge.RemoveCost(kind, e[3])) .. " G")
+							r.remove:SetOff(not ns.CanAfford(ns.Forge.RemoveCost(kind, e[3])))
+						else
+							local label, off, style = ns.ForgeUnlock.Label("remove", "추출")
+							r.remove:SetStyle(style)
+							r.remove:SetLabel(label)
+							r.remove:SetOff(off)
+						end
 					else
 						r.socket:Set(kind, nil)
 						r.text:SetText(U.col("8a90a2", "빈 " .. ns.N(ns.SOCKET[kind].short) .. " 홈"))
@@ -560,10 +568,7 @@ local function buildLocked(page, f)
 	p.text:SetPoint("TOP", f, "TOP", 0, -160)
 	p.text:SetWidth(W - 60)
 	p.text:SetJustifyH("CENTER")
-	p.go = UI.Button(f, 200, 36, "", function()
-		UI.Try(ns.Forge.Unlock(p.op))
-		Main.Refresh()
-	end, "primary")
+	p.go = UI.Button(f, 200, 36, "", function() ns.ForgeUnlock.Ask(p.op) end, "primary")
 	p.go:SetPoint("TOP", f, "TOP", 0, -250)
 	p.go.clickWhenOff = true
 	p.refresh = function(op)

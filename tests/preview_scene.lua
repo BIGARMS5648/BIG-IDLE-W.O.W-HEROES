@@ -113,6 +113,20 @@ S.bar_wipe = function()
 	Mock.Update(0.05)
 end
 
+-- the battle window made small (no dock), and the offline report after logging in
+S.bar_compact = function()
+	ns.Main.Toggle(false)
+	ns.db.ui.compact = true
+	ns.Bar.ApplyCompact()
+	Mock.Update(0.1)
+	S.restore = function() ns.db.ui.compact = nil ns.Bar.ApplyCompact() end
+end
+S.offline = function()
+	show("hero")
+	local f = ns.ShowOffline({ away = 9 * 3600 + 1234, counted = 8 * 3600, eff = 0.75, gold = 1234567, xp = 98765, levels = 3 })
+	S.restore = function() f:Hide() end
+end
+
 -- modals
 S.faction = function() show("hero") ns.PickFaction() end
 S.create = function() show("hero") ns.CreateHeroDialog("TINKER") end
@@ -164,6 +178,7 @@ S.equip_bank = function()
 	equip("bag", { view = "bank" })
 end
 S.equip_smelt_list = function() local p = equip("bag") p.smeltPick:Click() end
+S.equip_view_list = function() local p = equip("bag") p.viewPick:Click() end
 S.equip_smelt_all = function() local p = equip("bag") p.smeltGo:Click() end
 -- the largest bag: every bag rune, every slot full
 S.equip_max = function()
@@ -237,6 +252,19 @@ S.insc_locked = function() equip("insc") end
 S.mats = function() local p = equip("mats") p.matTab = "mat_craft" ns.Main.Refresh() end
 S.mats_gem = function() local p = equip("mats") p.matTab = "mat_gem" ns.Main.Refresh() end
 S.mats_seal = function() local p = equip("mats") p.matTab = "mat_seal" ns.Main.Refresh() end
+-- functions used inside other tabs, still locked: their buttons unlock them
+local function locked(op, fn)
+	return function()
+		local was = ns.db.forge.ops[op]
+		ns.db.forge.ops[op] = nil
+		fn()
+		S.restore = function() ns.db.forge.ops[op] = was end
+	end
+end
+S.mats_seal_locked = locked("seal", function() local p = equip("mats") ns.MatsView.Open(p, { tab = "mat_seal" }) ns.Main.Refresh() end)
+S.gem_remove_locked = locked("remove", function() equip("gem") end)
+S.bag_smelt_locked = locked("smelt", function() ns.Main.SelectHero(db.party[2]) equip("bag") end)
+
 S.mats_page2 = function() local p = equip("mats") p.matTab = "mat_craft" p.matPage = 2 ns.Main.Refresh() end
 
 -- 편성
@@ -256,7 +284,6 @@ end
 -- 룬
 S.runes = function() show("runes", { rune = "c5" }) end
 S.runes_locked = function() show("runes", { rune = "w9" }) end
-S.runes_total = function() show("runes") page("runes").totalBtn:Click() end
 
 -- 스테이지
 S.map = function() show("map") end
@@ -300,6 +327,8 @@ end
 S.new_equip = function() show("equip") end
 S.new_mats = function() local p = show("equip") p.tab = "mats" ns.Main.Refresh() p.tab = "bag" end
 S.new_party = function() show("party") end
+-- the very first hero: the dialog opens by itself, a tank is recommended
+S.new_create = function() show("hero", { create = true }) end
 S.new_one = function()
 	ns.Heroes.Create("WARRIOR_PROT")
 	show("hero")

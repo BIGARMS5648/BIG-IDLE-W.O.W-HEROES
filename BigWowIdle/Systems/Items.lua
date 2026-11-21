@@ -577,15 +577,15 @@ function Items.MatTooltip(id)
 	lines[#lines + 1] = { ns.N(ns.MAT_KIND_NAME[m.kind]) .. " " .. string.format("%d단계", m.tier), nil, 0.7, 0.7, 0.7 }
 	local use
 	if m.kind == "bar" or m.kind == "leather" or m.kind == "cloth" then
-		use = "용광로 '제작'의 재료입니다."
+		use = "장비 > 제작 탭에서 장비를 만드는 재료입니다."
 	elseif m.kind == "gem" then
-		use = "'보석 세공'으로 장비의 보석 홈에 능력치를 부여합니다."
+		use = "장비 > 보석 탭에서 보석 홈에 능력치를 부여합니다."
 	elseif m.kind == "dust" then
-		use = "'마법부여'로 장비에 능력치를 부여합니다."
+		use = "장비 > 마법부여 탭에서 마법 홈에 능력치를 부여합니다."
 	elseif m.kind == "scroll" then
-		use = "'룬 각인'으로 장비에 능력치를 부여합니다."
+		use = "장비 > 각인 탭에서 룬 홈에 능력치를 부여합니다."
 	else
-		use = "'보너스 굴림'에 바쳐 무작위 장비를 얻습니다."
+		use = "장비 > 재료 > 행운의 인장 재료에서 [굴리기]로 무작위 장비를 얻습니다."
 	end
 	lines[#lines + 1] = { use, nil, 1, 0.82, 0, true }
 	if m.tier < ns.MAT_MAX_TIER[m.kind] then

@@ -1,60 +1,214 @@
--- Runes (룬): the whole rune tree on one page.
---   top: gold, runes learned, and the total of every learned rune;
---   tree: the root rune in the middle; three branches on each side, each a
---         hub rune that forks into two lines going outward. Lines turn gold
---         as runes are learned; "2/5" (or 완료) under every rune;
---   bottom: the chosen rune, and the gold button that learns it.
+-- Runes (룬): the root rune on top, the six branches as columns underneath
+-- (전쟁 · 수호 · 재물 · 성장 · 탐험 · 지휘), each rune with its level and the
+-- cost of the next one. Click a rune to see it in the card on the right and
+-- learn it there; the card also lists the total of every learned rune.
+-- Inside a column every rune's requirement sits above it.
 local _, ns = ...
 
-local floor, max, min = math.floor, math.max, math.min
+local floor, max = math.floor, math.max
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
 local R = ns.Runes
 local K = UI.K
 
-local TREE_Y, BAR_H = -36, 64
-local TREE_H = K.H + TREE_Y - BAR_H - 8
-local NODE = 38
-local LINE_GAP = 32     -- the two lines sit this far above and below the hub
-local STEP = 64         -- between runes on a line
-local CX, CY = floor(K.W / 2), floor(TREE_H / 2) -- the root, in tree coordinates (y down)
-local ROW = 134         -- hub rows above and below the middle one
-local SIDE = {          -- branch -> side (-1 left, 1 right) and row (y of its hub)
-	growth = { -1, CY - ROW }, war = { -1, CY }, wealth = { -1, CY + ROW },
-	explore = { 1, CY - ROW }, guard = { 1, CY }, command = { 1, CY + ROW },
-}
-local HUB_DX = 96       -- root to hub
-local BUS_DX = 52       -- root to the vertical line that feeds the top and bottom hubs
-local LIT = { 1, 0.80, 0.30, 0.95 }
-local DARK = { 0.30, 0.33, 0.42, 0.85 }
+local COL_W = 112             -- one branch
+local NODE = 36               -- a rune
+local ROW_H = 45              -- between runes in a column
+local HEAD_Y = -50            -- the branch names
+local TOP = -78               -- the first rune of each branch
+local SIDE_X = 6 * COL_W + 8  -- the card on the right
+local SIDE_W = K.W - SIDE_X
+local TEXT_W = COL_W - NODE - 10
 
-------------------------------------------------------------------------
--- Totals (modal)
-------------------------------------------------------------------------
-local totals = {}
-
-local function openTotals()
-	if not totals.frame then
-		local c = Main.ModalContent(540, 380)
-		totals.frame = c
-		local t = UI.Title(c, "배운 룬 보너스 합계", 18)
-		t:SetPoint("TOPLEFT", c, "TOPLEFT", 0, 0)
-		totals.rows = {}
-		for i = 1, 24 do
-			local col, row = (i <= 12) and 0 or 1, (i - 1) % 12
-			local r = UI.StatRow(c, 260)
-			r:SetPoint("TOPLEFT", c, "TOPLEFT", col * 280, -34 - row * 24)
-			totals.rows[i] = r
+local function runeNode(page, node, x, y)
+	local b = CreateFrame("Button", nil, page)
+	b:SetSize(NODE, NODE)
+	b:SetPoint("TOPLEFT", page, "TOPLEFT", x, y)
+	b.disc = UI.Art(b, "circle", "BACKGROUND", 0.05, 0.06, 0.1)
+	b.disc:SetAllPoints(b)
+	b.icon = b:CreateTexture(nil, "ARTWORK")
+	b.icon:SetPoint("TOPLEFT", b, "TOPLEFT", 5, -5)
+	b.icon:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -5, 5)
+	UI.SetIcon(b.icon, node.icon)
+	b.ringT = UI.Art(b, "ring", "OVERLAY")
+	b.ringT:SetAllPoints(b)
+	b.hl = UI.Art(b, "glow", "BACKGROUND", 1, 0.85, 0.35, 0.9)
+	b.hl:SetPoint("TOPLEFT", b, "TOPLEFT", -10, 10)
+	b.hl:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 10, -10)
+	b.hl:Hide()
+	b.text = UI.Text(page, 11)
+	b.text:SetPoint("LEFT", b, "RIGHT", 6, 0)
+	b.text:SetWidth(TEXT_W)
+	b.text:SetJustifyH("LEFT")
+	b.badge = UI.Badge(b, 14)
+	b.node = node
+	b:RegisterForClicks("LeftButtonUp")
+	b:SetScript("OnClick", function(self)
+		ns.Sound("click")
+		page.sel = self.node.id
+		Main.Refresh()
+	end)
+	b.onEnter = function(self) self.hl:Show() end
+	b.onLeave = function(self) if page.sel ~= self.node.id then self.hl:Hide() end end
+	b:SetScript("OnEnter", function(self) self.onEnter(self) end)
+	b:SetScript("OnLeave", function(self) self.onLeave(self) end)
+	UI.Tip(b, function(self)
+		local n = self.node
+		local lvl, cost = R.Level(n.id), R.NextCost(n.id)
+		local lines = { { ns.N(n.name), string.format("%d / %d", lvl, n.max), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
+			{ "레벨당 " .. ns.BonusText(n.stat, n.per), nil, 1, 1, 1 } }
+		if lvl > 0 then lines[#lines + 1] = { "지금 " .. ns.BonusText(n.stat, n.per * lvl), nil, 0.4, 1, 0.45 } end
+		if not R.Available(n.id) then
+			local step = R.NextStepTo(n.id)
+			local first = step and R.byId[step]
+			lines[#lines + 1] = { first and string.format("먼저 '%s'을(를) 배워야 합니다", ns.N(first.name)) or "먼저 위의 룬을 배워야 합니다", nil, 1, 0.55, 0.45 }
+		elseif cost then
+			lines[#lines + 1] = { "다음 레벨", U.fmt(cost) .. " G", 0.8, 0.8, 0.85 }
 		end
-		totals.none = UI.Text(c, K.F_BODY, "아직 배운 룬이 없습니다.")
-		totals.none:SetPoint("TOPLEFT", c, "TOPLEFT", 0, -40)
-		UI.Color(totals.none, UI.C.sub)
-		local note = UI.Text(c, K.F_SMALL, "동료 보너스는 '편성 > 동료'에서 봅니다.")
-		note:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 0, 10)
-		UI.Color(note, UI.C.dim)
-		local close = UI.Button(c, 120, K.BTN_H, "닫기", function() Main.CloseModal() end, "dark")
-		close:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", 0, 0)
+		lines[#lines + 1] = { "클릭: 오른쪽에서 보기", nil, 0.45, 0.8, 1 }
+		return lines
+	end, "TOP")
+	return b
+end
+
+local function build(page)
+	page.sel = "root"
+	page.nodes = {}
+	-- the root, over the middle of the branches
+	page.root = runeNode(page, ns.RUNE_ROOT, 3 * COL_W - NODE / 2 - 4, -4)
+	page.nodes[1] = page.root
+
+	for ci, br in ipairs(ns.RUNE_BRANCHES) do
+		local x = (ci - 1) * COL_W
+		local r, g, b = U.rgb(br.hex)
+		local head = UI.Pill(page, COL_W - 10, 22, r * 0.45, g * 0.45, b * 0.45, 0.95)
+		head:SetLabel(ns.N(br.name))
+		head:SetPoint("TOPLEFT", page, "TOPLEFT", x, HEAD_Y)
+		for ri, node in ipairs(br.nodes) do
+			local y = TOP - (ri - 1) * ROW_H
+			local link
+			if ri > 1 then
+				link = page:CreateTexture(nil, "BORDER")
+				link:SetSize(3, ROW_H - NODE + 2)
+				link:SetPoint("TOPLEFT", page, "TOPLEFT", x + NODE / 2 - 1, y + ROW_H - NODE + 1)
+				UI.Fill(link, r * 0.5, g * 0.5, b * 0.5, 0.9)
+			end
+			local nb = runeNode(page, node, x, y)
+			nb.link = link
+			page.nodes[#page.nodes + 1] = nb
+		end
 	end
+
+	-- the card on the right
+	local side = UI.Panel(page, SIDE_W, K.H, "card")
+	side:SetPoint("TOPLEFT", page, "TOPLEFT", SIDE_X, 0)
+	page.side = side
+	local IW = SIDE_W - 28
+	side.icon = UI.IconButton(side, 48)
+	side.icon:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -14)
+	side.icon:EnableMouse(false)
+	side.name = UI.Title(side, "", 15)
+	side.name:SetPoint("TOPLEFT", side, "TOPLEFT", 72, -18)
+	side.name:SetWidth(SIDE_W - 86)
+	side.name:SetWordWrap(false)
+	side.lvl = UI.Text(side, 11)
+	side.lvl:SetPoint("TOPLEFT", side, "TOPLEFT", 72, -42)
+	UI.Color(side.lvl, UI.C.sub)
+	side.per = UI.Text(side, 12)
+	side.per:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -80)
+	side.per:SetWidth(IW)
+	side.now = UI.Text(side, 12)
+	side.now:SetPoint("TOPLEFT", side.per, "BOTTOMLEFT", 0, -6)
+	side.now:SetWidth(IW)
+	side.req = UI.Text(side, 11)
+	side.req:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -124)
+	side.req:SetWidth(IW)
+	side.req:SetJustifyV("TOP")
+	side.goPrev = UI.Button(side, IW, 26, "먼저 배울 룬 보기", function()
+		local step = R.NextStepTo(page.sel)
+		if step then page.sel = step end
+		Main.Refresh()
+	end, "blue")
+	side.goPrev:SetPoint("TOP", side, "TOP", 0, -186)
+	side.buy = UI.Button(side, IW, 40, "", function()
+		UI.Try(R.Buy(page.sel))
+		Main.Refresh()
+	end, "primary")
+	side.buy:SetPoint("TOP", side, "TOP", 0, -220)
+	side.buy.clickWhenOff = true
+	side.totalHead = UI.Section(side, IW, "보너스 합계")
+	side.totalHead:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -278)
+	side.total = UI.Text(side, 11)
+	side.total:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -306)
+	side.total:SetWidth(IW)
+	side.total:SetJustifyV("TOP")
+	side.total:SetSpacing(2)
+	if side.total.SetMaxLines then side.total:SetMaxLines(16) end
+	side.note = UI.Text(side, 10, "동료 보너스는 '동료' 화면에서 봅니다.")
+	side.note:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 14, 12)
+	side.note:SetWidth(IW)
+	UI.Color(side.note, UI.C.dim)
+end
+
+local function nodeState(id)
+	local node = R.byId[id]
+	local lvl = R.Level(id)
+	local cost = R.NextCost(id)
+	return node, lvl, cost, R.Available(id)
+end
+
+local function refresh(page)
+	for _, b in ipairs(page.nodes) do
+		local node, lvl, cost, available = nodeState(b.node.id)
+		local affordable = cost and available and ns.CanAfford(cost)
+		if lvl >= node.max then
+			b.ringT:SetVertexColor(0.4, 0.95, 0.5)
+		elseif affordable then
+			b.ringT:SetVertexColor(1, 0.82, 0.3)
+		elseif lvl > 0 then
+			b.ringT:SetVertexColor(0.45, 0.7, 1)
+		else
+			b.ringT:SetVertexColor(0.3, 0.33, 0.42)
+		end
+		b.icon:SetDesaturated(not available)
+		b.icon:SetAlpha(available and 1 or 0.45)
+		if b.link then b.link:SetAlpha(lvl > 0 and 1 or 0.35) end
+		local line = U.col(lvl >= node.max and "6af07a" or (lvl > 0 and "ffffff" or "8a90a2"), lvl .. "/" .. node.max)
+		if cost then
+			line = line .. "\n" .. U.col(affordable and "ffd24a" or "7a6a40", U.fmt(cost))
+		end
+		b.text:SetText(line)
+		b.badge:Set(affordable and lvl == 0)
+		if page.sel == b.node.id then b.hl:Show() elseif not b:IsMouseOver() then b.hl:Hide() end
+	end
+
+	local side = page.side
+	local node, lvl, cost, available = nodeState(page.sel)
+	side.icon:SetIconName(node.icon)
+	side.icon:SetBorderRGB(lvl > 0 and 0.45 or 0.3, lvl > 0 and 0.7 or 0.33, lvl > 0 and 1 or 0.42)
+	side.name:SetText(ns.N(node.name))
+	side.lvl:SetText(string.format("레벨 %d / %d", lvl, node.max))
+	side.per:SetText("레벨당  " .. U.col("ffffff", ns.BonusText(node.stat, node.per)))
+	side.now:SetText(lvl > 0 and ("현재  " .. U.col("6af07a", ns.BonusText(node.stat, node.per * lvl))) or "")
+	if not available then
+		local step, total = R.NextStepTo(page.sel)
+		local first = R.byId[step]
+		side.req:SetText(U.col("ff6a5a", string.format("먼저 '%s'(%s G)을(를) 배워야 합니다.", ns.N(first.name), U.fmt(R.NextCost(step) or 0)))
+			.. "\n" .. U.col("aab3c8", string.format("여기까지 모두 %s G", U.fmt(total))))
+		side.goPrev:Show()
+	else
+		side.req:SetText("")
+		side.goPrev:Hide()
+	end
+	if cost then
+		side.buy:SetLabel("배우기  " .. U.fmt(cost) .. " G")
+		side.buy:SetOff(not available or not ns.CanAfford(cost))
+	else
+		side.buy:SetLabel("최대 레벨")
+		side.buy:SetOff(true)
+	end
+
+	-- every learned rune added up (companions have their own screen)
 	local sums = {}
 	for id, lv in pairs(ns.db.runes) do
 		local n = R.byId[id]
@@ -63,238 +217,9 @@ local function openTotals()
 	local keys = {}
 	for k in pairs(sums) do keys[#keys + 1] = k end
 	table.sort(keys)
-	for i, r in ipairs(totals.rows) do
-		local k = keys[i]
-		if k then r:Set(ns.BonusText(k, sums[k]), "") r:Show() else r:Hide() end
-	end
-	totals.none:SetShown(#keys == 0)
-	Main.ShowModal(totals.frame)
-end
-
-------------------------------------------------------------------------
--- Tree geometry
-------------------------------------------------------------------------
--- Where every rune sits (tree coordinates, y down), and the links.
-local function layout()
-	local pos = { root = { CX, CY } }
-	-- { ids (lit when any of them is learned), points... } drawn as straight segments
-	local links = {}
-	local sideHubs = { [-1] = {}, [1] = {} }
-	for _, br in ipairs(ns.RUNE_BRANCHES) do
-		local side = SIDE[br.key][1]
-		table.insert(sideHubs[side], br.nodes[1].id)
-	end
-	-- root to the bus on each side (shared by that side's three branches)
-	for _, side in ipairs({ -1, 1 }) do
-		links[#links + 1] = { sideHubs[side], { CX + side * NODE / 2, CY }, { CX + side * BUS_DX, CY } }
-	end
-	for _, br in ipairs(ns.RUNE_BRANCHES) do
-		local side, hy = SIDE[br.key][1], SIDE[br.key][2]
-		local hub = br.nodes[1].id
-		local hx = CX + side * HUB_DX
-		local bx = CX + side * BUS_DX
-		pos[hub] = { hx, hy }
-		-- from the bus (up or down it if needed) into the hub
-		if hy == CY then
-			links[#links + 1] = { { hub }, { bx, CY }, { hx - side * NODE / 2, CY } }
-		else
-			links[#links + 1] = { { hub }, { bx, CY }, { bx, hy }, { hx - side * NODE / 2, hy } }
-		end
-		local elbow = hx + side * (NODE / 2 + (STEP - NODE) / 2)
-		for li, line in ipairs(ns.RUNE_TREE[br.key]) do
-			local y = hy + (li == 1 and -LINE_GAP or LINE_GAP)
-			for k, id in ipairs(line) do
-				local x = hx + side * k * STEP
-				pos[id] = { x, y }
-				if k == 1 then
-					links[#links + 1] = { { id }, { hx + side * NODE / 2, hy }, { elbow, hy }, { elbow, y }, { x - side * NODE / 2, y } }
-				else
-					links[#links + 1] = { { id }, { x - side * (STEP - NODE / 2), y }, { x - side * NODE / 2, y } }
-				end
-			end
-		end
-	end
-	return pos, links
-end
-
--- An axis-aligned segment as a thin texture.
-local function segment(parent, a, b)
-	local t = parent:CreateTexture(nil, "BORDER")
-	local x1, x2 = min(a[1], b[1]), max(a[1], b[1])
-	local y1, y2 = min(a[2], b[2]), max(a[2], b[2])
-	t:SetPoint("TOPLEFT", parent, "TOPLEFT", x1 - 1.5, -(y1 - 1.5))
-	t:SetSize(max(3, x2 - x1 + 3), max(3, y2 - y1 + 3))
-	return t
-end
-
-------------------------------------------------------------------------
--- Build
-------------------------------------------------------------------------
-local function build(page)
-	page.sel = "root"
-	page.heading = UI.Text(page, 13)
-	page.heading:SetPoint("TOPLEFT", page, "TOPLEFT", 4, -8)
-	page.heading:SetWidth(600)
-	page.heading:SetWordWrap(false)
-	UI.Color(page.heading, UI.C.gold)
-	page.totalBtn = UI.Button(page, 150, K.TAB_H, "보너스 합계", openTotals, "dark")
-	page.totalBtn:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, 0)
-	UI.Tip(page.totalBtn, function() return UI.SimpleTip("보너스 합계", "지금까지 배운 모든 룬의 효과를 모아 봅니다.") end, "TOP")
-
-	local tree = UI.Panel(page, K.W, TREE_H, "inset")
-	tree:SetPoint("TOPLEFT", page, "TOPLEFT", 0, TREE_Y)
-	page.tree = tree
-	local pos, links = layout()
-	page.links = {}
-	for _, l in ipairs(links) do
-		local parts = {}
-		for i = 2, #l - 1 do parts[#parts + 1] = segment(tree, l[i], l[i + 1]) end
-		page.links[#page.links + 1] = { ids = l[1], parts = parts }
-	end
-	-- branch names above the hubs
-	for _, br in ipairs(ns.RUNE_BRANCHES) do
-		local p = pos[br.nodes[1].id]
-		local t = UI.Text(tree, K.F_SMALL, ns.N(br.name))
-		t:SetPoint("BOTTOM", tree, "TOPLEFT", p[1], -(p[2] - NODE / 2 - 2))
-		t:SetJustifyH("CENTER")
-		t:SetTextColor(U.rgb(br.hex))
-	end
-	page.nodes = {}
-	for id, p in pairs(pos) do
-		local node = R.byId[id]
-		local b = UI.IconButton(tree, NODE, function(self)
-			page.sel = self.node.id
-			Main.Refresh()
-		end)
-		b:SetPoint("CENTER", tree, "TOPLEFT", p[1], -p[2])
-		b:SetIconName(node.icon)
-		b.node = node
-		b.lv = UI.Text(tree, K.F_MIN)
-		b.lv:SetPoint("TOP", b, "BOTTOM", 0, -1)
-		b.lv:SetJustifyH("CENTER")
-		UI.Tip(b, function(self)
-			local n = self.node
-			local lvl, cost = R.Level(n.id), R.NextCost(n.id)
-			local lines = { { ns.N(n.name), string.format("%d / %d", lvl, n.max), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
-				{ "레벨당 " .. ns.BonusText(n.stat, n.per), nil, 1, 1, 1 } }
-			if lvl > 0 then lines[#lines + 1] = { "지금 " .. ns.BonusText(n.stat, n.per * lvl), nil, 0.4, 1, 0.45 } end
-			if not R.Available(n.id) then
-				lines[#lines + 1] = { "앞의 룬을 먼저 배워야 합니다", nil, 1, 0.55, 0.45 }
-			elseif cost then
-				lines[#lines + 1] = { "다음 레벨", U.fmt(cost) .. " G", 0.8, 0.8, 0.85 }
-			end
-			lines[#lines + 1] = { "클릭: 아래에서 보기", nil, 0.45, 0.8, 1 }
-			return lines
-		end, "TOP")
-		page.nodes[#page.nodes + 1] = b
-	end
-
-	-- the chosen rune
-	local bar = UI.Panel(page, K.W, BAR_H, "card")
-	bar:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 0, 0)
-	page.bar = bar
-	bar.icon = UI.IconButton(bar, 40)
-	bar.icon:SetPoint("LEFT", bar, "LEFT", 12, 0)
-	bar.icon:EnableMouse(false)
-	bar.name = UI.Text(bar, 14)
-	bar.name:SetPoint("TOPLEFT", bar, "TOPLEFT", 62, -11)
-	bar.name:SetWidth(150)
-	bar.name:SetWordWrap(false)
-	UI.Color(bar.name, UI.C.gold)
-	bar.sub = UI.Text(bar, K.F_SMALL)
-	bar.sub:SetPoint("TOPLEFT", bar, "TOPLEFT", 62, -32)
-	bar.sub:SetWidth(150)
-	bar.sub:SetWordWrap(false)
-	UI.Color(bar.sub, UI.C.sub)
-	bar.eff = UI.Text(bar, K.F_SMALL)
-	bar.eff:SetPoint("TOPLEFT", bar, "TOPLEFT", 222, -11)
-	bar.eff:SetWidth(K.W - 222 - 322)
-	bar.eff:SetWordWrap(false)
-	bar.why = UI.Text(bar, K.F_SMALL)
-	bar.why:SetPoint("TOPLEFT", bar, "TOPLEFT", 222, -32)
-	bar.why:SetWidth(K.W - 222 - 322)
-	bar.why:SetWordWrap(false)
-	page.learn = UI.Button(bar, 170, K.BTN_H, "", nil, "primary")
-	page.learn:SetPoint("RIGHT", bar, "RIGHT", -12, 0)
-	page.learn.clickWhenOff = true
-	page.prevBtn = UI.Button(bar, 120, K.BTN_H, "먼저 배울 룬", function()
-		local step = R.NextStepTo(page.sel)
-		if step then page.sel = step end
-		Main.Refresh()
-	end, "dark")
-	page.prevBtn:SetPoint("RIGHT", page.learn, "LEFT", -8, 0)
-end
-
-------------------------------------------------------------------------
--- Refresh
-------------------------------------------------------------------------
-local function refresh(page)
-	local learned, steps, maxSteps = 0, 0, 0
-	for id, node in pairs(R.byId) do
-		local lvl = R.Level(id)
-		if lvl > 0 then learned = learned + 1 end
-		steps = steps + lvl
-		maxSteps = maxSteps + node.max
-	end
-	page.heading:SetText(string.format("보유 골드 %s   ·   배운 룬 %d단계 / %d단계", U.fmt(ns.db.gold), steps, maxSteps))
-
-	for _, l in ipairs(page.links) do
-		local lit = false
-		for _, id in ipairs(l.ids) do if R.Level(id) > 0 then lit = true end end
-		local c = lit and LIT or DARK
-		for _, t in ipairs(l.parts) do UI.Fill(t, c[1], c[2], c[3], c[4]) end
-	end
-	for _, b in ipairs(page.nodes) do
-		local n = b.node
-		local lvl, cost, avail = R.Level(n.id), R.NextCost(n.id), R.Available(n.id)
-		b:SetDim(not avail)
-		b:SetLocked(not avail)
-		if lvl >= n.max then
-			b:SetBorderRGB(0.4, 0.95, 0.5)
-			b.lv:SetText(U.col("6af07a", "완료"))
-		elseif lvl > 0 then
-			b:SetBorderRGB(1, 0.80, 0.30)
-			b.lv:SetText(lvl .. "/" .. n.max)
-		else
-			if avail then b:SetBorderRGB(0.55, 0.62, 0.80) else b:SetBorderRGB(0.28, 0.30, 0.38) end
-			b.lv:SetText(U.col("8a90a2", lvl .. "/" .. n.max))
-		end
-		b:SetSelected(n.id == page.sel)
-		b:SetBadge(avail and lvl == 0 and cost ~= nil and ns.CanAfford(cost))
-	end
-
-	local bar = page.bar
-	local node = R.byId[page.sel]
-	local lvl, cost, avail = R.Level(page.sel), R.NextCost(page.sel), R.Available(page.sel)
-	bar.icon:SetIconName(node.icon)
-	bar.icon:SetDim(not avail)
-	bar.name:SetText(ns.N(node.name))
-	local brName = node.branch and ns.N((function()
-		for _, br in ipairs(ns.RUNE_BRANCHES) do if br.key == node.branch then return br.name end end
-	end)()) or "모든 룬의 시작"
-	bar.sub:SetText(string.format("%s · 레벨 %d / %d", brName, lvl, node.max))
-	bar.eff:SetText("레벨당 " .. ns.BonusText(node.stat, node.per) ..
-		(lvl > 0 and ("  ·  지금 " .. U.col("6af07a", ns.BonusText(node.stat, node.per * lvl))) or ""))
-	page.prevBtn:SetShown(not avail)
-	page.learn.onClick = function()
-		UI.Try(R.Buy(page.sel))
-		Main.Refresh()
-	end
-	if not avail then
-		local step, total = R.NextStepTo(page.sel)
-		bar.why:SetText(U.col("ff9a7a", string.format("'%s'부터 배워야 합니다 (모두 %s G)", ns.N(R.byId[step].name), U.fmt(total))))
-		page.learn:SetLabel("배우기  " .. U.fmt(cost or 0) .. " G")
-		page.learn:SetOff(true)
-	elseif cost then
-		bar.why:SetText(ns.CanAfford(cost) and U.col("aab3c8", "최대 " .. ns.BonusText(node.stat, node.per * node.max))
-			or U.col("ff9a7a", "골드가 부족합니다."))
-		page.learn:SetLabel("배우기  " .. U.fmt(cost) .. " G")
-		page.learn:SetOff(not ns.CanAfford(cost))
-	else
-		bar.why:SetText(U.col("6af07a", "최대 레벨입니다."))
-		page.learn:SetLabel("최대 레벨")
-		page.learn:SetOff(true)
-	end
+	local parts = {}
+	for _, k in ipairs(keys) do parts[#parts + 1] = ns.BonusText(k, sums[k]) end
+	side.total:SetText(#parts > 0 and table.concat(parts, "\n") or U.col("8a90a2", "아직 배운 룬이 없습니다."))
 end
 
 local function open(page, opts)

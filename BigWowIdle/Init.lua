@@ -27,6 +27,7 @@ local function showOffline(r)
 	end
 	local f = UI.Panel(UIParent, 360, 210, "panel", true)
 	f:SetFrameStrata("DIALOG")
+	f.isPopup = true -- shown once over everything until 받기
 	f:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
 	f:EnableMouse(true)
 	local glow = UI.Art(f, "glow", "BORDER", 1, 0.8, 0.3, 0.5)
@@ -47,7 +48,9 @@ local function showOffline(r)
 	local ok = UI.Button(f, 140, 32, "받기", function() f:Hide() end, "primary")
 	ok:SetPoint("BOTTOM", f, "BOTTOM", 0, 14)
 	ns.Log(table.concat(lines, "  "))
+	return f
 end
+ns.ShowOffline = showOffline
 
 ------------------------------------------------------------------------
 -- Driver: an unparented frame keeps ticking even when the UI is hidden

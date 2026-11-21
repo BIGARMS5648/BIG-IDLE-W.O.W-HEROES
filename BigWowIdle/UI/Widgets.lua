@@ -328,6 +328,7 @@ function UI.Badge(parent, size)
 	size = max(14, size or 16)
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetSize(size, size)
+	f.isBadge = true -- sits on its owner's corner on purpose
 	f:SetFrameLevel(parent:GetFrameLevel() + 6)
 	f.dot = UI.Art(f, "circle", "OVERLAY", 0.92, 0.18, 0.16)
 	if UI.ArtPath("icon_badge") then
@@ -338,7 +339,9 @@ function UI.Badge(parent, size)
 	f.text = UI.Text(f, 10, nil, "OUTLINE")
 	f.text:SetPoint("CENTER", f, "CENTER", 0, 0)
 	f.text:SetJustifyH("CENTER")
-	f:SetPoint("TOPRIGHT", parent, "TOPRIGHT", size * 0.3, size * 0.3)
+	-- on the owner's corner, sticking out only a little so it never reaches
+	-- the next button or cell
+	f:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 2, 2)
 	f:Hide()
 	-- v: false/nil hides, true shows a dot, a number shows the number
 	function f:Set(v)
@@ -351,6 +354,8 @@ function UI.Badge(parent, size)
 		else
 			self.text:SetText(v > 99 and "99+" or tostring(v))
 		end
+		-- a longer number makes the dot wider rather than spilling out of it
+		self:SetWidth(max(size, floor(self.text:GetStringWidth() + 5)))
 		self:Show()
 	end
 	return f

@@ -268,9 +268,9 @@ function UI.Row(parent, w, h, onClick)
 	b.right:SetPoint("RIGHT", b, "RIGHT", -8, 0)
 	b.right:SetJustifyH("RIGHT")
 	b.right:SetWordWrap(false)
-	b.badge = UI.Badge(b, 16)
+	b.badge = UI.Badge(b, 14)
 	b.badge:ClearAllPoints()
-	b.badge:SetPoint("TOPLEFT", b, "TOPLEFT", isz - 4, -1)
+	b.badge:SetPoint("TOPRIGHT", b.icon, "TOPRIGHT", 3, 3)
 	b.textW = w - isz - 20
 	b.rightW = 0
 	function b:Layout(rightW)
@@ -294,8 +294,9 @@ function UI.Row(parent, w, h, onClick)
 	return b
 end
 
--- A row of hero portraits (party first). onPick(heroId).
-function UI.HeroStrip(parent, count, size, gap, onPick)
+-- A row of hero portraits (party first). onPick(heroId); badge(heroId):
+-- whether that hero gets a red dot here (each screen says what it is about).
+function UI.HeroStrip(parent, count, size, gap, onPick, badge)
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetSize(count * (size + gap) - gap, size + 4)
 	f.items = {}
@@ -305,13 +306,15 @@ function UI.HeroStrip(parent, count, size, gap, onPick)
 		end)
 		b:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * (size + gap), -2)
 		b.lvl:Hide()
+		b.badge:ClearAllPoints()
+		b.badge:SetPoint("TOPRIGHT", b, "TOPRIGHT", -1, 1) -- inside: the next portrait is close
 		UI.Tip(b, function(self)
 			local id = self.heroId
 			local h = id and ns.db.heroes[id]
 			if not h then return nil end
 			local lines = { { ns.Heroes.Name(id), "Lv " .. h.level, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
 				{ ns.SpecLabel(h.spec), ns.Heroes.PartySlot(id) and "출전 중" or "대기", 0.75, 0.8, 0.9 } }
-			if ns.Guide.HeroNeeds(id) then lines[#lines + 1] = { "할 일이 있습니다 (점수나 더 좋은 장비)", nil, 0.4, 1, 0.4 } end
+			if badge and badge(id) then lines[#lines + 1] = { "가방에 더 좋은 장비가 있습니다", nil, 0.4, 1, 0.4 } end
 			return lines
 		end, "TOP")
 		f.items[i] = b
@@ -327,7 +330,7 @@ function UI.HeroStrip(parent, count, size, gap, onPick)
 				b.lvl:Hide()
 				b:SetSelected(id == sel)
 				b:SetDim(ns.Heroes.PartySlot(id) == nil)
-				b:SetBadge(ns.Heroes.PartySlot(id) ~= nil and ns.Guide.HeroNeeds(id))
+				b:SetBadge(badge and badge(id) and true or false)
 				b:Show()
 			else
 				b:Hide()
@@ -371,7 +374,7 @@ function UI.Tabs(parent, w, items, onSelect, fit, h)
 		b.key = it[1]
 		b.isItem = true -- navigation, not an action
 		b.lock = UI.Glyph(b, "lock", 12, 0.9, 0.78, 0.5)
-		b.lock:SetPoint("RIGHT", b.label, "LEFT", -3, 0)
+		b.lock:SetPoint("RIGHT", b.label, "LEFT", -6, 0)
 		b.lock:Hide()
 		row.buttons[i] = b
 	end
@@ -404,6 +407,9 @@ function UI.Tabs(parent, w, items, onSelect, fit, h)
 		if b then
 			b.lock:SetShown(v and true or false)
 			b.label:SetAlpha(v and 0.6 or 1)
+			-- the lock and the name together stay in the middle
+			b.label:ClearAllPoints()
+			b.label:SetPoint("CENTER", b, "CENTER", v and 9 or 0, 0)
 		end
 	end
 	return row

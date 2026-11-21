@@ -262,8 +262,8 @@ local function buildCreate()
 	for i, cid in ipairs(ns.CLASS_ORDER) do
 		local cls = ns.CLASSES[cid]
 		local b = CreateFrame("Button", nil, list)
-		b:SetSize(184, 38)
-		b:SetPoint("TOPLEFT", list, "TOPLEFT", 6, -6 - (i - 1) * 39.5)
+		b:SetSize(184, 36)
+		b:SetPoint("TOPLEFT", list, "TOPLEFT", 6, -6 - (i - 1) * 39.4) -- 3px between rows
 		b.bg = UI.Slice(b, "card", "BACKGROUND")
 		b.icon = b:CreateTexture(nil, "ARTWORK")
 		b.icon:SetSize(30, 30)
@@ -282,9 +282,10 @@ local function buildCreate()
 				x = x - 16
 			end
 		end
-		b.rec = UI.Pill(b, 34, 15, 0.15, 0.55, 0.25, 1)
-		b.rec:SetLabel("추천")
-		b.rec:SetPoint("RIGHT", b, "RIGHT", x - 2, 0)
+		-- "추천" goes under the name (beside it, a long name would run into it)
+		b.rec = UI.Text(b, 10, "추천")
+		b.rec:SetPoint("TOPLEFT", b, "TOPLEFT", 43, -21)
+		b.rec:SetTextColor(0.35, 0.9, 0.45)
 		b.cid = cid
 		b:RegisterForClicks("LeftButtonUp")
 		b:SetScript("OnClick", function(self)
@@ -410,9 +411,10 @@ local function buildCreate()
 	end
 
 	-- footer -------------------------------------------------------------
-	create.cancel = UI.Button(c, 100, 40, "취소", function() Main.CloseModal() end, "dark")
-	create.cancel:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", -228, 0)
-	create.go = UI.Button(c, 220, 40, "", function()
+	-- both buttons under the right column only (clear of the middle panel)
+	create.cancel = UI.Button(c, 96, 40, "취소", function() Main.CloseModal() end, "dark")
+	create.cancel:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 486, 0)
+	create.go = UI.Button(c, 210, 40, "", function()
 		if not create.spec then return end
 		local ok, res = H.Create(create.spec, create.sex, create.name)
 		if UI.Try(ok, res) then
@@ -438,7 +440,14 @@ function create.refresh()
 		local on = b.cid == create.class
 		local k = on and 1 or (b.hover and 0.6 or 0.42)
 		if on then b.bg:SetColor(0.95, 0.78, 0.35, 1) else b.bg:SetColor(k * 0.55, k * 0.6, k * 0.85, 1) end
-		b.rec:SetShown(create.role ~= nil and classRoles(b.cid)[create.role] == true)
+		local rec = create.role ~= nil and classRoles(b.cid)[create.role] == true
+		b.rec:SetShown(rec)
+		b.label:ClearAllPoints()
+		if rec then
+			b.label:SetPoint("TOPLEFT", b, "TOPLEFT", 43, -5)
+		else
+			b.label:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
+		end
 	end
 	local cid = create.class
 	-- preview

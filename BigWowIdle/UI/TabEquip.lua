@@ -1,11 +1,13 @@
 -- Equipment screen (장비).
 --   left: every hero (small portraits), the chosen hero's equipment around
---         a summary (전투력, 역할, 능력치, usable weapons) with [자동 장착],
---         [파티 자동 장착], [전체 해제]; weapons at the bottom.
---         A slot: click = the bag shows that slot's items, right-click = 해제.
+--         a summary (전투력, 역할, 능력치, usable weapons), the two weapon
+--         slots under it, and [자동 장착] [파티 자동 장착] [전체 해제] at the
+--         bottom. A slot: click = the bag shows that slot's items,
+--         right-click = 해제.
 --   right: tabs 가방 · 융합 · 제작 · 보석 · 마법부여 · 각인 · 재료
---          (UI/TabBag.lua and UI/TabForge.lua); the forge level at the bottom
---          of the forge tabs.
+--          (UI/TabBag.lua and UI/TabForge.lua); the forge level under all of
+--          them. Forge functions used inside a tab (분해, 추출, 굴리기) are
+--          unlocked on the button that uses them.
 local _, ns = ...
 
 local floor, max, min = math.floor, math.max, math.min
@@ -60,7 +62,7 @@ local function buildLeft(page)
 	page.strip = UI.HeroStrip(lp, ns.ROSTER_MAX, 24, 4, function(id)
 		Main.SelectHero(id)
 		Main.Refresh()
-	end)
+	end, function(id) return ns.Guide.UpgradeHeroes()[id] end) -- red dot: better gear in the bag
 	page.strip:SetPoint("TOPLEFT", lp, "TOPLEFT", 12, -10)
 	page.slots = {}
 	local function slotButton(slot, x, y)
@@ -101,7 +103,8 @@ local function buildLeft(page)
 	end
 	for i, slot in ipairs(LEFT_COL) do slotButton(slot, 12, -48 - (i - 1) * 60) end
 	for i, slot in ipairs(RIGHT_COL) do slotButton(slot, LEFT_W - 12 - SLOT, -48 - (i - 1) * 60) end
-	for i, slot in ipairs(WEAPONS) do slotButton(slot, LEFT_W / 2 - SLOT - 6 + (i - 1) * (SLOT + 12), -486) end
+	-- the weapons right under "착용 가능 무기"
+	for i, slot in ipairs(WEAPONS) do slotButton(slot, LEFT_W / 2 - SLOT - 6 + (i - 1) * (SLOT + 12), -340) end
 
 	-- the summary
 	page.name = UI.Text(lp, 14)
@@ -145,13 +148,13 @@ local function buildLeft(page)
 		ns.Toast(n > 0 and string.format("%s: 장비 %d개를 바꿨습니다.", H.ShortName(id), n) or "가방에 더 좋은 장비가 없습니다.")
 		Main.Refresh()
 	end, "primary")
-	page.auto:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -342)
+	page.auto:SetPoint("BOTTOMLEFT", lp, "BOTTOMLEFT", CX, 50) -- the buttons at the bottom
 	UI.Tip(page.auto, function() return UI.SimpleTip("자동 장착", "가방에서 이 영웅에게 더 좋은 장비를 모든 칸에 장착합니다. 빼낸 장비는 가방으로 돌아갑니다.") end, "TOP")
 	page.party = UI.Button(lp, floor((CW - 6) / 2), 28, "파티 자동 장착", function()
 		equipAllParty()
 		Main.Refresh()
 	end, "dark")
-	page.party:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -384)
+	page.party:SetPoint("BOTTOMLEFT", lp, "BOTTOMLEFT", CX, 14)
 	UI.Tip(page.party, function() return UI.SimpleTip("파티 자동 장착", "출전 중인 영웅 모두에게 가방 속 더 좋은 장비를 장착합니다.") end, "TOP")
 	page.unequip = UI.Button(lp, floor((CW - 6) / 2), 28, "전체 해제", function()
 		local id = heroOf()
@@ -168,10 +171,10 @@ local function buildLeft(page)
 				ns.Toast(string.format("장비 %d개를 가방으로 옮겼습니다.", n))
 			end })
 	end, "red")
-	page.unequip:SetPoint("TOPRIGHT", lp, "TOPLEFT", CX + CW, -384)
+	page.unequip:SetPoint("BOTTOMRIGHT", lp, "BOTTOMLEFT", CX + CW, 14)
 	page.unequip.clickWhenOff = true
 	page.slotHint = UI.Text(lp, 11, "칸 클릭: 가방에서 그 부위 보기\n오른쪽 클릭: 해제")
-	page.slotHint:SetPoint("TOP", lp, "TOPLEFT", CX + CW / 2, -422)
+	page.slotHint:SetPoint("TOP", lp, "TOPLEFT", CX + CW / 2, -400)
 	page.slotHint:SetWidth(CW)
 	page.slotHint:SetJustifyH("CENTER")
 	UI.Color(page.slotHint, UI.C.dim)
@@ -269,20 +272,28 @@ local function buildRight(page)
 		page.bodies[key] = f
 		return f
 	end
-	ns.BagView.Build(page, body("bag", K.H - 68))
-	ns.MatsView.Build(page, body("mats", K.H - 68))
+	-- every tab leaves room for the forge level at the bottom
+	ns.BagView.Build(page, body("bag", ns.ForgeView.H))
+	ns.MatsView.Build(page, body("mats", ns.ForgeView.H))
 	page.forge = {}
 	for key in pairs(FORGE_TAB) do
 		page.forge[key] = ns.ForgeView.Build[key](page, body(key, ns.ForgeView.H))
 	end
 	page.lockView = ns.ForgeView.Build.locked(page, body("locked", ns.ForgeView.H))
-	-- the forge level, under the forge tabs
+	-- the forge level, under every tab (breaking down and fusing raise it)
 	page.forgeBar = UI.Bar(rp, RIGHT_W - 24, 18, 0.95, 0.55, 0.15)
 	page.forgeBar:SetPoint("BOTTOMLEFT", rp, "BOTTOMLEFT", 12, 12)
 	page.forgeBar.text:SetFont(ns.FONT, 11, "OUTLINE")
 	page.forgeBar:EnableMouse(true)
 	UI.Tip(page.forgeBar, function()
-		return UI.SimpleTip("용광로 레벨", "장비를 분해·융합·제작하면 경험치가 오릅니다. 레벨이 오르면 새 기능과 제작 단계가 열립니다.")
+		local lines = { { "용광로 레벨", nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
+			{ "장비를 분해·융합·제작하면 경험치가 오릅니다. 레벨이 오르면 새 기능과 제작 단계가 열립니다.", nil, 1, 1, 1, true } }
+		for _, d in ipairs(ns.FORGE_OPS) do
+			local open = ns.Forge.Unlocked(d.key)
+			lines[#lines + 1] = { ns.N(d.name), open and "해금됨" or string.format("Lv %d · %s G", d.level, U.fmt(d.cost)),
+				open and 0.4 or 0.75, open and 1 or 0.75, open and 0.45 or 0.8 }
+		end
+		return lines
 	end, "TOP")
 end
 
@@ -296,19 +307,23 @@ local function refreshRight(page)
 		page.tabs:SetLocked(key, not open)
 		page.tabs:SetBadge(key, not open and f.level >= d.level and ns.CanAfford(d.cost))
 	end
-	page.tabs:SetBadge("bag", ns.Loot.Count() > 0 and ns.Loot.Count() or nil)
+	-- a function used inside the bag, the gem tab or the materials that can be
+	-- unlocked now shows on that tab
+	local function ready(op)
+		local d = ns.Forge.OpDef(op)
+		return not ns.Forge.Unlocked(op) and f.level >= d.level and ns.CanAfford(d.cost) and ns.Guide.UnlockUseful(op)
+	end
+	page.tabs:SetBadge("bag", ns.Loot.Count() > 0 and ns.Loot.Count() or ready("smelt"))
+	if ns.Forge.Unlocked("gem") and ready("remove") then page.tabs:SetBadge("gem", true) end
+	page.tabs:SetBadge("mats", ready("seal"))
 	for _, b in pairs(page.bodies) do b:Hide() end
-	local forgeTab = FORGE_TAB[tab]
-	page.forgeBar:SetShown(forgeTab)
-	if forgeTab then
-		if f.level >= ns.FORGE_MAX then
-			page.forgeBar:SetValue(1)
-			page.forgeBar:SetLabel(string.format("용광로 Lv %d · 최고 레벨", f.level))
-		else
-			local need = ns.Forge.Need(f.level)
-			page.forgeBar:SetValue(f.xp / need)
-			page.forgeBar:SetLabel(string.format("용광로 Lv %d · %s / %s", f.level, U.fmt(f.xp), U.fmt(need)))
-		end
+	if f.level >= ns.FORGE_MAX then
+		page.forgeBar:SetValue(1)
+		page.forgeBar:SetLabel(string.format("용광로 Lv %d · 최고 레벨", f.level))
+	else
+		local need = ns.Forge.Need(f.level)
+		page.forgeBar:SetValue(f.xp / need)
+		page.forgeBar:SetLabel(string.format("용광로 Lv %d · %s / %s", f.level, U.fmt(f.xp), U.fmt(need)))
 	end
 	if tab == "bag" then
 		page.bodies.bag:Show()
@@ -344,6 +359,7 @@ local function tick(page) end
 -- opts.sub: a tab ("bag", "fuse", "mats" …; old forge names work too);
 -- opts.slot / opts.view: what the bag shows; opts.tab: a materials tab
 local OLD_SUB = { smelt = "bag", remove = "gem", seal = "mats" }
+local OLD_MATS = { seal = "mat_seal" }
 local function open(page, opts)
 	if not opts then return end
 	local sub = OLD_SUB[opts.sub] or opts.sub
@@ -354,6 +370,7 @@ local function open(page, opts)
 		ns.BagView.Open(page, opts)
 	end
 	ns.MatsView.Open(page, opts)
+	if OLD_MATS[opts.sub] then ns.MatsView.Open(page, { tab = OLD_MATS[opts.sub] }) end
 	if opts.hero then Main.SelectHero(opts.hero) end
 end
 

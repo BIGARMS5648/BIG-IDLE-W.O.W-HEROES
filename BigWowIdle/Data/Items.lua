@@ -331,7 +331,7 @@ ns.FORGE_OPS = {
 		desc = "부여된 능력치를 제거해 홈을 비웁니다. 재료는 돌려받지 못합니다." },
 	{ key = "ench",   name = "마법부여",     level = 15, cost = 1000, short = "마법 홈 채우기",
 		desc = "영웅 등급 이상 장비에 마법을 부여합니다." },
-	{ key = "seal",   name = "보너스 굴림", level = 20, cost = 3000, short = "인장으로 장비 얻기",
+	{ key = "seal",   name = "인장 굴리기", level = 20, cost = 3000, short = "인장으로 장비 얻기",
 		desc = "행운의 인장과 골드를 바쳐 무작위 장비를 얻습니다." },
 	{ key = "insc",   name = "룬 각인",  level = 25, cost = 10000, short = "룬 홈 채우기",
 		desc = "전설 등급 이상 장비에 룬을 새깁니다." },
