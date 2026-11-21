@@ -66,8 +66,10 @@ function Guide.UnlockUseful(op)
 	return true
 end
 
+-- Talent or skill points to spend (the hero screen's red dots); better gear
+-- shows on the equipment screen instead.
 function Guide.HeroNeeds(id)
-	return ns.Heroes.PointsFree(id) > 0 or ns.Heroes.SkillPointsFree(id) > 0 or Guide.UpgradeHeroes()[id] == true
+	return ns.Heroes.PointsFree(id) > 0 or ns.Heroes.SkillPointsFree(id) > 0
 end
 
 local function cheapestRune()
@@ -134,7 +136,7 @@ local function candidates()
 	if ns.Items.BagFree() <= 3 then
 		if not ns.Forge.Unlocked("smelt") then
 			add({ text = "가방이 가득 찼어요: 분해 해금 (10 G)", tab = "equip", sub = "bag", wait = not ns.CanAfford(10) })
-		elseif #ns.Forge.PickByQuality(db.opt.smeltQ or 1) > 0 then
+		elseif #ns.Forge.PickByQuality(ns.U.clamp(db.ui.smeltQ or 2, 1, ns.MAX_QUALITY)) > 0 then -- the bag's 분해 등급
 			add({ text = "가방이 가득 찼어요: 일괄 분해", tab = "equip", sub = "bag", bulk = true })
 		else
 			add({ text = "가방이 가득 찼어요: 분해 기준 등급 올리기", tab = "equip", sub = "bag", bulk = true })
@@ -182,7 +184,10 @@ local function candidates()
 	end
 	for _, op in ipairs(ns.FORGE_OPS) do
 		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and Guide.UnlockUseful(op.key) then
-			add({ text = string.format("용광로 '%s' 해금 (%s G)", ns.N(op.name), ns.U.fmt(op.cost)), tab = "forge", sub = op.key,
+			-- the equipment tab where its button is
+			local where = ({ smelt = "가방", remove = "보석", seal = "재료", fuse = "융합", craft = "제작",
+				gem = "보석", ench = "마법부여", insc = "각인" })[op.key] or ""
+			add({ text = string.format("'%s' 해금 (장비 > %s, %s G)", ns.N(op.name), where, ns.U.fmt(op.cost)), tab = "equip", sub = op.key,
 				wait = not ns.CanAfford(op.cost) })
 			break
 		end
@@ -195,7 +200,7 @@ local function candidates()
 	if stg.raid then
 		add({ text = "공격대 우두머리 처치: " .. ns.N(stg.boss.name), tab = "map", done = true })
 	else
-		add({ text = "다음 지역으로: " .. ns.N(stg.name), tab = "map", done = true })
+		add({ text = "지금 지역 공략 중: " .. ns.N(stg.name), tab = "map", done = true })
 	end
 	return out
 end

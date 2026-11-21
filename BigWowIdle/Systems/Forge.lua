@@ -358,6 +358,8 @@ end
 function Forge.CanSocket(it, kind, matId)
 	local ok, why = needOp(kind)
 	if not ok then return false, why end
+	if not it then return false, "장비를 먼저 고르세요." end
+	if not matId then return false, "쓸 재료를 먼저 고르세요." end
 	if ns.Items.SocketCount(it, kind) <= 0 then
 		return false, "이 장비에는 해당 홈이 없습니다."
 	end

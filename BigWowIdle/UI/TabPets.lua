@@ -103,7 +103,7 @@ local function build(page)
 	page.note:SetJustifyV("TOP")
 	UI.Color(page.note, UI.C.dim)
 	page.take = UI.Button(rp, RIGHT_W - 24, 38, "", function()
-		local p = ns.PETS_BY_ID and ns.PETS_BY_ID[page.sel]
+		local p
 		for _, pet in ipairs(ns.PETS) do if pet.id == page.sel then p = pet end end
 		if not (p and ns.db.pets[p.id]) then UI.Try(false, "아직 얻지 못한 동료입니다.") return end
 		ns.db.pet = p.id

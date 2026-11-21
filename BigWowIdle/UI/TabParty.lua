@@ -50,16 +50,32 @@ local function fieldAction(id)
 	return nil
 end
 
+-- Why a waiting hero cannot go in at all (nil when it can).
+local function fieldBlocked(id)
+	if H.PartySlot(id) or fieldAction(id) then return nil end
+	return string.format("파티 자리가 가득 찼습니다 (%d / %d). 룬 화면의 '지휘의 룬'을 배우면 자리가 늘어납니다.",
+		H.PartyCount(), ns.PartyLimit())
+end
+
+local function swapIn(id, slot)
+	local old = ns.db.party[slot]
+	if H.Swap(id, slot) and old then
+		ns.Toast(string.format("%s 출전, %s 대기", H.ShortName(id), H.ShortName(old)))
+	end
+end
+
 local function field(id, slot)
 	if slot then
-		if ns.db.party[slot] then return H.Swap(id, slot) end
+		if ns.db.party[slot] then return swapIn(id, slot) end
 		return UI.Try(H.Deploy(id, slot))
 	end
 	local act, s = fieldAction(id)
 	if act == "deploy" then
 		UI.Try(H.Deploy(id, s))
 	elseif act == "swap" then
-		H.Swap(id, s)
+		swapIn(id, s)
+	else
+		UI.Try(false, fieldBlocked(id))
 	end
 end
 
@@ -94,7 +110,14 @@ local function autoForm()
 		end
 		if not done then break end
 	end
-	ns.Toast(n > 0 and string.format("%d명을 빈 자리에 넣었습니다.", n) or "넣을 수 있는 대기 영웅이 없습니다.")
+	if n > 0 then
+		ns.Toast(string.format("%d명을 빈 자리에 넣었습니다.", n))
+	elseif H.PartyCount() >= ns.PartyLimit() and H.PartyCount() < H.Count() then
+		UI.Try(false, string.format("파티 자리가 가득 찼습니다 (%d / %d). 룬 화면의 '지휘의 룬'을 배우면 자리가 늘어납니다.",
+			H.PartyCount(), ns.PartyLimit()))
+	else
+		ns.Toast("빈 자리에 넣을 수 있는 대기 영웅이 없습니다.")
+	end
 end
 
 local function heroTip(id)
@@ -420,7 +443,9 @@ local function buildCreate()
 		if UI.Try(ok, res) then
 			Main.CloseModal()
 			Main.SelectHero(res)
-			ns.Toast(string.format("%s 합류! (%s)", H.Name(res), ns.SpecLabel(create.spec)))
+			local slot = H.PartySlot(res)
+			ns.Toast(slot and string.format("%s 합류! %d번 자리에 출전합니다.", H.Name(res), slot)
+				or string.format("%s 합류! 파티 자리가 없어 대기합니다 (편성 화면).", H.Name(res)))
 			Main.Refresh()
 		end
 	end, "primary")
@@ -538,6 +563,7 @@ ns.CreateHeroDialog = create.open
 -- shared with the other screens
 ns.HeroTip = heroTip
 ns.HeroField = function(id) field(id) end
+ns.HeroFieldBlocked = fieldBlocked
 ns.OpenCreate = function(role) create.open(nil, role or ns.Guide.MissingRole()) end
 ns.AutoForm = autoForm
 

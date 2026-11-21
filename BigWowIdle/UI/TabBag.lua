@@ -232,7 +232,7 @@ function BagView.Build(page, f)
 		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
 		local q = ns.QUALITY[smeltQ()]
 		UI.Confirm({ title = "일괄 분해", ok = "분해", style = "red",
-			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다. 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비%s는 남깁니다.",
+			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다. 보호한 장비, 보석·마법부여·각인이 붙은 장비, 파티에게 더 좋은 장비%s는 남깁니다.",
 				U.col(q.hex, ns.N(q.name)), #picked, U.fmt(total), kept > 0 and string.format("(%d개)", kept) or ""),
 			onOk = function()
 				local ok, gold, n = ns.Forge.Smelt(picked)
@@ -245,7 +245,7 @@ function BagView.Build(page, f)
 		local picked, kept = ns.Forge.PickByQuality(smeltQ())
 		local total = 0
 		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
-		local body = string.format("분해 등급 이하의 장비 %d개를 골드로 바꿉니다 (+%s 골드). 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 남깁니다.", #picked, U.fmt(total))
+		local body = string.format("분해 등급 이하의 장비 %d개를 골드로 바꿉니다 (+%s 골드). 보호한 장비, 보석·마법부여·각인이 붙은 장비, 파티에게 더 좋은 장비는 남깁니다.", #picked, U.fmt(total))
 		if kept > 0 then body = body .. string.format("\n(파티에게 더 좋은 장비 %d개는 남김)", kept) end
 		return UI.SimpleTip("일괄 분해", body)
 	end, "TOP")
@@ -260,7 +260,7 @@ function BagView.Build(page, f)
 	page.autoSmelt:SetPoint("LEFT", page.smeltGo, "RIGHT", 16, 0)
 	UI.Tip(page.autoSmelt, function()
 		local q = ns.QUALITY[smeltQ()]
-		return UI.SimpleTip("자동 분해", string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다. 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 남깁니다.", U.col(q.hex, ns.N(q.name))))
+		return UI.SimpleTip("자동 분해", string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다. 보호한 장비, 보석·마법부여·각인이 붙은 장비, 파티에게 더 좋은 장비는 남깁니다.", U.col(q.hex, ns.N(q.name))))
 	end, "TOP")
 end
 

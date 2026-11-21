@@ -159,6 +159,8 @@ local function buildLeft(page)
 	page.unequip = UI.Button(lp, floor((CW - 6) / 2), 28, "전체 해제", function()
 		local id = heroOf()
 		if not id then return end
+		if not next(ns.db.heroes[id].gear) then UI.Try(false, "착용한 장비가 없습니다.") return end
+		if ns.Items.BagFree() <= 0 then UI.Try(false, "가방이 가득 찼습니다. 벗긴 장비를 넣을 자리가 없습니다.") return end
 		UI.Confirm({ title = "전체 해제", ok = "해제", style = "red",
 			text = string.format("%s의 장비를 모두 벗기시겠습니까?\n벗긴 장비는 가방으로 갑니다 (가방 빈칸 %d개).", H.Name(id), ns.Items.BagFree()),
 			onOk = function()
@@ -365,6 +367,9 @@ local function open(page, opts)
 	local sub = OLD_SUB[opts.sub] or opts.sub
 	if opts.tab and ns.MatsView.KINDS_OF[opts.tab] then sub = "mats" end
 	for _, t in ipairs(TABS) do if t[1] == sub then page.tab = sub end end
+	-- sent to the bag (a goal about chests or breaking down): show the bag
+	-- itself, not the bank left open last time
+	if sub == "bag" and page.view == "bank" and not opts.view then page.view = "all" end
 	if opts.slot or opts.view then
 		page.tab = "bag"
 		ns.BagView.Open(page, opts)

@@ -2,7 +2,7 @@
 --   left: every hero as a card (party first; the mouse wheel scrolls), and
 --         [영웅 만들기] at the bottom;
 --   right: the chosen hero: a header card (portrait, name, level and
---          experience, 전투력, 이름 변경 · 출전/휴식 · 떠나보내기) and three
+--          experience, 전투력, 이름 바꾸기 · 출전/휴식 · 떠나보내기) and three
 --          tabs: 능력치·전문화, 기술, 특성.
 -- Skills and talents act on click: 기술 click = 장착/해제, right-click =
 -- 배우기/강화; 특성 click = 1점, right-click = 최대까지.
@@ -231,8 +231,17 @@ local function buildHeader(page, rp)
 		end
 	end, "dark")
 	hc.field:SetPoint("RIGHT", hc.dismiss, "LEFT", -6, 0)
+	UI.Tip(hc.field, function()
+		local id = heroOf()
+		if not id then return nil end
+		if H.PartySlot(id) then
+			return UI.SimpleTip("휴식", "파티에서 빼서 대기시킵니다. 경험치는 출전 중인 영웅만 얻습니다.")
+		end
+		local why = ns.HeroFieldBlocked and ns.HeroFieldBlocked(id)
+		return UI.SimpleTip("출전", why or "같은 역할의 빈 자리에 들어갑니다. 빈 자리가 없으면 그 역할에서 가장 약한 영웅과 바꿉니다.")
+	end, "TOP")
 	hc.field.clickWhenOff = true
-	hc.rename = UI.Button(hc, 86, 28, "이름 변경", function()
+	hc.rename = UI.Button(hc, 86, 28, "이름 바꾸기", function()
 		local id = heroOf()
 		if id and ns.OpenRename then ns.OpenRename(id) end
 	end, "dark")
@@ -266,7 +275,8 @@ local function refreshHeader(page, id)
 	else
 		hc.field:SetLabel("출전")
 		hc.field:SetStyle("blue")
-		hc.field:SetOff(false)
+		-- the party limit can leave no place at all (the click says why)
+		hc.field:SetOff(ns.HeroFieldBlocked and ns.HeroFieldBlocked(id) ~= nil)
 	end
 	hc.dismiss:SetOff(H.Count() <= 1)
 end

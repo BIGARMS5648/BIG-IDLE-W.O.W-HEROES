@@ -18,10 +18,10 @@ local ALIAS = { bag = "equip", forge = "equip" }
 -- the materials shown in the title bar, by group (Data/Items.lua kinds)
 local CURRENCY = {
 	{ key = "craft", kinds = { bar = true, leather = true, cloth = true }, name = "제작 재료", icon = "INV_Ingot_05", tab = "mat_craft" },
-	{ key = "gem", kinds = { gem = true }, name = "보석", icon = "INV_Misc_Gem_Ruby_02", tab = "mat_gem" },
-	{ key = "dust", kinds = { dust = true }, name = "마법부여 가루", icon = "INV_Enchant_DustSoul", tab = "mat_ench" },
-	{ key = "scroll", kinds = { scroll = true }, name = "룬 주문서", icon = "INV_Scroll_03", tab = "mat_insc" },
-	{ key = "seal", kinds = { seal = true }, name = "행운의 인장", icon = "INV_Misc_Coin_03", tab = "mat_seal" },
+	{ key = "gem", kinds = { gem = true }, name = "보석 세공 재료", icon = "INV_Misc_Gem_Ruby_02", tab = "mat_gem" },
+	{ key = "dust", kinds = { dust = true }, name = "마법부여 재료", icon = "INV_Enchant_DustSoul", tab = "mat_ench" },
+	{ key = "scroll", kinds = { scroll = true }, name = "룬 각인 재료", icon = "INV_Scroll_03", tab = "mat_insc" },
+	{ key = "seal", kinds = { seal = true }, name = "행운의 인장 재료", icon = "INV_Misc_Coin_03", tab = "mat_seal" },
 }
 
 local frame
@@ -328,7 +328,7 @@ function Main.Create()
 	frame.gold = pill(100, "INV_Misc_Coin_01", "icon_gold")
 	frame.gold:SetPoint("RIGHT", right, "LEFT", -6, 0)
 	UI.Color(frame.gold.text, UI.C.gold)
-	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 만들기, 룬, 용광로에 씁니다.") end)
+	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 만들기, 룬, 장비 제작·강화와 기능 해금에 씁니다.") end)
 
 	-- bottom navigation
 	local navBg = UI.Art(frame, "grad_v", "BORDER", 0, 0, 0, 0.45)

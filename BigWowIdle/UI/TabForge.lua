@@ -159,6 +159,10 @@ local function buildFuse(page, f)
 	p.one.clickWhenOff = true
 	p.all = UI.Button(f, 170, 36, "가능한 만큼 융합", function()
 		local q = ns.QUALITY[p.q]
+		if not ns.Forge.PickForFusion(p.q, p.cat) then
+			UI.Try(false, string.format("쓸 수 있는 같은 등급 장비 %d개가 필요합니다.", ns.Forge.FUSE_COUNT))
+			return
+		end
 		UI.Confirm({ title = "가능한 만큼 융합", ok = "융합", style = "primary",
 			text = string.format("%s 장비로 가능한 만큼(최대 20번) 융합하시겠습니까?\n재료로 쓴 장비는 사라집니다.", ns.N(q.name)),
 			onOk = function() fuse(true) end })
@@ -166,7 +170,7 @@ local function buildFuse(page, f)
 	p.all:SetPoint("LEFT", p.one, "RIGHT", 8, 0)
 	p.all.clickWhenOff = true
 	p.result = addResult(f, 372, -306)
-	p.note = note(f, -366, "같은 등급 장비 9개 → 장비 1개. 가장 낮은 레벨부터 쓰고, 보호한 장비(가방에서 Alt+클릭), 보석이 박힌 장비, 파티에게 더 좋은 장비는 쓰지 않습니다. 결과의 레벨은 재료의 평균 부근, 부위는 같은 종류 안에서 무작위입니다.")
+	p.note = note(f, -366, "같은 등급 장비 9개 → 장비 1개. 가장 낮은 레벨부터 쓰고, 보호한 장비(가방에서 Alt+클릭), 보석·마법부여·각인이 붙은 장비, 파티에게 더 좋은 장비는 쓰지 않습니다. 결과의 레벨은 재료의 평균 부근, 부위는 같은 종류 안에서 무작위입니다.")
 	p.refresh = function()
 		p.row1:Select(p.q)
 		p.row2:Select(p.q)
@@ -196,7 +200,7 @@ local function buildFuse(page, f)
 				b:SetLocked(it.lock)
 				b:SetSelected(used[it] == true)
 				if it.lock then b.why = "보호한 장비는 쓰지 않습니다."
-				elseif ns.Items.HasSockets(it) then b.why = "보석이 박힌 장비는 쓰지 않습니다."
+				elseif ns.Items.HasSockets(it) then b.why = "보석·마법부여·각인이 붙은 장비는 쓰지 않습니다."
 				elseif ns.Items.PartyUpgrade(it) then b.why = "파티에게 더 좋은 장비라 쓰지 않습니다." end
 				b:SetDim(b.why ~= nil)
 			end
@@ -431,6 +435,13 @@ local function buildSocket(kind)
 			p.mats[i] = b
 		end
 		p.go = UI.Button(f, 180, 36, SOCKET_VERB[kind], function()
+			if not p.picked then
+				UI.Try(false, string.format("%s 홈이 있는 장비가 없습니다.", ns.N(ns.SOCKET[kind].short)))
+				return
+			elseif not p.mat then
+				UI.Try(false, "쓸 재료가 없습니다. 상자에서 얻을 수 있습니다.")
+				return
+			end
 			local ok, entry = ns.Forge.Socket(p.picked, kind, p.mat, p.pickedHero)
 			if UI.Try(ok, entry) then
 				p.last = U.col("60e070", "부여됨: ") .. U.col("60e070", ns.Items.SocketText(p.picked, kind, entry))

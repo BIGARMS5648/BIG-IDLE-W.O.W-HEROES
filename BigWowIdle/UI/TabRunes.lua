@@ -2,7 +2,10 @@
 -- (전쟁 · 수호 · 재물 · 성장 · 탐험 · 지휘), each rune with its level and the
 -- cost of the next one. Click a rune to see it in the card on the right and
 -- learn it there; the card also lists the total of every learned rune.
--- Inside a column every rune's requirement sits above it.
+-- A branch is its first rune and two lines that fork from it: the first
+-- line runs straight down under it, the second follows, joined to the
+-- first rune by a line along the column's left edge. So every rune's
+-- requirement is the rune it is drawn joined to, above it.
 local _, ns = ...
 
 local floor, max = math.floor, math.max
@@ -12,11 +15,12 @@ local R = ns.Runes
 local K = UI.K
 
 local COL_W = 112             -- one branch
+local COL_X = 10              -- room for the second line's joint on the left
 local NODE = 36               -- a rune
 local ROW_H = 45              -- between runes in a column
 local HEAD_Y = -50            -- the branch names
 local TOP = -78               -- the first rune of each branch
-local SIDE_X = 6 * COL_W + 8  -- the card on the right
+local SIDE_X = COL_X + 6 * COL_W + 6 -- the card on the right
 local SIDE_W = K.W - SIDE_X
 local TEXT_W = COL_W - NODE - 10
 
@@ -75,26 +79,48 @@ local function build(page)
 	page.sel = "root"
 	page.nodes = {}
 	-- the root, over the middle of the branches
-	page.root = runeNode(page, ns.RUNE_ROOT, 3 * COL_W - NODE / 2 - 4, -4)
+	page.root = runeNode(page, ns.RUNE_ROOT, COL_X + 3 * COL_W - NODE / 2 - 4, -4)
 	page.nodes[1] = page.root
 
+	local function bar(x, y, w, h, r, g, b)
+		local t = page:CreateTexture(nil, "BORDER")
+		t:SetSize(w, h)
+		t:SetPoint("TOPLEFT", page, "TOPLEFT", x, y)
+		UI.Fill(t, r * 0.5, g * 0.5, b * 0.5, 0.9)
+		return t
+	end
 	for ci, br in ipairs(ns.RUNE_BRANCHES) do
-		local x = (ci - 1) * COL_W
+		local x = COL_X + (ci - 1) * COL_W
 		local r, g, b = U.rgb(br.hex)
 		local head = UI.Pill(page, COL_W - 10, 22, r * 0.45, g * 0.45, b * 0.45, 0.95)
 		head:SetLabel(ns.N(br.name))
 		head:SetPoint("TOPLEFT", page, "TOPLEFT", x, HEAD_Y)
-		for ri, node in ipairs(br.nodes) do
+		-- the column: the first rune, its first line, then its second line
+		local hub = br.nodes[1]
+		local lines = ns.RUNE_TREE[br.key]
+		local order = { { node = hub } }
+		for li, line in ipairs(lines) do
+			for k, id in ipairs(line) do order[#order + 1] = { node = R.byId[id], line = li, first = (k == 1) } end
+		end
+		local hubY = TOP
+		for ri, e in ipairs(order) do
 			local y = TOP - (ri - 1) * ROW_H
-			local link
+			local links
 			if ri > 1 then
-				link = page:CreateTexture(nil, "BORDER")
-				link:SetSize(3, ROW_H - NODE + 2)
-				link:SetPoint("TOPLEFT", page, "TOPLEFT", x + NODE / 2 - 1, y + ROW_H - NODE + 1)
-				UI.Fill(link, r * 0.5, g * 0.5, b * 0.5, 0.9)
+				if e.line == 2 and e.first then
+					-- joined to the first rune along the left edge, past the first line
+					local gx = x - 7
+					links = {
+						bar(gx, hubY - NODE / 2 + 1, 7, 3, r, g, b),
+						bar(gx, hubY - NODE / 2 + 1, 3, (hubY - y) + 3, r, g, b),
+						bar(gx, y - NODE / 2 + 1, 7, 3, r, g, b),
+					}
+				else
+					links = { bar(x + NODE / 2 - 1, y + ROW_H - NODE + 1, 3, ROW_H - NODE + 2, r, g, b) }
+				end
 			end
-			local nb = runeNode(page, node, x, y)
-			nb.link = link
+			local nb = runeNode(page, e.node, x, y)
+			nb.links = links
 			page.nodes[#page.nodes + 1] = nb
 		end
 	end
@@ -172,7 +198,7 @@ local function refresh(page)
 		end
 		b.icon:SetDesaturated(not available)
 		b.icon:SetAlpha(available and 1 or 0.45)
-		if b.link then b.link:SetAlpha(lvl > 0 and 1 or 0.35) end
+		for _, l in ipairs(b.links or {}) do l:SetAlpha(lvl > 0 and 1 or 0.35) end
 		local line = U.col(lvl >= node.max and "6af07a" or (lvl > 0 and "ffffff" or "8a90a2"), lvl .. "/" .. node.max)
 		if cost then
 			line = line .. "\n" .. U.col(affordable and "ffd24a" or "7a6a40", U.fmt(cost))

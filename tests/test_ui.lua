@@ -584,6 +584,11 @@ do
 		if not epic[step[3]] or #epic[step[3]] ~= 1 then fail(step[1] .. " did not add a stat") end
 		hoverAll()
 	end
+	-- nothing picked (no item with that socket yet): the button explains, no error
+	press("inscribe tab", ep.tabs:Get("insc"))
+	local ip = ep.forge.insc
+	ip.picked, ip.mat = nil, nil
+	try("inscribe with nothing picked", ip.go.Click, ip.go, "LeftButton")
 	-- extraction sits on the socket's line (and unlocks there)
 	press("gem tab", ep.tabs:Get("gem"))
 	local gp = ep.forge.gem
@@ -773,6 +778,11 @@ try("compartment", BigWowIdle_OnAddonCompartmentClick)
 
 -- a long stretch with a full party fighting, then lag spikes
 enrich(1)
+-- the random clicks may have reset everything: learn the party-slot runes again
+ns.AddGold(5e9)
+for _ = 1, 3 do
+	for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7" }) do ns.Runes.Buy(id) end
+end
 for _, sid in ipairs({ "WARRIOR_PROT", "PRIEST_HOLY", "MAGE_FIRE", "ROGUE_ASSA", "HUNTER_MM" }) do
 	if H.PartyCount() < ns.PartyLimit() and H.Count() < ns.ROSTER_MAX then H.Create(sid) end
 end

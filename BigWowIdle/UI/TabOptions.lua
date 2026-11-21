@@ -84,7 +84,7 @@ local function build(page)
 	UI.Tip(sc.resetPos, function() return UI.SimpleTip("원래대로", "전투 창의 위치와 크기를 처음 상태로 되돌립니다.") end, "TOP")
 	sc.checks = {
 		UI.Check(sc, "전투 창 보이기", function() return ns.db.ui.shown ~= false end, function(v) ns.Bar.Toggle(v) end),
-		UI.Check(sc, "아래 메뉴 줄 숨기기 (작게 보기)",
+		UI.Check(sc, "전투 창 아래 줄 숨기기: 다음 목표·자동 진행·상자·메뉴 (작게 보기)",
 			function() return ns.db.ui.compact end, function(v) ns.db.ui.compact = v and true or nil ns.Bar.ApplyCompact() end),
 		UI.Check(sc, "위치·크기 잠금", function() return ns.db.ui.locked end, function(v) ns.db.ui.locked = v end),
 	}
@@ -174,7 +174,7 @@ local function refresh(page)
 		gm.autoSmelt:Refresh()
 		gm.sound:Refresh()
 		local q = U.clamp(db.ui.smeltQ or 2, 1, ns.MAX_QUALITY)
-		gm.smeltNote:SetText("기준: " .. U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하 · 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 남깁니다. 기준 등급은 장비 > 가방 아래 '분해 등급'에서 바꿉니다.")
+		gm.smeltNote:SetText("기준: " .. U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하 · 보호한 장비, 보석·마법부여·각인이 붙은 장비, 파티에게 더 좋은 장비는 남깁니다. 기준 등급은 장비 > 가방 아래 '분해 등급'에서 바꿉니다.")
 		local fid = ns.Faction() or "ALLIANCE"
 		local f = ns.FACTIONS[fid]
 		gm.factionIcon:SetIconName(f.icon)
