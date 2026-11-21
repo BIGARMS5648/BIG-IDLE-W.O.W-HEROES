@@ -553,10 +553,14 @@ do
 	press("fuse all", fp.all)
 	confirmYes("fuse all")
 	if #ns.db.bag ~= 3 then fail("가능한 만큼 융합 should leave 3 items, got " .. #ns.db.bag) end
-	press("grade 3", fp.row1:Get(3))
-	if fp.q ~= 3 then fail("the grade chips should pick the grade") end
-	press("grade 6", fp.row2:Get(6))
-	if fp.q ~= 6 then fail("the second row of grade chips should pick the grade") end
+	-- the grade is picked from one list (like the bag's 분해 등급)
+	press("grade list", fp.pick)
+	click("grade 3", function(b) return b.value == 3 and b.label end)
+	if fp.q ~= 3 then fail("picking from the grade list should set the grade") end
+	press("grade list", fp.pick)
+	click("grade 6", function(b) return b.value == 6 and b.label end)
+	if fp.q ~= 6 then fail("picking grade 6 from the list should set it") end
+	if not (label(fp.pick) or ""):find("→", 1, true) then fail("the grade button should show the chosen grade") end
 	press("accessories", fp.kinds:Get("accessory"))
 	if fp.cat ~= "accessory" then fail("the kind chips should pick the kind") end
 	-- craft

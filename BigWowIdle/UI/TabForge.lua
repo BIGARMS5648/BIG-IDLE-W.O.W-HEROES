@@ -95,7 +95,7 @@ end
 ------------------------------------------------------------------------
 -- 융합
 ------------------------------------------------------------------------
-local FUSE_COLS, FUSE_ROWS = 10, 3
+local FUSE_COLS, FUSE_ROWS = 10, 4
 
 local function buildFuse(page, f)
 	local p = { q = 2, cat = "gear" }
@@ -106,20 +106,40 @@ local function buildFuse(page, f)
 		end
 		return out
 	end
-	local function pickQ(q) p.q = q Main.Refresh() end
-	p.row1 = UI.Tabs(f, W, grades(1, 4), pickQ, false, 28)
-	p.row1:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
-	p.row2 = UI.Tabs(f, 300, grades(5, ns.MAX_QUALITY - 1), pickQ, false, 28)
-	p.row2:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -34)
+	-- how many items of a grade (in the chosen kind) a fusion could use
+	local function usableCount(q)
+		local n = 0
+		for _, it in ipairs(ns.db.bag) do
+			if it.q == q and ns.Items.FuseCat(it) == p.cat and not it.lock and not ns.Items.HasSockets(it)
+				and not ns.Items.PartyUpgrade(it) then n = n + 1 end
+		end
+		return n
+	end
+	-- the grade: picked from a list, like the bag's 분해 등급
+	p.gradeLabel = UI.Text(f, 12, "융합 등급")
+	p.gradeLabel:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -8)
+	p.pick = UI.Dropdown(f, 220, 28, function()
+		local out = {}
+		for _, g in ipairs(grades(1, ns.MAX_QUALITY - 1)) do
+			local q, n = g[1], usableCount(g[1])
+			local a, b = ns.QUALITY[q], ns.QUALITY[q + 1]
+			out[#out + 1] = { q, U.col(a.hex, ns.N(a.name)) .. " → " .. U.col(b.hex, ns.N(b.name))
+				.. U.col(n >= ns.Forge.FUSE_COUNT and "60e070" or "8a90a2", string.format("  (%d개)", n)) }
+		end
+		return out
+	end, function() return p.q end, function(q) p.q = q end, "")
+	p.pick:SetPoint("TOPLEFT", f, "TOPLEFT", 66, 0)
+	p.pick.tipTitle = "융합 등급"
+	p.pick.tipText = "융합할 장비의 등급을 고릅니다. 괄호 안은 지금 쓸 수 있는 장비 수(9개면 융합할 수 있음)."
 	p.kinds = UI.Tabs(f, 218, { { "gear", "무기·방어구" }, { "accessory", "액세서리" } }, function(k) p.cat = k Main.Refresh() end, false, 28)
-	p.kinds:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -34)
+	p.kinds:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
 	p.head = UI.Section(f, W)
-	p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -72)
+	p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -40)
 	p.cells = {}
 	for i = 1, FUSE_COLS * FUSE_ROWS do
 		local b = UI.IconButton(f, CELL)
 		local col, row = (i - 1) % FUSE_COLS, floor((i - 1) / FUSE_COLS)
-		b:SetPoint("TOPLEFT", f, "TOPLEFT", col * STEP, -100 - row * STEP)
+		b:SetPoint("TOPLEFT", f, "TOPLEFT", col * STEP, -68 - row * STEP)
 		UI.Tip(b, function(self)
 			if not self.data then return nil end
 			local lines = ns.Items.Tooltip(self.data, Main.SelectedHero())
@@ -129,10 +149,10 @@ local function buildFuse(page, f)
 		p.cells[i] = b
 	end
 	p.info = UI.Text(f, 13)
-	p.info:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -262)
+	p.info:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -282)
 	p.info:SetWidth(W)
 	p.odds = UI.Text(f, 11)
-	p.odds:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -284)
+	p.odds:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -304)
 	p.odds:SetWidth(W)
 	p.odds:SetWordWrap(false)
 	local function fuse(all)
@@ -155,7 +175,7 @@ local function buildFuse(page, f)
 		Main.Refresh()
 	end
 	p.one = UI.Button(f, 170, 36, "1회 융합", function() fuse(false) end, "primary")
-	p.one:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -312)
+	p.one:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -332)
 	p.one.clickWhenOff = true
 	p.all = UI.Button(f, 170, 36, "가능한 만큼 융합", function()
 		local q = ns.QUALITY[p.q]
@@ -169,11 +189,10 @@ local function buildFuse(page, f)
 	end, "dark")
 	p.all:SetPoint("LEFT", p.one, "RIGHT", 8, 0)
 	p.all.clickWhenOff = true
-	p.result = addResult(f, 372, -306)
-	p.note = note(f, -366, "같은 등급 장비 9개 → 장비 1개. 가장 낮은 레벨부터 쓰고, 보호한 장비(가방에서 Alt+클릭), 보석·마법부여·각인이 붙은 장비, 파티에게 더 좋은 장비는 쓰지 않습니다. 결과의 레벨은 재료의 평균 부근, 부위는 같은 종류 안에서 무작위입니다.")
+	p.result = addResult(f, 372, -326)
+	p.note = note(f, -384, "같은 등급 장비 9개 → 장비 1개. 가장 낮은 레벨부터 쓰고, 보호한 장비(가방에서 Alt+클릭), 보석·마법부여·각인이 붙은 장비, 파티에게 더 좋은 장비는 쓰지 않습니다. 결과의 레벨은 재료의 평균 부근, 부위는 같은 종류 안에서 무작위입니다.")
 	p.refresh = function()
-		p.row1:Select(p.q)
-		p.row2:Select(p.q)
+		p.pick:Refresh()
 		p.kinds:Select(p.cat)
 		local q = ns.QUALITY[p.q]
 		local pick = ns.Forge.PickForFusion(p.q, p.cat)

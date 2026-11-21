@@ -241,6 +241,7 @@ S.fuse_ready = function()
 	p.forge.fuse.q = 2
 	ns.Main.Refresh()
 end
+S.fuse_list = function() local p = equip("fuse") p.forge.fuse.q = 2 ns.Main.Refresh() p.forge.fuse.pick:Click() end
 S.fuse_high = function() local p = equip("fuse") p.forge.fuse.q = 6 p.forge.fuse.cat = "accessory" ns.Main.Refresh() end
 S.craft = function() local p = equip("craft") p.forge.craft.tier = 1 ns.Main.Refresh() end
 S.craft_locked = function() local p = equip("craft") p.forge.craft.tier = 3 p.forge.craft.group = #ns.CRAFT_GROUPS ns.Main.Refresh() end
