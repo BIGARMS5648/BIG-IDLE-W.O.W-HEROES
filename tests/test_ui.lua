@@ -629,6 +629,21 @@ do
 		if not ns.Runes.Available(rp.sel) then fail("'먼저 배울 룬' should select a rune that can be learned") end
 	end
 	if not (rp.side.total.__text or ""):find("%S") then fail("the rune card should list the total of the learned runes") end
+	-- sent from another screen: the rune gets a red ring until another one is picked
+	Main.ShowTab("runes", { rune = "c4" })
+	if rp.sel ~= "c4" or rp.focus ~= "c4" or not rp.focusFx:IsShown() then fail("a rune another screen points to should be marked") end
+	click("another rune", function(b) return b.node and b.node.id == "w1" end)
+	if rp.focus or rp.focusFx:IsShown() then fail("picking another rune should drop the mark") end
+	Main.ShowTab("hero")
+	Main.ShowTab("runes")
+	if rp.focusFx:IsShown() then fail("opening the runes from the menu should not mark anything") end
+	-- the locked skill slot on the hero screen leads to its rune, marked
+	Main.ShowTab("runes", { rune = "c9" })
+	if not rp.focusFx:IsShown() then fail("the skill-slot rune should be marked") end
+	if rp.side.goPrev:IsVisible() then
+		press("first rune to learn (marked)", rp.side.goPrev)
+		if rp.focus ~= rp.sel then fail("the mark should follow '먼저 배울 룬 보기'") end
+	end
 	hoverAll()
 end
 

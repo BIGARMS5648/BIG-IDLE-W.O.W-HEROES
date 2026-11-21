@@ -6,6 +6,9 @@
 -- line runs straight down under it, the second follows, joined to the
 -- first rune by a line along the column's left edge. So every rune's
 -- requirement is the rune it is drawn joined to, above it.
+-- Another screen can send the player to a rune ("…을(를) 배우면 열립니다 ·
+-- 클릭: 룬 화면에서 보기"): that rune gets a pulsing red ring until another
+-- rune is picked.
 local _, ns = ...
 
 local floor, max = math.floor, math.max
@@ -50,10 +53,11 @@ local function runeNode(page, node, x, y)
 	b:SetScript("OnClick", function(self)
 		ns.Sound("click")
 		page.sel = self.node.id
+		if page.focus ~= self.node.id then page.focus = nil end
 		Main.Refresh()
 	end)
 	b.onEnter = function(self) self.hl:Show() end
-	b.onLeave = function(self) if page.sel ~= self.node.id then self.hl:Hide() end end
+	b.onLeave = function(self) if page.sel ~= self.node.id or page.focus == self.node.id then self.hl:Hide() end end
 	b:SetScript("OnEnter", function(self) self.onEnter(self) end)
 	b:SetScript("OnLeave", function(self) self.onLeave(self) end)
 	UI.Tip(b, function(self)
@@ -125,6 +129,25 @@ local function build(page)
 		end
 	end
 
+	-- the rune another screen sent us to: a pulsing red ring
+	local fx = CreateFrame("Frame", nil, page)
+	fx:SetSize(NODE + 8, NODE + 8)
+	fx:SetFrameLevel(page:GetFrameLevel() + 5)
+	fx.isOverlay = true -- drawn over its rune on purpose
+	-- rings only: the rune's icon stays visible inside
+	fx.ring = UI.Art(fx, "ring", "OVERLAY", 1, 0.18, 0.14)
+	fx.ring:SetAllPoints(fx)
+	fx.ring2 = UI.Art(fx, "ring", "OVERLAY", 1, 0.35, 0.3)
+	fx.ring2:SetPoint("TOPLEFT", fx, "TOPLEFT", 1, -1)
+	fx.ring2:SetPoint("BOTTOMRIGHT", fx, "BOTTOMRIGHT", -1, 1)
+	fx:SetScript("OnUpdate", function(self)
+		local a = 0.55 + 0.45 * math.abs(math.sin((GetTime and GetTime() or 0) * 3))
+		self.ring:SetAlpha(a)
+		self.ring2:SetAlpha(a)
+	end)
+	fx:Hide()
+	page.focusFx = fx
+
 	-- the card on the right
 	local side = UI.Panel(page, SIDE_W, K.H, "card")
 	side:SetPoint("TOPLEFT", page, "TOPLEFT", SIDE_X, 0)
@@ -152,7 +175,10 @@ local function build(page)
 	side.req:SetJustifyV("TOP")
 	side.goPrev = UI.Button(side, IW, 26, "먼저 배울 룬 보기", function()
 		local step = R.NextStepTo(page.sel)
-		if step then page.sel = step end
+		if step then
+			page.sel = step
+			if page.focus then page.focus = step end -- the marker follows the way there
+		end
 		Main.Refresh()
 	end, "blue")
 	side.goPrev:SetPoint("TOP", side, "TOP", 0, -186)
@@ -184,6 +210,7 @@ local function nodeState(id)
 end
 
 local function refresh(page)
+	local focusB
 	for _, b in ipairs(page.nodes) do
 		local node, lvl, cost, available = nodeState(b.node.id)
 		local affordable = cost and available and ns.CanAfford(cost)
@@ -205,7 +232,19 @@ local function refresh(page)
 		end
 		b.text:SetText(line)
 		b.badge:Set(affordable and lvl == 0)
-		if page.sel == b.node.id then b.hl:Show() elseif not b:IsMouseOver() then b.hl:Hide() end
+		if page.focus == b.node.id then
+			b.hl:Hide()
+			b.ringT:SetVertexColor(1, 0.25, 0.2) -- its own border turns red too
+			focusB = b
+		elseif page.sel == b.node.id then b.hl:Show() elseif not b:IsMouseOver() then b.hl:Hide() end
+	end
+	local fx = page.focusFx
+	if focusB then
+		fx:ClearAllPoints()
+		fx:SetPoint("CENTER", focusB, "CENTER", 0, 0)
+		fx:Show()
+	else
+		fx:Hide()
 	end
 
 	local side = page.side
@@ -249,7 +288,12 @@ local function refresh(page)
 end
 
 local function open(page, opts)
-	if opts and opts.rune and R.byId[opts.rune] then page.sel = opts.rune end
+	if opts and opts.rune and R.byId[opts.rune] then
+		page.sel = opts.rune
+		page.focus = opts.rune
+	else
+		page.focus = nil -- opened from the menu: nothing to point at
+	end
 end
 
 Main.RegisterTab({
