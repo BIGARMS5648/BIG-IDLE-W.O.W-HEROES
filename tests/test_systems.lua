@@ -12,7 +12,7 @@ end
 local function section(name) print("  - " .. name) end
 
 math.randomseed(12345)
-BigWowHeroesDB = nil
+BigWowIdleDB = nil
 ns.InitDB()
 local db = ns.db
 
@@ -654,14 +654,23 @@ check(db.pets.cat and ns.Bonus("exp") == e0 + 15, "5000 beast kills unlock the c
 
 ------------------------------------------------------------------------
 section("save repair and migration")
--- a save from before the rename (the old file copied to BigWowHeroes.lua)
-BigWowHeroesDB = nil
+-- saves from before the renames (the old file copied to BigWowIdle.lua)
+BigWowIdleDB, BigWowHeroesDB = nil, nil
 BigIdleWoWHeroesDB = { v = 2, gold = 4321, heroes = {}, party = { false, false, false, false, false } }
 ns.InitDB()
-check(ns.db.gold == 4321, "a save under the old name BigIdleWoWHeroesDB loads")
-check(BigWowHeroesDB == ns.db and BigIdleWoWHeroesDB == nil, "it moves to BigWowHeroesDB")
+check(ns.db.gold == 4321, "a save under the first name BigIdleWoWHeroesDB loads")
+check(BigWowIdleDB == ns.db and BigIdleWoWHeroesDB == nil, "it moves to BigWowIdleDB")
+BigWowIdleDB = nil
+BigWowHeroesDB = { v = 2, gold = 8765, heroes = {}, party = { false, false, false, false, false } }
+ns.InitDB()
+check(ns.db.gold == 8765, "a save under the name BigWowHeroesDB loads")
+check(BigWowIdleDB == ns.db and BigWowHeroesDB == nil, "it moves to BigWowIdleDB")
+BigWowIdleDB = { v = 2, gold = 11, heroes = {}, party = { false, false, false, false, false } }
+BigWowHeroesDB = { v = 2, gold = 22, heroes = {}, party = { false, false, false, false, false } }
+ns.InitDB()
+check(ns.db.gold == 11 and BigWowHeroesDB == nil, "a save under the new name wins over a leftover old one")
 -- a version 1 save: one hero per class, keyed by class
-BigWowHeroesDB = {
+BigWowIdleDB = {
 	v = 1, gold = 77,
 	heroes = {
 		MAGE = { level = 12, xp = 5, tree = { [11] = 3 }, skills = { "fireball" }, gear = { mh = { s = "mh", t = "staff", l = 5, q = 3 } } },
@@ -682,7 +691,7 @@ do
 	check(type(db.heroes[m].name) == "string", "migrated heroes get a name")
 	check(db.prog[1] == 12, "progress survives")
 end
-BigWowHeroesDB = { v = 2, gold = 5, heroes = { h9 = { spec = "NOPE" }, h3 = { spec = "MAGE_FROST", level = 3 } }, party = { "h3", "h9" } }
+BigWowIdleDB = { v = 2, gold = 5, heroes = { h9 = { spec = "NOPE" }, h3 = { spec = "MAGE_FROST", level = 3 } }, party = { "h3", "h9" } }
 ns.InitDB()
 check(ns.db.gold == 5 and ns.db.heroes.h9 == nil and ns.db.party[2] == false, "unknown specializations are dropped")
 check(ns.db.heroSeq >= 3 and type(ns.db.heroes.h3.name) == "string" and ns.db.heroes.h3.gear, "missing hero fields are repaired")
@@ -690,13 +699,13 @@ ns.Heroes.ValidateParty()
 check(ns.db.party[1] == false and ns.Heroes.PartySlot("h3") == 2, "a hero in the wrong role slot is moved")
 check(ns.db.forge.level == 1 and ns.db.opt.auto == true, "missing fields get defaults")
 -- version 2.0 stored names as { korean, english }, without family names
-BigWowHeroesDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 5, name = { "아르단", "Ardan" } } }, party = { false, "h1" } }
+BigWowIdleDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 5, name = { "아르단", "Ardan" } } }, party = { false, "h1" } }
 ns.InitDB()
 check(ns.db.heroes.h1.name:find("^아르단 %S+$"), "2.0 names keep the Korean given name and get a family name: " .. ns.db.heroes.h1.name)
 check(ns.db.heroes.h1.sex == "M" or ns.db.heroes.h1.sex == "F", "old heroes get a gender")
 check(ns.db.faction == nil, "old saves still choose a faction")
 -- version 2.0 kept skills in the talent tree
-BigWowHeroesDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 22, name = "가 나",
+BigWowIdleDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 22, name = "가 나",
 	tree = { [11] = 8, [12] = 2, [13] = 3, [14] = 1, [23] = 2, [33] = 1 }, skills = { "fireball", "pyroblast" } } }, party = { false, "h1" } }
 ns.InitDB()
 do

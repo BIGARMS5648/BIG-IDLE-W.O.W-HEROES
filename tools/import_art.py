@@ -17,7 +17,7 @@ This script
   * cuts battle backgrounds into seamless 1024x256 strips and fits interface
     frames and icons to their target sizes,
   * writes 32-bit uncompressed TGA files (bottom-left origin) to
-    BigWowHeroes/Media/Art/, the manifest BigWowHeroes/Data/Art.lua,
+    BigWowIdle/Media/Art/, the manifest BigWowIdle/Data/Art.lua,
     and one contact sheet per asset to tests/out/art/ to check by eye.
 
 Usage
@@ -28,7 +28,7 @@ Usage
                                                  manifest and textures stay as they were
 Options
     --src DIR       the artist's images            (default: art_src/)
-    --out DIR       the add-on folder to write to  (default: BigWowHeroes/)
+    --out DIR       the add-on folder to write to  (default: BigWowIdle/)
     --preview DIR   contact sheets                 (default: tests/out/art/)
     --no-preview    do not write contact sheets
     --debug         stop with a traceback when an asset fails
@@ -53,7 +53,7 @@ from PIL import Image, ImageDraw, ImageFont
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(TOOLS)
 DEFAULT_SRC = os.path.join(ROOT, "art_src")
-DEFAULT_OUT = os.path.join(ROOT, "BigWowHeroes")
+DEFAULT_OUT = os.path.join(ROOT, "BigWowIdle")
 DEFAULT_PREVIEW = os.path.join(ROOT, "tests", "out", "art")
 
 sys.path.insert(0, TOOLS)

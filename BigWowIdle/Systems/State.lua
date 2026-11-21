@@ -146,13 +146,20 @@ local function migrateV1(db)
 end
 
 function ns.InitDB()
-	if type(BigWowHeroesDB) ~= "table" then
-		-- a save from before the add-on was renamed (BigIdleWoWHeroes): its
-		-- file copied to SavedVariables/BigWowHeroes.lua still loads
-		BigWowHeroesDB = type(BigIdleWoWHeroesDB) == "table" and BigIdleWoWHeroesDB or {}
+	if type(BigWowIdleDB) ~= "table" then
+		-- a save from before the add-on was renamed (BigWowHeroes, before that
+		-- BigIdleWoWHeroes): its file copied to SavedVariables/BigWowIdle.lua
+		-- still loads under the old variable name
+		if type(BigWowHeroesDB) == "table" then
+			BigWowIdleDB = BigWowHeroesDB
+		elseif type(BigIdleWoWHeroesDB) == "table" then
+			BigWowIdleDB = BigIdleWoWHeroesDB
+		else
+			BigWowIdleDB = {}
+		end
 	end
-	BigIdleWoWHeroesDB = nil
-	local db = BigWowHeroesDB
+	BigWowHeroesDB, BigIdleWoWHeroesDB = nil, nil
+	local db = BigWowIdleDB
 	local from = db.v or DB_VERSION
 	if from < 2 and type(db.heroes) == "table" then
 		migrateV1(db)
@@ -214,7 +221,7 @@ end
 
 function ns.ResetDB()
 	local ui = ns.db and ns.db.ui
-	BigWowHeroesDB = {}
+	BigWowIdleDB = {}
 	local db = ns.InitDB()
 	if ui then db.ui = ui end -- keeps window settings; the faction is chosen again
 	ns.Fire("RESET")

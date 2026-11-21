@@ -6,4 +6,4 @@
 - 배경은 투명이거나 단색 마젠타(#FF00FF)여야 합니다.
 - 넣은 뒤 `python3 tools/import_art.py --check`로 빠진 파일을, `python3 tools/import_art.py`로 게임용 텍스처를 만듭니다.
 
-이 폴더의 파일은 게임에 직접 들어가지 않습니다. 가져오기 도구가 만든 `BigWowHeroes/Media/Art/`만 애드온에 포함됩니다.
+이 폴더의 파일은 게임에 직접 들어가지 않습니다. 가져오기 도구가 만든 `BigWowIdle/Media/Art/`만 애드온에 포함됩니다.

@@ -44,7 +44,7 @@ local function stageFor(level)
 end
 
 local function fresh()
-	BigWowHeroesDB = nil
+	BigWowIdleDB = nil
 	ns.InitDB()
 	local db = ns.db
 	db.gold = 1e13

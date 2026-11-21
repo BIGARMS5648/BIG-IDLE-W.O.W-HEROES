@@ -57,13 +57,13 @@ local function label(b) return b.label and b.label.__text end
 local function labelIs(ko, en) return function(b) return label(b) == (ko) end end
 
 math.randomseed(777)
-BigWowHeroesDB = nil
+BigWowIdleDB = nil
 
 ------------------------------------------------------------------------
 -- start-up
 ------------------------------------------------------------------------
 try("ADDON_LOADED", Mock.FireEvent, "ADDON_LOADED", "SomeOtherAddon")
-try("ADDON_LOADED", Mock.FireEvent, "ADDON_LOADED", "BigWowHeroes")
+try("ADDON_LOADED", Mock.FireEvent, "ADDON_LOADED", "BigWowIdle")
 try("PLAYER_LOGIN", Mock.FireEvent, "PLAYER_LOGIN")
 if not ns.db then
 	fail("saved variables were not initialised")
@@ -75,8 +75,8 @@ if ns.db.faction then fail("a new player has no faction yet") end
 click("choose Horde", labelIs("호드로 시작"))
 if ns.db.faction ~= "HORDE" then fail("the faction choice was not saved") end
 if not find(function(b) return b.cid == "WARRIOR" end) then fail("the hero creation dialog should open after the faction choice") end
-if not SlashCmdList.BIGWOWHEROES then fail("slash command missing") end
-if type(BigWowHeroes_OnAddonCompartmentClick) ~= "function" then fail("addon compartment function missing") end
+if not SlashCmdList.BIGWOWIDLE then fail("slash command missing") end
+if type(BigWowIdle_OnAddonCompartmentClick) ~= "function" then fail("addon compartment function missing") end
 local goal = ns.Guide.Current()
 if not (goal.create and goal.tab == "hero") then fail("the first goal should be to create a hero on the hero screen") end
 
@@ -673,7 +673,7 @@ end
 
 -- HUD: goal, auto toggle, chests, menu shortcuts
 do
-	local bar = BigWowHeroesBar
+	local bar = BigWowIdleBar
 	if not bar then
 		fail("HUD frame missing")
 	else
@@ -744,13 +744,13 @@ end
 print("  clicked " .. clicks .. " buttons")
 
 -- slash commands, compartment
-try("slash", SlashCmdList.BIGWOWHEROES, "")
-try("slash bar", SlashCmdList.BIGWOWHEROES, "bar")
+try("slash", SlashCmdList.BIGWOWIDLE, "")
+try("slash bar", SlashCmdList.BIGWOWIDLE, "bar")
 frames(20)
-try("slash bar", SlashCmdList.BIGWOWHEROES, "bar")
-try("slash reset", SlashCmdList.BIGWOWHEROES, "reset")
-try("slash help", SlashCmdList.BIGWOWHEROES, "help")
-try("compartment", BigWowHeroes_OnAddonCompartmentClick)
+try("slash bar", SlashCmdList.BIGWOWIDLE, "bar")
+try("slash reset", SlashCmdList.BIGWOWIDLE, "reset")
+try("slash help", SlashCmdList.BIGWOWIDLE, "help")
+try("compartment", BigWowIdle_OnAddonCompartmentClick)
 
 -- a long stretch with a full party fighting, then lag spikes
 enrich(1)
@@ -789,7 +789,7 @@ for path in pairs(Mock.textures) do
 		end
 		if not known then fail("texture from imported art that is not in Data/Art.lua: " .. art) end
 	elseif media then
-		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigWowHeroes/Media/" .. media .. ".tga"), "rb")
+		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigWowIdle/Media/" .. media .. ".tga"), "rb")
 		if f then f:close() else fail("missing texture file: Media/" .. media .. ".tga") end
 	elseif path:find("AddOns") then
 		fail("unexpected addon texture path: " .. path)

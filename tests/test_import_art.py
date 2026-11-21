@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 TOOL = os.path.join(ROOT, "tools", "import_art.py")
 PREVIEW = os.path.join(HERE, "out", "art_test")
-REAL_MANIFEST = os.path.join(ROOT, "BigWowHeroes", "Data", "Art.lua")
+REAL_MANIFEST = os.path.join(ROOT, "BigWowIdle", "Data", "Art.lua")
 
 SS = 4                       # supersampling for anti-aliased edges
 SHEET = (1536, 1024)
@@ -358,7 +358,7 @@ def load_lua(path):
     import lupa.lua51 as lua51
     lua = lua51.LuaRuntime(unpack_returned_tuples=True)
     loader = lua.eval("function(src) local f, err = loadstring(src, '=Art.lua') if not f then return nil, err end "
-                      "local ns = {} f('BigWowHeroes', ns) return ns.ART end")
+                      "local ns = {} f('BigWowIdle', ns) return ns.ART end")
     with open(path, encoding="utf-8") as f:
         res = loader(f.read())
     art, err = res if isinstance(res, tuple) else (res, None)

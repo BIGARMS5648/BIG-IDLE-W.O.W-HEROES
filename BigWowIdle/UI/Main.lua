@@ -219,7 +219,7 @@ end
 ------------------------------------------------------------------------
 function Main.Create()
 	if frame then return frame end
-	frame = CreateFrame("Frame", "BigWowHeroesMain", UIParent)
+	frame = CreateFrame("Frame", "BigWowIdleMain", UIParent)
 	frame:SetSize(Main.W, Main.H)
 	frame:SetFrameStrata("HIGH")
 	frame:SetClampedToScreen(true)
@@ -257,7 +257,7 @@ function Main.Create()
 	frame.crest = frame:CreateTexture(nil, "ARTWORK")
 	frame.crest:SetSize(34, 34)
 	frame.crest:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -13)
-	frame.brand = UI.Title(frame, "BIG W.O.W HEROES", 16)
+	frame.brand = UI.Title(frame, "BIG W.O.W IDLE", 16)
 	frame.brand:SetPoint("TOPLEFT", frame, "TOPLEFT", 58, -12)
 	UI.Color(frame.brand, { 0.92, 0.94, 1 })
 	frame.faction = UI.Text(frame, 14)
@@ -402,7 +402,7 @@ function Main.Create()
 		Main.CloseModal()
 	end)
 	if UISpecialFrames then
-		UISpecialFrames[#UISpecialFrames + 1] = "BigWowHeroesMain" -- close with Escape
+		UISpecialFrames[#UISpecialFrames + 1] = "BigWowIdleMain" -- close with Escape
 	end
 	frame:Hide()
 	return frame
