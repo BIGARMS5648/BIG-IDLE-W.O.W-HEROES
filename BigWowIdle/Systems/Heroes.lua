@@ -111,6 +111,37 @@ function Heroes.NewRecord(specId, sex, name)
 	return h
 end
 
+-- All the experience a hero has earned (every level so far plus the bar).
+function Heroes.TotalXP(h)
+	local t = h.xp or 0
+	for l = 1, h.level - 1 do t = t + ns.XPForLevel(l) end
+	return t
+end
+
+-- Level and experience for `total` experience earned from level 1.
+local function levelFor(total)
+	local level = 1
+	while level < ns.HERO_MAX_LEVEL and total >= ns.XPForLevel(level) do
+		total = total - ns.XPForLevel(level)
+		level = level + 1
+	end
+	if level >= ns.HERO_MAX_LEVEL then total = 0 end
+	return level, floor(total)
+end
+
+-- A new hero starts with the average experience of the heroes in the
+-- party, so it fights at about their level. Returns level, xp.
+function Heroes.StartLevel()
+	local db = ns.db
+	local sum, n = 0, 0
+	for i = 1, ns.PARTY_SIZE do
+		local h = db.party[i] and db.heroes[db.party[i]]
+		if h then sum, n = sum + Heroes.TotalXP(h), n + 1 end
+	end
+	if n == 0 then return 1, 0 end
+	return levelFor(sum / n)
+end
+
 function Heroes.Create(specId, sex, name)
 	local sp = ns.SPECS[specId]
 	if not sp then return false end
@@ -122,7 +153,9 @@ function Heroes.Create(specId, sex, name)
 	if cost > 0 and not ns.SpendGold(cost) then
 		return false, "골드가 부족합니다."
 	end
+	local level, xp = Heroes.StartLevel()
 	local h = Heroes.NewRecord(specId, sex, name)
+	h.level, h.xp = level, xp
 	ns.Stats.Invalidate(h.id)
 	Heroes.Deploy(h.id) -- joins the party if its role slot is free
 	ns.Fire("HEROES")

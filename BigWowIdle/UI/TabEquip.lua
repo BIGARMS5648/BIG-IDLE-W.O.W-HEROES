@@ -25,7 +25,7 @@ local CX, CW = 70, 220 -- the summary between the slot columns
 
 local TABS = {
 	{ "bag", "가방" }, { "fuse", "융합" }, { "craft", "제작" }, { "gem", "보석" },
-	{ "ench", "마법부여" }, { "insc", "각인" }, { "mats", "재료" },
+	{ "ench", "마법부여" }, { "insc", "각인" }, { "mats", "재료" }, { "bank", "창고" },
 }
 local FORGE_TAB = { fuse = true, craft = true, gem = true, ench = true, insc = true }
 
@@ -251,8 +251,10 @@ local function buildRight(page)
 	page.right = rp
 	page.tabs = UI.Tabs(rp, RIGHT_W - 24, TABS, function(key)
 		page.tab = key
+		-- the bag always opens on everything (보기: 전체)
+		if key == "bag" then page.view = "all" page.bagPage = 1 end
 		Main.Refresh()
-	end, false, 32)
+	end, true, 32)
 	page.tabs:SetPoint("TOPLEFT", rp, "TOPLEFT", 12, -12)
 	for _, t in ipairs(TABS) do
 		if FORGE_TAB[t[1]] then
@@ -327,7 +329,7 @@ local function refreshRight(page)
 		page.forgeBar:SetValue(f.xp / need)
 		page.forgeBar:SetLabel(string.format("용광로 Lv %d · %s / %s", f.level, U.fmt(f.xp), U.fmt(need)))
 	end
-	if tab == "bag" then
+	if tab == "bag" or tab == "bank" then
 		page.bodies.bag:Show()
 		ns.BagView.Refresh(page)
 	elseif tab == "mats" then
@@ -358,7 +360,7 @@ end
 
 local function tick(page) end
 
--- opts.sub: a tab ("bag", "fuse", "mats" …; old forge names work too);
+-- opts.sub: a tab ("bag", "fuse", "mats", "bank" …; old forge names work too);
 -- opts.slot / opts.view: what the bag shows; opts.tab: a materials tab
 local OLD_SUB = { smelt = "bag", remove = "gem", seal = "mats" }
 local OLD_MATS = { seal = "mat_seal" }
@@ -367,9 +369,8 @@ local function open(page, opts)
 	local sub = OLD_SUB[opts.sub] or opts.sub
 	if opts.tab and ns.MatsView.KINDS_OF[opts.tab] then sub = "mats" end
 	for _, t in ipairs(TABS) do if t[1] == sub then page.tab = sub end end
-	-- sent to the bag (a goal about chests or breaking down): show the bag
-	-- itself, not the bank left open last time
-	if sub == "bag" and page.view == "bank" and not opts.view then page.view = "all" end
+	-- the bag opens on everything unless a slot or view is asked for
+	if sub == "bag" and not opts.view and not opts.slot then page.view = "all" page.bagPage = 1 end
 	if opts.slot or opts.view then
 		page.tab = "bag"
 		ns.BagView.Open(page, opts)

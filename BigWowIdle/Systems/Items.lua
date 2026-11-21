@@ -386,7 +386,7 @@ end
 
 function Items.ToBank(index)
 	if Items.BankFree() <= 0 then
-		return false, "은행이 가득 찼습니다."
+		return false, "창고가 가득 찼습니다."
 	end
 	local it = table.remove(ns.db.bag, index)
 	if not it then return false end

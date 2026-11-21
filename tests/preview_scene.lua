@@ -186,7 +186,7 @@ end
 S.equip_slot = function() ns.Main.SelectHero(db.party[2]) equip("bag", { slot = "ring" }) end
 S.equip_bank = function()
 	while #db.bank < 6 and #db.bag > 0 do ns.Items.ToBank(#db.bag) end
-	equip("bag", { view = "bank" })
+	equip("bank")
 end
 S.equip_smelt_list = function() local p = equip("bag") p.smeltPick:Click() end
 S.equip_view_list = function() local p = equip("bag") p.viewPick:Click() end
@@ -307,6 +307,22 @@ S.runes = function() show("runes", { rune = "c5" }) end
 S.runes_locked = function() show("runes", { rune = "w9" }) end
 
 -- 스테이지
+-- every rune learned: the 보너스 합계 list is longer than its box and scrolls
+S.runes_full = function()
+	local saved = {}
+	for id, lv in pairs(db.runes) do saved[id] = lv end
+	for id, node in pairs(ns.Runes.byId) do db.runes[id] = node.max end
+	ns.Runes.Invalidate()
+	show("runes")
+	local p = ns.Main.Page("runes")
+	p.scrollTotal(4)
+	S.restore = function()
+		for id in pairs(db.runes) do db.runes[id] = nil end
+		for id, lv in pairs(saved) do db.runes[id] = lv end
+		p.totalOff = 0
+		ns.Runes.Invalidate()
+	end
+end
 S.map = function() show("map") end
 S.map_heroic = function()
 	local p = show("map")

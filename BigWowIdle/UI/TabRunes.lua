@@ -1,7 +1,9 @@
 -- Runes (룬): the root rune on top, the six branches as columns underneath
 -- (전쟁 · 수호 · 재물 · 성장 · 탐험 · 지휘), each rune with its level and the
 -- cost of the next one. Click a rune to see it in the card on the right and
--- learn it there; the card also lists the total of every learned rune.
+-- learn it there; the card also lists the total of every learned rune
+-- (a list that scrolls: mouse wheel, the bar on its right, or dragging the
+-- bar's thumb).
 -- A branch is its first rune and two lines that fork from it: the first
 -- line runs straight down under it, the second follows, joined to the
 -- first rune by a line along the column's left edge. So every rune's
@@ -26,6 +28,8 @@ local TOP = -78               -- the first rune of each branch
 local SIDE_X = COL_X + 6 * COL_W + 6 -- the card on the right
 local SIDE_W = K.W - SIDE_X
 local TEXT_W = COL_W - NODE - 10
+local TOTAL_ROWS, TOTAL_STEP = 14, 15 -- the 보너스 합계 list
+local BAR_W = 6
 
 local function runeNode(page, node, x, y)
 	local b = CreateFrame("Button", nil, page)
@@ -214,12 +218,66 @@ local function build(page)
 	side.buy.clickWhenOff = true
 	side.totalHead = UI.Section(side, IW, "보너스 합계")
 	side.totalHead:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -278)
-	side.total = UI.Text(side, 11)
-	side.total:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -306)
-	side.total:SetWidth(IW)
-	side.total:SetJustifyV("TOP")
-	side.total:SetSpacing(2)
-	if side.total.SetMaxLines then side.total:SetMaxLines(16) end
+	-- the list: TOTAL_ROWS lines from page.totalOff, and a scroll bar
+	local box = CreateFrame("Frame", nil, side)
+	box:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -304)
+	box:SetSize(IW, TOTAL_ROWS * TOTAL_STEP)
+	box:EnableMouseWheel(true)
+	side.totalBox = box
+	local function scrollTo(off)
+		local n = page.totalN or 0
+		local was = page.totalOff or 0
+		page.totalOff = U.clamp(floor(off + 0.5), 0, max(0, n - TOTAL_ROWS))
+		if page.totalOff ~= was then Main.Refresh() end
+	end
+	page.scrollTotal = scrollTo
+	box:SetScript("OnMouseWheel", function(_, delta) scrollTo((page.totalOff or 0) - delta * 2) end)
+	side.totalLines = {}
+	for i = 1, TOTAL_ROWS do
+		local t = UI.Text(box, 11)
+		t:SetPoint("TOPLEFT", box, "TOPLEFT", 0, -(i - 1) * TOTAL_STEP - 1)
+		t:SetWidth(IW - BAR_W - 8)
+		t:SetWordWrap(false)
+		side.totalLines[i] = t
+	end
+	local trackH = TOTAL_ROWS * TOTAL_STEP
+	local track = CreateFrame("Button", nil, box)
+	track:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
+	track:SetSize(BAR_W, trackH)
+	track.bg = track:CreateTexture(nil, "BACKGROUND")
+	track.bg:SetAllPoints(track)
+	UI.Fill(track.bg, 1, 1, 1, 0.10)
+	-- a click on the bar above or below the thumb turns a page
+	track:SetScript("OnClick", function(self)
+		local _, cy = GetCursorPosition()
+		cy = cy / self:GetEffectiveScale()
+		local thumb = side.thumb
+		local up = cy > (thumb:GetTop() or 0)
+		scrollTo((page.totalOff or 0) + (up and -TOTAL_ROWS or TOTAL_ROWS))
+	end)
+	side.track = track
+	local thumb = CreateFrame("Button", nil, track)
+	thumb:SetWidth(BAR_W)
+	thumb:SetFrameLevel(track:GetFrameLevel() + 1)
+	thumb.bg = thumb:CreateTexture(nil, "ARTWORK")
+	thumb.bg:SetAllPoints(thumb)
+	UI.Fill(thumb.bg, 1, 0.82, 0.3, 0.8)
+	thumb:SetScript("OnMouseDown", function(self)
+		local _, cy = GetCursorPosition()
+		self.drag = { y = cy / self:GetEffectiveScale(), off = page.totalOff or 0 }
+	end)
+	thumb:SetScript("OnMouseUp", function(self) self.drag = nil end)
+	thumb:SetScript("OnUpdate", function(self)
+		local d = self.drag
+		if not d then return end
+		if IsMouseButtonDown and not IsMouseButtonDown("LeftButton") then self.drag = nil return end
+		local _, cy = GetCursorPosition()
+		cy = cy / self:GetEffectiveScale()
+		local room = trackH - self:GetHeight()
+		local extra = max(0, (page.totalN or 0) - TOTAL_ROWS)
+		if room > 0 and extra > 0 then scrollTo(d.off + (d.y - cy) / room * extra) end
+	end)
+	side.thumb = thumb
 	side.note = UI.Text(side, 10, "동료 보너스는 '동료' 화면에서 봅니다.")
 	side.note:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 14, 12)
 	side.note:SetWidth(IW)
@@ -312,7 +370,20 @@ local function refresh(page)
 	table.sort(keys)
 	local parts = {}
 	for _, k in ipairs(keys) do parts[#parts + 1] = ns.BonusText(k, sums[k]) end
-	side.total:SetText(#parts > 0 and table.concat(parts, "\n") or U.col("8a90a2", "아직 배운 룬이 없습니다."))
+	if #parts == 0 then parts[1] = U.col("8a90a2", "아직 배운 룬이 없습니다.") end
+	local n = #parts
+	page.totalN = n
+	page.totalOff = U.clamp(page.totalOff or 0, 0, max(0, n - TOTAL_ROWS))
+	for i, t in ipairs(side.totalLines) do t:SetText(parts[page.totalOff + i] or "") end
+	local over = n > TOTAL_ROWS
+	side.track:SetShown(over)
+	if over then
+		local trackH = TOTAL_ROWS * TOTAL_STEP
+		local th = max(18, floor(trackH * TOTAL_ROWS / n))
+		side.thumb:SetHeight(th)
+		side.thumb:ClearAllPoints()
+		side.thumb:SetPoint("TOP", side.track, "TOP", 0, -floor((trackH - th) * page.totalOff / (n - TOTAL_ROWS) + 0.5))
+	end
 end
 
 local function open(page, opts)

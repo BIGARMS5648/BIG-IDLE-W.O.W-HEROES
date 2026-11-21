@@ -469,7 +469,8 @@ end
 function ns.MobHP(base, l)   return base * (1 + 0.25 * (l - 1)) * 1.07 ^ (l - 1) end
 function ns.MobAtk(base, l)  return base * (1 + 0.12 * (l - 1)) * 1.05 ^ (l - 1) end
 function ns.MobGold(base, l) return base * (1 + 0.15 * (l - 1)) * 1.04 ^ (l - 1) end
-function ns.MobExp(base, l)  return base * (1 + 0.20 * (l - 1)) * 1.045 ^ (l - 1) end
+function ns.MobExp(base, l)  return ns.EXP_RATE * base * (1 + 0.20 * (l - 1)) * 1.045 ^ (l - 1) end
+ns.EXP_RATE = 1.2 -- every monster's experience
 
 -- Physical mitigation threshold: armor equal to this halves physical damage.
 function ns.ArmorK(l)

@@ -378,22 +378,31 @@ function UI.Tabs(parent, w, items, onSelect, fit, h)
 		b.lock:Hide()
 		row.buttons[i] = b
 	end
-	if fit then
-		local tw, total = {}, 0
-		for i, b in ipairs(row.buttons) do
-			tw[i] = b.label:GetStringWidth() + 20
-			total = total + tw[i]
+	-- fit: widths follow what each tab shows now: its name, the lock in front
+	-- of a locked one, the alert on its corner; the name (with its lock) sits
+	-- in the middle of what the alert leaves free
+	function row:Fit()
+		if not fit then return end
+		local need, total = {}, 0
+		for i, b in ipairs(self.buttons) do
+			local lock = b.lock:IsShown() and 18 or 0
+			local badge = (b.badge and b.badge:IsShown()) and b.badge:GetWidth() or 0
+			need[i] = { b.label:GetStringWidth() + 20 + lock + badge, lock, badge }
+			total = total + need[i][1]
 		end
 		local extra = (w - (n - 1) * gap - total) / n
 		local x = 0
-		for i, b in ipairs(row.buttons) do
-			local bw2 = floor(tw[i] + extra)
+		for i, b in ipairs(self.buttons) do
+			local bw2 = floor(need[i][1] + extra)
 			b:SetWidth(bw2)
 			b:ClearAllPoints()
-			b:SetPoint("TOPLEFT", row, "TOPLEFT", x, 0)
+			b:SetPoint("TOPLEFT", self, "TOPLEFT", x, 0)
+			b.label:ClearAllPoints()
+			b.label:SetPoint("CENTER", b, "CENTER", need[i][2] / 2 - need[i][3] / 2, 0)
 			x = x + bw2 + gap
 		end
 	end
+	row:Fit()
 	function row:Select(key)
 		for _, b in ipairs(self.buttons) do b:SetOn(b.key == key) end
 	end
@@ -401,15 +410,22 @@ function UI.Tabs(parent, w, items, onSelect, fit, h)
 		for _, b in ipairs(self.buttons) do if b.key == key then return b end end
 	end
 	function row:SetLabel(key, text) local b = self:Get(key) if b then b:SetLabel(text) end end
-	function row:SetBadge(key, v) local b = self:Get(key) if b then b:SetBadge(v) end end
+	function row:SetBadge(key, v)
+		local b = self:Get(key)
+		if b then b:SetBadge(v) self:Fit() end
+	end
 	function row:SetLocked(key, v)
 		local b = self:Get(key)
 		if b then
 			b.lock:SetShown(v and true or false)
 			b.label:SetAlpha(v and 0.6 or 1)
-			-- the lock and the name together stay in the middle
-			b.label:ClearAllPoints()
-			b.label:SetPoint("CENTER", b, "CENTER", v and 9 or 0, 0)
+			if fit then
+				self:Fit()
+			else
+				-- the lock and the name together stay in the middle
+				b.label:ClearAllPoints()
+				b.label:SetPoint("CENTER", b, "CENTER", v and 9 or 0, 0)
+			end
 		end
 	end
 	return row

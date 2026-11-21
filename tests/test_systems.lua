@@ -232,6 +232,27 @@ do
 	check(type(db.heroes[b].name) == "string" and db.heroes[b].name ~= "", "reroll name")
 	local bag0 = #db.bag
 	check(ns.Heroes.Dismiss(b) and not db.heroes[b] and #db.bag == bag0 + 1, "dismissing returns gear to the bags")
+	-- a new hero starts with the party's average experience (about their level)
+	local H = ns.Heroes
+	local saved, total, n = {}, 0, 0
+	for i = 1, ns.PARTY_SIZE do
+		local h = db.party[i] and db.heroes[db.party[i]]
+		if h then
+			saved[h] = { h.level, h.xp }
+			h.level, h.xp = 20 + i, math.floor(ns.XPForLevel(20 + i) / 2)
+			total, n = total + H.TotalXP(h), n + 1
+		end
+	end
+	local lv, xp = H.StartLevel()
+	local okN, nid = H.Create("PALADIN_RET")
+	local nh = db.heroes[nid]
+	check(okN and nh.level == lv and nh.xp == xp, "a new hero starts where StartLevel says")
+	check(math.abs(H.TotalXP(nh) - total / n) <= 1, string.format("a new hero has the party's average experience (%d vs %d)", H.TotalXP(nh), math.floor(total / n)))
+	check(nh.level >= 21 and nh.level <= 25, "levels 21..25 with half bars average to about level 23: Lv " .. nh.level)
+	check(H.SkillPointsFree(nid) > 0 and H.PointsFree(nid) > 0, "a hero that starts higher has the points of its level to spend")
+	H.Dismiss(nid)
+	for h, v in pairs(saved) do h.level, h.xp = v[1], v[2] end
+	ns.Stats.Invalidate()
 	local names = {}
 	for _ = 1, 200 do names[ns.Names.Roll("ORC", "M")] = true end
 	check(ns.U.count(names) > 150, "names are varied")

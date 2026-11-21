@@ -454,7 +454,8 @@ end
 
 function create.refresh()
 	local cost = H.CreateCost()
-	create.info:SetText(string.format("비용 %s   ·   보유 %d / %d", cost > 0 and UI.Gold(cost) or U.col("40ff40", "무료"), H.Count(), ns.ROSTER_MAX))
+	create.info:SetText(string.format("비용 %s   ·   시작 레벨 %d (파티 평균)   ·   보유 %d / %d",
+		cost > 0 and UI.Gold(cost) or U.col("40ff40", "무료"), (H.StartLevel()), H.Count(), ns.ROSTER_MAX))
 	if create.role then
 		create.hint:SetText(string.format("파티에 %s 자리가 비어 있습니다. %s 표시가 있는 직업에 %s 전문화가 있습니다.",
 			ns.ROLE[create.role].name, U.col("40d060", "추천"), ns.ROLE[create.role].name))

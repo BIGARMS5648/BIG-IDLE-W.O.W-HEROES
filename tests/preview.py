@@ -28,7 +28,7 @@ SCENES = [
     "fuse", "fuse_ready", "fuse_list", "fuse_high", "craft", "craft_locked", "craft_far", "gem", "gem_stress", "ench", "insc_locked",
     "mats", "mats_gem", "mats_seal", "mats_seal_some", "mats_page2", "mats_seal_locked", "gem_remove_locked", "bag_smelt_locked",
     "party", "party_open",
-    "runes", "runes_locked",
+    "runes", "runes_locked", "runes_full",
     "map", "map_heroic", "map_raid", "map_locked",
     "pets", "pets_locked",
     "options", "options_game", "options_info", "options_reset",

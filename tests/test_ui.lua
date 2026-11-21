@@ -394,13 +394,28 @@ do
 	Mock.shift = true
 	click("shift-click", function(b) return b.data == junk end)
 	Mock.shift = false
-	if ns.db.bank[#ns.db.bank] ~= junk then fail("Shift+click should move the item to the bank") end
+	if ns.db.bank[#ns.db.bank] ~= junk then fail("Shift+click should move the item to the storage") end
+	-- the storage is its own tab (창고), at the end; the bag's view list has no storage
 	press("view list", ep.viewPick)
-	click("view bank", function(b) return b.value == "bank" and b.label end)
-	click("take out of the bank", function(b) return b.data == junk end)
-	if not ns.Items.IndexInBag(junk) then fail("clicking an item in the bank should take it out") end
-	press("view list", ep.viewPick)
-	click("view all", function(b) return b.value == "all" and b.label end)
+	if find(function(b) return b.value == "bank" and b.label end) then fail("보기 should not list the storage") end
+	press("close the view list", ep.viewPick)
+	press("창고 tab", ep.tabs:Get("bank"))
+	if ep.tab ~= "bank" then fail("the 창고 tab should open the storage") end
+	if not (ep.bagCount:GetText() or ""):find("창고", 1, true) then fail("the 창고 tab should count the storage, got " .. tostring(ep.bagCount:GetText())) end
+	if ep.viewPick:IsVisible() or ep.open:IsVisible() or ep.smeltGo:IsVisible() then fail("the storage has no view list, chest opener or breaking down") end
+	click("take out of the storage", function(b) return b.data == junk end)
+	if not ns.Items.IndexInBag(junk) then fail("clicking an item in the storage should take it out") end
+	-- 가방 always opens on 보기: 전체, whatever was picked before and from any tab
+	ep.view = "weapon"
+	press("가방 tab", ep.tabs:Get("bag"))
+	if ep.tab ~= "bag" or ep.view ~= "all" then fail("the 가방 tab should open on 보기: 전체, got " .. tostring(ep.view)) end
+	ep.view = "armor"
+	press("가방 tab again", ep.tabs:Get("bag"))
+	if ep.view ~= "all" then fail("pressing 가방 on the bag should go back to 보기: 전체") end
+	ep.view = "acc"
+	Main.ShowTab("equip", { sub = "mats" })
+	Main.ShowTab("equip", { sub = "bag" })
+	if ep.view ~= "all" then fail("opening the bag from elsewhere should show 보기: 전체") end
 	ns.Items.ToggleLock(junk)
 	Main.Refresh()
 	local n1 = #ns.db.bag
@@ -638,7 +653,32 @@ do
 		press("first rune to learn", rp.side.goPrev)
 		if not ns.Runes.Available(rp.sel) then fail("'먼저 배울 룬' should select a rune that can be learned") end
 	end
-	if not (rp.side.total.__text or ""):find("%S") then fail("the rune card should list the total of the learned runes") end
+	if not (rp.side.totalLines[1].__text or ""):find("%S") then fail("the rune card should list the total of the learned runes") end
+	-- a long 보너스 합계 scrolls (wheel, the bar, its thumb)
+	do
+		local saved = {}
+		for id, lv in pairs(ns.db.runes) do saved[id] = lv end
+		for id, node in pairs(ns.Runes.byId) do ns.db.runes[id] = node.max end
+		ns.Runes.Invalidate()
+		Main.Refresh()
+		local side = rp.side
+		if not (rp.totalN > #side.totalLines) then fail("every rune learned should make the total longer than the list (" .. tostring(rp.totalN) .. ")") end
+		if not side.track:IsVisible() then fail("a long total should show its scroll bar") end
+		local first = side.totalLines[1].__text
+		try("wheel down", side.totalBox.__scripts.OnMouseWheel, side.totalBox, -1)
+		if rp.totalOff == 0 or side.totalLines[1].__text == first then fail("the mouse wheel should scroll the total") end
+		for _ = 1, 30 do side.totalBox.__scripts.OnMouseWheel(side.totalBox, -1) end
+		if rp.totalOff ~= rp.totalN - #side.totalLines then fail("scrolling should stop at the last line") end
+		local last = side.totalLines[#side.totalLines].__text
+		if not (last or ""):find("%S") then fail("the last line should show at the bottom") end
+		try("wheel up", side.totalBox.__scripts.OnMouseWheel, side.totalBox, 30)
+		if rp.totalOff ~= 0 then fail("scrolling up should stop at the first line") end
+		for id in pairs(ns.db.runes) do ns.db.runes[id] = nil end
+		for id, lv in pairs(saved) do ns.db.runes[id] = lv end
+		ns.Runes.Invalidate()
+		Main.Refresh()
+		if rp.totalN <= #side.totalLines and side.track:IsVisible() then fail("a short total needs no scroll bar") end
+	end
 	-- sent from another screen: the rune gets a red ring until another one is picked
 	Main.ShowTab("runes", { rune = "c4" })
 	if rp.sel ~= "c4" or rp.focus ~= "c4" or not rp.focusFx:IsShown() then fail("a rune another screen points to should be marked") end

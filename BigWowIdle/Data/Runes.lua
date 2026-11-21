@@ -114,7 +114,7 @@ ns.BONUS_TEXT = {
 	luck        = "높은 등급 장비 확률 +%s%%",
 	party       = "파티 슬롯 +%s",
 	bag         = "가방 칸 +%s",
-	bank        = "은행 칸 +%s",
+	bank        = "창고 칸 +%s",
 	skillSlot   = "영웅 기술 슬롯 +%s",
 	speed       = "전투 진행 속도 +%s%%",
 }

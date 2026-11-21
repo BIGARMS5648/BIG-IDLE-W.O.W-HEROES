@@ -1,9 +1,11 @@
--- The bag and the materials, two tabs of the equipment screen
+-- The bag, the storage and the materials: tabs of the equipment screen
 -- (UI/TabEquip.lua).
 --   가방: "가방 43 / 70" [상자 열기] [보기 ▾] [정리], the grid (pages of 60),
 --         and at the bottom: 분해 등급 [▾] [일괄 분해] [자동 분해].
 --         On an item: click = 장착 (the hero on the left), right-click =
---         분해, Alt+click = 보호, Shift+click = 은행.
+--         분해, Alt+click = 보호, Shift+click = 창고.
+--   창고: the same grid over the storage (db.bank): "창고 3 / 20" [정리];
+--         click = back to the bag.
 --   재료: one tab per kind of material; a row per material with fusing
 --         (9 → 1), breaking down for gold, and for the seals a bonus roll.
 local _, ns = ...
@@ -62,7 +64,7 @@ local PER_PAGE = COLS * ROWS
 local GRID_Y = -38
 
 local VIEWS = {
-	{ "all", "전체" }, { "weapon", "무기" }, { "armor", "방어구" }, { "acc", "액세서리" }, { "bank", "은행" },
+	{ "all", "전체" }, { "weapon", "무기" }, { "armor", "방어구" }, { "acc", "액세서리" },
 }
 local SLOTS_OF = {
 	weapon = { mh = true, oh = true },
@@ -76,9 +78,15 @@ local function indexIn(list, it)
 	for i = 1, #list do if list[i] == it then return i end end
 end
 
--- the items a view shows: a group, one slot (a key of ns.SLOT), or the bank
-local function itemList(view)
-	local src = view == "bank" and ns.db.bank or ns.db.bag
+-- the 창고 tab shows the storage in the bag's grid
+local function isBank(page) return page.tab == "bank" end
+local function pageKey(page) return isBank(page) and "bankPage" or "bagPage" end
+
+-- the items a view shows: a group or one slot (a key of ns.SLOT); the storage
+-- shows everything
+local function itemList(view, bank)
+	if bank then return ns.db.bank end
+	local src = ns.db.bag
 	local f = SLOTS_OF[view] or (ns.SLOT[view] and { [view] = true })
 	if not f then return src end
 	local out = {}
@@ -113,7 +121,7 @@ BagView.SmeltOne = smeltOne
 ------------------------------------------------------------------------
 function BagView.Build(page, f)
 	page.view = page.view or "all"
-	page.bagPage = 1
+	page.bagPage, page.bankPage = 1, 1
 	page.bagCount = UI.Text(f, 13)
 	page.bagCount:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -7)
 	page.bagCount:SetWidth(120)
@@ -136,9 +144,9 @@ function BagView.Build(page, f)
 	end, "보기: ")
 	page.viewPick:SetPoint("TOPLEFT", f, "TOPLEFT", 254, 0)
 	page.viewPick.tipTitle = "보기"
-	page.viewPick.tipText = "가방의 장비를 종류별로 보거나 은행을 엽니다. 왼쪽의 장비 칸을 누르면 그 부위만 봅니다."
+	page.viewPick.tipText = "가방의 장비를 종류별로 봅니다. 왼쪽의 장비 칸을 누르면 그 부위만 봅니다."
 	page.sort = UI.Button(f, 64, 28, "정리", function()
-		ns.Items.Sort(page.view == "bank" and ns.db.bank or ns.db.bag)
+		ns.Items.Sort(isBank(page) and ns.db.bank or ns.db.bag)
 		Main.Refresh()
 	end, "dark")
 	page.sort:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
@@ -150,7 +158,7 @@ function BagView.Build(page, f)
 			local it = self.data
 			if not it then return end
 			local id = Main.SelectedHero()
-			if page.view == "bank" then
+			if isBank(page) then
 				local idx = indexIn(ns.db.bank, it)
 				if idx then UI.Try(ns.Items.FromBank(idx)) end
 			elseif IsAltKeyDown and IsAltKeyDown() then
@@ -175,11 +183,11 @@ function BagView.Build(page, f)
 			if not it then return nil end
 			local id = Main.SelectedHero()
 			local lines = ns.Items.Tooltip(it, id)
-			if page.view == "bank" then
+			if isBank(page) then
 				lines[#lines + 1] = { "클릭: 가방으로 꺼내기", nil, 0.45, 0.8, 1 }
 			else
 				lines[#lines + 1] = { "클릭: 장착 · 오른쪽 클릭: 분해", nil, 0.45, 0.8, 1 }
-				lines[#lines + 1] = { "Alt+클릭: 보호 · Shift+클릭: 은행에 보관", nil, 0.45, 0.8, 1 }
+				lines[#lines + 1] = { "Alt+클릭: 보호 · Shift+클릭: 창고에 보관", nil, 0.45, 0.8, 1 }
 			end
 			return lines
 		end)
@@ -191,8 +199,8 @@ function BagView.Build(page, f)
 	page.empty:SetJustifyH("CENTER")
 	UI.Color(page.empty, UI.C.sub)
 	-- pages
-	page.prev = UI.Button(f, 30, 24, "<", function() page.bagPage = page.bagPage - 1 Main.Refresh() end, "dark")
-	page.next = UI.Button(f, 30, 24, ">", function() page.bagPage = page.bagPage + 1 Main.Refresh() end, "dark")
+	page.prev = UI.Button(f, 30, 24, "<", function() local k = pageKey(page) page[k] = page[k] - 1 Main.Refresh() end, "dark")
+	page.next = UI.Button(f, 30, 24, ">", function() local k = pageKey(page) page[k] = page[k] + 1 Main.Refresh() end, "dark")
 	page.pageText = UI.Text(f, 12)
 	page.pageText:SetPoint("TOP", f, "TOP", 0, GRID_Y - ROWS * STEP - 8)
 	page.pageText:SetJustifyH("CENTER")
@@ -266,21 +274,25 @@ end
 
 function BagView.Refresh(page)
 	local db = ns.db
-	local bank = page.view == "bank"
-	local list = itemList(page.view)
+	local bank = isBank(page)
+	local list = itemList(page.view, bank)
 	local cap = bank and ns.BankSize() or ns.BagSize()
-	page.bagCount:SetText(string.format("%s  %s", bank and "은행" or "가방",
+	page.bagCount:SetText(string.format("%s  %s", bank and "창고" or "가방",
 		U.col("aab3c8", string.format("%d / %d", bank and #db.bank or #db.bag, cap))))
 	local chests = ns.Loot.Count()
 	page.open:SetLabel(string.format("상자 열기 (%d)", chests))
 	page.open:SetOff(chests == 0)
 	page.open:SetBadge(chests > 0 and chests or nil)
+	page.open:SetShown(not bank)
 	page.viewPick:Refresh()
+	page.viewPick:SetShown(not bank)
 	local filtered = page.view ~= "all" and not bank
 	local shown = filtered and #list or max(cap, #list)
 	local pages = max(1, math.ceil(shown / PER_PAGE))
-	page.bagPage = U.clamp(page.bagPage or 1, 1, pages)
-	local first = (page.bagPage - 1) * PER_PAGE
+	local key = pageKey(page)
+	page[key] = U.clamp(page[key] or 1, 1, pages)
+	local cur = page[key]
+	local first = (cur - 1) * PER_PAGE
 	local sel = Main.SelectedHero()
 	for i, b in ipairs(page.cells) do
 		local n = first + i
@@ -305,7 +317,7 @@ function BagView.Refresh(page)
 	end
 	local empty
 	if #list == 0 then
-		empty = bank and "은행이 비어 있습니다. 가방에서 Shift+클릭으로 보관합니다."
+		empty = bank and "창고가 비어 있습니다. 가방에서 Shift+클릭으로 보관합니다."
 			or (filtered and "이 종류의 장비가 없습니다." or "가방이 비어 있습니다. 상자를 열어 장비를 얻으세요.")
 	end
 	page.empty:SetText(empty or "")
@@ -314,13 +326,13 @@ function BagView.Refresh(page)
 	local rows = min(ROWS, max(1, math.ceil(max(shown - first, filtered and COLS or 0) / COLS)))
 	page.empty:ClearAllPoints()
 	page.empty:SetPoint("TOP", page.empty:GetParent(), "TOP", 0, GRID_Y - rows * STEP - 14)
-	page.pageText:SetText(string.format("%d / %d", page.bagPage, pages))
+	page.pageText:SetText(string.format("%d / %d", cur, pages))
 	page.pageText:SetShown(pages > 1)
 	page.prev:SetShown(pages > 1)
 	page.next:SetShown(pages > 1)
-	page.prev:SetOff(page.bagPage <= 1)
-	page.next:SetOff(page.bagPage >= pages)
-	page.hint:SetText(bank and "클릭: 가방으로 꺼내기" or "클릭: 장착 · 오른쪽 클릭: 분해 · Alt+클릭: 보호 · Shift+클릭: 은행에 보관")
+	page.prev:SetOff(cur <= 1)
+	page.next:SetOff(cur >= pages)
+	page.hint:SetText(bank and "클릭: 가방으로 꺼내기" or "클릭: 장착 · 오른쪽 클릭: 분해 · Alt+클릭: 보호 · Shift+클릭: 창고에 보관")
 	-- breaking down
 	local unlocked = ns.Forge.Unlocked("smelt")
 	page.smeltPick:Refresh()
@@ -339,7 +351,7 @@ function BagView.Refresh(page)
 	for _, w in ipairs({ page.smeltLabel, page.smeltPick, page.smeltGo, page.autoSmelt }) do w:SetShown(not bank) end
 end
 
--- opts.slot: show that slot's items; opts.view: a view
+-- opts.slot: show that slot's items; opts.view: a view of the bag
 function BagView.Open(page, opts)
 	if not opts then return end
 	if opts.view then page.view = opts.view page.bagPage = 1 end
