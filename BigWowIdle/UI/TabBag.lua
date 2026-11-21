@@ -414,6 +414,7 @@ function MatsView.Build(page, f)
 			if not ns.Forge.Unlocked("smelt") then Unlock.Ask("smelt") return end
 			local id = r.id
 			local count = ns.MatCount(id)
+			if count <= 0 then UI.Try(false, "분해할 재료가 없습니다.") return end
 			UI.Confirm({ title = "재료 분해", ok = "분해", style = "red",
 				text = string.format("%s %s개를 모두 분해하시겠습니까?\n%s 골드를 받습니다.", ns.N(ns.MATS[id].name), U.fmt(count), U.fmt(ns.Forge.MatSmeltGold(id, count))),
 				onOk = function() UI.Try(ns.Forge.SmeltMat(id, ns.MatCount(id))) end })
@@ -459,7 +460,15 @@ function MatsView.Build(page, f)
 				if (s.q[q] or 0) > 0 then parts[#parts + 1] = U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name) .. " " .. s.q[q] .. "%") end
 			end
 			local body = "인장 1개와 골드로 장비를 하나 얻습니다. 레벨은 지금까지 간 가장 높은 스테이지를 따릅니다.\n" .. table.concat(parts, "  ")
-			if not ns.Forge.Unlocked("seal") then body = body .. "\n" .. U.col("ff9a7a", Unlock.Tip("seal")) end
+			if not ns.Forge.Unlocked("seal") then
+				body = body .. "\n" .. U.col("ff9a7a", Unlock.Tip("seal"))
+			elseif ns.MatCount(s.mat) <= 0 then
+				body = body .. "\n" .. U.col("ff9a7a", "이 인장이 없습니다. 상자에서 얻을 수 있습니다.")
+			elseif ns.Items.BagFree() <= 0 then
+				body = body .. "\n" .. U.col("ff9a7a", "가방이 가득 찼습니다. 장비를 분해하거나 정리하면 굴릴 수 있습니다.")
+			elseif not ns.CanAfford(s.gold) then
+				body = body .. "\n" .. U.col("ff9a7a", string.format("골드가 부족합니다 (%s G 필요).", U.fmt(s.gold)))
+			end
 			return UI.SimpleTip("굴리기", body)
 		end, "TOP")
 		r.isRow = true -- the same buttons on every row
@@ -485,7 +494,8 @@ function MatsView.Refresh(page)
 	page.autoFuse:SetOff(ns.Forge.MatFusionsReady(kinds) == 0)
 	local list = {}
 	for _, id in ipairs(ns.MAT_ORDER) do
-		if kinds[ns.MATS[id].kind] and ns.MatCount(id) > 0 then list[#list + 1] = id end
+		-- every seal has its row (and its [굴리기]), even with none in the bag
+		if kinds[ns.MATS[id].kind] and (ns.MatCount(id) > 0 or sealIndex(id)) then list[#list + 1] = id end
 	end
 	local pages = max(1, math.ceil(#list / MAT_ROWS))
 	page.matPage = U.clamp(page.matPage or 1, 1, pages)
@@ -505,7 +515,7 @@ function MatsView.Refresh(page)
 			if smelt then
 				r.smelt:SetLabel("모두 분해")
 				r.smelt:SetStyle("red")
-				r.smelt:SetOff(false)
+				r.smelt:SetOff(count <= 0)
 			else
 				local label, off, style = Unlock.Label("smelt", "분해")
 				r.smelt:SetLabel(label)
@@ -518,11 +528,13 @@ function MatsView.Refresh(page)
 			r.all:SetShown(seal == nil and not top)
 			if seal then
 				local s = ns.SEAL[seal]
-				r.sub:SetText("굴리면 장비 1개 · 비용 " .. U.fmt(s.gold) .. " G")
+				r.sub:SetText(count > 0 and ("굴리면 장비 1개 · 비용 " .. U.fmt(s.gold) .. " G")
+					or U.col("ff9a7a", "인장 없음") .. " · 상자에서 얻습니다")
 				if ns.Forge.Unlocked("seal") then
+					local full = ns.Items.BagFree() <= 0
 					r.roll:SetStyle("primary")
-					r.roll:SetLabel("굴리기 " .. U.fmt(s.gold) .. " G")
-					r.roll:SetOff(not ns.CanAfford(s.gold) or ns.Items.BagFree() <= 0)
+					r.roll:SetLabel(full and count > 0 and "가방이 가득 참" or ("굴리기 " .. U.fmt(s.gold) .. " G"))
+					r.roll:SetOff(count <= 0 or full or not ns.CanAfford(s.gold))
 				else
 					local label, off, style = Unlock.Label("seal", "굴리기")
 					r.roll:SetStyle(style)

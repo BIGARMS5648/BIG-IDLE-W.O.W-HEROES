@@ -511,6 +511,19 @@ do
 	end
 	-- the lucky seals roll an item (unlocked from the row itself)
 	Main.ShowTab("equip", { sub = "mats", tab = "mat_seal" })
+	-- with no seal at all every seal still has its row and its [굴리기]
+	for _, d in ipairs(ns.SEAL) do ns.AddMat(d.mat, -ns.MatCount(d.mat)) end
+	Main.Refresh()
+	for _, d in ipairs(ns.SEAL) do
+		local row = rowOf(d.mat)
+		if not (row and row.roll:IsVisible()) then fail("with no " .. d.mat .. " its row and [굴리기] should still show") break end
+		if ns.Forge.Unlocked("smelt") then
+			if not row.smelt.off then fail("breaking down zero seals should be off") end
+			press("break down zero seals", row.smelt)
+			local yes = ns.UI.ConfirmButtons()
+			if yes and yes:IsVisible() then fail("breaking down zero seals must not ask") end
+		end
+	end
 	ns.AddMat("seal1", 3)
 	ns.db.forge.ops.seal = nil
 	Main.Refresh()

@@ -273,6 +273,15 @@ local function locked(op, fn)
 		S.restore = function() ns.db.forge.ops[op] = was end
 	end
 end
+-- no seal in the bag yet: every seal row (and its [굴리기]) is still there
+S.mats_seal_empty = function()
+	local had = {}
+	for _, d in ipairs(ns.SEAL) do had[d.mat] = ns.MatCount(d.mat) ns.AddMat(d.mat, -had[d.mat]) end
+	local p = equip("mats")
+	p.matTab = "mat_seal"
+	ns.Main.Refresh()
+	S.restore = function() for id, n in pairs(had) do ns.AddMat(id, n) end end
+end
 S.mats_seal_locked = locked("seal", function() local p = equip("mats") ns.MatsView.Open(p, { tab = "mat_seal" }) ns.Main.Refresh() end)
 S.gem_remove_locked = locked("remove", function() equip("gem") end)
 S.bag_smelt_locked = locked("smelt", function() ns.Main.SelectHero(db.party[2]) equip("bag") end)
