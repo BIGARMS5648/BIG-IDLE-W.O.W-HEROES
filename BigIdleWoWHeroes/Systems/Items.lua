@@ -259,22 +259,60 @@ function Items.RandomSlot(level, cat)
 end
 
 -- Rolls a socket stat for an item; returns the entry that was added.
+-- A socket stat is rolled between the pool entry's two numbers times this:
+-- flat stats follow the material tier's level, the rest a tier multiplier.
+local function socketScale(key, tier)
+	local a = ns.AFFIX[key]
+	if a and a.s then return ns.Scale[a.s](ns.SOCKET_TIER_LEVEL[tier]) end
+	return ns.SOCKET_TIER_MULT[tier]
+end
+
 function Items.AddSocket(it, kind, tier)
 	local pool = ns.SOCKET[kind][Items.Cat(it)]
 	local e = U.pick(pool)
-	local a = ns.AFFIX[e[1]]
 	local v
 	if e[1] == "skills" then
 		v = 1
-	elseif a.s then
-		v = U.rnd(e[2], e[3]) * ns.Scale[a.s](ns.SOCKET_TIER_LEVEL[tier])
 	else
-		v = U.rnd(e[2], e[3]) * ns.SOCKET_TIER_MULT[tier]
+		v = U.rnd(e[2], e[3]) * socketScale(e[1], tier)
 	end
 	local entry = { e[1], roundValue(v), tier }
 	local l = Items.SocketList(it, kind, true)
 	l[#l + 1] = entry
 	return entry
+end
+
+-- The lowest and highest value a socket stat could have rolled (its kind,
+-- the item's category and the material tier), or nil for a fixed one.
+function Items.SocketRange(it, kind, e)
+	local key, tier = e[1], e[3]
+	local pools = ns.SOCKET[kind]
+	local pool = pools and pools[Items.Cat(it)]
+	if not (pool and tier and ns.SOCKET_TIER_MULT[tier]) then return nil end
+	for _, p in ipairs(pool) do
+		if p[1] == key then
+			if p[2] == p[3] then return nil end
+			local s = socketScale(key, tier)
+			return roundValue(p[2] * s), roundValue(p[3] * s)
+		end
+	end
+end
+
+-- "(10.5~21)", or nil for a fixed stat
+function Items.SocketRangeText(it, kind, e)
+	local lo, hi = Items.SocketRange(it, kind, e)
+	if not lo then return nil end
+	local function n(v) return (ns.Stats.FormatValue(e[1], v):gsub("%%", "")) end
+	return "(" .. n(lo) .. "~" .. n(hi) .. ")"
+end
+
+-- "+14.2% 치명타 피해 (10.5~21)": the stat and, when it was rolled, the
+-- range it could have rolled in (grey).
+function Items.SocketText(it, kind, e)
+	local text = ns.Stats.ModText(e[1], e[2])
+	local range = Items.SocketRangeText(it, kind, e)
+	if range then text = text .. " " .. U.col("9aa3b5", range) end
+	return text
 end
 
 ------------------------------------------------------------------------
@@ -477,7 +515,7 @@ function Items.Tooltip(it, heroId)
 			for i = 1, total do
 				local e = l and l[i]
 				if e then
-					add("[" .. label .. "] " .. ns.Stats.ModText(e[1], e[2]), nil, 0.4, 0.8, 1)
+					add("[" .. label .. "] " .. Items.SocketText(it, kind, e), nil, 0.4, 0.8, 1)
 				else
 					add("[" .. label .. "] " .. "비어 있음", nil, 0.5, 0.5, 0.5)
 				end

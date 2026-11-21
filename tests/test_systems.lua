@@ -470,6 +470,37 @@ check(#epic.g == 2 and #epic.e == 1, "socket entries stored")
 local goldBefore = db.gold
 check(F.RemoveSocket(epic, "gem", 1) and #epic.g == 1 and db.gold < goldBefore, "extraction costs gold and frees the slot")
 check(ns.MatCount("gem3") == 1, "extraction does not refund the material")
+-- socket stats are rolled: each value lies in the range the tooltip shows
+do
+	local I = ns.Items
+	local outside, ranged, fixed = 0, 0, 0
+	for _, slot in ipairs({ "mh", "chest", "ring" }) do
+		for _, kind in ipairs(ns.SOCKET_KINDS) do
+			for tier = 1, #ns.SOCKET_TIER_MULT do
+				for _ = 1, 40 do
+					local it = I.New(slot, 30, ns.MAX_QUALITY)
+					local e = I.AddSocket(it, kind, tier)
+					local lo, hi = I.SocketRange(it, kind, e)
+					if lo then
+						ranged = ranged + 1
+						if e[2] < lo or e[2] > hi or lo >= hi then outside = outside + 1 end
+					else
+						fixed = fixed + 1
+						if e[1] ~= "skills" then outside = outside + 1 end
+					end
+				end
+			end
+		end
+	end
+	check(outside == 0, "every socket value lies in its shown range (" .. outside .. " outside)")
+	check(ranged > 0 and fixed > 0, "rolled stats show a range, the fixed skill level does not")
+	local it = I.New("mh", 30, ns.MAX_QUALITY)
+	local e = I.AddSocket(it, "gem", 3)
+	local text = I.SocketText(it, "gem", e)
+	check(text:find("%(") and text:find("~", 1, true), "the socket text ends with its range: " .. text)
+	local tip = table.concat((function() local t = {} for _, l in ipairs(I.Tooltip(it)) do t[#t + 1] = l[1] end return t end)(), "\n")
+	check(tip:find("~", 1, true), "the item tooltip shows the socket range")
+end
 db.bag = {}
 ns.AddMat("seal1", 1)
 local okb, rolled = F.BonusRoll(1)

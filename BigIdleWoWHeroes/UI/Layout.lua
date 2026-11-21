@@ -121,19 +121,34 @@ function UI.Lines(parent, w, n, size, h)
 		fs:SetJustifyV("TOP")
 		f.lines[i] = fs
 	end
-	-- list: { { text, r, g, b }, ... }
-	function f:Set(list)
+	-- list: { { text, r, g, b }, ... }. maxH: the height the lines may use;
+	-- what does not fit ends in a grey "… 그 밖에 N줄" line.
+	function f:Set(list, maxH)
+		local n = list and #list or 0
+		local y, shown = 0, 0
 		for i, fs in ipairs(self.lines) do
 			local v = list and list[i]
-			if v then
+			fs:SetText("")
+			fs:Hide()
+			if v and shown == i - 1 then
 				fs:SetText(v[1] or "")
 				fs:SetTextColor(v[2] or 1, v[3] or 1, v[4] or 1)
-				fs:Show()
-			else
-				fs:SetText("")
-				fs:Hide()
+				local h = fs:GetStringHeight()
+				if not maxH or y + h <= maxH then
+					fs:Show()
+					y = y + h + 3
+					shown = i
+				else
+					fs:SetText("")
+				end
 			end
 		end
+		if shown < n and shown > 0 then
+			local last = self.lines[shown]
+			last:SetText(string.format("… 그 밖에 %d줄 (칸에 마우스를 올리면 모두 보입니다)", n - shown + 1))
+			last:SetTextColor(0.6, 0.64, 0.72)
+		end
+		if maxH then self:SetHeight(maxH) end
 	end
 	return f
 end

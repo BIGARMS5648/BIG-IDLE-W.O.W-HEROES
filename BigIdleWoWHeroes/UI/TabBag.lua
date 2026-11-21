@@ -210,7 +210,7 @@ local function build(page)
 
 	-- card content
 	local d = S.card
-	page.lines = UI.Lines(d.content, K.CARD_IN, 9, K.F_SMALL, 174)
+	page.lines = UI.Lines(d.content, K.CARD_IN, 14, K.F_SMALL, 174)
 	page.lines:SetPoint("TOPLEFT", d.content, "TOPLEFT", 0, 0)
 	page.targetHead = UI.Section(d.content, K.CARD_IN, "착용 대상 (출전 중인 영웅)")
 	page.targetHead:SetPoint("BOTTOMLEFT", d.content, "BOTTOMLEFT", 0, 62)
@@ -245,16 +245,19 @@ local function clearCard(page)
 	page.compare:SetText("")
 end
 
--- max: how many lines fit (fewer when the "who can wear it" block is shown)
-local function fillLines(page, tl, skip, maxLines)
+-- The tooltip lines (without the name and type) in the card, as many as fit
+-- above the "who can wear it" block (targets) or the card's footer. Call
+-- it after the card's buttons are set: they decide the room left.
+local function fillLines(page, tl, skip, targets)
 	local list = {}
 	for i = 3, #tl do
 		local text = tl[i][1] or ""
-		if #list < (maxLines or 9) and not (skip and skip(text)) then
+		if not (skip and skip(text)) then
 			list[#list + 1] = { text .. (tl[i][2] and ("  " .. tl[i][2]) or ""), tl[i][3], tl[i][4], tl[i][5] }
 		end
 	end
-	page.lines:Set(list)
+	local room = (page.S.card.contentH or 200) - (targets and 90 or 4)
+	page.lines:Set(list, room)
 end
 
 -- materials: fuse everything that can be fused (the card's gold button in
@@ -286,7 +289,6 @@ local function refreshMat(page, mat)
 	local count = ns.MatCount(mat)
 	d:Head({ icon = m.icon, quality = m.q, count = U.fmt(count), title = ns.N(m.name), titleRGB = { U.rgb(q.hex) },
 		sub = ns.N(ns.MAT_KIND_NAME[m.kind]) .. " · " .. string.format("%d단계 · %s개", m.tier, U.fmt(count)), band = { U.rgb(q.hex) } })
-	fillLines(page, ns.Items.MatTooltip(mat))
 	local canFuse = count >= ns.Forge.FUSE_COUNT and m.tier < ns.MAT_MAX_TIER[m.kind]
 	local smelt = ns.Forge.Unlocked("smelt")
 	-- small row: break down one / all; footer: fuse nine / auto-fuse everything
@@ -306,6 +308,7 @@ local function refreshMat(page, mat)
 	end, "blue", not canFuse, tip = { "재료 융합", string.format("같은 재료 %d개를 한 단계 높은 재료 1개로 만듭니다.", ns.Forge.FUSE_COUNT) } },
 	autoFuseAction())
 	autoFuseReason(d)
+	fillLines(page, ns.Items.MatTooltip(mat))
 end
 
 local function refreshItem(page, it)
@@ -314,9 +317,11 @@ local function refreshItem(page, it)
 	d:Head({ icon = ns.Items.Icon(it), quality = it.q, count = tostring(it.l), locked = it.lock, data = it,
 		title = ns.Items.Name(it), titleRGB = { U.rgb(q.hex) },
 		sub = string.format("%s %s · 아이템 레벨 %d", ns.N(q.name), ns.N(ns.SLOT[it.s].name), it.l), band = { U.rgb(q.hex) } })
-	fillLines(page, ns.Items.Tooltip(it, nil), function(text)
-		return text:find("분해 가치", 1, true) or text:find("보호됨", 1, true)
-	end, page.tab == "bank" and 9 or 7)
+	local function lines()
+		fillLines(page, ns.Items.Tooltip(it, nil), function(text)
+			return text:find("분해 가치", 1, true) or text:find("보호됨", 1, true)
+		end, page.tab ~= "bank")
+	end
 	local lock = { it.lock and "보호 풀기" or "보호하기", function() ns.Items.ToggleLock(it) Main.Refresh() end, "dark",
 		tip = { "보호", "보호한 장비는 분해·융합되지 않습니다. 가방에서 Alt+클릭으로도 바꿀 수 있습니다." } }
 
@@ -327,6 +332,7 @@ local function refreshItem(page, it)
 			if idx and UI.Try(ns.Items.FromBank(idx)) then page.selItem = nil end
 			Main.Refresh()
 		end, "primary", ns.Items.BagFree() <= 0 })
+		lines()
 		return
 	end
 
@@ -389,6 +395,7 @@ local function refreshItem(page, it)
 		Main.Refresh()
 	end, "primary", not canEquip, tip = { "장착", "위에서 고른 영웅에게 장착합니다. 영웅은 초상화를 눌러 바꿉니다." } })
 	if it.lock and ns.Forge.Unlocked("smelt") then d:Reason("보호한 장비는 분해할 수 없습니다.") end
+	lines()
 end
 
 ------------------------------------------------------------------------

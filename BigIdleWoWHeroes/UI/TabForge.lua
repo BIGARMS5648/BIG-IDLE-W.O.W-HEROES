@@ -476,7 +476,7 @@ local function socketOp(kind)
 			local parts = {}
 			local l = ns.Items.SocketList(it, kind)
 			if l then
-				for _, e in ipairs(l) do parts[#parts + 1] = U.col("66ccff", "• " .. ns.Stats.ModText(e[1], e[2])) end
+				for _, e in ipairs(l) do parts[#parts + 1] = U.col("66ccff", "• ") .. U.col("66ccff", ns.Items.SocketText(it, kind, e)) end
 			end
 			if #parts == 0 then parts[1] = U.col("8a90a2", "아직 부여한 능력치가 없습니다.") end
 			local pool = {}
@@ -490,7 +490,7 @@ local function socketOp(kind)
 			if panel.mat then can, why = ns.Forge.CanSocket(it, kind, panel.mat) end
 			d:Actions(nil, { SOCKET_VERB[kind], function()
 				local ok, entry = ns.Forge.Socket(it, kind, panel.mat, panel.pickedHero)
-				if UI.Try(ok, entry) then panel.last = U.col("60e070", "부여됨: " .. ns.Stats.ModText(entry[1], entry[2])) end
+				if UI.Try(ok, entry) then panel.last = U.col("60e070", "부여됨: ") .. U.col("60e070", ns.Items.SocketText(it, kind, entry)) end
 				Main.Refresh()
 			end, "primary", not can })
 			if not can then d:Reason(why) end
@@ -514,10 +514,7 @@ function ops.remove(page, panel, cp)
 			Main.Refresh()
 		end)
 		r:SetPoint("TOPLEFT", cp, "TOPLEFT", 0, -26 - (i - 1) * 36)
-		r:Layout(72)
-		r.sub:Hide()
-		r.title:ClearAllPoints()
-		r.title:SetPoint("LEFT", r, "LEFT", 34, 0)
+		r:Layout(60) -- the stat on top, the range it could roll in below; cost at most "12,800 G"
 		cp.rows[i] = r
 	end
 	return function(_, _, _, d)
@@ -540,6 +537,7 @@ function ops.remove(page, panel, cp)
 			if e then
 				r.icon:SetArtIcon("forge_" .. e[1], OP_ICON[e[1]])
 				r.title:SetText(ns.Stats.ModText(e[3][1], e[3][2]))
+				r.sub:SetText(ns.Items.SocketRangeText(it, e[1], e[3]) or "고정 값")
 				r.right:SetText(U.fmt(ns.Forge.RemoveCost(e[1], e[3][3])) .. " G")
 				r:SetSelected(i == panel.rm)
 				r:Show()

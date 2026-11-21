@@ -214,6 +214,34 @@ S.bag_locked = function() local p = show("bag") p.tab = "all" p.selItem = db.bag
 S.bag_weapon = function() local p = show("bag") p.tab = "weapon" p.selItem = nil ns.Main.Refresh() end
 S.bag_mats = function() local p = show("bag") p.tab = "mats" p.selMat = "bar1" ns.Main.Refresh() end
 S.bag_mats_sorted = function() local p = show("bag") p.tab = "mats" p.selMat = "bar1" ns.Main.Refresh() p.sort:Click() end
+-- a ring with every socket filled with the longest socket stat there is
+-- (cooldown reduction at the top tier, the highest roll)
+local stress
+local function stressRing()
+	if stress then return stress end
+	stress = ns.Items.New("ring", 60, ns.MAX_QUALITY)
+	for _, kind in ipairs(ns.SOCKET_KINDS) do
+		local l = ns.Items.SocketList(stress, kind, true)
+		for _ = 1, ns.Items.SocketCount(stress, kind) do
+			local e = { "cdr", 0, #ns.SOCKET_TIER_MULT }
+			local _, hi = ns.Items.SocketRange(stress, kind, e)
+			e[2] = hi
+			l[#l + 1] = e
+		end
+	end
+	ns.Items.AddToBag(stress)
+	return stress
+end
+S.bag_sockets = function() local p = show("bag") p.tab = "all" p.selItem = stressRing() ns.Main.Refresh() end
+S.bag_sockets_tip = function()
+	local p = show("bag")
+	p.tab = "all"
+	p.selItem = stressRing()
+	ns.Main.Refresh()
+	for _, c in ipairs(p.cells) do
+		if c.data == stress then c.__scripts.OnEnter(c) break end
+	end
+end
 S.bag_smelt_one = function()
 	local p = show("bag")
 	p.tab = "all"
@@ -270,6 +298,14 @@ S.forge_gem = function()
 	clickWhere(function(f) return f.data == "gem3" end)
 end
 S.forge_ench = function() show("forge", { sub = "ench" }) end
+S.forge_ench_sockets = function()
+	show("forge", { sub = "ench" })
+	clickWhere(function(f) return f.data == stressRing() and f.heroId == nil end)
+end
+S.forge_remove_sockets = function()
+	show("forge", { sub = "remove" })
+	clickWhere(function(f) return f.data == stressRing() and f.heroId == nil end)
+end
 S.forge_remove = function() show("forge", { sub = "remove" }) end
 S.forge_seal = function() show("forge", { sub = "seal" }) end
 S.forge_locked = function() show("forge", { sub = "insc" }) end
