@@ -514,7 +514,7 @@ function lint(scene, title) {
     const others = units.map(u => ({ el: u.el, r: u.r })).concat(buttons.map(b => ({ el: b, r: b._r })))
       .concat(texts.map(t => ({ el: t, r: textBox(t) })).filter(o => o.r));
     for (const O of others) {
-      if (badgeOf(O.el) === Bd || tops.get(O.el) !== tops.get(Bd) || contains(O.r, Bd._r) || isAnc(O.el, Bd)) continue;
+      if (badgeOf(O.el) === Bd || tops.get(O.el) !== tops.get(Bd) || contains(O.r, Bd._r) || isAnc(O.el, Bd) || overlaid(O.el)) continue;
       const cross = (() => { const ir = inter(O.r, Bd._r); return ir.r - ir.l > 1 && ir.t - ir.b > 1; })();
       if (ownedBy(owner, O.el)) {
         if (cross && O.el.kind === 'text') add('badge', '알림 점이 글자를 가림', Bd, O.el);

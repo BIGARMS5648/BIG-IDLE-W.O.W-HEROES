@@ -7,8 +7,8 @@
 -- first rune by a line along the column's left edge. So every rune's
 -- requirement is the rune it is drawn joined to, above it.
 -- Another screen can send the player to a rune ("…을(를) 배우면 열립니다 ·
--- 클릭: 룬 화면에서 보기"): that rune gets a pulsing red ring until another
--- rune is picked.
+-- 클릭: 룬 화면에서 보기"): that rune gets a red band behind its row, a red
+-- glow and thick red rings, all pulsing, until another rune is picked.
 local _, ns = ...
 
 local floor, max = math.floor, math.max
@@ -31,6 +31,8 @@ local function runeNode(page, node, x, y)
 	local b = CreateFrame("Button", nil, page)
 	b:SetSize(NODE, NODE)
 	b:SetPoint("TOPLEFT", page, "TOPLEFT", x, y)
+	-- layers: the marker's band (+1) < runes (+2) < their texts (+3) < the marker's rings (+5)
+	b:SetFrameLevel(page:GetFrameLevel() + 2)
 	b.disc = UI.Art(b, "circle", "BACKGROUND", 0.05, 0.06, 0.1)
 	b.disc:SetAllPoints(b)
 	b.icon = b:CreateTexture(nil, "ARTWORK")
@@ -43,7 +45,7 @@ local function runeNode(page, node, x, y)
 	b.hl:SetPoint("TOPLEFT", b, "TOPLEFT", -10, 10)
 	b.hl:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 10, -10)
 	b.hl:Hide()
-	b.text = UI.Text(page, 11)
+	b.text = UI.Text(page.textLayer, 11)
 	b.text:SetPoint("LEFT", b, "RIGHT", 6, 0)
 	b.text:SetWidth(TEXT_W)
 	b.text:SetJustifyH("LEFT")
@@ -81,6 +83,9 @@ end
 
 local function build(page)
 	page.sel = "root"
+	page.textLayer = CreateFrame("Frame", nil, page)
+	page.textLayer:SetAllPoints(page)
+	page.textLayer:SetFrameLevel(page:GetFrameLevel() + 3)
 	page.nodes = {}
 	-- the root, over the middle of the branches
 	page.root = runeNode(page, ns.RUNE_ROOT, COL_X + 3 * COL_W - NODE / 2 - 4, -4)
@@ -129,21 +134,40 @@ local function build(page)
 		end
 	end
 
-	-- the rune another screen sent us to: a pulsing red ring
+	-- the rune another screen sent us to:
+	--   behind the row (under the rune and its text): a red band and a red
+	--   glow, both breathing; over the rune: thick red rings that grow and
+	--   shrink. The icon and the text stay readable.
+	local back = CreateFrame("Frame", nil, page)
+	back:SetSize(COL_W - 4, NODE + 10)
+	back:SetFrameLevel(page:GetFrameLevel() + 1)
+	back.isOverlay = true
+	back.band = UI.Slice(back, "pill", "BACKGROUND", 0)
+	back.band:SetColor(0.85, 0.08, 0.06, 0.5)
+	back.glow = UI.Art(back, "glow", "BORDER", 1, 0.15, 0.1, 1)
+	back.glow:SetSize(NODE + 44, NODE + 44)
+	back.glow:SetPoint("CENTER", back, "LEFT", 4 + NODE / 2, 0)
+	back:Hide()
+	page.focusBack = back
+
 	local fx = CreateFrame("Frame", nil, page)
-	fx:SetSize(NODE + 8, NODE + 8)
+	fx:SetSize(NODE + 10, NODE + 10)
 	fx:SetFrameLevel(page:GetFrameLevel() + 5)
 	fx.isOverlay = true -- drawn over its rune on purpose
 	-- rings only: the rune's icon stays visible inside
-	fx.ring = UI.Art(fx, "ring", "OVERLAY", 1, 0.18, 0.14)
-	fx.ring:SetAllPoints(fx)
-	fx.ring2 = UI.Art(fx, "ring", "OVERLAY", 1, 0.35, 0.3)
-	fx.ring2:SetPoint("TOPLEFT", fx, "TOPLEFT", 1, -1)
-	fx.ring2:SetPoint("BOTTOMRIGHT", fx, "BOTTOMRIGHT", -1, 1)
+	fx.rings = {}
+	for i, c in ipairs({ { 1, 0.12, 0.08 }, { 1, 0.3, 0.22 }, { 1, 0.55, 0.45 } }) do
+		local t = UI.Art(fx, "ring", "OVERLAY", c[1], c[2], c[3])
+		t:SetPoint("TOPLEFT", fx, "TOPLEFT", i - 1, -(i - 1))
+		t:SetPoint("BOTTOMRIGHT", fx, "BOTTOMRIGHT", -(i - 1), i - 1)
+		fx.rings[i] = t
+	end
 	fx:SetScript("OnUpdate", function(self)
-		local a = 0.55 + 0.45 * math.abs(math.sin((GetTime and GetTime() or 0) * 3))
-		self.ring:SetAlpha(a)
-		self.ring2:SetAlpha(a)
+		local s = 0.5 + 0.5 * math.sin((GetTime and GetTime() or 0) * 5)
+		local size = NODE + 8 + 8 * s -- 4 to 8 pixels around the rune
+		self:SetSize(size, size)
+		for _, t in ipairs(self.rings) do t:SetAlpha(0.7 + 0.3 * s) end
+		back:SetAlpha(0.45 + 0.55 * s) -- the band and the glow breathe together
 	end)
 	fx:Hide()
 	page.focusFx = fx
@@ -238,13 +262,17 @@ local function refresh(page)
 			focusB = b
 		elseif page.sel == b.node.id then b.hl:Show() elseif not b:IsMouseOver() then b.hl:Hide() end
 	end
-	local fx = page.focusFx
+	local fx, back = page.focusFx, page.focusBack
 	if focusB then
 		fx:ClearAllPoints()
 		fx:SetPoint("CENTER", focusB, "CENTER", 0, 0)
 		fx:Show()
+		back:ClearAllPoints()
+		back:SetPoint("LEFT", focusB, "LEFT", -5, 0)
+		back:Show()
 	else
 		fx:Hide()
+		back:Hide()
 	end
 
 	local side = page.side
