@@ -250,7 +250,7 @@ local function slotCard(page, id)
 		for i = 3, #tl do
 			local text = tl[i][1] or ""
 			if #list < 4 and not text:find("분해 가치", 1, true) and not text:find("보호됨", 1, true) and not text:find("사용 가능", 1, true) then
-				list[#list + 1] = { text .. (tl[i][2] and ("  " .. tl[i][2]) or ""), tl[i][3], tl[i][4], tl[i][5] }
+				list[#list + 1] = { text .. (tl[i][2] and ("  " .. tl[i][2]) or ""), tl[i][3], tl[i][4], tl[i][5], sockets = tl[i].sockets }
 			end
 		end
 		p.itemLines:Set(list)

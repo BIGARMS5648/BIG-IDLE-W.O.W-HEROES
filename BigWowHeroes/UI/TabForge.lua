@@ -440,6 +440,9 @@ local function socketOp(kind)
 			panel.mats[i] = b
 		end
 		panel.note = note(panel, -266, "부여되는 능력치는 장비 종류(무기·방어구·액세서리)에 따라 정해진 목록에서 무작위로 정해집니다. 마음에 들지 않으면 '추출'로 비우고 다시 할 수 있습니다.")
+		-- the item's sockets of this kind, each drawn with what is set in it
+		cp.sockets = UI.Lines(cp, K.CARD_IN, 3, K.F_SMALL, 70)
+		cp.sockets:SetPoint("TOPLEFT", cp, "TOPLEFT", 0, 0)
 		cp.lines = UI.Text(cp, K.F_SMALL)
 		cp.lines:SetPoint("TOPLEFT", cp, "TOPLEFT", 0, 0)
 		cp.lines:SetWidth(K.CARD_IN)
@@ -467,21 +470,32 @@ local function socketOp(kind)
 			if not it then
 				local need = (kind == "gem" and 3) or (kind == "ench" and 5) or 6
 				d:Head({ icon = OP_ICON[kind], art = "forge_" .. kind, title = name, sub = "홈이 있는 장비가 없습니다" })
+				cp.sockets:Set(nil)
+				cp.lines:ClearAllPoints()
+				cp.lines:SetPoint("TOPLEFT", cp, "TOPLEFT", 0, 0)
 				cp.lines:SetText(string.format("%s 등급 이상의 장비에 홈이 있습니다.", U.col(ns.QUALITY[need].hex, ns.N(ns.QUALITY[need].name))))
 				cp.last:SetText("")
 				d:Actions(nil, { SOCKET_VERB[kind], nil, "primary", true })
 				return
 			end
 			itemHead(d, it, string.format("%s 홈 %d / %d 비어 있음", ns.N(ns.SOCKET[kind].short), ns.Items.FreeSockets(it, kind), ns.Items.SocketCount(it, kind)))
-			local parts = {}
+			-- every socket of this kind: what is set in it, or an empty one
+			local socks = {}
 			local l = ns.Items.SocketList(it, kind)
-			if l then
-				for _, e in ipairs(l) do parts[#parts + 1] = U.col("66ccff", "• ") .. U.col("66ccff", ns.Items.SocketText(it, kind, e)) end
+			for i = 1, ns.Items.SocketCount(it, kind) do
+				local e = l and l[i]
+				if e then
+					socks[#socks + 1] = { ns.Items.SocketText(it, kind, e), 0.4, 0.8, 1, sockets = { { kind, ns.Items.SocketIcon(kind, e[3]) } } }
+				else
+					socks[#socks + 1] = { string.format("빈 %s 홈", ns.N(ns.SOCKET[kind].short)), 0.55, 0.58, 0.65, sockets = { { kind } } }
+				end
 			end
-			if #parts == 0 then parts[1] = U.col("8a90a2", "아직 부여한 능력치가 없습니다.") end
+			local used = cp.sockets:Set(socks)
+			cp.lines:ClearAllPoints()
+			cp.lines:SetPoint("TOPLEFT", cp, "TOPLEFT", 0, -(used + 6))
+			local parts = {}
 			local pool = {}
 			for _, e in ipairs(ns.SOCKET[kind][ns.Items.Cat(it)]) do pool[#pool + 1] = ns.N(ns.AFFIX[e[1]].n) end
-			parts[#parts + 1] = ""
 			parts[#parts + 1] = U.col("aab3c8", "나올 수 있는 능력치: " .. table.concat(pool, ", "))
 			if panel.mat then parts[#parts + 1] = U.col("aab3c8", "재료: ") .. ns.N(ns.MATS[panel.mat].name) end
 			cp.lines:SetText(table.concat(parts, "\n"))
@@ -535,7 +549,9 @@ function ops.remove(page, panel, cp)
 			local e = rows[i]
 			r.idx = i
 			if e then
-				r.icon:SetArtIcon("forge_" .. e[1], OP_ICON[e[1]])
+				-- what is set in the socket: the material's own icon
+				r.icon:SetIconName(ns.Items.SocketIcon(e[1], e[3][3]) or OP_ICON[e[1]])
+				r.icon:SetQuality(math.min(ns.MAX_QUALITY, (e[3][3] or 1) + 1))
 				r.title:SetText(ns.Stats.ModText(e[3][1], e[3][2]))
 				r.sub:SetText(ns.Items.SocketRangeText(it, e[1], e[3]) or "고정 값")
 				r.right:SetText(U.fmt(ns.Forge.RemoveCost(e[1], e[3][3])) .. " G")

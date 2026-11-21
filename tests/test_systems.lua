@@ -500,6 +500,27 @@ do
 	check(text:find("%(") and text:find("~", 1, true), "the socket text ends with its range: " .. text)
 	local tip = table.concat((function() local t = {} for _, l in ipairs(I.Tooltip(it)) do t[#t + 1] = l[1] end return t end)(), "\n")
 	check(tip:find("~", 1, true), "the item tooltip shows the socket range")
+	-- the sockets are drawn: a filled one with its material's icon, the
+	-- empty ones by kind
+	local top = I.New("chest", 50, ns.MAX_QUALITY)
+	I.AddSocket(top, "gem", 4)
+	local filled, order, emptyOf = nil, {}, {}
+	for _, l in ipairs(I.Tooltip(top)) do
+		if l.sockets then
+			local kind = l.sockets[1][1]
+			if order[#order] ~= kind then order[#order + 1] = kind end
+			if l.sockets[1][2] then
+				filled = filled or l.sockets[1]
+			else
+				for _, s in ipairs(l.sockets) do check(s[1] == kind, "an empty-socket line holds one kind only") end
+				emptyOf[kind] = #l.sockets
+			end
+		end
+	end
+	check(filled and filled[1] == "gem" and filled[2] == ns.MATS.gem4.icon, "a set gem shows that gem's icon in its socket")
+	check(table.concat(order, ",") == "gem,ench,insc", "sockets come kind by kind: gem, then ench, then insc (" .. table.concat(order, ",") .. ")")
+	check(emptyOf.gem == I.SocketCount(top, "gem") - 1 and emptyOf.ench == I.SocketCount(top, "ench") and emptyOf.insc == I.SocketCount(top, "insc"),
+		"each kind's empty sockets are drawn on that kind's own line")
 end
 db.bag = {}
 ns.AddMat("seal1", 1)

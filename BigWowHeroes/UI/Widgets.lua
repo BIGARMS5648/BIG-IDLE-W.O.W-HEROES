@@ -375,7 +375,9 @@ local function ensureTip()
 	return tip
 end
 
--- lines: array of { left, right, r, g, b }
+-- lines: array of { left, right, r, g, b } (a line may carry sockets: see
+-- UI.Lines in UI/Layout.lua)
+local TIP_SOCKET = 16
 function UI.ShowTip(owner, lines, anchor)
 	if not lines or #lines == 0 then return end
 	ensureTip()
@@ -384,18 +386,20 @@ function UI.ShowTip(owner, lines, anchor)
 		local l = lines[i]
 		local row = tip.rows[i]
 		if not row then
-			row = { left = UI.Text(tip, 11), right = UI.Text(tip, 11) }
+			row = { left = UI.Text(tip, 11), right = UI.Text(tip, 11), sockets = {} }
 			row.right:SetJustifyH("RIGHT")
 			row.left:SetJustifyV("TOP")
 			tip.rows[i] = row
 		end
 		local size = (i == 1) and 13 or 11
+		local socks = l.sockets
+		local indent = UI.PlaceSockets(row.sockets, tip, socks, TIP_SOCKET, 10, y)
 		row.left:SetFont(ns.FONT, size, "")
-		row.left:SetWidth(l[2] and (TIP_WIDTH - 90) or TIP_WIDTH)
+		row.left:SetWidth((l[2] and (TIP_WIDTH - 90) or TIP_WIDTH) - indent)
 		row.left:SetText(l[1] or "")
 		row.left:SetTextColor(l[3] or 1, l[4] or 1, l[5] or 1)
 		row.left:ClearAllPoints()
-		row.left:SetPoint("TOPLEFT", tip, "TOPLEFT", 10, y)
+		row.left:SetPoint("TOPLEFT", tip, "TOPLEFT", 10 + indent, y - (socks and 2 or 0))
 		row.left:Show()
 		if l[2] then
 			row.right:SetText(l[2])
@@ -408,11 +412,13 @@ function UI.ShowTip(owner, lines, anchor)
 		end
 		local h = row.left:GetStringHeight() or size
 		if h < size then h = size end
+		if socks and h < TIP_SOCKET then h = TIP_SOCKET end
 		y = y - h - 3
 	end
 	for i = #lines + 1, #tip.rows do
 		tip.rows[i].left:Hide()
 		tip.rows[i].right:Hide()
+		UI.PlaceSockets(tip.rows[i].sockets, tip, nil)
 	end
 	tip:SetSize(TIP_WIDTH + 20, -y + 8)
 	tip:ClearAllPoints()

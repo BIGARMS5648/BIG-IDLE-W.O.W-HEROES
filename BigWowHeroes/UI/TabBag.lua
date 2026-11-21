@@ -312,7 +312,7 @@ local function fillLines(page, tl, skip, compare)
 	for i = 3, #tl do
 		local text = tl[i][1] or ""
 		if not (skip and skip(text)) then
-			list[#list + 1] = { text .. (tl[i][2] and ("  " .. tl[i][2]) or ""), tl[i][3], tl[i][4], tl[i][5] }
+			list[#list + 1] = { text .. (tl[i][2] and ("  " .. tl[i][2]) or ""), tl[i][3], tl[i][4], tl[i][5], sockets = tl[i].sockets }
 		end
 	end
 	local room = (page.S.card.contentH or 200) - (compare and 22 or 4)

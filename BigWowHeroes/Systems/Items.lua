@@ -298,6 +298,12 @@ function Items.SocketRange(it, kind, e)
 	end
 end
 
+-- The icon of the material set in a socket of this kind and tier.
+function Items.SocketIcon(kind, tier)
+	local m = ns.SOCKET[kind] and ns.MATS[ns.SOCKET[kind].mat .. (tier or 1)]
+	return m and m.icon
+end
+
 -- "(10.5~21)", or nil for a fixed stat
 function Items.SocketRangeText(it, kind, e)
 	local lo, hi = Items.SocketRange(it, kind, e)
@@ -507,26 +513,29 @@ function Items.Tooltip(it, heroId)
 			add(ns.Stats.ModText(a[1], a[2]), nil, 0.2, 1, 0.2)
 		end
 	end
-	-- filled sockets one per line; the empty ones together on one line
-	local empty = {}
+	-- sockets, kind by kind (보석, then 마법부여, then 룬 각인): each filled
+	-- one on its own line, drawn as the socket with the material in it
+	-- (line.sockets, see UI.Lines), then that kind's empty ones on one line
 	for _, kind in ipairs(ns.SOCKET_KINDS) do
 		local total = Items.SocketCount(it, kind)
 		if total > 0 then
 			local l = Items.SocketList(it, kind)
-			local label = ns.N(ns.SOCKET[kind].short)
-			local free = 0
+			local empty = {}
 			for i = 1, total do
 				local e = l and l[i]
 				if e then
-					add("[" .. label .. "] " .. Items.SocketText(it, kind, e), nil, 0.4, 0.8, 1)
+					add(Items.SocketText(it, kind, e), nil, 0.4, 0.8, 1)
+					lines[#lines].sockets = { { kind, Items.SocketIcon(kind, e[3]) } }
 				else
-					free = free + 1
+					empty[#empty + 1] = { kind }
 				end
 			end
-			if free > 0 then empty[#empty + 1] = label .. " " .. free end
+			if #empty > 0 then
+				add(string.format("빈 %s 홈%s", ns.N(ns.SOCKET[kind].short), #empty > 1 and (" " .. #empty .. "개") or ""), nil, 0.55, 0.58, 0.65)
+				lines[#lines].sockets = empty
+			end
 		end
 	end
-	if #empty > 0 then add("빈 홈: " .. table.concat(empty, " · "), nil, 0.5, 0.5, 0.5) end
 	if it.t then
 		add("사용 가능: " .. Items.UsableBy(it), nil, 0.8, 0.8, 0.8)
 	end

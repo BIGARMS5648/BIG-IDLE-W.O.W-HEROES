@@ -237,6 +237,30 @@ local function stressRing()
 	ns.Items.AddToBag(stress)
 	return stress
 end
+-- a top-grade chest piece: one gem and one inscription set, the rest empty
+local mixed
+local function mixedItem()
+	if mixed then return mixed end
+	mixed = ns.Items.New("chest", 58, ns.MAX_QUALITY)
+	ns.Items.AddSocket(mixed, "gem", 4)
+	ns.Items.AddSocket(mixed, "insc", 6)
+	ns.Items.AddToBag(mixed)
+	return mixed
+end
+S.bag_sockets_mixed = function() local p = show("hero", { mode = "gear" }) p.tab = "all" p.selItem = mixedItem() ns.Main.Refresh() end
+S.bag_sockets_mixed_tip = function()
+	local p = show("hero", { mode = "gear" })
+	p.tab = "all"
+	p.selItem = mixedItem()
+	ns.Main.Refresh()
+	for _, c in ipairs(p.cells) do
+		if c.data == mixed then c.__scripts.OnEnter(c) break end
+	end
+end
+S.forge_gem_sockets = function()
+	show("forge", { sub = "gem" })
+	clickWhere(function(f) return f.data == mixedItem() and f.heroId == nil end)
+end
 S.bag_sockets = function() local p = show("hero", { mode = "gear" }) p.tab = "all" p.selItem = stressRing() ns.Main.Refresh() end
 S.bag_sockets_tip = function()
 	local p = show("hero", { mode = "gear" })

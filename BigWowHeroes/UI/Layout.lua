@@ -118,39 +118,99 @@ function UI.StatRow(parent, w, icon, art)
 	return f
 end
 
+-- A socket on an item: a dark round hole with a ring in the colour of its
+-- kind (보석 sky blue, 마법부여 purple, 룬 각인 gold) and, when filled, the
+-- icon of the material set in it.
+UI.SOCKET_RGB = { gem = { 0.40, 0.85, 1.00 }, ench = { 0.80, 0.52, 1.00 }, insc = { 1.00, 0.80, 0.32 } }
+function UI.Socket(parent, size)
+	local f = CreateFrame("Frame", nil, parent)
+	f:SetSize(size, size)
+	f.hole = UI.Art(f, "circle", "BACKGROUND", 0.03, 0.04, 0.07)
+	f.hole:SetAllPoints(f)
+	f.icon = f:CreateTexture(nil, "ARTWORK")
+	f.icon:SetPoint("CENTER", f, "CENTER", 0, 0)
+	f.icon:SetSize(floor(size * 0.64), floor(size * 0.64))
+	f.ring = UI.Art(f, "ring", "OVERLAY", 1, 1, 1)
+	f.ring:SetAllPoints(f)
+	-- kind: "gem" | "ench" | "insc"; icon: the material's icon, nil = empty
+	function f:Set(kind, icon)
+		local c = UI.SOCKET_RGB[kind] or { 0.7, 0.7, 0.7 }
+		self.ring:SetVertexColor(c[1], c[2], c[3], 1)
+		if icon then
+			UI.SetIcon(self.icon, icon)
+			self.icon:Show()
+		else
+			self.icon:Hide()
+		end
+	end
+	return f
+end
+
+-- Sockets drawn in front of a line of text (item text: line.sockets is a
+-- list of { kind, icon }). pool: the line's sockets, made as needed.
+-- Returns how far the text moves right.
+function UI.PlaceSockets(pool, parent, list, size, x, y)
+	local n = list and #list or 0
+	for i = 1, max(n, #pool) do
+		local s = list and list[i]
+		if s then
+			pool[i] = pool[i] or UI.Socket(parent, size)
+			pool[i]:ClearAllPoints()
+			pool[i]:SetPoint("TOPLEFT", parent, "TOPLEFT", x + (i - 1) * (size + 3), y)
+			pool[i]:Set(s[1], s[2])
+			pool[i]:Show()
+		elseif pool[i] then
+			pool[i]:Hide()
+		end
+	end
+	return n > 0 and (n * (size + 3) + 3) or 0
+end
+
 -- Lines of text under each other that may wrap (item stats and the like).
 -- Each line starts below the one before; empty lines take no room. h is the
--- room they have (the layout check reports lines that run past it).
+-- room they have (the layout check reports lines that run past it). A line
+-- with sockets ({ text, r, g, b, sockets = { { kind, icon } ... } }) shows
+-- them in front of its text.
+local LINE_SOCKET = 22
 function UI.Lines(parent, w, n, size, h)
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetSize(w, h or 100)
 	f.lines = {}
+	f.sockets = {}
 	for i = 1, n do
 		local fs = UI.Text(f, size or K.F_SMALL)
-		if i == 1 then
-			fs:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
-		else
-			fs:SetPoint("TOPLEFT", f.lines[i - 1], "BOTTOMLEFT", 0, -3)
-		end
+		fs:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
 		fs:SetWidth(w)
 		fs:SetJustifyV("TOP")
 		f.lines[i] = fs
+		f.sockets[i] = {}
 	end
-	-- list: { { text, r, g, b }, ... }. maxH: the height the lines may use;
-	-- what does not fit ends in a grey "… 그 밖에 N줄" line.
+	-- list: { { text, r, g, b, sockets = ... }, ... }. maxH: the height the
+	-- lines may use; what does not fit ends in a grey "… 그 밖에 N줄" line.
+	-- Returns the height used.
 	function f:Set(list, maxH)
 		local n = list and #list or 0
 		local y, shown = 0, 0
+		local tops = {}
 		for i, fs in ipairs(self.lines) do
 			local v = list and list[i]
 			fs:SetText("")
 			fs:Hide()
+			UI.PlaceSockets(self.sockets[i], self, nil)
 			if v and shown == i - 1 then
+				local socks = v.sockets
+				local indent = socks and (#socks * (LINE_SOCKET + 3) + 3) or 0
+				fs:SetWidth(w - indent)
 				fs:SetText(v[1] or "")
 				fs:SetTextColor(v[2] or 1, v[3] or 1, v[4] or 1)
-				local h = fs:GetStringHeight()
+				local th = fs:GetStringHeight()
+				local h = socks and max(th, LINE_SOCKET) or th
 				if not maxH or y + h <= maxH then
+					fs:ClearAllPoints()
+					fs:SetPoint("TOPLEFT", self, "TOPLEFT", indent, -(y + (socks and floor((h - th) / 2) or 0)))
 					fs:Show()
+					if socks then UI.PlaceSockets(self.sockets[i], self, socks, LINE_SOCKET, 0, -y) end
+					tops[i] = y
 					y = y + h + 3
 					shown = i
 				else
@@ -160,10 +220,15 @@ function UI.Lines(parent, w, n, size, h)
 		end
 		if shown < n and shown > 0 then
 			local last = self.lines[shown]
+			UI.PlaceSockets(self.sockets[shown], self, nil)
+			last:SetWidth(w)
+			last:ClearAllPoints()
+			last:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -tops[shown])
 			last:SetText(string.format("… 그 밖에 %d줄 (칸에 마우스를 올리면 모두 보입니다)", n - shown + 1))
 			last:SetTextColor(0.6, 0.64, 0.72)
 		end
 		if maxH then self:SetHeight(maxH) end
+		return y
 	end
 	return f
 end
