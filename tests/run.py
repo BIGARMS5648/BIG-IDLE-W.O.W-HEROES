@@ -6,6 +6,7 @@
     python3 tests/run.py balance 2 MAGE_FIRE   # ... starting with another specialization
     python3 tests/run.py cover           # line coverage of the addon under the tests
     python3 tests/run.py ui              # only the UI smoke test
+    python3 tests/run.py audit           # combat formulas measured in controlled fights
 
 Needs:  pip install lupa
 """
@@ -170,6 +171,12 @@ def main(argv):
         print("== balance run (%g simulated hours, starting as %s) ==" % (hours, starter))
         lua = new_runtime()
         ok = run_script(lua, "test_balance.lua", hours, starter) and ok
+
+    if what == "audit":
+        # every combat formula measured in controlled fights (tests/combat_audit.lua)
+        print("== combat audit ==")
+        lua = new_runtime()
+        ok = run_script(lua, "combat_audit.lua") and ok
 
     if what == "bench":
         # specialization benchmark / tuner (takes several minutes)

@@ -10,6 +10,10 @@ local Combat = {}
 ns.Combat = Combat
 
 local STEP = 0.1
+-- Timers count down by STEP; 0.5 - 0.1 * 5 is a hair above zero in floating
+-- point, so "is it done?" compares against EPS, not 0 (else every timer ran
+-- one step late: a 0.5 s tick every 0.6 s, a 6 s cooldown every 6.1 s).
+local EPS = 1e-6
 local LANE = 1000
 local FRONT_X = 400
 local REVIVE_TIME = 20
@@ -348,7 +352,7 @@ local function damageHero(h, amount, school, src, isDot)
 	if not isDot then
 		if random() * 100 < s.dodge then
 			fx(h.x, "회피", 0.7, 0.7, 0.7, false, "hero")
-			return 0
+			return 0, "dodge" -- missed: nothing landed (no thorns, no ailment)
 		end
 		if random() * 100 < s.block then
 			amount = amount * 0.5
@@ -468,7 +472,7 @@ local function mobSkill(m, entry)
 		return
 	end
 	entry.cd = entry.cd - STEP
-	if entry.cd > 0 then return end
+	if entry.cd > EPS then return end
 	entry.cd = sk.cd
 	local school = sk.school or m.school
 	local weak = m.st.weaken and (1 - m.st.weaken.v / 100) or 1
@@ -525,14 +529,17 @@ local function stepMob(m)
 	if m.drT > 0 then m.drT = m.drT - STEP end
 	if (m.ccImmune or 0) > 0 then m.ccImmune = m.ccImmune - STEP end
 
-	-- ailments
+	-- ailments: one that has run out goes before it acts again, so a 2 s
+	-- stun holds for 20 steps and a 4 s damage over time ticks 40 times
 	for kind, e in pairs(m.st) do
 		e.t = e.t - STEP
-		if e.dps then
+		if e.t < -EPS then
+			m.st[kind] = nil
+		elseif e.dps then
 			local dealt = damageMob(e.src, m, e.dps * STEP, e.school or "phys", false, true)
 			e.acc = (e.acc or 0) + dealt
 			e.show = (e.show or 1) - STEP
-			if e.show <= 0 then
+			if e.show <= EPS then
 				e.show = 1
 				local c = ns.SCHOOL[e.school or "phys"]
 				local r, g, b = U.rgb(c.hex)
@@ -541,7 +548,6 @@ local function stepMob(m)
 			end
 			if m.dead then return end
 		end
-		if e.t <= 0 then m.st[kind] = nil end
 	end
 	if isDisabled(m) then return end
 
@@ -580,8 +586,9 @@ local function stepMob(m)
 	else
 		inReach = m.x <= stopX + 25
 	end
-	if m.atkT <= 0 and inReach then
-		m.atkT = 1 / m.aspd
+	if m.atkT <= EPS and inReach then
+		m.atkT = m.atkT + 1 / m.aspd -- keep the remainder (else a slowed monster loses time each swing)
+		if m.atkT < 0 then m.atkT = 0 end
 		local t = front
 		if m.range then
 			-- ranged monsters harass anyone
@@ -594,11 +601,12 @@ local function stepMob(m)
 		m.anim = 0.15
 		local weak = m.st.weaken and (1 - m.st.weaken.v / 100) or 1
 		local amount = m.atk * U.rnd(0.9, 1.1) * m.enr * st.rage * weak
-		local dealt = damageHero(t, amount, m.school, m)
+		local dealt, how = damageHero(t, amount, m.school, m)
 		if dealt > 0 and m.status and random() < m.status[2] then
 			applyStatus(t, m.status[1], dealt)
 		end
-		if not m.range and not t.dead and (t.s.thorns or 0) > 0 then
+		-- thorns answer a melee blow that landed (a dodged one did not)
+		if not m.range and how ~= "dodge" and not t.dead and (t.s.thorns or 0) > 0 then
 			damageMob(t, m, t.s.atk * t.s.thorns / 100, "nature", false)
 		end
 	end
@@ -802,7 +810,7 @@ local function stepHero(u)
 	if (u.castT or 0) > 0 then u.castT = u.castT - STEP end
 	if u.dead then
 		u.reviveT = u.reviveT - STEP
-		if u.reviveT <= 0 then revive(u, 0.4) end
+		if u.reviveT <= EPS then revive(u, 0.4) end
 		return
 	end
 	local s = u.s
@@ -815,11 +823,11 @@ local function stepHero(u)
 	for key, hot in pairs(u.hots) do
 		hot.t = hot.t - STEP
 		heal(hot.src, u, hot.per * STEP, true)
-		if hot.t <= 0 then u.hots[key] = nil end
+		if hot.t <= EPS then u.hots[key] = nil end
 	end
 	if u.shield > 0 then
 		u.shieldT = u.shieldT - STEP
-		if u.shieldT <= 0 then u.shield = 0 end
+		if u.shieldT <= EPS then u.shield = 0 end
 	end
 	if (u.ccImmune or 0) > 0 then u.ccImmune = u.ccImmune - STEP end
 
@@ -827,20 +835,21 @@ local function stepHero(u)
 	for i = #u.buffs, 1, -1 do
 		local b = u.buffs[i]
 		b.t = b.t - STEP
-		if b.t <= 0 then
+		if b.t <= EPS then
 			table.remove(u.buffs, i)
 			Combat.dirty = true
 		end
 	end
 
-	-- ailments
+	-- ailments (as for monsters: gone before acting once they run out)
 	for kind, e in pairs(u.st) do
 		e.t = e.t - STEP
-		if e.dps then
+		if e.t < -EPS then
+			u.st[kind] = nil
+		elseif e.dps then
 			damageHero(u, e.dps * STEP, e.school or "phys", nil, true)
 			if u.dead then return end
 		end
-		if e.t <= 0 then u.st[kind] = nil end
 	end
 	if isDisabled(u) then return end
 
@@ -867,7 +876,7 @@ local function stepHero(u)
 	-- healing companions mend the most wounded ally instead
 	for _, pet in pairs(u.pets) do
 		pet.t = pet.t - STEP
-		if pet.t <= 0 then
+		if pet.t <= EPS then
 			pet.t = pet.sk.tick
 			if pet.sk.heal then
 				local t = lowestAlly(0.999)
@@ -889,7 +898,7 @@ local function stepHero(u)
 		local sk = ns.SKILLS[sid]
 		if sk.act == "cd" then
 			u.cd[sid] = u.cd[sid] - STEP * castSpeed
-			if u.cd[sid] <= 0 then
+			if u.cd[sid] <= EPS then
 				local t = inRange and target or nil
 				if cast(u, sid, t) then
 					u.cd[sid] = ns.SkillCooldown(sid, u.slv[sid]) * (1 - s.cdr / 100)
@@ -905,7 +914,7 @@ local function stepHero(u)
 	-- basic attack
 	local slow = u.st.chill and (1 - u.st.chill.v / 100) or 1
 	u.atkT = u.atkT - STEP * slow
-	if u.atkT <= 0 and target and inRange and not target.dead then
+	if u.atkT <= EPS and target and inRange and not target.dead then
 		u.atkT = u.atkT + 1 / s.aspd
 		if u.atkT < 0 then u.atkT = 0 end
 		u.anim = 0.15
@@ -940,12 +949,12 @@ local function stepFields()
 		f.t = f.t - STEP
 		f.tickT = f.tickT - STEP
 		local u = f.src
-		if f.tickT <= 0 and not u.dead and f.sk.heal then
+		if f.tickT <= EPS and not u.dead and f.sk.heal then
 			f.tickT = f.sk.tick
 			for k = 1, #heroes do
 				heal(u, heroes[k], heroes[k].maxhp * f.mult, true)
 			end
-		elseif f.tickT <= 0 and not u.dead then
+		elseif f.tickT <= EPS and not u.dead then
 			f.tickT = f.sk.tick
 			local first = nearestMob()
 			if first then
@@ -959,7 +968,7 @@ local function stepFields()
 				end
 			end
 		end
-		if f.t <= 0 or u.dead then table.remove(fields, i) end
+		if f.t <= EPS or u.dead then table.remove(fields, i) end
 	end
 end
 
@@ -1185,7 +1194,7 @@ function Combat.Step()
 				if u.x > u.homeX then u.x = max(u.homeX, u.x - sp) elseif u.x < u.homeX then u.x = min(u.homeX, u.x + sp) end
 			end
 		end
-		if st.timer <= 0 then
+		if st.timer <= EPS then
 			st.wave = st.wave + 1
 			st.phase = "fight"
 			spawnWave()
@@ -1222,7 +1231,7 @@ function Combat.Step()
 			mobs[i].fade = (mobs[i].fade or 0) - STEP
 			if mobs[i].dead and mobs[i].fade <= 0 then table.remove(mobs, i) end
 		end
-		if st.timer <= 0 then Combat.StartStage() end
+		if st.timer <= EPS then Combat.StartStage() end
 	end
 end
 

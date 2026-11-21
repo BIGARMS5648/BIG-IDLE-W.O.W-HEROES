@@ -562,7 +562,7 @@ function Heroes.ValidateParty()
 	end
 end
 
--- 전투력: the power score the screens show (Stats.Power, on a friendlier scale)
+-- The 전투력 on screen (Stats.CombatPower): comparable across roles and specs.
 function Heroes.PowerScore(id)
-	return math.floor(ns.Stats.Power(id) * 10 + 0.5)
+	return math.floor(ns.Stats.CombatPower(ns.Stats.Get(id)) + 0.5)
 end

@@ -581,12 +581,13 @@ function Items.Tooltip(it, heroId)
 		if r then
 			local pct = (r - 1) * 100
 			local name = ns.Heroes.Name(heroId)
+			-- the role-weighted gear score auto-equip uses, not the 전투력 on screen
 			if pct > 0.2 then
-				add(string.format("%s 전투력 +%s%%", name, U.num(pct, 1)), nil, 0.2, 1, 0.2)
+				add(string.format("%s 기준 장비 점수 +%s%%", name, U.num(pct, 1)), nil, 0.2, 1, 0.2)
 			elseif pct < -0.2 then
-				add(string.format("%s 전투력 %s%%", name, U.num(pct, 1)), nil, 1, 0.3, 0.3)
+				add(string.format("%s 기준 장비 점수 %s%%", name, U.num(pct, 1)), nil, 1, 0.3, 0.3)
 			else
-				add(string.format("%s 전투력 변화 없음", name), nil, 0.7, 0.7, 0.7)
+				add(string.format("%s 기준 장비 점수 변화 없음", name), nil, 0.7, 0.7, 0.7)
 			end
 		elseif not Items.CanUse(heroId, it) then
 			add("선택한 영웅은 사용할 수 없습니다.", nil, 1, 0.3, 0.3)

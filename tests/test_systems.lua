@@ -394,6 +394,30 @@ do
 	ns.Stats.Invalidate(id)
 end
 
+-- 전투력 compares any two heroes: same level and gear quality -> close
+-- together whatever the role or spec (a tank used to show 5-10x a healer)
+do
+	local lo, hi, saved = 1e18, 0, {}
+	for _, sid in ipairs(ns.SPEC_ORDER) do
+		local h = ns.Heroes.NewRecord(sid)
+		h.level = 40
+		math.randomseed(7)
+		local sp = ns.SPECS[sid]
+		h.gear = {}
+		for _, slot in ipairs(ns.SLOTS) do
+			local w
+			if slot == "mh" then w = sp.mh[1] elseif slot == "oh" then w = sp.oh and sp.oh[1] end
+			if slot ~= "oh" or w then h.gear[slot] = ns.Items.New(slot, 40, 4, w) end
+		end
+		ns.Stats.Invalidate(h.id)
+		local p = ns.Heroes.PowerScore(h.id)
+		lo, hi = math.min(lo, p), math.max(hi, p)
+		db.heroes[h.id] = nil
+	end
+	check(hi / lo < 1.3, string.format("전투력 is comparable across all specs (%d ~ %d)", lo, hi))
+	math.randomseed(12345)
+end
+
 ------------------------------------------------------------------------
 section("stat layers")
 do
