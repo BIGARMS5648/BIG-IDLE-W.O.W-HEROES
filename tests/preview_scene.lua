@@ -135,6 +135,17 @@ S.rename = function() show("hero") ns.OpenRename(db.party[2]) end
 
 -- 영웅
 S.hero = function() local p = show("hero", { hero = db.party[2] }) p.sub = "stats" ns.Main.Refresh() end
+-- hovering 원소 저항: each element's resistance
+S.hero_res_tip = function()
+	local p = show("hero", { hero = db.party[2] })
+	p.sub = "stats"
+	ns.Main.Refresh()
+	for _, g in ipairs(p.groups) do
+		for _, row in ipairs(g.rows) do
+			if row.tip and row:IsShown() then row.hover = true row.__scripts.OnEnter(row) return end
+		end
+	end
+end
 S.hero_skills = function() local p = show("hero", { hero = db.party[2] }) p.sub = "skills" ns.Main.Refresh() end
 S.hero_tree = function() local p = show("hero", { hero = db.party[2] }) p.sub = "tree" ns.Main.Refresh() end
 S.hero_bench = function()

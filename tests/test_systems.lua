@@ -373,6 +373,27 @@ do
 	check(found, "the item tooltip shows the ranges of its random stats")
 end
 
+-- the hero screen shows every element's resistance and the share healed on a kill
+do
+	local id = hero("MAGE_FIRE")
+	local h = db.heroes[id]
+	local saved = h.gear.chest
+	local it = ns.Items.New("chest", h.level, 2)
+	it.a = { { "res_fire", 12 }, { "allres", 3 } }
+	h.gear.chest = it
+	ns.Stats.Invalidate(id)
+	local row
+	for _, g in ipairs(ns.Stats.Groups(id)) do
+		for _, r in ipairs(g[2]) do if r[1] == "원소 저항" then row = r end end
+	end
+	check(row and row[2]:find("~", 1, true) and row[4], "원소 저항 shows the spread and a per-element tooltip")
+	local fire
+	for _, l in ipairs(row and row[4] or {}) do if l[1] == "화염 저항" then fire = l[2] end end
+	check(fire and fire:find("^15"), "fire resistance = its own + 모든 원소 저항, got " .. tostring(fire))
+	h.gear.chest = saved
+	ns.Stats.Invalidate(id)
+end
+
 ------------------------------------------------------------------------
 section("stat layers")
 do

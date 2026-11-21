@@ -325,6 +325,9 @@ local function buildStats(page, f)
 		for r = 1, 7 do
 			local row = UI.StatRow(f, col.w, nil, nil, 0.6)
 			row:SetHeight(19)
+			-- some rows explain themselves on hover (원소 저항: each element)
+			row:EnableMouse(true)
+			UI.Tip(row, function(self) return self.tip end, "TOP")
 			row.l:SetFont(ns.FONT, 11, "")
 			row.v:SetFont(ns.FONT, 11, "")
 			g.rows[r] = row
@@ -357,6 +360,7 @@ local function refreshStats(page, id)
 				row:ClearAllPoints()
 				row:SetPoint("TOPLEFT", g.f, "TOPLEFT", g.col.x, -y[ci])
 				row:Set(v[1], v[2])
+				row.tip = v[4]
 				if v[3] == "up" then row.v:SetTextColor(0.4, 1, 0.45)
 				elseif v[3] == "zero" then row.v:SetTextColor(0.55, 0.58, 0.65)
 				else row.v:SetTextColor(1, 1, 1) end

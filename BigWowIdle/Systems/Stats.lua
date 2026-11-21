@@ -202,6 +202,21 @@ function Stats.Groups(heroId)
 		return { label, text, x > 0 and "up" or "zero" }
 	end
 	local school = v(s["dmg_" .. s.school]) + v(s.dmg_all)
+	-- resistances: every element's own plus 모든 원소 저항, each capped like in combat
+	local RES = { { "fire", "화염" }, { "frost", "냉기" }, { "nature", "자연" }, { "shadow", "암흑" } }
+	local lo, hi, resTip = nil, nil, { { "원소 저항", nil, 1, 0.82, 0 } }
+	for _, e in ipairs(RES) do
+		local r = math.min(CAPS.allres, v(s["res_" .. e[1]]) + v(s.allres))
+		lo, hi = math.min(lo or r, r), math.max(hi or r, r)
+		resTip[#resTip + 1] = { e[2] .. " 저항", U.num(r, 1) .. "%", 1, 1, 1 }
+	end
+	resTip[#resTip + 1] = { "신성 · 비전 저항", U.num(math.min(CAPS.allres, v(s.allres)), 1) .. "%", 1, 1, 1 }
+	resTip[#resTip + 1] = { string.format("모든 원소 저항 %s%% 포함 · 각각 최대 %d%%", U.num(v(s.allres), 1), CAPS.allres), nil, 0.7, 0.7, 0.75 }
+	local resText = (lo == hi) and ((hi > 0 and "+" or "") .. U.num(hi, 1) .. "%") or (U.num(lo, 1) .. "~" .. U.num(hi, 1) .. "%")
+	-- on a kill: a flat amount and a share of the maximum
+	local hpk, hpkPct = v(s.hpk), v(s.hpkPct)
+	local hpkText = (hpkPct > 0 and hpk > 0) and (U.fmt(hpk) .. " + " .. U.num(hpkPct, 1) .. "%")
+		or (hpkPct > 0 and ("최대의 " .. U.num(hpkPct, 1) .. "%") or U.fmt(hpk))
 	return {
 		{ "기본", {
 			{ "공격력", U.fmt(s.atk) },
@@ -226,13 +241,13 @@ function Stats.Groups(heroId)
 			bonus("받는 피해 감소", s.dr),
 			bonus("생명력 흡수", s.leech),
 			bonus("피해 흡수", s.absorb, nil, true),
-			bonus("모든 원소 저항", s.allres),
+			{ "원소 저항", resText, hi > 0 and "up" or "zero", resTip },
 			bonus("가시 반사", s.thorns),
 		} },
 		{ "특화", {
 			bonus("치유량 증가", s.heal),
 			bonus("적중 시 생명력", s.hph, nil, true),
-			bonus("처치 시 생명력", s.hpk, nil, true),
+			{ "처치 시 생명력", hpkText, (hpk > 0 or hpkPct > 0) and "up" or "zero" },
 			bonus("이동 속도", s.move),
 			bonus("경험치 획득", s.exp),
 			bonus("골드 획득", s.gold),
