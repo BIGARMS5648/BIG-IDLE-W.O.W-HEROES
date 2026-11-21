@@ -1,6 +1,8 @@
--- Party screen (편성), built from the screen kit (UI/Layout.lua):
+-- Party screen (편성), built from the screen kit (UI/Layout.lua), no tab row:
 --   list: the five party slots in battle order (healer at the back on the
---         left, the tank in front on the right) and every hero you own;
+--         left, the tank in front on the right) under a header with what
+--         acts on the party (자동 편성, 동료); every hero you own under a
+--         header with the role filter, and a "+" card to make a new hero;
 --   card: the chosen hero or slot, and what to do with it.
 -- Also here: hero creation, renaming, companions and the faction choice.
 local _, ns = ...
@@ -12,7 +14,7 @@ local H = ns.Heroes
 
 local K = UI.K
 local LANE_ORDER = { 5, 4, 3, 2, 1 } -- healer at the back ... tank in front
-local ROLE_FILTER = { { nil, "전체" }, { "TANK", "탱커" }, { "DPS", "딜러" }, { "HEALER", "힐러" } }
+local ROLE_TABS = { { "ALL", "전체" }, { "TANK", "탱커" }, { "DPS", "딜러" }, { "HEALER", "힐러" } }
 
 ------------------------------------------------------------------------
 -- Helpers
@@ -777,12 +779,18 @@ local function buildSlot(page, slot, k)
 	return card
 end
 
+-- where the i-th card of the roster grid goes
+local function rosterAt(page, card, i)
+	local col, row = (i - 1) % 6, floor((i - 1) / 6)
+	card:ClearAllPoints()
+	card:SetPoint("TOPLEFT", page.S.list, "TOPLEFT", floor(K.PAD + col * ROSTER_STEP_X), ROSTER_Y - row * (CARD_H + 8))
+end
+
 local function buildRosterCard(page, i)
 	local list = page.S.list
-	local col, row = (i - 1) % 6, floor((i - 1) / 6)
 	local card = CreateFrame("Button", nil, list)
 	card:SetSize(CARD_W, CARD_H)
-	card:SetPoint("TOPLEFT", list, "TOPLEFT", floor(K.PAD + col * ROSTER_STEP_X), ROSTER_Y - row * (CARD_H + 8))
+	rosterAt(page, card, i)
 	card.isItem = true
 	card.bg = UI.Slice(card, "card", "BACKGROUND")
 	card.sel = UI.SelFrame(card)
@@ -816,33 +824,63 @@ local function buildRosterCard(page, i)
 	return card
 end
 
+-- the "+" card after the heroes: make a new one
+local function buildCreateCard(page)
+	local card = CreateFrame("Button", nil, page.S.list)
+	card:SetSize(CARD_W, CARD_H)
+	card.bg = UI.Slice(card, "card", "BACKGROUND")
+	card.bg:SetColor(0.22, 0.25, 0.34, 1)
+	card.plus = UI.Glyph(card, "plus", 30, 0.70, 0.80, 1)
+	card.plus:SetPoint("TOP", card, "TOP", 0, -14)
+	card.name = UI.Text(card, K.F_BODY, "영웅 만들기")
+	card.name:SetPoint("TOP", card, "TOP", 0, -55)
+	card.name:SetWidth(CARD_W - 6)
+	card.name:SetJustifyH("CENTER")
+	card.name:SetWordWrap(false)
+	card.cost = UI.Text(card, K.F_MIN)
+	card.cost:SetPoint("TOP", card, "TOP", 0, -71)
+	card.cost:SetWidth(CARD_W - 6)
+	card.cost:SetJustifyH("CENTER")
+	card.cost:SetWordWrap(false)
+	card.badge = UI.Badge(card, 14)
+	card.badge:SetPoint("TOPRIGHT", card, "TOPRIGHT", 3, 3)
+	card:RegisterForClicks("LeftButtonUp")
+	card:SetScript("OnClick", function(self)
+		ns.Sound("click")
+		if self.why then UI.Try(false, self.why) return end
+		create.open(nil, ns.Guide.MissingRole())
+	end)
+	UI.Tip(card, function() return UI.SimpleTip("영웅 만들기", "직업과 전문화, 성별과 이름을 정해 새 영웅을 만듭니다. 영웅이 많을수록 비용이 오릅니다.") end, "TOP")
+	return card
+end
+
 local function build(page)
 	page.filter = nil
-	local S = UI.Screen(page, {
-		tabs = { { "ALL", "전체" }, { "TANK", "탱커" }, { "DPS", "딜러" }, { "HEALER", "힐러" } },
-		onTab = function(key)
-			page.filter = key ~= "ALL" and key or nil
-			Main.Refresh()
-		end,
-	})
+	local S = UI.Screen(page, { noTop = true })
 	page.S = S
-	page.petsBtn = S.Tool(90, "동료", openPets, "dark")
-	UI.Tip(page.petsBtn, function() return UI.SimpleTip("동료", "조건을 채우면 얻는 동료와 그 효과를 봅니다.") end, "TOP")
 
 	local list = S.list
+	-- the party, and what acts on it
 	page.partyHead = UI.Section(list, K.LIST_IN)
 	page.partyHead:SetPoint("TOPLEFT", list, "TOPLEFT", K.PAD, -K.PAD)
+	page.auto = page.partyHead:AddTool(UI.Button(list, 84, 22, "자동 편성", autoForm, "blue"))
+	page.auto.clickWhenOff = true
+	UI.Tip(page.auto, function() return UI.SimpleTip("자동 편성", "빈 자리마다 그 역할의 대기 영웅 중 가장 강한 영웅을 넣습니다. 이미 출전한 영웅은 바꾸지 않습니다.") end, "TOP")
+	page.petsBtn = page.partyHead:AddTool(UI.Button(list, 60, 22, "동료", openPets, "dark"))
+	UI.Tip(page.petsBtn, function() return UI.SimpleTip("동료", "조건을 채우면 얻는 동료와 그 효과를 봅니다. 동료는 파티와 함께 싸웁니다.") end, "TOP")
 	page.slots = {}
 	for k, slot in ipairs(LANE_ORDER) do page.slots[slot] = buildSlot(page, slot, k) end
+	-- the heroes you own, the role filter, and a new hero
 	page.rosterHead = UI.Section(list, K.LIST_IN)
 	page.rosterHead:SetPoint("TOPLEFT", list, "TOPLEFT", K.PAD, -162)
+	page.filterTabs = UI.Tabs(list, 236, ROLE_TABS, function(key)
+		page.filter = key ~= "ALL" and key or nil
+		Main.Refresh()
+	end, true, 22)
+	page.rosterHead:AddTool(page.filterTabs)
 	page.roster = {}
 	for i = 1, ns.ROSTER_MAX do page.roster[i] = buildRosterCard(page, i) end
-
-	page.auto = S.FootButton(1, 120, "자동 편성", autoForm, "blue")
-	UI.Tip(page.auto, function() return UI.SimpleTip("자동 편성", "빈 자리마다 그 역할의 대기 영웅 중 가장 강한 영웅을 넣습니다. 이미 출전한 영웅은 바꾸지 않습니다.") end, "TOP")
-	page.create = S.FootButton(2, 200, "", function() create.open(nil, ns.Guide.MissingRole()) end, "blue")
-	UI.Tip(page.create, function() return UI.SimpleTip("영웅 만들기", "직업과 전문화, 성별과 이름을 정해 새 영웅을 만듭니다. 영웅이 많을수록 비용이 오릅니다.") end, "TOP")
+	page.create = buildCreateCard(page)
 
 	-- the card's list of heroes for an empty slot
 	local d = S.card
@@ -1021,7 +1059,7 @@ local function refresh(page)
 		local col = have[role] >= want[role] and "60e070" or (have[role] > 0 and "ffd24a" or "ff6a5a")
 		parts[#parts + 1] = U.col(col, string.format("%s %d/%d", ns.N(ns.ROLE[role].name), have[role], want[role]))
 	end
-	page.partyHead:Set(string.format("출전 파티  %d / %d", count, limit), table.concat(parts, "  "))
+	page.partyHead:Set(string.format("출전 파티  %d / %d", count, limit), table.concat(parts, " "))
 
 	-- the selection: keep it valid; default to the first party hero
 	local sel = page.sel
@@ -1065,15 +1103,16 @@ local function refresh(page)
 		end
 	end
 
-	-- tabs = role filter
+	-- the role filter in the roster's header
 	local all = H.List()
 	local n = { TANK = 0, DPS = 0, HEALER = 0 }
 	for _, id in ipairs(all) do n[H.Role(id)] = n[H.Role(id)] + 1 end
-	S.tabs:Select(page.filter or "ALL")
-	S.tabs:SetLabel("ALL", "전체 " .. #all)
-	S.tabs:SetLabel("TANK", "탱커 " .. n.TANK)
-	S.tabs:SetLabel("DPS", "딜러 " .. n.DPS)
-	S.tabs:SetLabel("HEALER", "힐러 " .. n.HEALER)
+	local ft = page.filterTabs
+	ft:Select(page.filter or "ALL")
+	ft:SetLabel("ALL", "전체 " .. #all)
+	ft:SetLabel("TANK", "탱커 " .. n.TANK)
+	ft:SetLabel("DPS", "딜러 " .. n.DPS)
+	ft:SetLabel("HEALER", "힐러 " .. n.HEALER)
 	local list = {}
 	for _, id in ipairs(all) do
 		if not page.filter or H.Role(id) == page.filter then list[#list + 1] = id end
@@ -1108,10 +1147,21 @@ local function refresh(page)
 		end
 	end
 	S.Empty(#all == 0 and "" or nil)
+	-- the "+" card right after the last hero shown
 	local cost = H.CreateCost()
-	page.create:SetLabel("영웅 만들기  " .. (cost > 0 and U.fmt(cost) .. " G" or "무료"))
-	page.create:SetOff(#all >= ns.ROSTER_MAX or not ns.CanAfford(cost))
-	page.create:SetBadge(ns.Guide.MissingRole() ~= nil and #all < ns.ROSTER_MAX and ns.CanAfford(cost))
+	local cc = page.create
+	if #all >= ns.ROSTER_MAX then
+		cc:Hide()
+	else
+		rosterAt(page, cc, #list + 1)
+		local afford = ns.CanAfford(cost)
+		cc.cost:SetText(U.col(afford and "ffd24a" or "ff6a5a", cost > 0 and (U.fmt(cost) .. " G") or "무료"))
+		cc.why = not afford and "골드가 부족합니다." or nil
+		cc.plus:SetAlpha(afford and 1 or 0.45)
+		cc.name:SetAlpha(afford and 1 or 0.6)
+		cc.badge:Set(ns.Guide.MissingRole() ~= nil and afford)
+		cc:Show()
+	end
 	page.auto:SetOff(not canAutoForm())
 	refreshCard(page)
 end

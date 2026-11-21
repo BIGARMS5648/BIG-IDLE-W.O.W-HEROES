@@ -507,21 +507,26 @@ function Items.Tooltip(it, heroId)
 			add(ns.Stats.ModText(a[1], a[2]), nil, 0.2, 1, 0.2)
 		end
 	end
+	-- filled sockets one per line; the empty ones together on one line
+	local empty = {}
 	for _, kind in ipairs(ns.SOCKET_KINDS) do
 		local total = Items.SocketCount(it, kind)
 		if total > 0 then
 			local l = Items.SocketList(it, kind)
 			local label = ns.N(ns.SOCKET[kind].short)
+			local free = 0
 			for i = 1, total do
 				local e = l and l[i]
 				if e then
 					add("[" .. label .. "] " .. Items.SocketText(it, kind, e), nil, 0.4, 0.8, 1)
 				else
-					add("[" .. label .. "] " .. "비어 있음", nil, 0.5, 0.5, 0.5)
+					free = free + 1
 				end
 			end
+			if free > 0 then empty[#empty + 1] = label .. " " .. free end
 		end
 	end
+	if #empty > 0 then add("빈 홈: " .. table.concat(empty, " · "), nil, 0.5, 0.5, 0.5) end
 	if it.t then
 		add("사용 가능: " .. Items.UsableBy(it), nil, 0.8, 0.8, 0.8)
 	end

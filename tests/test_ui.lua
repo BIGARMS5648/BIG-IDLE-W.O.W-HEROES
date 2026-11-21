@@ -548,6 +548,16 @@ do
 		tab("options", t)
 		hoverAll()
 	end
+	-- each group's button sits in its header: no side card
+	local op = Main.Page("options")
+	if op.S.card:IsVisible() then fail("settings should have no side card") end
+	tab("options", "screen")
+	press("battle window back to default", op.screen.resetPos)
+	tab("options", "info")
+	press("reset everything", op.info.reset)
+	local yes, no = ns.UI.ConfirmButtons()
+	if not (no and no:IsVisible()) then fail("resetting everything must ask first") else press("cancel the reset", no) end
+	if H.Count() == 0 then fail("cancelling the reset must keep the heroes") end
 end
 
 -- HUD: goal, auto toggle, chests, menu shortcuts

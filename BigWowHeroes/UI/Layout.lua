@@ -63,10 +63,25 @@ function UI.Section(parent, w, text)
 	function f:Set(t, note)
 		self.title:SetText(t or "")
 		self.note:SetText(note or "")
-		-- the title gives way to the note
-		local nw = (note and note ~= "") and min(w - 80, self.note:GetStringWidth() + 4) or 0
+		-- the title gives way to the note (and the note to the header's buttons)
+		local avail = w - (self.toolW or 0)
+		local nw = (note and note ~= "") and min(avail - 80, self.note:GetStringWidth() + 4) or 0
 		self.note:SetWidth(max(1, nw))
-		self.title:SetWidth(max(40, w - nw - 8))
+		self.title:SetWidth(max(40, avail - nw - 8))
+	end
+	-- a small button (or a row of chips) at the right end of the header, for
+	-- what acts on the things under this header; added right to left
+	function f:AddTool(b)
+		self.tools = self.tools or {}
+		local x = 0
+		for _, o in ipairs(self.tools) do x = x + o:GetWidth() + 6 end
+		b:ClearAllPoints()
+		b:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -x, 3)
+		self.tools[#self.tools + 1] = b
+		self.toolW = x + b:GetWidth() + 10
+		self.note:ClearAllPoints()
+		self.note:SetPoint("TOPRIGHT", self, "TOPRIGHT", -self.toolW, -3)
+		return b
 	end
 	return f
 end
@@ -506,7 +521,12 @@ end
 function UI.Screen(page, opts)
 	opts = opts or {}
 	local S = {}
-	if opts.tabs then
+	-- noTop: no tab row; the list and the card start at the top
+	local top = opts.noTop and 0 or K.TOP
+	S.bodyH = K.BODY_H + K.TOP - top
+	if opts.noTop then
+		-- nothing above the list and the card
+	elseif opts.tabs then
 		S.tabs = UI.Tabs(page, K.LIST_W, opts.tabs, opts.onTab)
 		S.tabs:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
 	else
@@ -520,10 +540,10 @@ function UI.Screen(page, opts)
 	S.tools = CreateFrame("Frame", nil, page)
 	S.tools:SetSize(K.CARD_W, K.TAB_H)
 	S.tools:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, 0)
-	S.list = UI.Panel(page, K.LIST_W, K.BODY_H, "inset")
-	S.list:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -K.TOP)
-	S.card = UI.Card(page, K.CARD_W, K.BODY_H)
-	S.card:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, -K.TOP)
+	S.list = UI.Panel(page, K.LIST_W, S.bodyH, "inset")
+	S.list:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -top)
+	S.card = UI.Card(page, K.CARD_W, S.bodyH)
+	S.card:SetPoint("TOPRIGHT", page, "TOPRIGHT", 0, -top)
 	-- list footer: page-wide buttons, left to right
 	S.foot = {}
 	function S.FootButton(i, w, label, onClick, style)

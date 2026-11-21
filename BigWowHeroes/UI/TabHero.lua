@@ -331,6 +331,9 @@ local function buildSkills(page)
 	end
 	p.listHead = UI.Section(p, K.LIST_IN)
 	p.listHead:SetPoint("TOPLEFT", p, "TOPLEFT", K.PAD, TOP - 84)
+	-- what acts on the skill points, next to them
+	p.reset = p.listHead:AddTool(page.resetSkills)
+	p.auto = p.listHead:AddTool(page.autoSkills)
 	p.rows = {}
 	for i = 1, 6 do
 		local col, row = (i - 1) % 2, floor((i - 1) / 2)
@@ -369,7 +372,7 @@ local function refreshSkills(page, id)
 	local h = ns.db.heroes[id]
 	local list = H.SkillList(id)
 	local free = H.SkillPointsFree(id)
-	p.slotHead:Set("전투에서 쓰는 기술", free > 0 and U.col("60e070", "남은 기술 점수 " .. free) or "남은 기술 점수 0")
+	p.slotHead:Set("전투에서 쓰는 기술", string.format("장착 칸 %d / 3", ns.SkillSlots()))
 	local slots = ns.SkillSlots()
 	for i, b in ipairs(p.slots) do
 		b.locked = i > slots
@@ -390,7 +393,7 @@ local function refreshSkills(page, id)
 			b.sub:SetText("비어 있음")
 		end
 	end
-	p.listHead:Set("이 전문화의 기술", ns.SpecLabel(h.spec))
+	p.listHead:Set("이 전문화의 기술", free > 0 and U.col("60e070", "남은 점수 " .. free) or "남은 점수 0")
 	if not page.skill or not H.SkillUnlockLevel(id, page.skill) then page.skill = h.skills[1] or list[1] end
 	for i, row in ipairs(p.rows) do
 		local sid = list[i]
@@ -454,7 +457,7 @@ local function refreshSkills(page, id)
 		end, "blue", pts == 0 or full }, learn)
 	end
 	page.autoSkills:SetOff(free == 0)
-	page.resetSkills:SetLabel("기술 초기화  " .. U.fmt(H.SkillResetCost(id)) .. " G")
+	page.resetSkills:SetLabel("초기화 " .. U.fmt(H.SkillResetCost(id)) .. " G")
 	page.resetSkills:SetOff(H.SkillPointsSpent(id) <= 1 or not ns.CanAfford(H.SkillResetCost(id)))
 end
 
@@ -472,6 +475,8 @@ local function buildTree(page)
 	page.tree = p
 	p.head = UI.Section(p, K.LIST_IN)
 	p.head:SetPoint("TOPLEFT", p, "TOPLEFT", K.PAD, TOP)
+	p.head:AddTool(page.resetTree)
+	p.head:AddTool(page.autoTree)
 	p.tiers = {}
 	for t = 1, 8 do
 		local y = TOP - 26 - (t - 1) * NODE_STEP
@@ -521,7 +526,7 @@ local function refreshTree(page, id)
 	local tree = H.Tree(id)
 	local free = H.PointsFree(id)
 	local spent = H.PointsSpent(id)
-	p.head:Set("특성 트리", free > 0 and U.col("60e070", "남은 특성 점수 " .. free) or "남은 특성 점수 0")
+	p.head:Set("특성 트리", free > 0 and U.col("60e070", "남은 점수 " .. free) or "남은 점수 0")
 	-- default selection: the first node that can take a point
 	if not page.node then
 		for t = 1, 8 do
@@ -587,7 +592,7 @@ local function refreshTree(page, id)
 	d:Actions({ "최대까지", function() spend(true) end, "dark", not ok },
 		{ "1점 쓰기", function() spend(false) end, "primary", not ok })
 	page.autoTree:SetOff(free == 0)
-	page.resetTree:SetLabel("특성 초기화  " .. U.fmt(H.ResetCost(id)) .. " G")
+	page.resetTree:SetLabel("초기화 " .. U.fmt(H.ResetCost(id)) .. " G")
 	page.resetTree:SetOff(spent == 0 or not ns.CanAfford(H.ResetCost(id)))
 end
 
@@ -610,17 +615,16 @@ local function build(page)
 	end)
 	page.strip:SetPoint("TOPLEFT", S.list, "TOPLEFT", K.PAD, -K.PAD + 2)
 
-	-- page-wide buttons (list footer); one set per tab
-	page.toBag = S.FootButton(1, 130, "가방 열기", function() Main.ShowTab("bag", { slot = page.slot }) end, "blue")
-	page.autoSkills = UI.Button(S.list, 120, K.BTN_H, "자동 배분", function()
+	-- the skill and talent points' buttons: they sit in the header that
+	-- shows the points (buildSkills, buildTree)
+	page.autoSkills = UI.Button(S.list, 76, 22, "자동 배분", function()
 		local id = heroOf()
 		if id then
 			local n = H.AutoSkills(id)
 			ns.Toast(n > 0 and string.format("기술 점수 %d점을 썼습니다.", n) or "쓸 수 있는 기술 점수가 없습니다.")
 		end
 	end, "blue")
-	page.autoSkills:SetPoint("BOTTOMLEFT", S.list, "BOTTOMLEFT", K.PAD, K.PAD)
-	page.resetSkills = UI.Button(S.list, 200, K.BTN_H, "", function()
+	page.resetSkills = UI.Button(S.list, 116, 22, "", function()
 		local id = heroOf()
 		if not id then return end
 		UI.Confirm({ title = "기술 초기화", ok = "초기화", style = "red",
@@ -628,17 +632,15 @@ local function build(page)
 				H.Name(id), U.fmt(H.SkillResetCost(id))),
 			onOk = function() UI.Try(H.ResetSkills(id)) end })
 	end, "red")
-	page.resetSkills:SetPoint("LEFT", page.autoSkills, "RIGHT", 8, 0)
 	UI.Tip(page.resetSkills, function() return UI.SimpleTip("기술 초기화", "첫 기술을 뺀 모든 기술 점수를 돌려받습니다. 골드가 듭니다.") end, "TOP")
-	page.autoTree = UI.Button(S.list, 120, K.BTN_H, "자동 배분", function()
+	page.autoTree = UI.Button(S.list, 76, 22, "자동 배분", function()
 		local id = heroOf()
 		if id then
 			local n = H.AutoSpend(id)
 			ns.Toast(n > 0 and string.format("특성 점수 %d점을 썼습니다.", n) or "쓸 수 있는 특성 점수가 없습니다.")
 		end
 	end, "blue")
-	page.autoTree:SetPoint("BOTTOMLEFT", S.list, "BOTTOMLEFT", K.PAD, K.PAD)
-	page.resetTree = UI.Button(S.list, 200, K.BTN_H, "", function()
+	page.resetTree = UI.Button(S.list, 116, 22, "", function()
 		local id = heroOf()
 		if not id then return end
 		UI.Confirm({ title = "특성 초기화", ok = "초기화", style = "red",
@@ -646,7 +648,6 @@ local function build(page)
 				H.Name(id), U.fmt(H.ResetCost(id))),
 			onOk = function() UI.Try(H.ResetTree(id)) end })
 	end, "red")
-	page.resetTree:SetPoint("LEFT", page.autoTree, "RIGHT", 8, 0)
 	UI.Tip(page.resetTree, function() return UI.SimpleTip("특성 초기화", "쓴 특성 점수를 모두 돌려받습니다. 골드가 듭니다.") end, "TOP")
 
 	buildGear(page)
@@ -678,7 +679,7 @@ local function refresh(page)
 		page.tree.state:SetText("")
 		page.tree.help:Hide()
 		for _, k in ipairs({ "gear", "skills", "tree" }) do S.tabs:SetBadge(k, nil) end
-		for _, b in ipairs({ page.toBag, page.autoSkills, page.resetSkills, page.autoTree, page.resetTree }) do b:Hide() end
+		for _, b in ipairs({ page.autoSkills, page.resetSkills, page.autoTree, page.resetTree }) do b:Hide() end
 		S.Empty("영웅이 없습니다.\n'편성'에서 첫 영웅을 만드세요.")
 		d:Head({ title = "영웅이 없습니다" })
 		d:Extras(nil, nil)
@@ -697,7 +698,6 @@ local function refresh(page)
 	page.gear:SetShown(sub == "gear")
 	page.skills:SetShown(sub == "skills")
 	page.tree:SetShown(sub == "tree")
-	page.toBag:SetShown(sub == "gear")
 	page.autoSkills:SetShown(sub == "skills")
 	page.resetSkills:SetShown(sub == "skills")
 	page.autoTree:SetShown(sub == "tree")

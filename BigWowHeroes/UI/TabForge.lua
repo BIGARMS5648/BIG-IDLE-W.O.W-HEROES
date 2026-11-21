@@ -190,7 +190,7 @@ function ops.fuse(page, panel, cp)
 		UI.Tip(b, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end)
 		panel.inputs[i] = b
 	end
-	panel.note = note(panel, -140, "가장 낮은 레벨의 장비부터 씁니다. 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 쓰지 않습니다(가방에서 Alt+클릭으로 보호).\n결과의 레벨은 재료 9개의 평균 레벨 부근이고, 부위는 같은 종류 안에서 무작위입니다. 영웅 등급부터는 등급이 오르지 않을 수도 있습니다.\n재료(광석 등)의 융합은 '가방 > 재료'에서 합니다.")
+	panel.note = note(panel, -140, "가장 낮은 레벨의 장비부터 씁니다. 보호한 장비, 보석이 박힌 장비, 파티에게 더 좋은 장비는 쓰지 않습니다(가방에서 Alt+클릭으로 보호).\n결과의 레벨은 재료 9개의 평균 레벨 부근이고, 부위는 같은 종류 안에서 무작위입니다. 영웅 등급부터는 등급이 오르지 않을 수도 있습니다.\n재료(주괴·보석 등)의 융합은 가방의 재료 탭(제작 재료, 보석 세공 재료 …)에서 합니다.")
 
 	cp.head = UI.Section(cp, K.CARD_IN, "결과 등급 확률")
 	cp.head:SetPoint("TOPLEFT", cp, "TOPLEFT", 0, 0)

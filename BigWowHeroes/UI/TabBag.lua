@@ -153,7 +153,8 @@ local function build(page)
 	S.list:ClearAllPoints()
 	S.list:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -(K.TOP + MAT_ROW_H + MAT_ROW_GAP))
 	S.list:SetHeight(K.BODY_H - MAT_ROW_H - MAT_ROW_GAP)
-	page.sort = S.Tool(90, "정리", function()
+	-- 정리 sorts the grid: it sits in the grid's header
+	page.sort = UI.Button(S.list, 56, 22, "정리", function()
 		if isMats(page.tab) then
 			sortMats()
 		elseif page.tab == "bank" then
@@ -170,6 +171,7 @@ local function build(page)
 	local list = S.list
 	page.head = UI.Section(list, K.LIST_IN)
 	page.head:SetPoint("TOPLEFT", list, "TOPLEFT", K.PAD, -K.PAD)
+	page.head:AddTool(page.sort)
 	page.cells = {}
 	for i = 1, COLS * ROWS do
 		local b = UI.IconButton(list, CELL, function(self, button)
@@ -200,13 +202,13 @@ local function build(page)
 		page.cells[i] = b
 	end
 
-	-- list footer: chests and bulk breaking down
+	-- list footer: open the chests | pick the grade, then break down up to it
 	page.open = S.FootButton(1, 160, "", function()
 		ns.Loot.OpenAll()
 		Main.Refresh()
 	end, "blue")
 	UI.Tip(page.open, function() return UI.SimpleTip("상자 모두 열기", "쌓인 상자를 모두 엽니다. 가방이 차면 남은 상자는 그대로 둡니다.") end, "TOP")
-	page.smeltGo = S.FootButton(2, 190, "", function(self)
+	page.smeltGo = UI.Button(list, 190, K.BTN_H, "", function(self)
 		if not ns.Forge.Unlocked("smelt") then
 			Main.ShowTab("forge", { sub = "smelt" })
 			return
@@ -242,7 +244,9 @@ local function build(page)
 		ns.db.ui.smeltQ = q
 		if (ns.db.opt.autoSmelt or 0) > 0 then ns.db.opt.autoSmelt = q end
 	end, "기준: ")
-	page.smeltPick:SetPoint("LEFT", page.smeltGo, "RIGHT", 8, 0)
+	page.smeltPick:SetPoint("LEFT", page.open, "RIGHT", 8, 0)
+	page.smeltGo:SetPoint("LEFT", page.smeltPick, "RIGHT", 8, 0)
+	page.smeltGo.clickWhenOff = true
 	page.smeltPick.openUp = true -- it sits in the footer
 	page.smeltPick.tipTitle = "분해 기준 등급"
 	page.smeltPick.tipText = "일괄 분해와 자동 분해(설정)가 이 등급 이하의 장비만 분해합니다. 눌러서 목록에서 고르세요."

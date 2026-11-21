@@ -360,7 +360,7 @@ S.options_reset = function()
 	local p = show("options")
 	p.tab = "info"
 	ns.Main.Refresh()
-	p.S.card.wide:Click()
+	p.info.reset:Click()
 end
 
 -- a new player: no hero yet, then one hero

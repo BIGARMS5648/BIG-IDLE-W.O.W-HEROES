@@ -57,13 +57,14 @@ GUIDE = """# 그림 에셋 프롬프트 목록
 ```
 ┌ 메뉴 창 테두리 (ui_window) ───────────────────────────────────────────┐
 │ 제목 띠 (ui_header): 화면 아이콘(icons_menu) · 화면 이름 · 골드(ui_pill)  [X](icon_close) │
-│ [위쪽 탭 ui_chip / 고른 탭 ui_chip_on] ...            [도구 버튼 ui_btn_neutral] │
+│ [위쪽 탭 ui_chip / 고른 탭 ui_chip_on] ...                                    │
 │ ┌ 왼쪽 목록 판 (ui_inset) ─────────────┐ ┌ 오른쪽 카드 (ui_card) ─────────┐ │
-│ │ 영웅 카드(ui_card) + 초상화 테두리     │ │ 머리 띠(ui_band) 아이콘 이름    │ │
+│ │ 머리줄 [작은 버튼 ui_btn_neutral/secondary] │ 머리 띠(ui_band) 아이콘 이름 │ │
+│ │ 영웅 카드(ui_card) + 초상화 테두리     │ │                                  │ │
 │ │ (ui_portrait_ring), 역할(icons_role)  │ │ 능력치 줄(icons_stats*)          │ │
 │ │ 아이템 칸(ui_slot / icons_quality)    │ │ 막대(ui_bar_frame, ui_bar_fill)  │ │
 │ │ 고른 것: 금색 테두리 (ui_select)      │ │                                  │ │
-│ │ [화면 버튼 ui_btn_secondary]          │ │ [보조 ui_btn_neutral][실행 ui_btn_primary] │
+│ │ "+ 영웅 만들기" 카드(ui_card, icon_plus) │ │ [보조 ui_btn_neutral][실행 ui_btn_primary] │
 │ └───────────────────────────────────────┘ └──────────────────────────────────┘ │
 │ [아래 탭 ui_tab / 지금 화면 ui_tab_on] × 6 (icons_menu)                       │
 └───────────────────────────────────────────────────────────────────────┘
