@@ -56,8 +56,11 @@ function Items.Icon(it)
 	return icons[min(#icons, floor((Items.Tier(it) + 1) / 2))]
 end
 
+-- An item can be worn this many levels below its item level (chest gear
+-- never goes above the party's highest level + this, Systems/Loot.lua).
+Items.REQ_GAP = 2
 function Items.ReqLevel(it)
-	return max(1, it.l - 2)
+	return max(1, it.l - Items.REQ_GAP)
 end
 
 -- Base stats are derived from type, level and quality (never stored).

@@ -350,6 +350,7 @@ do
 	check(not ns.Items.CanEquip(M, bow), "mage cannot equip a bow")
 	local staff = ns.Items.New("mh", 50, 5, "staff")
 	check(not ns.Items.CanEquip(M, staff), "level requirement applies")
+	check(ns.Items.ReqLevel(staff) == 50 - ns.Items.REQ_GAP and ns.Items.ReqLevel(ns.Items.New("mh", 3, 1, "staff")) == 1, "required level: item level - REQ_GAP, at least 1")
 	db.heroes[M].level = 60
 	ns.Stats.Invalidate(M)
 	db.bag = {}
@@ -481,6 +482,19 @@ ns.Loot.AddChest(2, 20, 1)
 db.opt.autoSmelt = 0
 sum = ns.Loot.OpenAll()
 check(sum.opened == 0 and sum.full, "a full bag keeps chests closed")
+do
+	-- chest gear is never above what the party's highest hero can wear
+	local top = ns.Heroes.PartyTopLevel()
+	local worst, fromLow = 0, true
+	for _ = 1, 300 do
+		local it = ns.Loot.RollGear(top + 40, ns.CHEST[2].q, 1)
+		worst = math.max(worst, ns.Items.ReqLevel(it) - top)
+		local low = ns.Loot.RollGear(math.max(3, top - 5), ns.CHEST[2].q, 1)
+		if low.l > math.max(3, top - 5) then fromLow = false end
+	end
+	check(worst <= 0, "gear from a stage far above the party can be worn by its highest hero (" .. worst .. " levels short at most)")
+	check(fromLow, "gear from a stage below the party keeps the stage's level")
+end
 do
 	local counts = {}
 	for _ = 1, 4000 do
@@ -665,7 +679,8 @@ for rot = 0, 1 do
 			db.party[slot] = id
 			db.heroes[id].skills = rot == 0 and skillsOf(party[slot], 1, 2, 3) or skillsOf(party[slot], 4, 5, 6)
 		end
-		db.stage = { diff = 1 + runs % 4, idx = 1 + (runs * 7) % 30 }
+		-- 일반 and 영웅 stages (levels 1..55) for these level-40 heroes without gear
+		db.stage = { diff = 1 + runs % 2, idx = 1 + (runs * 7) % 30 }
 		C.StartStage()
 		for _ = 1, 1500 do
 			C.Step()

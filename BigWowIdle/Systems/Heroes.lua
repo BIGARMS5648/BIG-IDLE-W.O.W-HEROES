@@ -129,6 +129,17 @@ local function levelFor(total)
 	return level, floor(total)
 end
 
+-- The highest level among the heroes in the party (1 with nobody there).
+function Heroes.PartyTopLevel()
+	local db = ns.db
+	local top = 1
+	for i = 1, ns.PARTY_SIZE do
+		local h = db.party[i] and db.heroes[db.party[i]]
+		if h and h.level > top then top = h.level end
+	end
+	return top
+end
+
 -- A new hero starts with the average experience of the heroes in the
 -- party, so it fights at about their level. Returns level, xp.
 function Heroes.StartLevel()

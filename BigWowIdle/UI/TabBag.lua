@@ -471,7 +471,7 @@ function MatsView.Build(page, f)
 			for q = 1, ns.MAX_QUALITY do
 				if (s.q[q] or 0) > 0 then parts[#parts + 1] = U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name) .. " " .. s.q[q] .. "%") end
 			end
-			local body = "인장 1개와 골드로 장비를 하나 얻습니다. 레벨은 지금까지 간 가장 높은 스테이지를 따릅니다.\n" .. table.concat(parts, "  ")
+			local body = "인장 1개와 골드로 장비를 하나 얻습니다. 레벨은 지금까지 간 가장 높은 스테이지를 따르되, 파티에서 레벨이 가장 높은 영웅이 낄 수 있는 데까지입니다.\n" .. table.concat(parts, "  ")
 			if not ns.Forge.Unlocked("seal") then
 				body = body .. "\n" .. U.col("ff9a7a", Unlock.Tip("seal"))
 			elseif ns.MatCount(s.mat) <= 0 then

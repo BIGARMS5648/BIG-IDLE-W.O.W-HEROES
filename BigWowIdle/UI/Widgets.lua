@@ -166,6 +166,16 @@ function UI.Glyph(parent, name, size, r, g, b, layer)
 	return t
 end
 
+-- Sets a one-line text in the largest of `sizes` (big to small) that fits
+-- `width`; the smallest when none does.
+function UI.FitText(fs, text, width, sizes, flags)
+	fs:SetText(text or "")
+	for i, size in ipairs(sizes) do
+		fs:SetFont(ns.FONT, size, flags or "")
+		if fs:GetStringWidth() <= width or i == #sizes then break end
+	end
+end
+
 function UI.Text(parent, size, text, flags, layer)
 	local fs = parent:CreateFontString(nil, layer or "OVERLAY")
 	local ok = fs:SetFont(ns.FONT, size or 12, flags or "")

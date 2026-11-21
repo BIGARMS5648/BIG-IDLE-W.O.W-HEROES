@@ -362,8 +362,11 @@ local function refresh(page)
 		end
 	end
 	local chest = stg.raid and ns.CHEST[3] or ns.CHEST[2]
+	-- the gear its chests give now (never above what the party's highest hero can wear)
+	local gl = ns.Loot.GearLevel(level)
 	d.loot:SetText("보상" .. "\n" .. U.col("ffffff", ns.N(ns.CHEST[1].name)) .. "\n" .. U.col("ffd24a", ns.N(chest.name)) ..
-		"\n" .. string.format("장비 Lv %d~%d", max(1, level - 2), level))
+		"\n" .. string.format("장비 Lv %d~%d", max(1, gl - 2), gl)
+		.. "\n" .. U.col("aab3c8", string.format("착용 Lv %d~%d", max(1, gl - 2 - ns.Items.REQ_GAP), max(1, gl - ns.Items.REQ_GAP))))
 	local can = ns.Combat.CanTravel(page.diff, page.idx)
 	local here = db.stage.diff == page.diff and db.stage.idx == page.idx
 	if here then

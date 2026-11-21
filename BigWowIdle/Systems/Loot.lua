@@ -25,7 +25,17 @@ function Loot.RollQuality(weights, diff)
 	return U.weightedIndex(w)
 end
 
+-- Gear from a chest is never above what the party's highest hero can wear:
+-- its level is the stage's, but at most that hero's level + Items.REQ_GAP.
+Loot.CAP = true
+function Loot.GearLevel(level)
+	if not Loot.CAP then return level end
+	local top = ns.Heroes.PartyTopLevel()
+	return min(level, top + ns.Items.REQ_GAP)
+end
+
 function Loot.RollGear(level, weights, diff, slot)
+	level = Loot.GearLevel(level)
 	slot = slot or ns.Items.RandomSlot(level)
 	local q = Loot.RollQuality(weights, diff)
 	local l = max(1, level - random(0, 2))

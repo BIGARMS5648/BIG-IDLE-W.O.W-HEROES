@@ -498,7 +498,7 @@ function create.refresh()
 		b:SetStyle(b.sex == create.sex and "blue" or "dark")
 		b:SetOn(b.sex == create.sex)
 	end
-	create.nameText:SetText(create.name or "")
+	UI.FitText(create.nameText, create.name, 170, { 16, 14, 12 }) -- long names step down
 	create.nameText:SetTextColor(U.rgb(ns.CLASSES[cid].hex))
 	-- specializations
 	local specs = ns.CLASSES[cid].specs

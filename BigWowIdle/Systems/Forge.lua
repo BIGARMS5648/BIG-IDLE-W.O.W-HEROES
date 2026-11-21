@@ -426,12 +426,14 @@ function Forge.BonusRoll(tier)
 	end
 	local _, fxp = ns.MatValue(d.mat)
 	ns.AddMat(d.mat, -1)
-	-- item level follows your furthest progress
+	-- item level follows your furthest progress, as far as the party's
+	-- highest hero can wear (like chest gear)
 	local best = 1
 	for diff = 1, #ns.DIFFS do
 		local p = ns.db.prog[diff] or 0
 		if p > 0 then best = max(best, ns.StageLevel(diff, min(ns.STAGE_COUNT, p))) end
 	end
+	best = ns.Loot.GearLevel(best)
 	local q = U.weightedIndex(d.q)
 	local it = ns.Items.New(ns.Items.RandomSlot(best), max(1, best - random(0, 3)), q)
 	ns.Items.AddToBag(it)

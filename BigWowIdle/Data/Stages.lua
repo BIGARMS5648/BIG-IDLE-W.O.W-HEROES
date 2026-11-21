@@ -466,8 +466,12 @@ function ns.MobsPerWave(diff, idx)
 	return ns.DIFFS[diff].mobs + math.floor((idx - 1) / (ns.STAGE_COUNT - 1) * 2.5)
 end
 
-function ns.MobHP(base, l)   return base * (1 + 0.25 * (l - 1)) * 1.07 ^ (l - 1) end
-function ns.MobAtk(base, l)  return base * (1 + 0.12 * (l - 1)) * 1.05 ^ (l - 1) end
+-- Monsters past level MIGHT.from grow a little faster than the gear the
+-- party can wear (chest gear follows the party's level, Systems/Loot.lua).
+ns.MIGHT = { from = 25, rate = 0.035 }
+function ns.MobMight(l) return math.exp(ns.MIGHT.rate * math.max(0, l - ns.MIGHT.from)) end
+function ns.MobHP(base, l)   return base * (1 + 0.25 * (l - 1)) * 1.07 ^ (l - 1) * ns.MobMight(l) end
+function ns.MobAtk(base, l)  return base * (1 + 0.12 * (l - 1)) * 1.05 ^ (l - 1) * ns.MobMight(l) end
 function ns.MobGold(base, l) return base * (1 + 0.15 * (l - 1)) * 1.04 ^ (l - 1) end
 function ns.MobExp(base, l)  return ns.EXP_RATE * base * (1 + 0.20 * (l - 1)) * 1.045 ^ (l - 1) end
 ns.EXP_RATE = 1.2 -- every monster's experience
