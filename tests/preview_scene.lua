@@ -212,8 +212,8 @@ S.bag_tooltip = function()
 end
 S.bag_locked = function() local p = show("bag") p.tab = "all" p.selItem = db.bag[3] ns.Main.Refresh() end
 S.bag_weapon = function() local p = show("bag") p.tab = "weapon" p.selItem = nil ns.Main.Refresh() end
-S.bag_mats = function() local p = show("bag") p.tab = "mats" p.selMat = "bar1" ns.Main.Refresh() end
-S.bag_mats_sorted = function() local p = show("bag") p.tab = "mats" p.selMat = "bar1" ns.Main.Refresh() p.sort:Click() end
+S.bag_mats = function() local p = show("bag") p.tab = "mat_craft" p.selMat = "bar1" ns.Main.Refresh() end
+S.bag_mats_sorted = function() local p = show("bag") p.tab = "mat_craft" p.selMat = "bar1" ns.Main.Refresh() p.sort:Click() end
 -- a ring with every socket filled with the longest socket stat there is
 -- (cooldown reduction at the top tier, the highest roll)
 local stress
@@ -256,7 +256,7 @@ S.bag_smelt_all = function() local p = show("bag") p.tab = "all" ns.Main.Refresh
 S.bag_smelt_list = function() local p = show("bag") p.tab = "all" ns.Main.Refresh() p.smeltPick:Click() end
 S.bag_fuse_mats = function()
 	local p = show("bag")
-	p.tab = "mats"
+	p.tab = "mat_craft"
 	ns.AddMat("cloth1", 20)
 	p.selMat = "cloth1"
 	ns.Main.Refresh()
@@ -271,6 +271,25 @@ S.bag_bank = function()
 	p.selItem = nil
 	ns.Main.Refresh()
 end
+-- the largest bag: every bag rune, every slot full
+S.bag_max = function()
+	local keep = { c2 = db.runes.c2, c8 = db.runes.c8 }
+	db.runes.c2, db.runes.c8 = 5, 5
+	ns.Runes.Invalidate()
+	while #db.bag < ns.BagSize() do ns.Items.AddToBag(ns.Items.New("feet", 30, 2)) end
+	local p = show("bag")
+	p.tab = "all"
+	p.selItem = db.bag[#db.bag]
+	ns.Main.Refresh()
+	-- back to the usual bag when the next scene starts
+	S.restore = function()
+		db.runes.c2, db.runes.c8 = keep.c2, keep.c8
+		ns.Runes.Invalidate()
+		while #db.bag > ns.BagSize() do table.remove(db.bag) end
+	end
+end
+S.bag_gem_mats = function() local p = show("bag") p.tab = "mat_gem" p.selMat = nil ns.Main.Refresh() end
+S.bag_seal_mats = function() local p = show("bag") p.tab = "mat_seal" p.selMat = nil ns.Main.Refresh() end
 S.bag_full = function()
 	while #db.bag < ns.BagSize() do ns.Items.AddToBag(ns.Items.New("hands", 30, 3)) end
 	local p = show("bag")
@@ -353,7 +372,7 @@ end
 S.new_hero = function() show("hero") end
 S.new_bag = function() show("bag") end
 -- no materials yet: nothing to pick, auto-fuse alone in the footer
-S.new_bag_mats = function() local p = show("bag") p.tab = "mats" p.selMat = nil ns.Main.Refresh() p.tab = "all" end
+S.new_bag_mats = function() local p = show("bag") p.tab = "mat_craft" p.selMat = nil ns.Main.Refresh() p.tab = "all" end
 S.new_forge = function() show("forge", { sub = "craft" }) end
 S.new_one = function()
 	ns.Heroes.Create("WARRIOR_PROT")
@@ -376,6 +395,7 @@ return function(name)
 	end
 	ns.Main.CloseModal()
 	if name ~= "bar" then ns.Main.Toggle(true) end
+	if S.restore then S.restore() S.restore = nil end
 	local fn = S[name]
 	if not fn then error("unknown scene " .. tostring(name)) end
 	fn()

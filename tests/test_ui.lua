@@ -374,8 +374,44 @@ do
 	if ns.db.ui.smeltQ ~= 3 then fail("picking from the threshold list did not set it") end
 	enrich(3)
 	Main.Refresh()
-	for _, t in ipairs({ "weapon", "armor", "acc", "mats", "bank", "all" }) do tab("bag", t) end
-	tab("bag", "mats")
+	for _, t in ipairs({ "weapon", "armor", "acc", "bank", "all" }) do tab("bag", t) end
+	if bp.S.tabs:Get("mats") then fail("there should be no single materials tab") end
+	-- the materials' own row of tabs: each shows only its kinds
+	local MAT_TABS = {
+		mat_craft = { bar = true, leather = true, cloth = true }, mat_gem = { gem = true },
+		mat_ench = { dust = true }, mat_insc = { scroll = true }, mat_seal = { seal = true },
+	}
+	local function matTab(k)
+		local b = bp.matTabs:Get(k)
+		if not b then fail("missing materials tab " .. k) return end
+		press("materials tab " .. k, b)
+		if bp.tab ~= k then fail("the materials tab " .. k .. " did not open") end
+	end
+	for _, k in ipairs({ "mat_craft", "mat_gem", "mat_ench", "mat_insc", "mat_seal" }) do
+		ns.AddMat(({ mat_craft = "leather2", mat_gem = "gem1", mat_ench = "dust1", mat_insc = "scroll1", mat_seal = "seal1" })[k], 3)
+		Main.Refresh()
+		matTab(k)
+		local n = 0
+		for _, c in ipairs(bp.cells) do
+			if c.data and c:IsShown() then
+				n = n + 1
+				if not MAT_TABS[k][ns.MATS[c.data].kind] then fail(k .. " shows " .. c.data) break end
+			end
+		end
+		if n == 0 then fail(k .. " should show its materials") end
+		hoverAll()
+	end
+	-- auto-fuse in one tab leaves the other tabs' materials alone
+	ns.AddMat("gem1", 20)
+	ns.AddMat("bar1", 20)
+	Main.Refresh()
+	matTab("mat_gem")
+	local barsBefore = ns.MatCount("bar1")
+	press("auto fuse gems", d.right)
+	confirmYes("auto fuse gems")
+	if ns.MatCount("gem1") >= 9 then fail("auto-fuse in the gem tab should fuse the gems") end
+	if ns.MatCount("bar1") ~= barsBefore then fail("auto-fuse in the gem tab must not touch crafting materials") end
+	matTab("mat_craft")
 	local bars = ns.MatCount("bar1")
 	click("select bars", function(b) return b.data == "bar1" end)
 	-- the material card: [1개 분해][전부 분해] above, [9개 융합][재료 자동 융합] below

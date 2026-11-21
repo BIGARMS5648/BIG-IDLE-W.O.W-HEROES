@@ -245,15 +245,18 @@ local MAT_KINDS = { "bar", "leather", "cloth", "gem", "dust", "scroll", "seal" }
 
 -- How many fusions FuseAllMats would make now (lower tiers first, so what
 -- they make can be fused again).
-function Forge.MatFusionsReady()
+-- kinds: { [kind] = true } to count only those (nil = every material)
+function Forge.MatFusionsReady(kinds)
 	local n = 0
 	for _, kind in ipairs(MAT_KINDS) do
-		local carry = 0
-		for tier = 1, ns.MAT_MAX_TIER[kind] - 1 do
-			local have = ns.MatCount(kind .. tier) + carry
-			local k = math.floor(have / Forge.FUSE_COUNT)
-			n = n + k
-			carry = k
+		if not kinds or kinds[kind] then
+			local carry = 0
+			for tier = 1, ns.MAT_MAX_TIER[kind] - 1 do
+				local have = ns.MatCount(kind .. tier) + carry
+				local k = math.floor(have / Forge.FUSE_COUNT)
+				n = n + k
+				carry = k
+			end
 		end
 	end
 	return n
@@ -261,10 +264,10 @@ end
 
 -- Fuses every material that has nine or more, tier by tier, until nothing
 -- is left to fuse. Returns the number of fusions.
-function Forge.FuseAllMats()
+function Forge.FuseAllMats(kinds)
 	local n = 0
 	for _, kind in ipairs(MAT_KINDS) do
-		for tier = 1, ns.MAT_MAX_TIER[kind] - 1 do
+		for tier = 1, (kinds and not kinds[kind]) and 0 or (ns.MAT_MAX_TIER[kind] - 1) do
 			local id = kind .. tier
 			while ns.MatCount(id) >= Forge.FUSE_COUNT do
 				if not Forge.FuseMat(id) then break end

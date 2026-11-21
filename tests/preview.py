@@ -24,7 +24,7 @@ SCENES = [
     "bar", "bar_boss", "bar_wipe", "faction", "create", "create_druid", "pets", "pets_locked", "rename",
     "party", "party_bench", "party_slot", "party_dismiss",
     "hero", "hero_slot", "hero_slot_empty", "hero_reset", "hero_skills", "hero_skill_locked", "hero_tree", "hero_tree_locked", "hero_bench",
-    "bag", "bag_tooltip", "bag_locked", "bag_weapon", "bag_mats", "bag_mats_sorted", "bag_sockets", "bag_sockets_tip", "bag_smelt_one", "bag_smelt_all", "bag_smelt_list", "bag_fuse_mats", "bag_bank_empty", "bag_bank", "bag_full",
+    "bag", "bag_tooltip", "bag_locked", "bag_weapon", "bag_mats", "bag_mats_sorted", "bag_sockets", "bag_sockets_tip", "bag_smelt_one", "bag_smelt_all", "bag_smelt_list", "bag_fuse_mats", "bag_bank_empty", "bag_bank", "bag_max", "bag_gem_mats", "bag_seal_mats", "bag_full",
     "forge_fuse", "forge_fuse_grade", "forge_fuse_kind", "forge_fuse_ready", "forge_smelt", "forge_craft", "forge_craft_locked", "forge_craft_far", "forge_gem", "forge_ench", "forge_ench_sockets",
     "forge_remove", "forge_remove_sockets", "forge_seal", "forge_locked",
     "runes", "runes_locked", "runes_total",

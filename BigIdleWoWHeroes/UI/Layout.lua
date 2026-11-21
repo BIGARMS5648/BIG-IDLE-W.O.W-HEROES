@@ -273,15 +273,17 @@ end
 -- Tabs: equal-width segments in one row
 ------------------------------------------------------------------------
 -- items: { { key, label }, ... }; onSelect(key)
-function UI.Tabs(parent, w, items, onSelect)
+-- fit: each tab as wide as its label (the row still fills w), for long names
+function UI.Tabs(parent, w, items, onSelect, fit, h)
+	h = h or K.TAB_H
 	local row = CreateFrame("Frame", nil, parent)
-	row:SetSize(w, K.TAB_H)
+	row:SetSize(w, h)
 	row.buttons = {}
 	local n = #items
 	local gap = 4
 	local bw = min(110, floor((w - (n - 1) * gap) / n))
 	for i, it in ipairs(items) do
-		local b = UI.Chip(row, bw, K.TAB_H, it[2], function(self)
+		local b = UI.Chip(row, bw, h, it[2], function(self)
 			if onSelect then onSelect(self.key) end
 		end)
 		b:SetPoint("TOPLEFT", row, "TOPLEFT", (i - 1) * (bw + gap), 0)
@@ -291,6 +293,22 @@ function UI.Tabs(parent, w, items, onSelect)
 		b.lock:SetPoint("RIGHT", b.label, "LEFT", -3, 0)
 		b.lock:Hide()
 		row.buttons[i] = b
+	end
+	if fit then
+		local tw, total = {}, 0
+		for i, b in ipairs(row.buttons) do
+			tw[i] = b.label:GetStringWidth() + 20
+			total = total + tw[i]
+		end
+		local extra = (w - (n - 1) * gap - total) / n
+		local x = 0
+		for i, b in ipairs(row.buttons) do
+			local bw2 = floor(tw[i] + extra)
+			b:SetWidth(bw2)
+			b:ClearAllPoints()
+			b:SetPoint("TOPLEFT", row, "TOPLEFT", x, 0)
+			x = x + bw2 + gap
+		end
 	end
 	function row:Select(key)
 		for _, b in ipairs(self.buttons) do b:SetOn(b.key == key) end

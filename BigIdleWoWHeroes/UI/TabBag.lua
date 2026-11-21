@@ -1,5 +1,6 @@
 -- Bags screen (가방), built from the screen kit (UI/Layout.lua):
---   tabs: 전체 · 무기 · 방어구 · 액세서리 · 재료 · 은행
+--   tabs: 전체 · 무기 · 방어구 · 액세서리 · 은행, and under them the
+--         materials: 제작 · 보석 세공 · 마법 부여 · 룬 각인 · 행운의 인장 재료
 --   list: the item grid; at the bottom, chests and breaking down in bulk;
 --   card: the chosen item and what to do with it (equip, break down,
 --         protect, bank).
@@ -11,14 +12,36 @@ local UI, U = ns.UI, ns.U
 local Main = ns.Main
 local K = UI.K
 
-local COLS, ROWS, CELL = 10, 7, 42
+-- seven rows hold the largest bag (70 with every bag rune)
+local COLS, ROWS, CELL = 10, 7, 40
 local STEP_X = (K.LIST_IN - CELL) / (COLS - 1)
-local STEP_Y = 48
-local GRID_Y = -38
+local STEP_Y = 45
+local GRID_Y = -36
+-- the materials' tab row sits between the tabs and the list
+local MAT_ROW_H, MAT_ROW_GAP = 28, 4
 
 local TABS = {
-	{ "all", "전체" }, { "weapon", "무기" }, { "armor", "방어구" }, { "acc", "액세서리" }, { "mats", "재료" }, { "bank", "은행" },
+	{ "all", "전체" }, { "weapon", "무기" }, { "armor", "방어구" }, { "acc", "액세서리" }, { "bank", "은행" },
 }
+-- material tabs: the kinds each holds, what the forge uses them for
+local MAT_TABS = {
+	{ "mat_craft", "제작 재료" }, { "mat_gem", "보석 세공 재료" }, { "mat_ench", "마법 부여 재료" },
+	{ "mat_insc", "룬 각인 재료" }, { "mat_seal", "행운의 인장 재료" },
+}
+local MAT_KINDS_OF = {
+	mat_craft = { bar = true, leather = true, cloth = true },
+	mat_gem = { gem = true }, mat_ench = { dust = true }, mat_insc = { scroll = true }, mat_seal = { seal = true },
+}
+local MAT_USE = {
+	mat_craft = "용광로 '제작'에 씁니다", mat_gem = "용광로 '보석'에 씁니다", mat_ench = "용광로 '마법부여'에 씁니다",
+	mat_insc = "용광로 '각인'에 씁니다", mat_seal = "용광로 '보너스'에 씁니다",
+}
+local function isMats(tab) return MAT_KINDS_OF[tab] ~= nil end
+local function tabName(tab)
+	for _, t in ipairs(MAT_TABS) do if t[1] == tab then return t[2] end end
+	for _, t in ipairs(TABS) do if t[1] == tab then return t[2] end end
+	return "가방"
+end
 local SLOTS_OF = {
 	weapon = { mh = true, oh = true },
 	armor = { head = true, chest = true, hands = true, feet = true },
@@ -70,7 +93,8 @@ end
 
 -- Materials in the order the player keeps them: new ones go to the end
 -- until '정리' sorts them (sortMats).
-local function matList()
+-- (the order is kept for every material; a tab shows its own kinds)
+local function matList(tab)
 	local db = ns.db
 	local out, seen = {}, {}
 	for _, id in ipairs(db.ui.matOrder or {}) do
@@ -80,7 +104,13 @@ local function matList()
 		if ns.MatCount(id) > 0 and not seen[id] then out[#out + 1] = id seen[id] = true end
 	end
 	db.ui.matOrder = out
-	return out
+	local kinds = MAT_KINDS_OF[tab]
+	if not kinds then return out end
+	local shown = {}
+	for _, id in ipairs(out) do
+		if kinds[ns.MATS[id].kind] then shown[#shown + 1] = id end
+	end
+	return shown
 end
 
 -- '정리' in the materials tab: like the item tabs, the highest grade first
@@ -114,8 +144,17 @@ local function build(page)
 		end,
 	})
 	page.S = S
+	page.matTabs = UI.Tabs(page, K.LIST_W, MAT_TABS, function(key)
+		page.tab = key
+		page.selItem, page.selMat = nil, nil
+		Main.Refresh()
+	end, true, MAT_ROW_H)
+	page.matTabs:SetPoint("TOPLEFT", S.tabs, "BOTTOMLEFT", 0, -MAT_ROW_GAP)
+	S.list:ClearAllPoints()
+	S.list:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -(K.TOP + MAT_ROW_H + MAT_ROW_GAP))
+	S.list:SetHeight(K.BODY_H - MAT_ROW_H - MAT_ROW_GAP)
 	page.sort = S.Tool(90, "정리", function()
-		if page.tab == "mats" then
+		if isMats(page.tab) then
 			sortMats()
 		elseif page.tab == "bank" then
 			ns.Items.Sort(ns.db.bank)
@@ -125,7 +164,7 @@ local function build(page)
 		Main.Refresh()
 	end, "dark")
 	UI.Tip(page.sort, function()
-		return UI.SimpleTip("정리", page.tab == "mats" and "재료를 높은 등급(단계)부터 다시 놓습니다. 같은 단계는 종류 순입니다." or "등급과 레벨 순으로 다시 놓습니다.")
+		return UI.SimpleTip("정리", isMats(page.tab) and "재료를 높은 등급(단계)부터 다시 놓습니다. 같은 단계는 종류 순입니다." or "등급과 레벨 순으로 다시 놓습니다.")
 	end, "TOP")
 
 	local list = S.list
@@ -134,7 +173,7 @@ local function build(page)
 	page.cells = {}
 	for i = 1, COLS * ROWS do
 		local b = UI.IconButton(list, CELL, function(self, button)
-			if page.tab == "mats" then
+			if isMats(page.tab) then
 				page.selMat, page.selItem = self.data, nil
 			elseif self.data and IsAltKeyDown and IsAltKeyDown() then
 				ns.Items.ToggleLock(self.data)
@@ -151,7 +190,7 @@ local function build(page)
 		b:SetPoint("TOPLEFT", list, "TOPLEFT", floor(K.PAD + col * STEP_X), GRID_Y - row * STEP_Y)
 		UI.Tip(b, function(self)
 			if not self.data then return nil end
-			if page.tab == "mats" then return ns.Items.MatTooltip(self.data) end
+			if isMats(page.tab) then return ns.Items.MatTooltip(self.data) end
 			local lines = ns.Items.Tooltip(self.data, Main.SelectedHero())
 			if page.tab ~= "bank" then
 				lines[#lines + 1] = { "클릭: 자세히 · Alt+클릭: 보호 · 우클릭: 분해", nil, 0.45, 0.8, 1 }
@@ -262,22 +301,24 @@ end
 
 -- materials: fuse everything that can be fused (the card's gold button in
 -- the materials tab)
-local function autoFuseAction()
+-- (only the materials of the tab on screen)
+local function autoFuseAction(tab)
+	local kinds, name = MAT_KINDS_OF[tab], tabName(tab)
 	return { "재료 자동 융합", function()
-		local n = ns.Forge.MatFusionsReady()
+		local n = ns.Forge.MatFusionsReady(kinds)
 		if n == 0 then return end
 		UI.Confirm({ title = "재료 자동 융합", ok = "융합", style = "primary",
-			text = string.format("재료를 자동으로 융합하시겠습니까?\n같은 재료가 %d개 이상이면 다음 단계 1개로 합칩니다(약 %d번). 낮은 단계부터 합쳐서, 새로 생긴 재료도 다시 합칩니다.",
-				ns.Forge.FUSE_COUNT, n),
+			text = string.format("%s를 자동으로 융합하시겠습니까?\n같은 재료가 %d개 이상이면 다음 단계 1개로 합칩니다(약 %d번). 낮은 단계부터 합쳐서, 새로 생긴 재료도 다시 합칩니다.",
+				name, ns.Forge.FUSE_COUNT, n),
 			onOk = function()
-				local done = ns.Forge.FuseAllMats()
-				ns.Toast(string.format("재료 융합 %d번", done))
+				local done = ns.Forge.FuseAllMats(kinds)
+				ns.Toast(string.format("%s 융합 %d번", name, done))
 			end })
-	end, "primary", ns.Forge.MatFusionsReady() == 0,
-	tip = { "재료 자동 융합", string.format("같은 재료가 %d개 이상인 것을 모두 다음 단계로 합칩니다.", ns.Forge.FUSE_COUNT) } }
+	end, "primary", ns.Forge.MatFusionsReady(kinds) == 0,
+	tip = { "재료 자동 융합", string.format("이 탭(%s)에서 같은 재료가 %d개 이상인 것을 모두 다음 단계로 합칩니다.", name, ns.Forge.FUSE_COUNT) } }
 end
-local function autoFuseReason(d)
-	if ns.Forge.MatFusionsReady() == 0 then
+local function autoFuseReason(d, tab)
+	if ns.Forge.MatFusionsReady(MAT_KINDS_OF[tab]) == 0 then
 		d:Reason(string.format("같은 재료가 %d개 이상 모인 것이 없습니다.", ns.Forge.FUSE_COUNT))
 	end
 end
@@ -306,8 +347,8 @@ local function refreshMat(page, mat)
 		if UI.Try(ok, res) then ns.Fire("TOAST", string.format("융합 성공: %s", ns.N(ns.MATS[res].name))) end
 		Main.Refresh()
 	end, "blue", not canFuse, tip = { "재료 융합", string.format("같은 재료 %d개를 한 단계 높은 재료 1개로 만듭니다.", ns.Forge.FUSE_COUNT) } },
-	autoFuseAction())
-	autoFuseReason(d)
+	autoFuseAction(page.tab))
+	autoFuseReason(d, page.tab)
 	fillLines(page, ns.Items.MatTooltip(mat))
 end
 
@@ -405,6 +446,7 @@ local function refresh(page)
 	local db = ns.db
 	local S = page.S
 	S.tabs:Select(page.tab)
+	page.matTabs:Select(page.tab)
 	page.sort:Show()
 	local chests = ns.Loot.Count()
 	page.open:SetLabel(string.format("상자 열기 (%d)", chests))
@@ -424,7 +466,7 @@ local function refresh(page)
 	end
 	page.smeltPick:Refresh()
 	page.smeltGo:SetStyle(ns.Forge.Unlocked("smelt") and "red" or "blue")
-	local inBag = page.tab ~= "mats" and page.tab ~= "bank"
+	local inBag = not isMats(page.tab) and page.tab ~= "bank"
 	page.open:SetShown(page.tab ~= "bank")
 	page.smeltGo:SetShown(inBag)
 	page.smeltPick:SetShown(inBag)
@@ -438,10 +480,10 @@ local function refresh(page)
 	if not (sel and ns.Heroes.PartySlot(sel)) then sel = db.party[1] or db.party[2] or db.party[3] or db.party[4] or db.party[5] end
 	local cells = page.cells
 	local empty
-	if page.tab == "mats" then
-		page.head:Set("재료", "상자에서 얻고, 용광로에서 씁니다")
+	if isMats(page.tab) then
+		page.head:Set(tabName(page.tab), MAT_USE[page.tab])
 		local n = 0
-		for _, id in ipairs(matList()) do
+		for _, id in ipairs(matList(page.tab)) do
 			local count = ns.MatCount(id)
 			if count > 0 then
 				n = n + 1
@@ -461,7 +503,7 @@ local function refresh(page)
 			end
 		end
 		for i = n + 1, #cells do cells[i]:Clear() cells[i]:SetShown(i <= COLS * 2) end
-		if n == 0 then empty = "재료가 없습니다. 상자에서 얻을 수 있습니다." end
+		if n == 0 then empty = tabName(page.tab) .. "가 없습니다. 상자에서 얻을 수 있습니다." end
 	else
 		local list = itemList(page)
 		local bank = page.tab == "bank"
@@ -505,17 +547,17 @@ local function refresh(page)
 	local d = S.card
 	clearCard(page)
 	d:Extras(nil, nil)
-	if page.tab == "mats" and page.selMat then
+	if isMats(page.tab) and page.selMat then
 		refreshMat(page, page.selMat)
-	elseif page.tab ~= "mats" and page.selItem then
+	elseif not isMats(page.tab) and page.selItem then
 		refreshItem(page, page.selItem)
 	else
-		d:Head({ title = page.tab == "mats" and "재료" or (page.tab == "bank" and "은행" or "가방"), sub = empty and "비어 있음" or "고른 것이 없습니다" })
+		d:Head({ title = isMats(page.tab) and tabName(page.tab) or (page.tab == "bank" and "은행" or "가방"), sub = empty and "비어 있음" or "고른 것이 없습니다" })
 		page.lines:Set({ { empty or "왼쪽에서 아이템을 누르면 여기에서 자세히 보고 장착하거나 분해할 수 있습니다.", 0.67, 0.70, 0.78 } })
-		if page.tab == "mats" then
+		if isMats(page.tab) then
 			-- nothing picked: auto-fuse still fills the footer
-			d:Actions(nil, autoFuseAction())
-			autoFuseReason(d)
+			d:Actions(nil, autoFuseAction(page.tab))
+			autoFuseReason(d, page.tab)
 		else
 			d:Actions(nil, nil)
 			d.wide:Hide()
