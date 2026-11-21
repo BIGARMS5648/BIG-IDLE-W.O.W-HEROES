@@ -464,7 +464,14 @@ function Mock.Export()
 			e.level = w.__level
 			e.ftype = w.__type
 			e.nomouse = (w.__mouse == false)
-			e.item = w.isItem or false
+			-- a thing to pick, or a button repeated on every row of a list
+			local inRow = false
+			local a = w.__parent
+			while a do
+				if a.isItem or a.isRow then inRow = true break end
+				a = a.__parent
+			end
+			e.item = w.isItem or inRow
 			e.catcher = w.isCatcher or false
 			e.clips = w.__clips or false
 			e.click = (w.__scripts and w.__scripts.OnClick) and true or false

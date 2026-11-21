@@ -70,7 +70,7 @@ if not ns.db then
 	return false
 end
 if not Main.IsShown() then fail("the menu should open by itself for a new player") end
-if Main.Current() ~= "party" then fail("a new player should land on the party screen") end
+if Main.Current() ~= "hero" then fail("a new player should land on the hero screen, got " .. tostring(Main.Current())) end
 if ns.db.faction then fail("a new player has no faction yet") end
 click("choose Horde", labelIs("호드로 시작"))
 if ns.db.faction ~= "HORDE" then fail("the faction choice was not saved") end
@@ -78,10 +78,22 @@ if not find(function(b) return b.cid == "WARRIOR" end) then fail("the hero creat
 if not SlashCmdList.BIGWOWHEROES then fail("slash command missing") end
 if type(BigWowHeroes_OnAddonCompartmentClick) ~= "function" then fail("addon compartment function missing") end
 local goal = ns.Guide.Current()
-if not (goal.create and goal.tab == "party") then fail("the first goal should be to create a hero") end
+if not (goal.create and goal.tab == "hero") then fail("the first goal should be to create a hero on the hero screen") end
 
-local tabs = { "party", "hero", "forge", "runes", "map", "options" }
-if #Main.Frame().nav ~= 5 then fail("the bottom bar should have five screens (the bag is on the hero screen, settings in the header)") end
+local tabs = { "hero", "equip", "party", "runes", "map", "pets", "options" }
+do
+	local nav = Main.Frame().nav
+	local want = { "hero", "equip", "party", "runes", "map", "pets" }
+	if #nav ~= #want then fail("the bottom bar should have six screens, got " .. #nav) end
+	for i, k in ipairs(want) do
+		if not (nav[i] and nav[i].key == k) then fail("bottom bar button " .. i .. " should open " .. k) end
+	end
+	-- old names still lead somewhere
+	Main.ShowTab("forge")
+	if Main.Current() ~= "equip" then fail("the old forge screen should open the equipment screen") end
+	Main.ShowTab("bag")
+	if Main.Current() ~= "equip" then fail("the old bag screen should open the equipment screen") end
+end
 
 -- every screen must render with no hero at all
 Main.CloseModal()
@@ -94,9 +106,10 @@ frames(20)
 ------------------------------------------------------------------------
 -- create the first hero through the dialog: class -> specialization -> create
 ------------------------------------------------------------------------
-try("show party", Main.ShowTab, "party")
-local page = Main.Page("party")
-if not page.S.card.wide:IsVisible() then fail("an empty roster should offer the first hero on the card") end
+try("show hero", Main.ShowTab, "hero")
+local page = Main.Page("hero")
+if not page.empty:IsVisible() then fail("an empty roster should say how to make the first hero") end
+if label(page.create) ~= "영웅 만들기" then fail("the hero list should end with '영웅 만들기'") end
 try("open create dialog", page.create.Click, page.create, "LeftButton")
 click("class Tinker", function(b) return b.cid == "TINKER" end)
 click("class Hunter", function(b) return b.cid == "HUNTER" end)
@@ -111,6 +124,7 @@ if first and ns.db.heroes[first].sex ~= "F" then fail("the chosen gender was not
 if first and H.Race(first) ~= "TROLL" then fail("a Horde hunter should be a troll") end
 if first and H.PartySlot(first) ~= 2 then fail("the first damage dealer should join slot 2") end
 if first and not tostring(ns.db.heroes[first].name):find("^%S+ %S+$") then fail("hero name should be given + family name") end
+if page.empty:IsVisible() then fail("the empty-roster text should go away once a hero exists") end
 frames(300)
 if ns.db.stat.kills == 0 then fail("the battle should run once a hero exists") end
 
@@ -141,7 +155,7 @@ end
 
 ns.AddGold(5e9)
 for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7", "e1", "e2", "e3" }) do ns.Runes.Buy(id) end
-for _, sid in ipairs({ "WARRIOR_PROT", "PRIEST_HOLY", "MAGE_FIRE", "ROGUE_ASSA", "DRUID_GUARDIAN", "SHAMAN_RESTO", "WARLOCK_DEMO" }) do H.Create(sid) end
+for _, sid in ipairs({ "WARRIOR_PROT", "PRIEST_HOLY", "MAGE_FIRE", "ROGUE_ASSA", "DRUID_GUARDIAN", "SHAMAN_RESTO", "WARLOCK_DEMO", "PALADIN_HOLY" }) do H.Create(sid) end
 for _, id in ipairs(H.List()) do H.AddXP(id, 3e6) end
 enrich(1)
 ns.db.prog = { 30, 12, 0, 0 }
@@ -157,12 +171,11 @@ for _, key in ipairs(tabs) do
 end
 
 ------------------------------------------------------------------------
--- walkthroughs (every screen: pick on the left, act on the card)
+-- walkthroughs
 ------------------------------------------------------------------------
-local function card(key) return Main.Page(key).S.card end
-local function press(what, b)
+local function press(what, b, mouse)
 	if not b or not b:IsVisible() then fail("not shown: " .. what) return false end
-	return try(what, b.Click, b, "LeftButton")
+	return try(what, b.Click, b, mouse or "LeftButton")
 end
 local function tab(key, k)
 	local b = Main.Page(key).S.tabs:Get(k)
@@ -175,309 +188,334 @@ local function confirmYes(what)
 	return press("confirm " .. what, yes)
 end
 
--- party: pick a hero, act from the card
+-- formation: five slot cards (healer on the left, tank on the right), the
+-- waiting heroes underneath
 do
 	Main.ShowTab("party")
 	local pp = Main.Page("party")
-	local d = card("party")
-	local bench
-	for _, id in ipairs(H.List()) do
-		if not H.PartySlot(id) and H.Role(id) == "TANK" then bench = id end
-	end
-	local tankBefore = ns.db.party[1]
-	for _, c in ipairs(pp.roster) do
-		if c.heroId == bench then try("pick bench tank", c.Click, c, "LeftButton") end
-	end
-	Main.Refresh()
-	if label(d.right) ~= "교체 출전" then fail("the card should offer to swap the bench tank in, got " .. tostring(label(d.right))) end
-	press("swap", d.right)
-	if ns.db.party[1] ~= bench or tankBefore == bench then fail("swapping a bench tank in did not work") end
-	if pp.slots[1] and pp.slots[5] then
-		local x1 = select(4, pp.slots[1]:GetPoint(1))
-		local x5 = select(4, pp.slots[5]:GetPoint(1))
-		if not (x1 and x5 and x1 > x5) then fail("the tank card should be drawn in front (right of the healer)") end
-	end
-	click("auto form", labelIs("자동 편성"))
-	click("companions", labelIs("동료"))
-	hoverAll()
-	Main.CloseModal()
+	local x1 = select(4, pp.slots[1]:GetPoint(1))
+	local x5 = select(4, pp.slots[5]:GetPoint(1))
+	if not (x1 and x5 and x1 > x5) then fail("the tank's slot should be drawn in front (right of the healer)") end
 	local healer = ns.db.party[5]
-	try("pick healer", pp.slots[5].Click, pp.slots[5], "LeftButton")
+	press("take the healer out", pp.slots[5].out)
+	if ns.db.party[5] then fail("빼기 should free the healer's slot") end
 	Main.Refresh()
-	if label(d.left) ~= "휴식" then fail("a fielded hero's card should offer rest") end
-	press("rest healer", d.left)
-	if ns.db.party[5] then fail("resting the healer did not free slot 5") end
-	frames(2)
-	try("pick empty slot", pp.slots[5].Click, pp.slots[5], "LeftButton")
-	if not (pp.sel and pp.sel.slot == 5) then fail("picking an empty slot should select it") end
-	if pp.filter ~= "HEALER" then fail("picking an empty slot should show its role in the roster") end
+	try("pick the empty slot", pp.slots[5].Click, pp.slots[5], "LeftButton")
+	if pp.selSlot ~= 5 then fail("clicking an empty slot should choose it") end
 	Main.Refresh()
-	local row
-	for _, r in ipairs(pp.slotRows) do if r.heroId == healer then row = r end end
-	if not row then fail("the empty slot's card should list the bench healer") else press("pick from card", row) end
+	local tank
+	for _, id in ipairs(H.List()) do
+		if not H.PartySlot(id) and H.Role(id) == "TANK" then tank = id end
+	end
+	local function benchCard(id)
+		for _, c in ipairs(pp.bench) do
+			if c.heroId == id and c:IsVisible() then return c end
+		end
+	end
+	if not tank then
+		fail("the test save should have a waiting tank")
+	elseif not benchCard(tank) then
+		fail("the waiting tank should be listed under the slots")
+	else
+		press("waiting tank into the healer's slot", benchCard(tank))
+		if ns.db.party[5] == tank then fail("a tank must not go into the healer's slot") end
+	end
+	if not benchCard(healer) then
+		fail("the healer who was taken out should wait under the slots")
+	else
+		press("waiting healer", benchCard(healer))
+		if ns.db.party[5] ~= healer then fail("clicking a waiting healer should put them into the chosen slot") end
+	end
+	-- the arrows swap two damage dealers
+	local a, b = ns.db.party[2], ns.db.party[3]
+	press("move the damage dealer in slot 2 back", pp.slots[2].left)
+	if not (ns.db.party[2] == b and ns.db.party[3] == a) then fail("'<' should swap slot 2 with slot 3") end
+	press("and forward again", pp.slots[3].right)
+	if not (ns.db.party[2] == a and ns.db.party[3] == b) then fail("'>' should swap them back") end
+	if pp.slots[1].left:IsVisible() then fail("the only tank slot has no neighbour of its role to swap with") end
+	-- auto formation fills a free slot
+	H.Withdraw(ns.db.party[4])
 	Main.Refresh()
-	press("field healer", d.right)
-	if not ns.db.party[5] then fail("the card should field the picked healer") end
-	-- rename and dismiss live on the hero's card
+	press("auto formation", pp.auto)
+	if not ns.db.party[4] then fail("자동 편성 should fill the free slot") end
+	hoverAll()
+end
+
+-- hero: the list, the header card, 능력치 · 기술 · 특성
+do
+	Main.ShowTab("hero")
+	local hp = Main.Page("hero")
+	local hc = hp.head
 	local id = ns.db.party[2]
-	for _, c in ipairs(pp.roster) do if c.heroId == id then try("pick", c.Click, c, "LeftButton") end end
+	local picked
+	for _, c in ipairs(hp.cards) do
+		if c.heroId == id and c:IsVisible() then picked = c end
+	end
+	if not picked then fail("the hero list should show the party's heroes") else press("pick hero", picked) end
+	if Main.SelectedHero() ~= id then fail("clicking a hero card should choose that hero") end
+	if H.Count() > #hp.cards then
+		if not hp.thumb:IsVisible() then fail("a long hero list should show a scroll bar") end
+		try("scroll down", hp.list.__scripts.OnMouseWheel, hp.list, -1)
+		if (hp.offset or 0) ~= 1 then fail("the mouse wheel should scroll the hero list") end
+		try("scroll up", hp.list.__scripts.OnMouseWheel, hp.list, 1)
+		if (hp.offset or 0) ~= 0 then fail("scrolling back up should return to the top") end
+	end
+	-- 능력치 · 전문화
+	press("stats tab", hp.subTabs:Get("stats"))
+	if hp.sub ~= "stats" or not hp.bodies.stats:IsVisible() then fail("the stats tab did not open") end
+	if not hp.groups[4].head:IsVisible() then fail("the stats tab should show four groups of stats") end
+	-- 특성: click spends one point, right-click fills the talent
+	ns.db.heroes[id].tree = {}
+	ns.db.heroes[id].skills = {}
+	ns.Stats.Invalidate(id)
+	press("talents tab", hp.subTabs:Get("tree"))
+	if hp.sub ~= "tree" then fail("the talents tab did not open") end
+	local free = H.PointsFree(id)
+	local skillFree = H.SkillPointsFree(id)
+	press("talent 1-1", hp.tiers[1].nodes[1])
+	if H.PointsFree(id) ~= free - 1 then fail("clicking a talent should spend one point") end
+	if H.SkillPointsFree(id) ~= skillFree then fail("talents must not use skill points") end
+	press("talent 1-2 to the top", hp.tiers[1].nodes[2], "RightButton")
+	if H.NodeLevel(id, 1, 2) < 2 then fail("right-clicking a talent should spend as many points as it takes") end
+	press("auto talents", hp.autoTree)
+	if H.PointsFree(id) ~= 0 then fail("자동 배분 should spend every talent point") end
+	press("reset talents", hp.resetTree)
+	if H.PointsFree(id) ~= 0 then fail("resetting talents must ask first") end
+	confirmYes("reset talents")
+	if H.PointsFree(id) == 0 then fail("confirming should give the talent points back") end
+	press("auto talents again", hp.autoTree)
+	-- 기술: right-click learns, click equips; the slots above take it off
+	press("skills tab", hp.subTabs:Get("skills"))
+	if hp.sub ~= "skills" then fail("the skills tab did not open") end
+	ns.db.heroes[id].sk = { [H.SkillList(id)[1]] = 1 }
+	ns.db.heroes[id].skills = { H.SkillList(id)[1] }
+	ns.Stats.Invalidate(id)
 	Main.Refresh()
-	press("rename", d.x1)
+	local second = H.SkillList(id)[2]
+	local row
+	for _, r in ipairs(hp.skRows) do
+		if r.sid == second and r:IsVisible() then row = r end
+	end
+	if not row then
+		fail("the skills tab should list the specialization's second skill")
+	else
+		press("equip an unlearned skill", row)
+		if H.IsSkillEquipped(id, second) then fail("a skill that is not learned must not be equipped") end
+		press("learn", row, "RightButton")
+		if H.SkillPoints(id, second) ~= 1 then fail("right-clicking a skill should learn it") end
+		if not H.IsSkillEquipped(id, second) then fail("a newly learned skill should go into a free slot") end
+		press("raise", row, "RightButton")
+		if H.SkillPoints(id, second) ~= 2 then fail("right-clicking again should raise it") end
+		press("take off", row)
+		if H.IsSkillEquipped(id, second) then fail("clicking an equipped skill in the list should take it off") end
+		press("equip", row)
+		if not H.IsSkillEquipped(id, second) then fail("clicking a learned skill should equip it") end
+		local slotB
+		for _, b in ipairs(hp.eqSlots) do
+			if b.sid == second then slotB = b end
+		end
+		if not slotB then
+			fail("an equipped skill should show in the slots above the list")
+		else
+			press("take off from the slot", slotB)
+			if H.IsSkillEquipped(id, second) then fail("clicking a skill slot should take the skill off") end
+		end
+	end
+	press("auto skills", hp.autoSkills)
+	if H.SkillPointsFree(id) ~= 0 then fail("자동 배분 should spend every skill point") end
+	press("reset skills", hp.resetSkills)
+	confirmYes("reset skills")
+	if H.SkillPointsFree(id) == 0 then fail("resetting skills should give the points back") end
+	press("auto skills again", hp.autoSkills)
+	-- the header card: rename, rest / field, dismiss
+	press("rename", hc.rename)
 	click("rename reroll", labelIs("다시"))
 	click("rename keep", labelIs("이 이름으로"))
 	if not tostring(ns.db.heroes[id].name):find("^%S+ %S+$") then fail("renaming should keep the given + family name form") end
+	if label(hc.field) ~= "휴식" then fail("a fielded hero's card should offer rest, got " .. tostring(label(hc.field))) end
+	press("rest", hc.field)
+	if H.PartySlot(id) then fail("휴식 should take the hero out of the party") end
+	Main.Refresh()
+	if label(hc.field) ~= "출전" then fail("a resting hero's card should offer to field them, got " .. tostring(label(hc.field))) end
+	press("field", hc.field)
+	if not H.PartySlot(id) then fail("출전 should put the hero back into the party") end
 	local benchId
-	for _, hid in ipairs(H.List()) do if not H.PartySlot(hid) then benchId = hid end end
-	pp.sel = { hero = benchId }
+	for _, hid in ipairs(H.List()) do
+		if not H.PartySlot(hid) then benchId = hid end
+	end
+	Main.SelectHero(benchId)
 	Main.Refresh()
 	local n = H.Count()
-	press("dismiss", d.x2)
+	press("dismiss", hc.dismiss)
 	if H.Count() ~= n then fail("one click must not dismiss a hero") end
 	confirmYes("dismiss")
 	if H.Count() ~= n - 1 or ns.db.heroes[benchId] then fail("confirming should dismiss the hero") end
 	hoverAll()
 end
 
--- hero: talents, skills, gear
+-- equipment: paper doll on the left, bag on the right
 do
-	local id = ns.db.party[2]
-	Main.SelectHero(id)
-	Main.ShowTab("hero", { sub = "tree" })
-	local hp = Main.Page("hero")
-	local d = card("hero")
-	ns.db.heroes[id].tree = {}
-	ns.db.heroes[id].skills = {}
-	ns.Stats.Invalidate(id)
-	hp.node = nil
-	Main.Refresh()
-	local free = H.PointsFree(id)
-	local skillFree = H.SkillPointsFree(id)
-	click("talent node", function(b) return b.tier == 1 and b.n == 1 end)
-	if H.PointsFree(id) ~= free then fail("clicking a talent should only select it") end
-	if label(d.right) ~= "1점 쓰기" then fail("the talent card should offer to spend a point") end
-	press("spend", d.right)
-	if H.PointsFree(id) ~= free - 1 then fail("the card button should spend a point") end
-	if H.SkillPointsFree(id) ~= skillFree then fail("talents must not use skill points") end
-	if find(function(b) return b.tier and b.n and b.n > 2 end) then fail("the talent tree must not show skills") end
-	press("auto-assign", hp.autoTree)
-	if H.PointsFree(id) ~= 0 then fail("auto-assign should spend every talent point") end
-	press("switch to skills", hp.modeTabs:Get("skills"))
-	if hp.mode ~= "skills" then fail("the skills tab did not switch the view") end
-	ns.db.heroes[id].sk = { [H.SkillList(id)[1]] = 1 }
-	ns.db.heroes[id].skills = { H.SkillList(id)[1] }
-	Main.Refresh()
-	local second = H.SkillList(id)[2]
-	click("select skill 2", function(b) return b.sid == second and b.title end)
-	if hp.skill ~= second then fail("clicking a skill should select it") end
-	if label(d.right) ~= "배우기 (1점)" then fail("the skill card should offer to learn, got " .. tostring(label(d.right))) end
-	press("learn skill", d.right)
-	if H.SkillPoints(id, second) ~= 1 then fail("learning a skill from the card did not work") end
-	Main.Refresh()
-	press("raise skill", d.right)
-	if H.SkillPoints(id, second) ~= 2 then fail("raising a skill did not work") end
-	Main.Refresh()
-	local active = #H.ActiveSkills(id)
-	if label(d.left) == "해제" then
-		press("remove skill", d.left)
-		if #H.ActiveSkills(id) ~= active - 1 then fail("removing a skill did not work") end
-		Main.Refresh()
-	end
-	if label(d.left) ~= "장착" then fail("a learned, unequipped skill should offer to equip") end
-	local before = #H.ActiveSkills(id)
-	press("equip skill", d.left)
-	if #H.ActiveSkills(id) ~= before + 1 then fail("equipping a skill did not work (" .. before .. " active, " .. #ns.db.heroes[id].skills .. "/" .. ns.SkillSlots() .. " slots, " .. tostring((H.IsSkillEquipped(id, second))) .. ")") end
-	Main.Refresh()
-	press("auto skills", hp.autoSkills)
-	if H.SkillPointsFree(id) ~= 0 then fail("auto skills should spend every skill point") end
-	press("back to gear and bag", hp.back)
-	if hp.mode ~= "gear" then fail("'장비·가방으로' should go back") end
-	hp.selItem, hp.slot = nil, nil
-	if hp.tab ~= "all" then press("bag tab all", hp.bagTabs:Get("all")) end
-	Main.Refresh()
-	-- the hero card opens 기술 and 특성
-	if label(d.x1) ~= "기술" or label(d.x2) ~= "특성" then fail("the hero card should have 기술 and 특성 buttons") end
-	press("open skills from the hero card", d.x1)
-	if hp.mode ~= "skills" then fail("기술 on the hero card should open the skills") end
-	press("back", hp.back)
-	press("open talents from the hero card", d.x2)
-	if hp.mode ~= "tree" then fail("특성 on the hero card should open the talents") end
-	press("back", hp.back)
-	click("slot ring", function(b) return b.slot == "ring" end)
-	if hp.slot ~= "ring" then fail("clicking an equipment slot should show it on the card") end
-	if not d.close:IsVisible() then fail("a chosen slot should have a close button on the card") end
-	press("back to stats", d.close)
-	if hp.slot ~= nil then fail("closing the slot should go back to the hero") end
-	if label(d.right) ~= "일괄 장착" then fail("the hero card should offer to equip the best gear") end
-	if label(d.left) ~= "파티 전원 장착" then fail("the hero card's other button should equip the whole party") end
-	if find(function(b) return label(b) == "상세 능력치" end) then fail("there should be no detailed-stats button (the card shows every stat)") end
-	try("equip best", d.right.Click, d.right, "LeftButton")
-	press("equip party", d.left)
-	hoverAll()
-end
-
--- bags: select, equip, lock, bank, materials
-do
-	Main.ShowTab("hero", { tab = "all" })
-	local bp = Main.Page("hero")
-	local d = card("hero")
-	local function bagTab(k) return press("bag tab " .. k, bp.bagTabs:Get(k)) end
-	if bp.mode ~= "gear" then fail("the bag should be on the hero screen") end
+	Main.ShowTab("equip", { sub = "bag" })
+	local ep = Main.Page("equip")
 	local id = ns.db.party[1]
-	Main.SelectHero(id)
+	click("hero in the strip", function(b) return b.heroId == id end)
+	if Main.SelectedHero() ~= id then fail("the strip on top should choose the hero") end
+	if ep.tab ~= "bag" or not ep.bodies.bag:IsVisible() then fail("the equipment screen should open on the bag") end
 	local sword = ns.Items.New("mh", 5, 4, H.Spec(id).mh[1])
 	ns.db.bag = {}
 	ns.Items.AddToBag(sword)
 	for i = 1, 6 do ns.Items.AddToBag(ns.Items.New("head", 5 + i, 2)) end
+	ns.Items.AddToBag(ns.Items.New("ring", 9, 2))
 	Main.Refresh()
-	click("select sword", function(b) return b.data == sword end)
-	if bp.selItem ~= sword then fail("clicking an item should select it") end
-	if label(d.right) ~= "장착" then fail("the item card should offer to equip") end
-	press("equip", d.right)
-	if ns.db.heroes[id].gear.mh ~= sword then fail("the card's equip button should equip the item") end
-	local junk = ns.db.bag[1]
-	bp.selItem = junk
-	Main.Refresh()
-	press("lock", d.x1)
-	if not junk.lock then fail("the lock button should lock the item") end
-	press("to bank", d.x2)
-	if ns.db.bank[1] ~= junk then fail("the bank button should move the item to the bank") end
-	bagTab("bank")
-	click("select banked", function(b) return b.data == junk end)
-	press("from bank", d.wide)
-	if not ns.Items.IndexInBag(junk) then fail("taking an item out of the bank did not work") end
-	bagTab("all")
-	local before = #ns.db.bag
-	local victim
-	for _, it in ipairs(ns.db.bag) do
-		if not it.lock then victim = it end
+	click("equip from the bag", function(b) return b.data == sword end)
+	if ns.db.heroes[id].gear.mh ~= sword then fail("clicking an item in the bag should equip it on the chosen hero") end
+	press("take off from the slot", ep.slots.mh, "RightButton")
+	if ns.db.heroes[id].gear.mh == sword or not ns.Items.IndexInBag(sword) then fail("right-clicking a slot should put the item back in the bag") end
+	-- a slot shows the bag's items for that slot
+	press("head slot", ep.slots.head)
+	if ep.view ~= "head" then fail("clicking an equipment slot should show that slot's items") end
+	local shown = 0
+	for _, c in ipairs(ep.cells) do
+		if c.data and c:IsShown() then
+			shown = shown + 1
+			if c.data.s ~= "head" then fail("the head view shows a " .. tostring(c.data.s)) break end
+		end
 	end
-	bp.selItem = victim
-	Main.Refresh()
-	press("smelt one", d.left)
-	if #ns.db.bag ~= before then fail("breaking down must ask first") end
-	confirmYes("smelt one")
-	if #ns.db.bag ~= before - 1 then fail("the card's break-down button should break the item down") end
-	-- right-click asks too
-	local rc = ns.db.bag[#ns.db.bag]
-	if rc.lock then ns.Items.ToggleLock(rc) end
+	if shown ~= 6 then fail("the head view should show the six heads, got " .. shown) end
+	press("view list", ep.viewPick)
+	click("view all", function(b) return b.value == "all" and b.label end)
+	if ep.view ~= "all" then fail("picking '전체' from the list should show every item") end
+	-- protect, bank, break down
+	local junk = ns.db.bag[#ns.db.bag]
+	Mock.alt = true
+	click("alt-click", function(b) return b.data == junk end)
+	Mock.alt = false
+	if not junk.lock then fail("Alt+click should protect an item") end
+	Mock.shift = true
+	click("shift-click", function(b) return b.data == junk end)
+	Mock.shift = false
+	if ns.db.bank[#ns.db.bank] ~= junk then fail("Shift+click should move the item to the bank") end
+	press("view list", ep.viewPick)
+	click("view bank", function(b) return b.value == "bank" and b.label end)
+	click("take out of the bank", function(b) return b.data == junk end)
+	if not ns.Items.IndexInBag(junk) then fail("clicking an item in the bank should take it out") end
+	press("view list", ep.viewPick)
+	click("view all", function(b) return b.value == "all" and b.label end)
+	ns.Items.ToggleLock(junk)
 	Main.Refresh()
 	local n1 = #ns.db.bag
-	click("right-click smelt", function(b) return b.data == rc end, "RightButton")
+	click("right-click break down", function(b) return b.data == junk end, "RightButton")
 	if #ns.db.bag ~= n1 then fail("right-click must ask before breaking down") end
-	confirmYes("right-click smelt")
-	if #ns.db.bag ~= n1 - 1 then fail("confirming a right-click should break the item down") end
-	local alt = ns.db.bag[#ns.db.bag]
-	local wasLocked = alt.lock
-	Mock.alt = true
-	click("alt-click", function(b) return b.data == alt end)
-	Mock.alt = false
-	if (alt.lock and true or false) == (wasLocked and true or false) then fail("Alt+click should protect / unprotect an item") end
-	ns.Items.ToggleLock(alt)
-	ns.db.ui.smeltQ = ns.MAX_QUALITY
-	Main.Refresh()
+	confirmYes("break down")
+	if #ns.db.bag ~= n1 - 1 then fail("confirming should break the item down") end
+	-- break down by grade, or by itself
+	press("grade list", ep.smeltPick)
+	click("grade 3", function(b) return b.value == 3 and b.label end)
+	if ns.db.ui.smeltQ ~= 3 then fail("picking from the grade list did not set it") end
 	local n0 = #ns.db.bag
-	try("bulk smelt", bp.smeltGo.Click, bp.smeltGo, "LeftButton")
-	if #ns.db.bag ~= n0 then fail("bulk smelt must ask first") end
-	if #ns.Forge.PickByQuality(ns.MAX_QUALITY) > 0 then
-		confirmYes("bulk smelt")
-		if #ns.db.bag == n0 then fail("confirming should smelt") end
+	press("break down by grade", ep.smeltGo)
+	if #ns.db.bag ~= n0 then fail("breaking down by grade must ask first") end
+	if #ns.Forge.PickByQuality(3) > 0 then
+		confirmYes("break down by grade")
+		if #ns.db.bag == n0 then fail("confirming should break the items down") end
 	end
-	-- the threshold is picked from a list
-	press("threshold list", bp.smeltPick)
-	click("threshold 3", function(b) return b.value == 3 and b.label end)
-	if ns.db.ui.smeltQ ~= 3 then fail("picking from the threshold list did not set it") end
-	-- the auto break-down switch sits next to the threshold and uses it
-	if ns.Forge.Unlocked("smelt") then
-		ns.db.opt.autoSmelt = 0
-		Main.Refresh()
-		if label(bp.autoSmelt) ~= "자동 분해 끔" then fail("the auto break-down button should say it is off, got " .. tostring(label(bp.autoSmelt))) end
-		press("auto break-down on", bp.autoSmelt)
-		if ns.db.opt.autoSmelt ~= 3 then fail("turning auto break-down on should use the threshold, got " .. tostring(ns.db.opt.autoSmelt)) end
-		if label(bp.autoSmelt) ~= "자동 분해 켬" then fail("the auto break-down button should say it is on") end
-		press("auto break-down off", bp.autoSmelt)
-		if ns.db.opt.autoSmelt ~= 0 then fail("pressing again should turn auto break-down off") end
-	end
-	enrich(3)
+	ns.db.opt.autoSmelt = 0
 	Main.Refresh()
-	for _, t in ipairs({ "weapon", "armor", "acc", "bank", "all" }) do bagTab(t) end
-	if bp.bagTabs:Get("mats") then fail("there should be no single materials tab") end
-	-- the materials' own row of tabs: each shows only its kinds
-	local MAT_TABS = {
-		mat_craft = { bar = true, leather = true, cloth = true }, mat_gem = { gem = true },
-		mat_ench = { dust = true }, mat_insc = { scroll = true }, mat_seal = { seal = true },
-	}
-	local function matTab(k)
-		local b = bp.matTabs:Get(k)
-		if not b then fail("missing materials tab " .. k) return end
-		press("materials tab " .. k, b)
-		if bp.tab ~= k then fail("the materials tab " .. k .. " did not open") end
-	end
-	for _, k in ipairs({ "mat_craft", "mat_gem", "mat_ench", "mat_insc", "mat_seal" }) do
-		ns.AddMat(({ mat_craft = "leather2", mat_gem = "gem1", mat_ench = "dust1", mat_insc = "scroll1", mat_seal = "seal1" })[k], 3)
-		Main.Refresh()
-		matTab(k)
-		local n = 0
-		for _, c in ipairs(bp.cells) do
-			if c.data and c:IsShown() then
-				n = n + 1
-				if not MAT_TABS[k][ns.MATS[c.data].kind] then fail(k .. " shows " .. c.data) break end
-			end
-		end
-		if n == 0 then fail(k .. " should show its materials") end
-		hoverAll()
-	end
-	-- auto-fuse in one tab leaves the other tabs' materials alone
-	ns.AddMat("gem1", 20)
-	ns.AddMat("bar1", 20)
-	Main.Refresh()
-	matTab("mat_gem")
-	local barsBefore = ns.MatCount("bar1")
-	press("auto fuse gems", d.right)
-	confirmYes("auto fuse gems")
-	if ns.MatCount("gem1") >= 9 then fail("auto-fuse in the gem tab should fuse the gems") end
-	if ns.MatCount("bar1") ~= barsBefore then fail("auto-fuse in the gem tab must not touch crafting materials") end
-	matTab("mat_craft")
-	local bars = ns.MatCount("bar1")
-	click("select bars", function(b) return b.data == "bar1" end)
-	-- the material card: [1개 분해][전부 분해] above, [9개 융합][재료 자동 융합] below
-	if not (label(d.x1) or ""):find("^1개 분해") then fail("the small left button should break down one, got " .. tostring(label(d.x1))) end
-	if not (label(d.x2) or ""):find("^전부 분해") then fail("the small right button should break down all, got " .. tostring(label(d.x2))) end
-	if not (label(d.left) or ""):find("^9개 융합") then fail("the footer's left button should fuse nine, got " .. tostring(label(d.left))) end
-	if label(d.right) ~= "재료 자동 융합" then fail("the footer's right button should auto-fuse, got " .. tostring(label(d.right))) end
-	if find(function(b) return b ~= d.right and label(b) == "재료 자동 융합" end) then fail("auto-fuse should be on the card only") end
-	press("fuse 9", d.left)
-	if ns.MatCount("bar1") ~= bars - 9 then fail("fusing nine materials from the card did not work") end
-	local b1 = ns.MatCount("bar1")
-	press("smelt one material", d.x1)
-	if ns.MatCount("bar1") ~= b1 - 1 then fail("breaking down one material did not work") end
-	ns.AddMat("cloth1", 20)
-	Main.Refresh()
-	press("auto fuse", d.right)
-	confirmYes("auto fuse")
-	if ns.MatCount("cloth1") >= 9 then fail("auto-fuse should leave fewer than nine of each material") end
-	-- 정리: the highest tier first, the same tier in kind order
-	ns.AddMat("gem2", 3) ns.AddMat("bar1", 5) ns.AddMat("cloth3", 2)
-	Main.Refresh()
-	press("sort materials", bp.sort)
-	do
-		local prev
-		for _, c in ipairs(bp.cells) do
-			if c.data and c:IsShown() then
-				local m = ns.MATS[c.data]
-				if prev and prev.tier < m.tier then fail("정리 should put higher-tier materials first: " .. prev.id .. " before " .. m.id) break end
-				prev = m
-			end
-		end
-		if not prev then fail("the materials tab should show materials") end
-	end
-	bagTab("all")
+	press("auto break-down on", ep.autoSmelt)
+	if ns.db.opt.autoSmelt ~= 3 then fail("turning auto break-down on should use the chosen grade, got " .. tostring(ns.db.opt.autoSmelt)) end
+	press("auto break-down off", ep.autoSmelt)
+	if ns.db.opt.autoSmelt ~= 0 then fail("clicking again should turn auto break-down off") end
+	-- equip the best, the party, take everything off
 	enrich(2)
 	Main.Refresh()
+	press("auto equip", ep.auto)
+	press("party auto equip", ep.party)
+	local worn = 0
+	for _ in pairs(ns.db.heroes[id].gear) do worn = worn + 1 end
+	press("take everything off", ep.unequip)
+	confirmYes("take everything off")
+	if next(ns.db.heroes[id].gear) and ns.Items.BagFree() > 0 then fail("전체 해제 should take the gear off") end
+	press("auto equip again", ep.auto)
 	click("open chests", function(b) return label(b) and label(b):find("상자 열기", 1, true) end)
+	press("sort", ep.sort)
 	hoverAll()
 end
 
--- forge: every operation
+-- equipment > 재료: one tab per kind; each row fuses or breaks down its material
+do
+	Main.ShowTab("equip", { sub = "mats" })
+	local ep = Main.Page("equip")
+	if ep.tab ~= "mats" then fail("the materials tab did not open") end
+	local KINDS = {
+		mat_craft = { bar = true, leather = true, cloth = true }, mat_gem = { gem = true },
+		mat_ench = { dust = true }, mat_insc = { scroll = true }, mat_seal = { seal = true },
+	}
+	local function rowOf(mid)
+		for _, r in ipairs(ep.matRows) do
+			if r.id == mid and r:IsVisible() then return r end
+		end
+	end
+	for _, k in ipairs({ "mat_craft", "mat_gem", "mat_ench", "mat_insc", "mat_seal" }) do
+		press("materials tab " .. k, ep.matTabs:Get(k))
+		if ep.matTab ~= k then fail("the materials tab " .. k .. " did not open") end
+		local n = 0
+		for _, r in ipairs(ep.matRows) do
+			if r:IsVisible() and r.id then
+				n = n + 1
+				if not KINDS[k][ns.MATS[r.id].kind] then fail(k .. " shows " .. r.id) break end
+			end
+		end
+		if n == 0 then fail(k .. " should list its materials") end
+		hoverAll()
+	end
+	-- a click on a coin in the title bar opens its tab
+	local pill = Main.Frame().currency[1]
+	try("currency pill", pill.__scripts.OnMouseUp, pill, "LeftButton")
+	if not (Main.Current() == "equip" and ep.tab == "mats" and ep.matTab == pill.def.tab) then fail("a currency in the title bar should open its materials tab") end
+	-- auto-fuse in one tab leaves the other tabs' materials alone
+	ns.AddMat("gem1", 20)
+	ns.AddMat("bar1", 20)
+	Main.ShowTab("equip", { sub = "mats", tab = "mat_gem" })
+	local barsBefore = ns.MatCount("bar1")
+	press("auto fuse gems", ep.autoFuse)
+	confirmYes("auto fuse gems")
+	if ns.MatCount("gem1") >= 9 then fail("auto-fuse in the gem tab should fuse the gems") end
+	if ns.MatCount("bar1") ~= barsBefore then fail("auto-fuse in the gem tab must not touch crafting materials") end
+	Main.ShowTab("equip", { sub = "mats", tab = "mat_craft" })
+	local r = rowOf("bar1")
+	if not r then
+		fail("the crafting tab should list copper bars")
+	else
+		local bars = ns.MatCount("bar1")
+		press("fuse once", r.one)
+		if ns.MatCount("bar1") ~= bars - 9 then fail("1회 should fuse nine materials into one") end
+		ns.AddMat("bar1", 30)
+		Main.Refresh()
+		press("fuse all", r.all)
+		if ns.MatCount("bar1") >= 9 then fail("모두 should fuse while nine or more are left") end
+		ns.AddMat("bar1", 5)
+		Main.Refresh()
+		press("break all down", r.smelt)
+		if ns.MatCount("bar1") == 0 then fail("breaking materials down must ask first") end
+		confirmYes("break all down")
+		if ns.MatCount("bar1") ~= 0 then fail("confirming should break every bar down") end
+	end
+	-- the lucky seals roll an item
+	Main.ShowTab("equip", { sub = "mats", tab = "mat_seal" })
+	ns.AddMat("seal1", 3)
+	Main.Refresh()
+	local s = rowOf("seal1")
+	if not (s and s.roll:IsVisible()) then
+		fail("a seal row should have a roll button")
+	else
+		local before = #ns.db.bag
+		press("roll", s.roll)
+		if #ns.db.bag ~= before + 1 then fail("rolling a seal should add one item") end
+	end
+	hoverAll()
+end
+
+-- equipment > forge tabs: fuse, craft, gem, enchant, inscribe; a locked one
 do
 	local F = ns.Forge
 	for _, op in ipairs(ns.FORGE_OPS) do if not F.Unlocked(op.key) then F.Unlock(op.key) end end
@@ -491,45 +529,61 @@ do
 	end
 	ns.db.bag = {}
 	for _ = 1, 27 do ns.Items.AddToBag(ns.Items.New("head", 20, 2)) end
-	Main.ShowTab("forge", { sub = "fuse" })
-	local d = card("forge")
+	Main.ShowTab("equip", { sub = "fuse" })
+	local ep = Main.Page("equip")
+	local fp = ep.forge.fuse
+	if not ep.bodies.fuse:IsVisible() then fail("the fuse tab did not open") end
 	local before = #ns.db.bag
-	if label(d.right) ~= "융합하기" then fail("the fusion card should offer to fuse") end
-	press("fuse", d.right)
-	if #ns.db.bag ~= before - 8 then fail("fusing through the forge should turn 9 items into 1") end
-	press("fuse all", d.left)
+	press("fuse once", fp.one)
+	if #ns.db.bag ~= before - 8 then fail("1회 융합 should turn 9 items into 1") end
+	press("fuse all", fp.all)
 	confirmYes("fuse all")
-	if #ns.db.bag ~= 3 then fail("fuse-all should leave 3 items, got " .. #ns.db.bag) end
-	local fp = Main.Page("forge").panels.fuse
-	press("fusion grade list", fp.pick)
-	click("grade 3", function(b) return b.value == 3 and b.label end)
-	if fp.q ~= 3 then fail("picking the fusion grade from the list did not work") end
-	press("fusion kind list", fp.catBtn)
-	click("accessories", function(b) return b.value == "accessory" end)
-	if fp.cat ~= "accessory" then fail("picking the fusion kind from the list did not work") end
-	tab("forge", "craft")
+	if #ns.db.bag ~= 3 then fail("가능한 만큼 융합 should leave 3 items, got " .. #ns.db.bag) end
+	press("grade 3", fp.row1:Get(3))
+	if fp.q ~= 3 then fail("the grade chips should pick the grade") end
+	press("grade 6", fp.row2:Get(6))
+	if fp.q ~= 6 then fail("the second row of grade chips should pick the grade") end
+	press("accessories", fp.kinds:Get("accessory"))
+	if fp.cat ~= "accessory" then fail("the kind chips should pick the kind") end
+	-- craft
+	press("craft tab", ep.tabs:Get("craft"))
+	local cp = ep.forge.craft
+	press("tier 2", cp.tiers[2])
+	if cp.tier ~= 2 then fail("clicking a crafting tier should choose it") end
+	press("tier 1", cp.tiers[1])
+	for _, mid in ipairs(ns.MAT_ORDER) do ns.AddMat(mid, 30) end
+	Main.Refresh()
 	before = #ns.db.bag
-	press("craft", d.wide)
+	press("craft", cp.go)
 	if #ns.db.bag ~= before + 1 then fail("crafting should add one item") end
+	-- sockets: the item, then the material, then the button
 	local epic = ns.Items.New("chest", 30, 6)
 	ns.Items.AddToBag(epic)
 	for _, step in ipairs({ { "gem", "gem2", "g" }, { "ench", "dust2", "e" }, { "insc", "scroll2", "i" } }) do
-		tab("forge", step[1])
+		press(step[1] .. " tab", ep.tabs:Get(step[1]))
+		local sp = ep.forge[step[1]]
 		click("target", function(b) return b.data == epic end)
-		click("material", function(b) return b.data == step[2] end)
-		press("apply " .. step[1], d.wide)
+		if sp.picked ~= epic then fail("clicking an item in the " .. step[1] .. " tab should choose it") end
+		click("material", function(b) return b.matId == step[2] end)
+		if sp.mat ~= step[2] then fail("clicking a material should choose it") end
+		press("apply " .. step[1], sp.go)
 		if not epic[step[3]] or #epic[step[3]] ~= 1 then fail(step[1] .. " did not add a stat") end
+		hoverAll()
 	end
-	tab("forge", "remove")
-	click("item to clear", function(b) return b.data == epic end)
-	press("extract", d.wide)
+	-- extraction sits on the socket's line
+	press("gem tab", ep.tabs:Get("gem"))
+	local gp = ep.forge.gem
+	gp.picked = epic
+	Main.Refresh()
+	press("extract", gp.card.rows[1].remove)
 	confirmYes("extract")
-	if (#(epic.g or {}) + #(epic.e or {}) + #(epic.i or {})) ~= 2 then fail("extraction should clear one stat") end
-	tab("forge", "seal")
-	before = #ns.db.bag
-	press("roll", d.wide)
-	if #ns.db.bag ~= before + 1 then fail("a bonus roll should add one item") end
-	tab("forge", "smelt")
+	if #(epic.g or {}) ~= 0 then fail("추출 should clear the gem") end
+	-- a locked tab explains itself and unlocks
+	ns.db.forge.ops.insc = nil
+	press("locked tab", ep.tabs:Get("insc"))
+	if not ep.bodies.locked:IsVisible() then fail("a locked forge tab should show how to unlock it") end
+	press("unlock", ep.lockView.go)
+	if not F.Unlocked("insc") then fail("해금하기 should unlock the function") end
 	hoverAll()
 end
 
@@ -566,6 +620,35 @@ do
 	hoverAll()
 end
 
+-- companions: pick one, take it along
+do
+	Main.ShowTab("pets")
+	local pg = Main.Page("pets")
+	local mine, notMine
+	for _, c in ipairs(pg.cards) do
+		if c.pet.id ~= ns.db.pet then
+			if ns.db.pets[c.pet.id] then mine = mine or c else notMine = notMine or c end
+		end
+	end
+	if not mine then
+		for _, c in ipairs(pg.cards) do
+			if c.pet.id ~= ns.db.pet and c ~= notMine then ns.db.pets[c.pet.id] = true mine = c break end
+		end
+		Main.Refresh()
+	end
+	if notMine then
+		press("a companion not yet won", notMine)
+		local was = ns.db.pet
+		press("take it along", pg.take)
+		if ns.db.pet ~= was then fail("a companion that is not won yet must not come along") end
+	end
+	press("a won companion", mine)
+	if pg.sel ~= mine.pet.id then fail("clicking a companion should choose it") end
+	press("take it along", pg.take)
+	if ns.db.pet ~= mine.pet.id then fail("데리고 다니기 should take the companion along") end
+	hoverAll()
+end
+
 -- settings: every tab
 do
 	Main.ShowTab("options")
@@ -573,7 +656,6 @@ do
 		tab("options", t)
 		hoverAll()
 	end
-	-- each group's button sits in its header: no side card
 	local op = Main.Page("options")
 	if op.S.card:IsVisible() then fail("settings should have no side card") end
 	tab("options", "screen")
@@ -583,6 +665,10 @@ do
 	local yes, no = ns.UI.ConfirmButtons()
 	if not (no and no:IsVisible()) then fail("resetting everything must ask first") else press("cancel the reset", no) end
 	if H.Count() == 0 then fail("cancelling the reset must keep the heroes") end
+	-- the gear in the title bar opens the settings
+	Main.ShowTab("hero")
+	press("settings gear", Main.Frame().gear)
+	if Main.Current() ~= "options" then fail("the gear in the title bar should open the settings") end
 end
 
 -- HUD: goal, auto toggle, chests, menu shortcuts
@@ -598,6 +684,7 @@ do
 		try("auto toggle back", bar.auto.Click, bar.auto, "LeftButton")
 		ns.Loot.AddChest(1, 10, 1)
 		try("chest", bar.chests[1].Click, bar.chests[1], "LeftButton")
+		if #bar.menu ~= 6 then fail("the HUD menu should have the six screens") end
 		for _, mb in ipairs(bar.menu) do
 			try("menu " .. mb.key, mb.Click, mb, "LeftButton")
 			if Main.Current() ~= mb.key then fail("HUD menu button " .. mb.key .. " should open its screen") end
@@ -630,7 +717,7 @@ end
 ------------------------------------------------------------------------
 -- click everything, several rounds, with random mouse buttons
 ------------------------------------------------------------------------
-local clickTabs = { "party", "hero", "forge", "forge", "runes", "map", "options", "hero", "hero" }
+local clickTabs = { "party", "hero", "equip", "equip", "equip", "runes", "map", "pets", "options", "hero", "hero" }
 local clicks = 0
 for round = 1, 50 do
 	for _, key in ipairs(clickTabs) do
@@ -667,7 +754,10 @@ try("compartment", BigWowHeroes_OnAddonCompartmentClick)
 
 -- a long stretch with a full party fighting, then lag spikes
 enrich(1)
-if H.PartyCount() == 0 then H.Create("MAGE_FROST") end
+for _, sid in ipairs({ "WARRIOR_PROT", "PRIEST_HOLY", "MAGE_FIRE", "ROGUE_ASSA", "HUNTER_MM" }) do
+	if H.PartyCount() < ns.PartyLimit() and H.Count() < ns.ROSTER_MAX then H.Create(sid) end
+end
+if H.PartyCount() < 3 then fail("the long run should have a party, got " .. H.PartyCount()) end
 frames(2500, 0.05)
 frames(40, 2.0)
 

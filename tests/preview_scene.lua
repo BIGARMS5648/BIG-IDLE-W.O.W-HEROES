@@ -68,11 +68,6 @@ local function clickWhere(pred)
 end
 local function page(key) return ns.Main.Page(key) end
 local function show(key, opts)
-	-- each scene starts from the hero screen's usual view
-	local p = page(key)
-	if key == "hero" and p and p.S then
-		p.selItem, p.selMat, p.slot, p.tab, p.mode = nil, nil, nil, "all", "gear"
-	end
 	ns.Main.ShowTab(key, opts)
 	return page(key)
 end
@@ -119,108 +114,73 @@ S.bar_wipe = function()
 end
 
 -- modals
-S.faction = function() show("party") ns.PickFaction() end
-S.create = function() show("party") ns.CreateHeroDialog("TINKER") end
-S.create_druid = function() show("party") ns.CreateHeroDialog("DRUID", "HEALER") end
-S.pets = function() show("party") clickWhere(function(f) return f.label and f.label.__text == "동료" end) end
-S.pets_locked = function()
-	show("party")
-	clickWhere(function(f) return f.label and f.label.__text == "동료" end)
-	clickWhere(function(f) return f.pet and not db.pets[f.pet.id] end)
-end
-S.rename = function() show("party") ns.OpenRename(db.party[2]) end
+S.faction = function() show("hero") ns.PickFaction() end
+S.create = function() show("hero") ns.CreateHeroDialog("TINKER") end
+S.create_druid = function() show("hero") ns.CreateHeroDialog("DRUID", "HEALER") end
+S.rename = function() show("hero") ns.OpenRename(db.party[2]) end
 
--- party
-S.party = function() local p = show("party") p.sel = { hero = db.party[2] } p.filter = nil ns.Main.Refresh() end
-S.party_bench = function()
-	local p = show("party")
-	for _, id in ipairs(ns.Heroes.List()) do
-		if not ns.Heroes.PartySlot(id) and ns.Heroes.Role(id) == "DPS" then p.sel = { hero = id } end
-	end
-	p.filter = "DPS"
+-- 영웅
+S.hero = function() local p = show("hero", { hero = db.party[2] }) p.sub = "stats" ns.Main.Refresh() end
+S.hero_skills = function() local p = show("hero", { hero = db.party[2] }) p.sub = "skills" ns.Main.Refresh() end
+S.hero_tree = function() local p = show("hero", { hero = db.party[2] }) p.sub = "tree" ns.Main.Refresh() end
+S.hero_bench = function()
+	local id
+	for _, h in ipairs(ns.Heroes.List()) do if not ns.Heroes.PartySlot(h) then id = h end end
+	local p = show("hero", { hero = id })
+	p.sub = "stats"
 	ns.Main.Refresh()
 end
-S.party_slot = function()
-	local p = show("party")
-	p.saved = db.party[5]
-	ns.Heroes.Withdraw(db.party[5])
-	p.sel = { slot = 5 }
-	ns.Main.Refresh()
-end
-S.party_dismiss = function()
-	local p = show("party")
-	if p.saved then ns.Heroes.Deploy(p.saved, 5) p.saved = nil end
-	p.sel = { hero = db.party[3] }
-	p.filter = nil
-	ns.Main.Refresh()
-	clickWhere(function(f) return f.label and f.label.__text == "떠나보내기" end)
-end
-
--- hero
-S.hero = function() local p = show("hero", { sub = "gear", hero = db.party[2] }) p.slot = nil ns.Main.Refresh() end
-S.hero_slot = function()
-	local p = show("hero", { sub = "gear", hero = db.party[2] })
-	local id = db.party[2]
-	ns.Items.AddToBag(ns.Items.New("ring", 34, 5))
-	p.slot = "ring"
-	ns.Main.Refresh()
-end
-S.hero_slot_empty = function()
-	local p = show("hero", { sub = "gear", hero = db.party[2] })
-	local h = db.heroes[db.party[2]]
-	local empty
-	for _, slot in ipairs(ns.SLOTS) do if not h.gear[slot] then empty = slot end end
-	p.slot = empty or "oh"
-	ns.Main.Refresh()
-end
+S.hero_tank = function() local p = show("hero", { hero = db.party[1] }) p.sub = "tree" ns.Main.Refresh() end
 S.hero_reset = function()
-	local p = show("hero", { sub = "skills", hero = db.party[2] })
-	p.skill = nil
+	local p = show("hero", { hero = db.party[2] })
+	p.sub = "skills"
 	ns.Main.Refresh()
 	p.resetSkills:Click()
 end
-S.hero_skills = function() local p = show("hero", { sub = "skills", hero = db.party[2] }) p.skill = nil ns.Main.Refresh() end
-S.hero_skill_locked = function()
-	local p = show("hero", { sub = "skills", hero = db.party[2] })
-	local list = ns.Heroes.SkillList(db.party[2])
-	p.skill = list[#list]
+S.hero_dismiss = function() local p = show("hero", { hero = db.party[3] }) p.sub = "stats" ns.Main.Refresh() p.head.dismiss:Click() end
+S.hero_scroll = function()
+	local p = show("hero", { hero = db.party[2] })
+	p.list.__scripts.OnMouseWheel(p.list, -1)
 	ns.Main.Refresh()
-end
-S.hero_tree = function() local p = show("hero", { sub = "tree", hero = db.party[2] }) p.node = nil ns.Main.Refresh() end
-S.hero_tree_locked = function()
-	local p = show("hero", { sub = "tree", hero = db.party[2] })
-	p.node = { 8, 2 }
-	ns.Main.Refresh()
-end
-S.hero_bench = function()
-	local bench
-	for _, id in ipairs(ns.Heroes.List()) do if not ns.Heroes.PartySlot(id) then bench = id end end
-	show("hero", { sub = "gear", hero = bench })
 end
 
--- bag
-local function bestItem()
-	local best
-	for _, it in ipairs(db.bag) do
-		if not best or it.q > best.q then best = it end
-	end
-	return best
-end
-S.bag = function() local p = show("hero", { mode = "gear" }) p.tab = "all" p.selItem = bestItem() ns.Main.Refresh() end
-S.bag_tooltip = function()
-	local p = show("hero", { mode = "gear" })
-	p.tab = "all"
-	p.selItem = bestItem()
+-- 장비
+local function equip(tab, opts)
+	local p = show("equip", opts)
+	p.tab = tab or "bag"
+	if p.tab == "bag" and not (opts and (opts.slot or opts.view)) then p.view = "all" end
 	ns.Main.Refresh()
-	local cell = find(function(f) return f.data == db.bag[5] and f.tipFn end)
-	if cell then cell.__scripts.OnEnter(cell) end
+	return p
 end
-S.bag_locked = function() local p = show("hero", { mode = "gear" }) p.tab = "all" p.selItem = db.bag[3] ns.Main.Refresh() end
-S.bag_weapon = function() local p = show("hero", { mode = "gear" }) p.tab = "weapon" p.selItem = nil ns.Main.Refresh() end
-S.bag_mats = function() local p = show("hero", { mode = "gear" }) p.tab = "mat_craft" p.selMat = "bar1" ns.Main.Refresh() end
-S.bag_mats_sorted = function() local p = show("hero", { mode = "gear" }) p.tab = "mat_craft" p.selMat = "bar1" ns.Main.Refresh() p.sort:Click() end
+S.equip = function() ns.Main.SelectHero(db.party[2]) equip("bag") end
+S.equip_tooltip = function()
+	local p = equip("bag")
+	local cell = p.cells[5]
+	if cell and cell.data then cell.__scripts.OnEnter(cell) end
+end
+S.equip_slot = function() ns.Main.SelectHero(db.party[2]) equip("bag", { slot = "ring" }) end
+S.equip_bank = function()
+	while #db.bank < 6 and #db.bag > 0 do ns.Items.ToBank(#db.bag) end
+	equip("bag", { view = "bank" })
+end
+S.equip_smelt_list = function() local p = equip("bag") p.smeltPick:Click() end
+S.equip_smelt_all = function() local p = equip("bag") p.smeltGo:Click() end
+-- the largest bag: every bag rune, every slot full
+S.equip_max = function()
+	local keep = { c2 = db.runes.c2, c8 = db.runes.c8 }
+	db.runes.c2, db.runes.c8 = 5, 5
+	ns.Runes.Invalidate()
+	while #db.bag < ns.BagSize() do ns.Items.AddToBag(ns.Items.New("feet", 30, 2)) end
+	local p = equip("bag")
+	p.bagPage = 2
+	ns.Main.Refresh()
+	S.restore = function()
+		db.runes.c2, db.runes.c8 = keep.c2, keep.c8
+		ns.Runes.Invalidate()
+		while #db.bag > ns.BagSize() do table.remove(db.bag) end
+	end
+end
 -- a ring with every socket filled with the longest socket stat there is
--- (cooldown reduction at the top tier, the highest roll)
 local stress
 local function stressRing()
 	if stress then return stress end
@@ -234,7 +194,7 @@ local function stressRing()
 			l[#l + 1] = e
 		end
 	end
-	ns.Items.AddToBag(stress)
+	table.insert(db.bag, 1, stress)
 	return stress
 end
 -- a top-grade chest piece: one gem and one inscription set, the rest empty
@@ -244,126 +204,61 @@ local function mixedItem()
 	mixed = ns.Items.New("chest", 58, ns.MAX_QUALITY)
 	ns.Items.AddSocket(mixed, "gem", 4)
 	ns.Items.AddSocket(mixed, "insc", 6)
-	ns.Items.AddToBag(mixed)
+	table.insert(db.bag, 2, mixed)
 	return mixed
 end
-S.bag_sockets_mixed = function() local p = show("hero", { mode = "gear" }) p.tab = "all" p.selItem = mixedItem() ns.Main.Refresh() end
-S.bag_sockets_mixed_tip = function()
-	local p = show("hero", { mode = "gear" })
-	p.tab = "all"
-	p.selItem = mixedItem()
-	ns.Main.Refresh()
+local function tipOf(p, it)
 	for _, c in ipairs(p.cells) do
-		if c.data == mixed then c.__scripts.OnEnter(c) break end
+		if c.data == it then c.__scripts.OnEnter(c) return end
 	end
 end
-S.forge_gem_sockets = function()
-	show("forge", { sub = "gem" })
-	clickWhere(function(f) return f.data == mixedItem() and f.heroId == nil end)
+S.equip_sockets_tip = function() stressRing() local p = equip("bag") tipOf(p, stress) end
+S.equip_mixed_tip = function() mixedItem() local p = equip("bag") tipOf(p, mixed) end
+S.equip_slot_tip = function()
+	local p = equip("bag")
+	local b = p.slots.chest
+	b.__scripts.OnEnter(b)
 end
-S.bag_sockets = function() local p = show("hero", { mode = "gear" }) p.tab = "all" p.selItem = stressRing() ns.Main.Refresh() end
-S.bag_sockets_tip = function()
-	local p = show("hero", { mode = "gear" })
-	p.tab = "all"
-	p.selItem = stressRing()
-	ns.Main.Refresh()
-	for _, c in ipairs(p.cells) do
-		if c.data == stress then c.__scripts.OnEnter(c) break end
-	end
-end
-S.bag_smelt_one = function()
-	local p = show("hero", { mode = "gear" })
-	p.tab = "all"
-	local it = db.bag[5]
-	if it.lock then ns.Items.ToggleLock(it) end
-	ns.Main.Refresh()
-	for _, c in ipairs(p.cells) do
-		if c.data == it then c:Click("RightButton") break end
-	end
-end
-S.bag_smelt_all = function() local p = show("hero", { mode = "gear" }) p.tab = "all" ns.Main.Refresh() p.smeltGo:Click() end
-S.bag_smelt_list = function() local p = show("hero", { mode = "gear" }) p.tab = "all" ns.Main.Refresh() p.smeltPick:Click() end
-S.bag_fuse_mats = function()
-	local p = show("hero", { mode = "gear" })
-	p.tab = "mat_craft"
-	ns.AddMat("cloth1", 20)
-	p.selMat = "cloth1"
-	ns.Main.Refresh()
-	p.S.card.right:Click()
-end
-S.bag_bank_empty = function() local p = show("hero", { mode = "gear" }) p.tab = "bank" p.selItem = nil ns.Main.Refresh() end
-S.bag_bank = function()
-	ns.Items.ToBank(1)
-	ns.Items.ToBank(1)
-	local p = show("hero", { mode = "gear" })
-	p.tab = "bank"
-	p.selItem = nil
+S.fuse = function() equip("fuse") end
+S.fuse_ready = function()
+	for _ = 1, 10 do ns.Items.AddToBag(ns.Items.New("hands", 24, 2)) end
+	local p = equip("fuse")
+	p.forge.fuse.q = 2
 	ns.Main.Refresh()
 end
--- the largest bag: every bag rune, every slot full
-S.bag_max = function()
-	local keep = { c2 = db.runes.c2, c8 = db.runes.c8 }
-	db.runes.c2, db.runes.c8 = 5, 5
-	ns.Runes.Invalidate()
-	while #db.bag < ns.BagSize() do ns.Items.AddToBag(ns.Items.New("feet", 30, 2)) end
-	local p = show("hero", { mode = "gear" })
-	p.tab = "all"
-	p.selItem = db.bag[#db.bag]
+S.fuse_high = function() local p = equip("fuse") p.forge.fuse.q = 6 p.forge.fuse.cat = "accessory" ns.Main.Refresh() end
+S.craft = function() local p = equip("craft") p.forge.craft.tier = 1 ns.Main.Refresh() end
+S.craft_locked = function() local p = equip("craft") p.forge.craft.tier = 3 p.forge.craft.group = #ns.CRAFT_GROUPS ns.Main.Refresh() end
+S.craft_far = function() local p = equip("craft") p.forge.craft.tier = 5 ns.Main.Refresh() end
+S.gem = function() mixedItem() local p = equip("gem") p.forge.gem.picked = mixed ns.Main.Refresh() end
+S.gem_stress = function() stressRing() local p = equip("gem") p.forge.gem.picked = stress ns.Main.Refresh() end
+S.ench = function() mixedItem() local p = equip("ench") p.forge.ench.picked = mixed ns.Main.Refresh() end
+S.insc_locked = function() equip("insc") end
+S.mats = function() local p = equip("mats") p.matTab = "mat_craft" ns.Main.Refresh() end
+S.mats_gem = function() local p = equip("mats") p.matTab = "mat_gem" ns.Main.Refresh() end
+S.mats_seal = function() local p = equip("mats") p.matTab = "mat_seal" ns.Main.Refresh() end
+S.mats_page2 = function() local p = equip("mats") p.matTab = "mat_craft" p.matPage = 2 ns.Main.Refresh() end
+
+-- 편성
+S.party = function() local p = show("party") p.selSlot = nil ns.Main.Refresh() end
+S.party_open = function()
+	local p = show("party")
+	if db.party[5] then ns.Heroes.Withdraw(db.party[5]) end
+	p.selSlot = 5
 	ns.Main.Refresh()
-	-- back to the usual bag when the next scene starts
 	S.restore = function()
-		db.runes.c2, db.runes.c8 = keep.c2, keep.c8
-		ns.Runes.Invalidate()
-		while #db.bag > ns.BagSize() do table.remove(db.bag) end
+		for _, id in ipairs(ns.Heroes.List()) do
+			if not ns.Heroes.PartySlot(id) and ns.Heroes.Role(id) == "HEALER" and not db.party[5] then ns.Heroes.Deploy(id, 5) end
+		end
 	end
 end
-S.bag_gem_mats = function() local p = show("hero", { mode = "gear" }) p.tab = "mat_gem" p.selMat = nil ns.Main.Refresh() end
-S.bag_seal_mats = function() local p = show("hero", { mode = "gear" }) p.tab = "mat_seal" p.selMat = nil ns.Main.Refresh() end
-S.bag_full = function()
-	while #db.bag < ns.BagSize() do ns.Items.AddToBag(ns.Items.New("hands", 30, 3)) end
-	local p = show("hero", { mode = "gear" })
-	p.tab = "all"
-	p.selItem = db.bag[#db.bag]
-	ns.Main.Refresh()
-end
 
--- forge
-S.forge_fuse = function() show("forge", { sub = "fuse" }) end
-S.forge_fuse_grade = function() local p = show("forge", { sub = "fuse" }) p.panels.fuse.pick:Click() end
-S.forge_fuse_kind = function() local p = show("forge", { sub = "fuse" }) p.panels.fuse.catBtn:Click() end
-S.forge_fuse_ready = function()
-	local p = show("forge", { sub = "fuse" })
-	p.panels.fuse.q = 3
-	ns.Main.Refresh()
-end
-S.forge_smelt = function() show("forge", { sub = "smelt" }) end
-S.forge_craft = function() local p = show("forge", { sub = "craft" }) p.panels.craft.tier = 1 ns.Main.Refresh() end
-S.forge_craft_locked = function() local p = show("forge", { sub = "craft" }) p.panels.craft.tier = 3 p.panels.craft.group = 7 ns.Main.Refresh() end
-S.forge_craft_far = function() local p = show("forge", { sub = "craft" }) p.panels.craft.tier = 5 ns.Main.Refresh() end
-S.forge_gem = function()
-	show("forge", { sub = "gem" })
-	clickWhere(function(f) return f.heroId and type(f.data) == "table" and f.data.q and f.data.q >= 3 end)
-	clickWhere(function(f) return f.data == "gem3" end)
-end
-S.forge_ench = function() show("forge", { sub = "ench" }) end
-S.forge_ench_sockets = function()
-	show("forge", { sub = "ench" })
-	clickWhere(function(f) return f.data == stressRing() and f.heroId == nil end)
-end
-S.forge_remove_sockets = function()
-	show("forge", { sub = "remove" })
-	clickWhere(function(f) return f.data == stressRing() and f.heroId == nil end)
-end
-S.forge_remove = function() show("forge", { sub = "remove" }) end
-S.forge_seal = function() show("forge", { sub = "seal" }) end
-S.forge_locked = function() show("forge", { sub = "insc" }) end
-
--- runes
+-- 룬
 S.runes = function() show("runes", { rune = "c5" }) end
 S.runes_locked = function() show("runes", { rune = "w9" }) end
 S.runes_total = function() show("runes") page("runes").totalBtn:Click() end
 
--- map
+-- 스테이지
 S.map = function() show("map") end
 S.map_heroic = function()
 	local p = show("map")
@@ -381,7 +276,11 @@ S.map_locked = function()
 	ns.Main.Refresh()
 end
 
--- settings
+-- 동료
+S.pets = function() local p = show("pets") p.sel = nil ns.Main.Refresh() end
+S.pets_locked = function() local p = show("pets") p.sel = ns.PETS[#ns.PETS].id ns.Main.Refresh() end
+
+-- 설정
 S.options = function() local p = show("options") p.tab = "screen" ns.Main.Refresh() end
 S.options_game = function() local p = show("options") p.tab = "game" ns.Main.Refresh() end
 S.options_info = function() local p = show("options") p.tab = "info" ns.Main.Refresh() end
@@ -393,28 +292,24 @@ S.options_reset = function()
 end
 
 -- a new player: no hero yet, then one hero
-S.new_party = function()
+S.new_hero = function()
 	freshSave()
 	ns.Main.Toggle(true)
-	show("party")
+	show("hero")
 end
-S.new_hero = function() show("hero") end
-S.new_bag = function() show("hero", { mode = "gear" }) end
--- no materials yet: nothing to pick, auto-fuse alone in the footer
-S.new_bag_mats = function() local p = show("hero", { mode = "gear" }) p.tab = "mat_craft" p.selMat = nil ns.Main.Refresh() p.tab = "all" end
-S.new_forge = function() show("forge", { sub = "craft" }) end
+S.new_equip = function() show("equip") end
+S.new_mats = function() local p = show("equip") p.tab = "mats" ns.Main.Refresh() p.tab = "bag" end
+S.new_party = function() show("party") end
 S.new_one = function()
 	ns.Heroes.Create("WARRIOR_PROT")
-	show("party")
+	show("hero")
 end
-S.new_one_slot = function()
-	local p = show("party")
-	p.sel = { slot = 3 }
-	ns.Main.Refresh()
-end
-S.new_one_hero = function() show("hero", { sub = "skills" }) end
+S.new_one_skills = function() local p = show("hero") p.sub = "skills" ns.Main.Refresh() p.sub = "stats" end
+S.new_one_equip = function() show("equip") end
+S.new_one_party = function() show("party") end
 S.new_map = function() show("map") end
 S.new_runes = function() show("runes") end
+S.new_pets = function() show("pets") end
 
 return function(name)
 	ns.UI.HideTip()

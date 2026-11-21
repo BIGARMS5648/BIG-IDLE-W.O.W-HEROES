@@ -787,11 +787,12 @@ function Bar.ApplyCompact()
 end
 
 local MENU = {
-	{ "party", "INV_Misc_GroupNeedMore", "편성" },
 	{ "hero",  "INV_Helmet_06",          "영웅" },
-	{ "forge", "Trade_BlackSmithing",    "용광로" },
+	{ "equip", "INV_Chest_Chain_05",     "장비" },
+	{ "party", "INV_Misc_GroupNeedMore", "편성" },
 	{ "runes", "INV_Misc_Rune_01",       "룬" },
 	{ "map",   "INV_Misc_Map_01",        "스테이지" },
+	{ "pets",  "Ability_Hunter_BeastTaming", "동료" },
 }
 
 function Bar.Create()

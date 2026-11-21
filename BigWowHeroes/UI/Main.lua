@@ -1,6 +1,7 @@
--- Main window: a header with the screen title, gold, settings and close; the
--- screen itself; and a bottom navigation bar of six screens with red dots.
--- Settings is reached from the header's gear button, not from the bar.
+-- Main window: a title bar (the game's name and faction, where the party
+-- fights and its power, gold and materials, settings, close); the screen;
+-- and a bottom bar of the screens with red dots. Settings is reached from
+-- the title bar's gear button.
 local _, ns = ...
 
 local UI, U = ns.UI, ns.U
@@ -8,10 +9,20 @@ local UI, U = ns.UI, ns.U
 local Main = {}
 ns.Main = Main
 
-Main.W, Main.H = 880, 604
-Main.PAGE_X, Main.PAGE_Y = 16, -58
-Main.PAGE_W, Main.PAGE_H = 848, 468
-local NAV_H = 70
+Main.W, Main.H = 940, 690
+Main.PAGE_X, Main.PAGE_Y = 10, -64
+Main.PAGE_W, Main.PAGE_H = 920, 550
+local NAV_H = 66
+-- old screen names that now live elsewhere
+local ALIAS = { bag = "equip", forge = "equip" }
+-- the materials shown in the title bar, by group (Data/Items.lua kinds)
+local CURRENCY = {
+	{ key = "craft", kinds = { bar = true, leather = true, cloth = true }, name = "제작 재료", icon = "INV_Ingot_05", tab = "mat_craft" },
+	{ key = "gem", kinds = { gem = true }, name = "보석", icon = "INV_Misc_Gem_Ruby_02", tab = "mat_gem" },
+	{ key = "dust", kinds = { dust = true }, name = "마법부여 가루", icon = "INV_Enchant_DustSoul", tab = "mat_ench" },
+	{ key = "scroll", kinds = { scroll = true }, name = "룬 주문서", icon = "INV_Scroll_03", tab = "mat_insc" },
+	{ key = "seal", kinds = { seal = true }, name = "행운의 인장", icon = "INV_Misc_Coin_03", tab = "mat_seal" },
+}
 
 local frame
 local tabs = {}
@@ -66,6 +77,7 @@ end
 -- Showing screens
 ------------------------------------------------------------------------
 function Main.ShowTab(key, opts)
+	key = ALIAS[key] or key
 	local def = tabByKey[key]
 	if not def or not frame then return end
 	current = key
@@ -81,10 +93,6 @@ function Main.ShowTab(key, opts)
 		def.page:SetPoint("TOPLEFT", frame, "TOPLEFT", Main.PAGE_X, Main.PAGE_Y)
 		def.build(def.page)
 	end
-	frame.title:SetText(ns.N(def.title))
-	frame.sub:SetText(def.sub and ns.N(def.sub) or "")
-	frame.titleIcon:SetShown(def.icon ~= nil)
-	if def.icon then UI.SetArtOrIcon(frame.titleIcon, def.art, def.icon) end
 	frame.gear:SetOn(key == "options")
 	def.page:Show()
 	if def.open then def.open(def.page, opts) end
@@ -96,6 +104,33 @@ end
 
 function Main.Current()
 	return current
+end
+
+-- The title bar: where the party is, its power, gold and the materials.
+function Main.RefreshHeader()
+	if not frame then return end
+	local db = ns.db
+	local fid = ns.Faction() or "ALLIANCE"
+	local f = ns.FACTIONS[fid]
+	UI.SetIcon(frame.crest, f.icon)
+	frame.faction:SetText(U.col(f.hex, ns.N(f.name)))
+	local st = db.stage
+	local d = ns.DIFFS[st.diff]
+	local power = 0
+	for i = 1, ns.PARTY_SIZE do
+		local id = db.party[i]
+		if id and db.heroes[id] then power = power + ns.Heroes.PowerScore(id) end
+	end
+	frame.where:SetText(U.col(d.hex, ns.N(d.name)) .. " " .. ns.StageLabel(st.diff, st.idx)
+		.. "     파티 전투력 " .. U.col("ffd24a", U.fmt(power)))
+	frame.gold:SetLabel(U.fmt(db.gold))
+	for _, c in ipairs(frame.currency) do
+		local n = 0
+		for _, id in ipairs(ns.MAT_ORDER) do
+			if c.def.kinds[ns.MATS[id].kind] then n = n + ns.MatCount(id) end
+		end
+		c:SetLabel(U.fmt(n))
+	end
 end
 
 function Main.Refresh()
@@ -119,12 +154,14 @@ function Main.RefreshNav()
 			b.bg:SetColor(1.0, 0.86, 0.45, 1)
 			b.label:SetTextColor(1, 0.86, 0.35)
 			b.glow:Show()
-			b.icon:SetPoint("TOP", b, "TOP", 0, -3)
+			b.mark:Show()
+			b.icon:SetPoint("TOP", b, "TOP", 0, -5)
 		else
 			local k = b.hover and 0.75 or 0.55
 			b.bg:SetColor(k, k * 1.05, k * 1.25, 1)
 			b.label:SetTextColor(0.78, 0.82, 0.92)
 			b.glow:Hide()
+			b.mark:Hide()
 			b.icon:SetPoint("TOP", b, "TOP", 0, -6)
 		end
 		b.badge:Set(badges[b.key])
@@ -173,7 +210,7 @@ local function onUpdate(_, elapsed)
 	if current and dirty[current] then Main.Refresh() end
 	local def = current and tabByKey[current]
 	if def and def.tick and def.page then def.tick(def.page) end
-	frame.gold:SetLabel(U.fmt(ns.db.gold))
+	Main.RefreshHeader()
 	Main.RefreshNav()
 end
 
@@ -206,54 +243,39 @@ function Main.Create()
 	end
 	frame:SetScale(ns.db.ui.scale or 1)
 
-	-- header
-	local head = UI.Art(frame, "grad_v", "BORDER", 0.30, 0.42, 0.75, 0.35)
+	-- title bar: crest, name and faction; where the party fights and its
+	-- power; gold and materials; settings; close
+	local head = CreateFrame("Frame", nil, frame)
 	head:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
 	head:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -3)
-	head:SetHeight(46)
-	if UI.ArtUI("ui_header") then
-		-- a painted title strip instead of the plain gradient
-		local strip = CreateFrame("Frame", nil, frame)
-		strip:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
-		strip:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -3)
-		strip:SetHeight(50)
-		UI.Slice(strip, "card", "BACKGROUND"):SetArt(UI.ArtUI("ui_header"))
-		head:Hide()
-	end
-	frame.titleIcon = frame:CreateTexture(nil, "ARTWORK")
-	frame.titleIcon:SetSize(28, 28)
-	frame.titleIcon:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -12)
-	frame.title = UI.Title(frame, "", 18)
-	frame.title:SetPoint("TOPLEFT", frame, "TOPLEFT", 52, -11)
-	frame.sub = UI.Text(frame, 11)
-	frame.sub:SetPoint("TOPLEFT", frame, "TOPLEFT", 52, -32)
-	UI.Color(frame.sub, UI.C.sub)
-	local brand = UI.Text(frame, 10, "BIG W.O.W HEROES")
-	brand:SetPoint("TOP", frame, "TOP", 0, -8)
-	UI.Color(brand, UI.C.dim)
+	head:SetHeight(56)
+	local hbg = UI.Art(head, "grad_v", "BORDER", 0.10, 0.13, 0.22, 0.9)
+	hbg:SetAllPoints(head)
+	if UI.ArtUI("ui_header") then UI.Slice(head, "card", "BACKGROUND"):SetArt(UI.ArtUI("ui_header")) end
+	local line = UI.Line(frame, Main.W - 24, 0.55, 0.60, 0.75, 0.35)
+	line:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -59)
+	frame.crest = frame:CreateTexture(nil, "ARTWORK")
+	frame.crest:SetSize(34, 34)
+	frame.crest:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -13)
+	frame.brand = UI.Title(frame, "BIG W.O.W HEROES", 16)
+	frame.brand:SetPoint("TOPLEFT", frame, "TOPLEFT", 58, -12)
+	UI.Color(frame.brand, { 0.92, 0.94, 1 })
+	frame.faction = UI.Text(frame, 14)
+	frame.faction:SetPoint("LEFT", frame.brand, "RIGHT", 8, 0)
+	frame.where = UI.Text(frame, 11)
+	frame.where:SetPoint("TOPLEFT", frame, "TOPLEFT", 58, -34)
+	frame.where:SetWidth(330)
+	frame.where:SetWordWrap(false)
+	UI.Color(frame.where, UI.C.sub)
 
-	frame.gold = UI.Pill(frame, 160, 30, 0.02, 0.03, 0.07, 0.85)
-	frame.gold:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -100, -11)
-	frame.gold.text:ClearAllPoints()
-	frame.gold.text:SetPoint("RIGHT", frame.gold, "RIGHT", -12, 0)
-	frame.gold.text:SetJustifyH("RIGHT")
-	frame.gold.text:SetFont(ns.FONT, 14, "")
-	UI.Color(frame.gold.text, UI.C.gold)
-	local coin = frame.gold:CreateTexture(nil, "OVERLAY")
-	coin:SetSize(20, 20)
-	coin:SetPoint("LEFT", frame.gold, "LEFT", 5, 0)
-	UI.SetArtOrIcon(coin, "icon_gold", "INV_Misc_Coin_01")
-	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 만들기, 룬, 용광로에 씁니다.") end)
-
-	frame.close = UI.Button(frame, 36, 32, "", function() Main.Toggle(false) end, "red")
-	frame.close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -10)
-	local x = UI.Glyph(frame.close, "close", 16)
+	frame.close = UI.Button(frame, 30, 30, "", function() Main.Toggle(false) end, "dark")
+	frame.close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -14)
+	local x = UI.Glyph(frame.close, "close", 14)
 	x:SetPoint("CENTER", frame.close, "CENTER", 0, 0)
 	UI.Tip(frame.close, function() return UI.SimpleTip("닫기", "Esc 키로도 닫힙니다. 전투는 계속됩니다.") end)
-
-	frame.gear = UI.Button(frame, 36, 32, "", function()
+	frame.gear = UI.Button(frame, 34, 30, "", function()
 		if current == "options" then
-			Main.ShowTab(Main.lastNav or "party")
+			Main.ShowTab(Main.lastNav or "hero")
 		else
 			Main.ShowTab("options")
 		end
@@ -264,6 +286,49 @@ function Main.Create()
 	frame.gear.icon:SetPoint("CENTER", frame.gear, "CENTER", 0, 0)
 	UI.SetArtOrIcon(frame.gear.icon, "icon_settings", "Trade_Engineering")
 	UI.Tip(frame.gear, function() return UI.SimpleTip("설정", "화면 크기, 진영, 통계, 도움말, 초기화") end)
+
+	-- gold and the materials, right to left
+	local function pill(w, icon, art)
+		local p = UI.Pill(frame, w, 28, 0.02, 0.03, 0.07, 0.85)
+		p.text:ClearAllPoints()
+		p.text:SetPoint("RIGHT", p, "RIGHT", -10, 0)
+		p.text:SetJustifyH("RIGHT")
+		p.text:SetFont(ns.FONT, 13, "")
+		p.coin = p:CreateTexture(nil, "OVERLAY")
+		p.coin:SetSize(18, 18)
+		p.coin:SetPoint("LEFT", p, "LEFT", 6, 0)
+		UI.SetArtOrIcon(p.coin, art, icon)
+		return p
+	end
+	frame.currency = {}
+	local right = frame.gear
+	for i = #CURRENCY, 1, -1 do
+		local c = CURRENCY[i]
+		local p = pill(76, c.icon)
+		p.def = c
+		p:SetPoint("RIGHT", right, "LEFT", -6, 0)
+		UI.Color(p.text, { 0.92, 0.94, 1 })
+		p:EnableMouse(true)
+		p:SetScript("OnMouseUp", function() Main.ShowTab("equip", { sub = "mats", tab = c.tab }) end)
+		UI.Tip(p, function()
+			local lines = { { c.name, nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] } }
+			for _, id in ipairs(ns.MAT_ORDER) do
+				local m = ns.MATS[id]
+				if c.kinds[m.kind] and ns.MatCount(id) > 0 then
+					lines[#lines + 1] = { U.col(ns.QUALITY[m.q].hex, ns.N(m.name)), U.fmt(ns.MatCount(id)), 1, 1, 1 }
+				end
+			end
+			if #lines == 1 then lines[2] = { "아직 없습니다. 상자에서 얻습니다.", nil, 0.7, 0.7, 0.7 } end
+			lines[#lines + 1] = { "클릭: 장비 > 재료에서 보기", nil, 0.45, 0.8, 1 }
+			return lines
+		end)
+		frame.currency[i] = p
+		right = p
+	end
+	frame.gold = pill(100, "INV_Misc_Coin_01", "icon_gold")
+	frame.gold:SetPoint("RIGHT", right, "LEFT", -6, 0)
+	UI.Color(frame.gold.text, UI.C.gold)
+	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 만들기, 룬, 용광로에 씁니다.") end)
 
 	-- bottom navigation
 	local navBg = UI.Art(frame, "grad_v", "BORDER", 0, 0, 0, 0.45)
@@ -280,8 +345,12 @@ function Main.Create()
 	local bw = math.floor((Main.W - 32 - (n - 1) * 6) / n)
 	for i, def in ipairs(navTabs) do
 		local b = CreateFrame("Button", nil, frame)
-		b:SetSize(bw, NAV_H - 14)
+		b:SetSize(bw, NAV_H - 12)
 		b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16 + (i - 1) * (bw + 6), 8)
+		b.mark = b:CreateTexture(nil, "OVERLAY")
+		b.mark:SetSize(26, 4)
+		b.mark:SetPoint("BOTTOM", b, "TOP", 0, -2)
+		UI.Fill(b.mark, 1, 0.80, 0.30, 1)
 		b.key = def.key
 		b.glow = UI.Art(b, "glow", "BACKGROUND", 1, 0.75, 0.25, 0.35)
 		b.glow:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 10)
@@ -345,9 +414,9 @@ function Main.Toggle(show)
 	if show then
 		if not current then
 			local key = ns.db.ui.tab
-			if key == "bag" then key = "hero" end -- the bag is on the hero screen now
+			key = ALIAS[key] or key
 			if not tabByKey[key] then key = tabs[1].key end
-			if ns.Heroes.Count() == 0 then key = "party" end
+			if ns.Heroes.Count() == 0 then key = "hero" end
 			current = key
 		end
 		frame:Show()

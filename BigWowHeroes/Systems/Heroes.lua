@@ -561,3 +561,8 @@ function Heroes.ValidateParty()
 		if list[1] then Heroes.Deploy(list[1]) end
 	end
 end
+
+-- 전투력: the power score the screens show (Stats.Power, on a friendlier scale)
+function Heroes.PowerScore(id)
+	return math.floor(ns.Stats.Power(id) * 10 + 0.5)
+end

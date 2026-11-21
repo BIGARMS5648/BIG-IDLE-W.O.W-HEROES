@@ -47,8 +47,9 @@ local function build(page)
 	page.worlds = {}
 	for d = 1, #ns.DIFFS do
 		local w = CreateFrame("Button", nil, page)
-		w:SetSize(206, 66)
-		w:SetPoint("TOPLEFT", page, "TOPLEFT", (d - 1) * 214, 0)
+		local ww = floor((Main.PAGE_W - 8 * (#ns.DIFFS - 1)) / #ns.DIFFS)
+		w:SetSize(ww, 66)
+		w:SetPoint("TOPLEFT", page, "TOPLEFT", (d - 1) * (ww + 8), 0)
 		w.scene = w:CreateTexture(nil, "BACKGROUND")
 		w.scene:SetPoint("TOPLEFT", w, "TOPLEFT", 3, -3)
 		w.scene:SetPoint("BOTTOMRIGHT", w, "BOTTOMRIGHT", -3, 3)

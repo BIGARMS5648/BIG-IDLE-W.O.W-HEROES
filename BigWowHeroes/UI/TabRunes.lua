@@ -12,17 +12,19 @@ local Main = ns.Main
 local R = ns.Runes
 local K = UI.K
 
-local TREE_Y, TREE_H = -36, 364
-local NODE = 34
-local LINE_GAP = 26     -- the two lines sit this far above and below the hub
-local STEP = 58         -- between runes on a line
-local CX, CY = 424, 182 -- the root, in tree coordinates (y down)
+local TREE_Y, BAR_H = -36, 64
+local TREE_H = K.H + TREE_Y - BAR_H - 8
+local NODE = 38
+local LINE_GAP = 32     -- the two lines sit this far above and below the hub
+local STEP = 64         -- between runes on a line
+local CX, CY = floor(K.W / 2), floor(TREE_H / 2) -- the root, in tree coordinates (y down)
+local ROW = 134         -- hub rows above and below the middle one
 local SIDE = {          -- branch -> side (-1 left, 1 right) and row (y of its hub)
-	growth = { -1, 64 }, war = { -1, 182 }, wealth = { -1, 300 },
-	explore = { 1, 64 }, guard = { 1, 182 }, command = { 1, 300 },
+	growth = { -1, CY - ROW }, war = { -1, CY }, wealth = { -1, CY + ROW },
+	explore = { 1, CY - ROW }, guard = { 1, CY }, command = { 1, CY + ROW },
 }
-local HUB_DX = 88       -- root to hub
-local BUS_DX = 48       -- root to the vertical line that feeds the top and bottom hubs
+local HUB_DX = 96       -- root to hub
+local BUS_DX = 52       -- root to the vertical line that feeds the top and bottom hubs
 local LIT = { 1, 0.80, 0.30, 0.95 }
 local DARK = { 0.30, 0.33, 0.42, 0.85 }
 
@@ -188,7 +190,7 @@ local function build(page)
 	end
 
 	-- the chosen rune
-	local bar = UI.Panel(page, K.W, 60, "card")
+	local bar = UI.Panel(page, K.W, BAR_H, "card")
 	bar:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 0, 0)
 	page.bar = bar
 	bar.icon = UI.IconButton(bar, 40)
@@ -206,11 +208,11 @@ local function build(page)
 	UI.Color(bar.sub, UI.C.sub)
 	bar.eff = UI.Text(bar, K.F_SMALL)
 	bar.eff:SetPoint("TOPLEFT", bar, "TOPLEFT", 222, -11)
-	bar.eff:SetWidth(306)
+	bar.eff:SetWidth(K.W - 222 - 322)
 	bar.eff:SetWordWrap(false)
 	bar.why = UI.Text(bar, K.F_SMALL)
 	bar.why:SetPoint("TOPLEFT", bar, "TOPLEFT", 222, -32)
-	bar.why:SetWidth(306)
+	bar.why:SetWidth(K.W - 222 - 322)
 	bar.why:SetWordWrap(false)
 	page.learn = UI.Button(bar, 170, K.BTN_H, "", nil, "primary")
 	page.learn:SetPoint("RIGHT", bar, "RIGHT", -12, 0)

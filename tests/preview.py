@@ -21,16 +21,19 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import run  # noqa: E402
 
 SCENES = [
-    "bar", "bar_boss", "bar_wipe", "faction", "create", "create_druid", "pets", "pets_locked", "rename",
-    "party", "party_bench", "party_slot", "party_dismiss",
-    "hero", "hero_slot", "hero_slot_empty", "hero_reset", "hero_skills", "hero_skill_locked", "hero_tree", "hero_tree_locked", "hero_bench",
-    "bag", "bag_tooltip", "bag_locked", "bag_weapon", "bag_mats", "bag_mats_sorted", "bag_sockets", "bag_sockets_tip", "bag_sockets_mixed", "bag_sockets_mixed_tip", "bag_smelt_one", "bag_smelt_all", "bag_smelt_list", "bag_fuse_mats", "bag_bank_empty", "bag_bank", "bag_max", "bag_gem_mats", "bag_seal_mats", "bag_full",
-    "forge_fuse", "forge_fuse_grade", "forge_fuse_kind", "forge_fuse_ready", "forge_smelt", "forge_craft", "forge_craft_locked", "forge_craft_far", "forge_gem", "forge_gem_sockets", "forge_ench", "forge_ench_sockets",
-    "forge_remove", "forge_remove_sockets", "forge_seal", "forge_locked",
+    "bar", "bar_boss", "bar_wipe", "faction", "create", "create_druid", "rename",
+    "hero", "hero_skills", "hero_tree", "hero_bench", "hero_tank", "hero_reset", "hero_dismiss", "hero_scroll",
+    "equip", "equip_tooltip", "equip_slot", "equip_bank", "equip_smelt_list", "equip_smelt_all", "equip_max",
+    "equip_sockets_tip", "equip_mixed_tip", "equip_slot_tip",
+    "fuse", "fuse_ready", "fuse_high", "craft", "craft_locked", "craft_far", "gem", "gem_stress", "ench", "insc_locked",
+    "mats", "mats_gem", "mats_seal", "mats_page2",
+    "party", "party_open",
     "runes", "runes_locked", "runes_total",
     "map", "map_heroic", "map_raid", "map_locked",
+    "pets", "pets_locked",
     "options", "options_game", "options_info", "options_reset",
-    "new_party", "new_hero", "new_bag", "new_bag_mats", "new_forge", "new_one", "new_one_slot", "new_one_hero", "new_map", "new_runes",
+    "new_hero", "new_equip", "new_mats", "new_party", "new_one", "new_one_skills", "new_one_equip", "new_one_party",
+    "new_map", "new_runes", "new_pets",
 ]
 
 PAGE = r"""<!doctype html>

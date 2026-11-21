@@ -25,7 +25,7 @@ local UI, U = ns.UI, ns.U
 
 local K = {}
 UI.K = K
-K.W, K.H = 848, 468           -- the page (Main.PAGE_W/H)
+K.W, K.H = 920, 550           -- the page (Main.PAGE_W/H)
 K.TAB_H = 30                  -- tab row
 K.TOP = 38                    -- list and card start below the tabs
 K.CARD_W = 300                -- the card on the right
@@ -87,7 +87,7 @@ function UI.Section(parent, w, text)
 end
 
 -- A label on the left and a value on the right. Height 22.
-function UI.StatRow(parent, w, icon, art)
+function UI.StatRow(parent, w, icon, art, split)
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetSize(w, 22)
 	local x = 0
@@ -98,14 +98,15 @@ function UI.StatRow(parent, w, icon, art)
 		UI.SetArtOrIcon(f.icon, art, icon)
 		x = 22
 	end
+	local lw = floor(w * (split or 0.5)) -- the label's share of the row
 	f.l = UI.Text(f, K.F_SMALL)
 	f.l:SetPoint("LEFT", f, "LEFT", x, 0)
-	f.l:SetWidth(floor(w * 0.5) - x)
+	f.l:SetWidth(lw - x)
 	f.l:SetWordWrap(false)
 	UI.Color(f.l, UI.C.sub)
 	f.v = UI.Text(f, K.F_BODY)
 	f.v:SetPoint("RIGHT", f, "RIGHT", 0, 0)
-	f.v:SetWidth(floor(w * 0.5))
+	f.v:SetWidth(w - lw)
 	f.v:SetJustifyH("RIGHT")
 	f.v:SetWordWrap(false)
 	f.line = UI.Line(f, w, 0.45, 0.50, 0.66, 0.18)
@@ -113,7 +114,7 @@ function UI.StatRow(parent, w, icon, art)
 	function f:Set(label, value)
 		self.l:SetText(label or "")
 		self.v:SetText(value or "")
-		self.l:SetWidth((value == nil or value == "") and (w - x) or (floor(w * 0.5) - x))
+		self.l:SetWidth((value == nil or value == "") and (w - x) or (lw - x))
 	end
 	return f
 end

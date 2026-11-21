@@ -188,6 +188,59 @@ function Stats.ModText(key, value)
 	return "+" .. Stats.FormatValue(key, value) .. " " .. ns.N(a.n)
 end
 
+-- The stats in four groups for the hero screen (기본, 공격, 방어, 특화):
+-- { { title, { { label, text, tone }, ... } }, ... }; tone "up" for a bonus
+-- the hero has, "zero" for one it has none of.
+function Stats.Groups(heroId)
+	local s = Stats.Get(heroId)
+	local U = ns.U
+	local function v(x) return x or 0 end
+	local function pct(x, d) return U.num(v(x), d or 1) .. "%" end
+	local function bonus(label, x, d, flat)
+		x = v(x)
+		local text = flat and U.fmt(x) or ((x > 0 and "+" or "") .. U.num(x, d or 1) .. "%")
+		return { label, text, x > 0 and "up" or "zero" }
+	end
+	local school = v(s["dmg_" .. s.school]) + v(s.dmg_all)
+	return {
+		{ "기본", {
+			{ "공격력", U.fmt(s.atk) },
+			{ "생명력", U.fmt(s.hp) },
+			{ "방어도", U.fmt(s.armor) },
+			{ "물리 피해 감소", pct(Stats.ArmorDR(s.armor, s.level) * 100) },
+			{ "초당 피해(추정)", U.fmt(Stats.DPS(s)) },
+			{ "초당 생명력 회복", U.fmt(v(s.regen) + s.hp * v(s.regenPct) / 100) },
+		} },
+		{ "공격", {
+			{ "치명타 확률", pct(s.crit) },
+			{ "치명타 피해", pct(s.critdmg, 0) },
+			{ "공격 속도", U.num(s.aspd, 2) .. "/초" },
+			bonus("시전 속도", s.cast),
+			bonus("연속 타격", s.multi),
+			bonus(ns.N(ns.SCHOOL[s.school].name) .. " 피해", school),
+			bonus("재사용 대기시간 감소", s.cdr),
+		} },
+		{ "방어", {
+			{ "회피 확률", pct(s.dodge) },
+			{ "막기 확률", pct(s.block) },
+			bonus("받는 피해 감소", s.dr),
+			bonus("생명력 흡수", s.leech),
+			bonus("피해 흡수", s.absorb, nil, true),
+			bonus("모든 원소 저항", s.allres),
+			bonus("가시 반사", s.thorns),
+		} },
+		{ "특화", {
+			bonus("치유량 증가", s.heal),
+			bonus("적중 시 생명력", s.hph, nil, true),
+			bonus("처치 시 생명력", s.hpk, nil, true),
+			bonus("이동 속도", s.move),
+			bonus("경험치 획득", s.exp),
+			bonus("골드 획득", s.gold),
+			{ "모든 기술 레벨", (v(s.skills) > 0 and "+" or "") .. v(s.skills), v(s.skills) > 0 and "up" or "zero" },
+		} },
+	}
+end
+
 -- Rows for the character sheet: { label, text }
 function Stats.Sheet(heroId)
 	local s = Stats.Get(heroId)
