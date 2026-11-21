@@ -340,7 +340,6 @@ local function refreshStats(page, id)
 	local h = ns.db.heroes[id]
 	local sp = ns.SPECS[h.spec]
 	local sc = page.specCard
-	page.specHead:Set("전문화", "만들 때 정해짐")
 	sc.icon:SetIconName(sp.icon or "INV_Misc_QuestionMark")
 	sc.name:SetText(U.col(ns.CLASSES[sp.class].hex, ns.SpecLabel(h.spec)))
 	sc.sub:SetText(ns.N(ns.ROLE[sp.role].name) .. " · " .. ns.N(ns.SCHOOL[ns.Stats.Get(id).school].name) .. " 공격")
