@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the addon's UI art.
 
-Everything in BigIdleWoWHeroes/Media is drawn by this script: panels, buttons,
+Everything in BigWowHeroes/Media is drawn by this script: panels, buttons,
 slots, rings, glyphs and the scenery behind the battle. Nothing is copied from
 any game. Output is 32-bit uncompressed TGA with power-of-two sizes (the format
 every WoW client reads); PNG twins go to tests/out/media for the layout preview.
@@ -17,7 +17,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT_TGA = os.path.join(ROOT, "BigIdleWoWHeroes", "Media")
+OUT_TGA = os.path.join(ROOT, "BigWowHeroes", "Media")
 OUT_PNG = os.path.join(ROOT, "tests", "out", "media")
 SS = 4  # supersampling factor for anti-aliased edges
 

@@ -797,7 +797,7 @@ local MENU = {
 
 function Bar.Create()
 	if frame then return frame end
-	frame = CreateFrame("Frame", "BigIdleWoWHeroesBar", UIParent)
+	frame = CreateFrame("Frame", "BigWowHeroesBar", UIParent)
 	frame:SetSize(W, 8 + SCENE_H + 4 + DOCK_H + 6)
 	frame:SetFrameStrata("MEDIUM")
 	frame:SetClampedToScreen(true)
@@ -1079,7 +1079,7 @@ end
 
 local function ensureToast()
 	if toast then return toast end
-	toast = CreateFrame("Frame", "BigIdleWoWHeroesToast", UIParent)
+	toast = CreateFrame("Frame", "BigWowHeroesToast", UIParent)
 	toast:SetSize(480, 90)
 	toast:SetFrameStrata("DIALOG")
 	toast:EnableMouse(false)

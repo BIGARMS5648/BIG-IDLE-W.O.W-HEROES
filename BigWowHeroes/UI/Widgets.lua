@@ -9,7 +9,7 @@ local floor, max, min = math.floor, math.max, math.min
 local UI = {}
 ns.UI = UI
 
-UI.MEDIA = "Interface\\AddOns\\" .. (ADDON or "BigIdleWoWHeroes") .. "\\Media\\"
+UI.MEDIA = "Interface\\AddOns\\" .. (ADDON or "BigWowHeroes") .. "\\Media\\"
 
 function UI.Tex(name)
 	return UI.MEDIA .. name .. ".tga"

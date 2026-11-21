@@ -182,7 +182,7 @@ end
 ------------------------------------------------------------------------
 function Main.Create()
 	if frame then return frame end
-	frame = CreateFrame("Frame", "BigIdleWoWHeroesMain", UIParent)
+	frame = CreateFrame("Frame", "BigWowHeroesMain", UIParent)
 	frame:SetSize(Main.W, Main.H)
 	frame:SetFrameStrata("HIGH")
 	frame:SetClampedToScreen(true)
@@ -228,7 +228,7 @@ function Main.Create()
 	frame.sub = UI.Text(frame, 11)
 	frame.sub:SetPoint("TOPLEFT", frame, "TOPLEFT", 52, -32)
 	UI.Color(frame.sub, UI.C.sub)
-	local brand = UI.Text(frame, 10, "Big Idle W.O.W Heroes")
+	local brand = UI.Text(frame, 10, "BIG W.O.W HEROES")
 	brand:SetPoint("TOP", frame, "TOP", 0, -8)
 	UI.Color(brand, UI.C.dim)
 
@@ -333,7 +333,7 @@ function Main.Create()
 		Main.CloseModal()
 	end)
 	if UISpecialFrames then
-		UISpecialFrames[#UISpecialFrames + 1] = "BigIdleWoWHeroesMain" -- close with Escape
+		UISpecialFrames[#UISpecialFrames + 1] = "BigWowHeroesMain" -- close with Escape
 	end
 	frame:Hide()
 	return frame

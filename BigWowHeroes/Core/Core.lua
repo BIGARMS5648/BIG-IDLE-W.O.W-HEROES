@@ -1,8 +1,8 @@
--- Big Idle W.O.W Heroes - core namespace, language, event bus and utilities.
+-- BIG W.O.W HEROES - core namespace, language, event bus and utilities.
 local ADDON, ns = ...
 ns = ns or {}
-ns.ADDON = ADDON or "BigIdleWoWHeroes"
-ns.VERSION = "2.5.0"
+ns.ADDON = ADDON or "BigWowHeroes"
+ns.VERSION = "2.6.0"
 
 local floor, max, min, random = math.floor, math.max, math.min, math.random
 local format = string.format

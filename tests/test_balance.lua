@@ -7,7 +7,7 @@ starter = starter or "HUNTER_MM"
 local Bot = dofile(debug.getinfo(1, "S").source:sub(2):gsub("test_balance%.lua$", "bot.lua"))
 
 math.randomseed(20261120)
-BigIdleWoWHeroesDB = nil
+BigWowHeroesDB = nil
 ns.InitDB()
 local db = ns.db
 Bot.Start(starter)

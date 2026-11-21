@@ -6,8 +6,8 @@ local ns = NS
 local Mock = WoWMock
 
 math.randomseed(4242)
-BigIdleWoWHeroesDB = nil
-Mock.FireEvent("ADDON_LOADED", "BigIdleWoWHeroes")
+BigWowHeroesDB = nil
+Mock.FireEvent("ADDON_LOADED", "BigWowHeroes")
 Mock.FireEvent("PLAYER_LOGIN")
 ns.Main.CloseModal()
 

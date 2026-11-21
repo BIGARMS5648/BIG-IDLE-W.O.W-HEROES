@@ -1,4 +1,4 @@
-# Big Idle W.O.W Heroes
+# BIG W.O.W HEROES
 
 월드 오브 워크래프트: 포에버(WoW Forever)용 애드온입니다. 화면 한켠의 **전투 창**에서 영웅 파티가 저절로 싸우고, 플레이어는 틈틈이 장비·특성·룬을 관리하는 **방치형 파티 RPG 미니게임**입니다.
 
@@ -15,13 +15,18 @@
 
 ## 설치
 
-1. 이 저장소의 `BigIdleWoWHeroes` 폴더를 통째로 와우 포에버의 `Interface/AddOns/` 아래에 복사합니다.
-   (결과: `Interface/AddOns/BigIdleWoWHeroes/BigIdleWoWHeroes.toc`, 그 옆에 `Media/` 폴더)
-2. 게임을 실행하고 캐릭터 선택 화면의 **애드온** 목록에서 `Big Idle W.O.W Heroes`를 켭니다.
+1. 이 저장소의 `BigWowHeroes` 폴더(또는 받은 `BigWowHeroes-v….zip`을 푼 `BigWowHeroes` 폴더)를 통째로 와우 포에버의 `Interface/AddOns/` 아래에 복사합니다.
+   (결과: `Interface/AddOns/BigWowHeroes/BigWowHeroes.toc`, 그 옆에 `Media/` 폴더)
+2. 게임을 실행하고 캐릭터 선택 화면의 **애드온** 목록에서 `BIG W.O.W HEROES`를 켭니다.
 3. 접속하면 **진영 선택** 창이 열립니다. 얼라이언스나 호드를 고르면 **영웅 만들기** 창이 이어서 열립니다. 직업 → 전문화 → 성별 → 이름을 정하면 첫 영웅이 무료로 만들어지고 전투가 시작됩니다.
-4. 메뉴는 `/biwh` 또는 `/방치영웅`으로 열고 닫습니다 (`/biwh bar` 전투 창 표시/숨김, `/biwh reset` 전투 창 위치 초기화).
+4. 메뉴는 `/bwh`로 열고 닫습니다 (`/bwh bar` 전투 창 표시/숨김, `/bwh reset` 전투 창 위치 초기화). 예전 명령 `/biwh`, `/방치영웅`도 그대로 됩니다.
 
-`BigIdleWoWHeroes.toc`의 `## Interface:` 값은 포에버 베타 기준인 **16001**입니다. "구버전 애드온"으로 표시되면 애드온 목록에서 *구버전 애드온 사용*을 켜거나, 게임에서 `/dump select(4, GetBuildInfo())`로 확인한 숫자로 바꾸면 됩니다.
+`BigWowHeroes.toc`의 `## Interface:` 값은 포에버 베타 기준인 **16001**입니다. "구버전 애드온"으로 표시되면 애드온 목록에서 *구버전 애드온 사용*을 켜거나, 게임에서 `/dump select(4, GetBuildInfo())`로 확인한 숫자로 바꾸면 됩니다.
+
+**예전 이름(Big Idle W.O.W Heroes, 폴더 `BigIdleWoWHeroes`)에서 옮겨 오기:** 애드온 폴더 이름이 바뀌어 와우가 다른 저장 파일을 찾습니다. 진행 상황을 이어 가려면
+1. `Interface/AddOns/BigIdleWoWHeroes` 폴더를 지우고 새 `BigWowHeroes` 폴더를 넣습니다(둘 다 켜 두지 마세요).
+2. 게임을 끈 상태에서 `WTF/Account/(계정 이름)/SavedVariables/BigIdleWoWHeroes.lua`를 같은 곳에 `BigWowHeroes.lua`라는 이름으로 복사합니다.
+3. 접속하면 예전 저장 데이터를 그대로 불러옵니다(이름만 바뀐 것이라 내용은 그대로 옮겨집니다).
 
 예전 버전의 저장 데이터는 자동으로 옮겨집니다.
 - 1.x: 직업별 영웅은 같은 역할의 전문화 영웅이 되고(레벨·장비·진행도 유지), 특성 점수는 돌려받습니다.
@@ -122,7 +127,7 @@
 
 1. `docs/ASSET_PROMPTS.md`의 프롬프트로 이미지 생성 AI(챗지피티 등)에서 그림을 만듭니다. 245장, 우선순위 3단계(1단계 122장: 그림체 기준, 인터페이스, 아이콘, 영웅 40명, 배경 6종). 맨 앞의 "인터페이스 그림이 들어가는 자리"에 새 화면 틀의 어느 자리에 어떤 그림이 들어가는지 정리되어 있습니다.
 2. 문서에 적힌 파일 이름 그대로 PNG를 저장해 저장소의 `art_src/` 폴더에 넣습니다.
-3. `python3 tools/import_art.py`가 배경을 지우고, 프레임을 찾아 크기·발 위치를 맞추고, 게임용 TGA(`BigIdleWoWHeroes/Media/Art/`)와 목록(`Data/Art.lua`)을 만듭니다. `--check`는 빠진 파일을 알려 줍니다.
+3. `python3 tools/import_art.py`가 배경을 지우고, 프레임을 찾아 크기·발 위치를 맞추고, 게임용 TGA(`BigWowHeroes/Media/Art/`)와 목록(`Data/Art.lua`)을 만듭니다. `--check`는 빠진 파일을 알려 줍니다.
 
 목록은 `tools/asset_spec.py` 한 곳에서 정의되고, 프롬프트 문서는 `python3 tools/make_prompts.py`로 다시 만들 수 있습니다.
 
@@ -130,7 +135,7 @@
 
 *Task Bar Hero* 류의 "작업 표시줄 방치형 RPG"가 가진 **시스템 구성**(자동 전투, 특성 트리, 등급별 홈이 있는 장비, 9개 융합, 큐브형 제작대, 룬 트리, 동료, 오프라인 보상)을 참고해 같은 장르로 만들었습니다. 이름·지역·몬스터는 워크래프트 테마이고, 아이템/기술/룬 목록, 확률표, 수치는 이 애드온용으로 새로 설계했습니다.
 
-**그림:** `BigIdleWoWHeroes/Media/`의 UI 이미지(패널, 버튼, 슬롯, 링, 역할 아이콘, 지역 배경 등 30종)는 모두 `tools/make_art.py`가 직접 그려 만든 것입니다. 아이템·기술·직업 아이콘은 게임 클라이언트에 이미 들어 있는 아이콘 경로만 참조합니다(파일을 포함하지 않음).
+**그림:** `BigWowHeroes/Media/`의 UI 이미지(패널, 버튼, 슬롯, 링, 역할 아이콘, 지역 배경 등 30종)는 모두 `tools/make_art.py`가 직접 그려 만든 것입니다. 아이템·기술·직업 아이콘은 게임 클라이언트에 이미 들어 있는 아이콘 경로만 참조합니다(파일을 포함하지 않음).
 
 Task Bar Hero 및 그 개발사, Blizzard Entertainment와는 아무 관련이 없는 팬 제작물입니다.
 
@@ -166,7 +171,7 @@ python3 tests/run.py
 ## 폴더 구조
 
 ```
-BigIdleWoWHeroes/        애드온 본체 (이 폴더를 AddOns에 복사)
+BigWowHeroes/            애드온 본체 (이 폴더를 AddOns에 복사)
   Core/                  공용 유틸리티, 글꼴, 이벤트
   Data/                  직업·전문화, 진영·종족, 기술, 이름, 몬스터, 지역, 아이템, 룬, 동료, 그림 목록(Art.lua)
   Systems/               저장, 능력치, 아이템, 영웅, 상자, 용광로, 전투, 오프라인, 목표 안내
@@ -182,4 +187,4 @@ tools/make_prompts.py    프롬프트 문서 생성기
 tools/import_art.py      그림 가져오기 도구
 ```
 
-진행 상황은 계정 공용 SavedVariables(`BigIdleWoWHeroesDB`)에 저장됩니다.
+진행 상황은 계정 공용 SavedVariables(`BigWowHeroesDB`, 파일 `SavedVariables/BigWowHeroes.lua`)에 저장됩니다.
