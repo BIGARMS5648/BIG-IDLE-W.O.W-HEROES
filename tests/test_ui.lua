@@ -1235,6 +1235,34 @@ do
 	click("model: dressing back again", function(b) return b == dp.prev end)
 	if dp.i ~= #dp.COMBOS then fail("◀ from the first pair should go round to the last") end
 	dp.Pick(1, "M")
+	-- 효과: a spell's kits on the scene models and model frames, its effect
+	-- files by file id, playing over and over
+	Mock.kits = {}
+	click("model: effects", function(b) return label(b) == "효과" end)
+	local fp = MC.pages.fx
+	if not fp.frame:IsShown() or dp.frame:IsShown() then fail("효과 should show its own page") end
+	if #fp.buttons ~= #ns.SPELL_FX then fail("효과 should have a button per spell") end
+	frames(40)
+	local LB = ns.SPELL_FX[1]
+	local seen = {}
+	for _, k in ipairs(Mock.kits) do seen[k] = (seen[k] or 0) + 1 end
+	for _, k in ipairs({ LB.precast, LB.cast, LB.impact }) do
+		if (seen[k] or 0) < 2 then fail("번개 화살 should play its kit " .. k .. " on the scene models and the model frames (" .. tostring(seen[k]) .. ")") end
+	end
+	local sc, fc = fp.cards[1], fp.cards[3]
+	if sc.missile.actor.__display ~= "file:" .. LB.missile then fail("the missile should be the spell's model file: " .. tostring(sc.missile.actor.__display)) end
+	if fc.hand.actor.__display ~= "file:" .. LB.hand or fc.hit.actor.__display ~= "file:" .. LB.hit then fail("the effect files should be put up by their file ids") end
+	if fp.cards[2].missile.__model ~= "file:" .. LB.missile then fail("the model frame's missile should be the spell's file: " .. tostring(fp.cards[2].missile.__model)) end
+	if not (sc.lines[1].__text or ""):find("SetSpellVisualKit", 1, true) or not (fp.cards[2].lines[1].__text or ""):find("ApplySpellVisualKit", 1, true) then
+		fail("each way should say which call it used")
+	end
+	if #Mock.misuse > 0 then fail("효과 calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end
+	Mock.kits = {}
+	click("model: effects fireball", function(b) return b == fp.buttons[2] end)
+	frames(40)
+	local hit30 = false
+	for _, k in ipairs(Mock.kits) do if k == ns.SPELL_FX[2].precast then hit30 = true end end
+	if fp.i ~= 2 or not hit30 then fail("picking 화염구 should play its kits") end
 	click("model: basic check", function(b) return label(b) == "기본 확인" end)
 	if dp.frame:IsShown() or not MC.panels[1].card:IsShown() then fail("기본 확인 should bring the cards back") end
 	if MC.panels[3].model.__model ~= "display:" .. D[MOB] then fail("기본 확인 should bring the basic models back") end

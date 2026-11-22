@@ -182,6 +182,7 @@ end
 function base:SetModelId(id)
 	if not id or failed[id] then return false end
 	if self.id ~= id then
+		self.file = nil
 		self.id = id
 		self.tries = 0
 		self.loaded = false
@@ -189,6 +190,27 @@ function base:SetModelId(id)
 		if not self:Load() then
 			failed[id] = true
 			self.id = nil
+			return false
+		end
+		self:Play("idle")
+	end
+	return true
+end
+
+-- Puts a model file up by its file id (a spell's effect or missile) instead
+-- of an NPC; false when the client cannot.
+function base:SetModelFile(file)
+	local id = "file:" .. tostring(file)
+	if not file or failed[id] then return false end
+	if self.id ~= id then
+		self.file = file
+		self.id = id
+		self.tries = 0
+		self.loaded = false
+		self.anim, self.left, self.done = nil, 0, true
+		if not self:Load() then
+			failed[id] = true
+			self.id, self.file = nil, nil
 			return false
 		end
 		self:Play("idle")
@@ -459,12 +481,19 @@ function scene:Load()
 	self.tryDisplay = nil
 	self.box = nil
 	call(a, "ClearModel")
-	local disp = displayFor(self.id)
-	if not disp then return false end
 	-- measured as it is: no size, turn or offset yet
 	call(a, "SetScale", 1)
 	call(a, "SetYaw", 0)
 	call(a, "SetPosition", 0, 0, 0)
+	if self.file then
+		local okF, resF = call(a, "SetModelByFileID", self.file)
+		if not okF or resF == false then return false end
+		self.lastTry = true
+		self.loadT = SCENE_WAIT
+		return true
+	end
+	local disp = displayFor(self.id)
+	if not disp then return false end
 	local ok, res = call(a, "SetModelByCreatureDisplayID", disp)
 	if not ok or res == false then return false end
 	self.tryDisplay = disp
@@ -571,6 +600,13 @@ function model:Load()
 	self.tries = (self.tries or 0) + 1
 	call(self, "ClearModel")
 	self.tryDisplay = nil
+	if self.file then
+		local okF = call(self, "SetModel", self.file)
+		self.lastTry = true
+		self.loadT = WAIT[1]
+		self:Look()
+		return okF
+	end
 	local disp = self.tries == 1 and displayFor(id) or nil
 	local ok = false
 	if disp then

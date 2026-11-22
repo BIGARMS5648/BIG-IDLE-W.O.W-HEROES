@@ -318,6 +318,11 @@ S.model_check_battle = function()
 	ns.ModelCheck.ShowSet("battle")
 	S.restore = function() ns.ModelCheck.ShowSet("basic") ns.ModelCheck.Toggle(false) end
 end
+S.model_check_fx = function()
+	ns.ModelCheck.Toggle(true)
+	ns.ModelCheck.ShowSet("fx")
+	S.restore = function() ns.ModelCheck.ShowSet("basic") ns.ModelCheck.Toggle(false) end
+end
 S.model_check_dress = function()
 	ns.ModelCheck.Toggle(true)
 	ns.ModelCheck.ShowSet("dress")

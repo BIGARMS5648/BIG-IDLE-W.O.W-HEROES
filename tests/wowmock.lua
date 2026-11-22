@@ -336,6 +336,12 @@ function Model:SetCamDistanceScale(v) check(type(v) == "number" and v > 0, "SetC
 function Model:SetPortraitZoom(v) end
 function Model:SetPosition(x, y, z) end
 function Model:SetModelScale(v) end
+function Model:ApplySpellVisualKit(kit, oneShot)
+	check(type(kit) == "number" and kit > 0, "ApplySpellVisualKit: kit id expected")
+	check(oneShot == nil or type(oneShot) == "boolean", "ApplySpellVisualKit: oneShot must be a boolean")
+	self.__kit = kit
+	Mock.kits[#Mock.kits + 1] = kit
+end
 local DressUpModel = setmetatable({}, { __index = Model })
 function DressUpModel:SetCustomRace(race, sex)
 	check(self.__model ~= nil, "SetCustomRace before a unit is set")
@@ -367,6 +373,20 @@ function Actor:SetModelByCreatureDisplayID(id)
 	strict(type(id) == "number" and id > 0, "SetModelByCreatureDisplayID: display id expected")
 	self.__display = id
 	return true
+end
+-- a model file (a spell's effect or missile) by its file id
+function Actor:SetModelByFileID(id)
+	strict(type(id) == "number" and id > 0, "SetModelByFileID: file id expected")
+	self.__display = "file:" .. id
+	return true
+end
+-- spell visual kits played on an actor: none clears; Mock.kits notes them
+Mock.kits = {}
+function Actor:SetSpellVisualKit(kit, oneShot)
+	strict(kit == nil or (type(kit) == "number" and kit > 0), "SetSpellVisualKit: kit id expected")
+	strict(oneShot == nil or type(oneShot) == "boolean", "SetSpellVisualKit: oneShot must be a boolean")
+	self.__kit = kit
+	if kit then Mock.kits[#Mock.kits + 1] = kit end
 end
 function Actor:ClearModel() self.__display = nil end
 function Actor:IsLoaded() return self.__display ~= nil and not Mock.missingDisplays[self.__display] end

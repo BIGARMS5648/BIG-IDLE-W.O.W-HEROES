@@ -434,6 +434,355 @@ function battle.anim(id)
 end
 
 ------------------------------------------------------------------------
+-- 효과: a spell's effects on the game's models, three ways side by side -
+-- the battle bar's scene models with the spell's visual kits, model frames
+-- with the same kits, and the effects' own model files placed by hand. The
+-- chosen spell plays over and over: casting, the release, the missile flying,
+-- the hit. Under each way it says which calls this client has.
+------------------------------------------------------------------------
+local fx = {}
+PAGES.fx = fx
+local FX_TOP = 34
+local FX_H = PANEL_H - FX_TOP
+local FX_W = floor((W - 36 - 2 * GAP) / 3)
+local FX_GROUND, FX_FIG = 84, 96 -- the ground line over a card's bottom; a figure's height
+local FX_LOOP, FX_RELEASE, FX_FLIGHT = 3.4, 1.3, 0.55
+local FX_LINES = 4
+local FX_WAYS = {
+	{ key = "scene", title = "장면 모델 · 효과 키트" },
+	{ key = "model", title = "모델 틀 · 효과 키트" },
+	{ key = "file", title = "효과 모델 파일" },
+}
+fx.i = 1
+
+local function fxSpell() return ns.SPELL_FX[fx.i] end
+
+-- the caster: the trainer of the spell's class (the player's faction); the
+-- target: the first stage's first monster
+local function fxCaster()
+	local t = ns.MODEL.trainer[fxSpell().class]
+	t = t and t[ns.Faction() or "ALLIANCE"]
+	return t and t.npc
+end
+local function fxTarget() return ns.MODEL.mob[FIRST_MOB] end
+
+function fx.build(win)
+	local f = CreateFrame("Frame", nil, win)
+	f:SetPoint("TOPLEFT", win, "TOPLEFT", 18, -66)
+	f:SetSize(W - 36, PANEL_H)
+	f:Hide()
+	fx.frame = f
+	-- one button per spell
+	fx.buttons = {}
+	local n = #ns.SPELL_FX
+	local bw = ((W - 36) - (n - 1) * 6) / n
+	for i, sp in ipairs(ns.SPELL_FX) do
+		local b = UI.Button(f, bw, 26, sp.name, function() fx.Pick(i) end, "dark")
+		b:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * (bw + 6), 0)
+		fx.buttons[i] = b
+	end
+	fx.cards = {}
+	for i, way in ipairs(FX_WAYS) do
+		local card = UI.Panel(f, FX_W, FX_H, "card")
+		card:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * (FX_W + GAP), -FX_TOP)
+		if card.SetClipsChildren then card:SetClipsChildren(true) end
+		local line = card:CreateTexture(nil, "ARTWORK")
+		line:SetHeight(2)
+		line:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 6, FX_GROUND)
+		line:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -6, FX_GROUND)
+		UI.Fill(line, 1, 0.82, 0.3, 0.45)
+		-- the writing sits on a layer above the models
+		local over = CreateFrame("Frame", nil, card)
+		over:SetAllPoints(card)
+		over:SetFrameLevel(card:GetFrameLevel() + 30)
+		local t = UI.Text(over, 12, way.title)
+		t:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -8)
+		t:SetWidth(FX_W - 16)
+		t:SetWordWrap(false)
+		UI.Color(t, UI.C.gold)
+		local c = { way = way, card = card, lines = {} }
+		for k = 1, FX_LINES do
+			local l = UI.Text(over, 10)
+			l:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 8, FX_GROUND - 8 - (k - 1) * 15)
+			l:SetWidth(FX_W - 16)
+			l:SetWordWrap(false)
+			UI.Color(l, UI.C.sub)
+			c.lines[k] = l
+		end
+		fx.cards[i] = c
+	end
+end
+
+local function fxX(c, k) return floor(FX_W * (k == "caster" and 0.24 or 0.76)) end
+
+-- a model frame (PlayerModel) standing on the ground line
+local function fxModel(c, x, w, h)
+	local ok, m = pcall(CreateFrame, "PlayerModel", nil, c.card)
+	if not ok or not m then return false end
+	m:SetSize(w, h)
+	m:SetPoint("BOTTOM", c.card, "BOTTOMLEFT", x, FX_GROUND - 6)
+	return m
+end
+
+local function fxFig(c, h)
+	local fig = ns.Figure3D.New(c.card, h)
+	if fig and fig.kind ~= "scene" then fig:Hide() return false end
+	return fig or false
+end
+
+local function loadedText(m)
+	if not m then return NO end
+	local inNow
+	if m.IsLoaded and m.kind then
+		inNow = m:IsLoaded()
+	else
+		local ok, file = call(m, "GetModelFileID")
+		inNow = ok and file and file ~= 0
+	end
+	return inNow and U.col("60e070", "불러옴") or U.col("ff6a5a", "안 불러짐")
+end
+
+-- builds a card's models the first time
+local function fxModels(c)
+	if c.made then return end
+	c.made = true
+	local key = c.way.key
+	if key == "model" then
+		c.caster = fxModel(c, fxX(c, "caster"), 96, 130)
+		c.target = fxModel(c, fxX(c, "target"), 96, 130)
+		c.missile = fxModel(c, 0, 48, 48)
+	else
+		c.caster = fxFig(c, FX_FIG)
+		c.target = fxFig(c, FX_FIG)
+		c.missile = fxFig(c, 22)
+		if key == "file" then
+			c.hand = fxFig(c, 34)
+			c.hit = fxFig(c, 60)
+		end
+	end
+end
+
+-- the kit call of a way: scene actors take SetSpellVisualKit, model frames
+-- ApplySpellVisualKit (SetSpellVisualKit when the client has only that)
+local function fxKit(c, m, kit, oneShot)
+	if not m or not kit then return nil end
+	if c.way.key == "scene" then
+		if kit == 0 then return call(m.actor, "SetSpellVisualKit") end
+		return call(m.actor, "SetSpellVisualKit", kit, oneShot)
+	end
+	if kit == 0 then return call(m, "SetSpellVisualKit") end
+	local r = call(m, "ApplySpellVisualKit", kit, oneShot)
+	if r == nil then r = call(m, "SetSpellVisualKit", kit, oneShot) end
+	return r
+end
+
+local function fxAnim(c, m, id)
+	if not m then return end
+	if c.way.key == "model" then call(m, "SetAnimation", id) else m:SetAnim(id) end
+end
+
+-- where the missile is at a share of its flight
+local function fxPath(c, share)
+	local sp = fxSpell()
+	local x0, y0 = fxX(c, "caster") + FX_FIG * 0.2, FX_GROUND + FX_FIG * 0.62
+	local x1, y1 = fxX(c, "target") - FX_FIG * 0.12, FX_GROUND + FX_FIG * 0.55
+	if sp.self then x1, y1 = x0, y0 end
+	return x0 + (x1 - x0) * share, y0 + (y1 - y0) * share
+end
+
+local function fxPlace(c, m, x, y)
+	if not m then return end
+	m:ClearAllPoints()
+	if c.way.key == "model" then
+		m:SetPoint("CENTER", c.card, "BOTTOMLEFT", x, y)
+	else
+		m:PlaceFeet(c.card, x, y - (m.height or 0) / 2)
+	end
+end
+
+function fx.Pick(i)
+	fx.i = ((i - 1) % #ns.SPELL_FX) + 1
+	fx.setup()
+end
+
+function fx.setup()
+	local sp = fxSpell()
+	for i, b in ipairs(fx.buttons) do b:SetStyle(i == fx.i and "primary" or "dark") end
+	local caster, target = fxCaster(), fxTarget()
+	local cDisp, tDisp = ns.Figure3D.DisplayFor(caster), ns.Figure3D.DisplayFor(target)
+	ns.Figure3D.ResetFailed()
+	for _, c in ipairs(fx.cards) do
+		fxModels(c)
+		c.res = {}
+		for k = 1, FX_LINES do c.lines[k]:SetText("") end
+		if c.way.key == "model" then
+			for _, m in ipairs({ c.caster, c.target }) do
+				if m then
+					call(m, "ClearModel")
+					m:Show()
+				end
+			end
+			if c.caster then call(c.caster, "SetDisplayInfo", cDisp) call(c.caster, "SetFacing", pi / 2) end
+			if c.target then call(c.target, "SetDisplayInfo", tDisp) call(c.target, "SetFacing", 3 * pi / 2) end
+			if c.missile then
+				call(c.missile, "ClearModel")
+				if sp.missile then call(c.missile, "SetModel", sp.missile) end
+				call(c.missile, "SetFacing", pi / 2)
+				c.missile:Hide()
+			end
+		else
+			if c.caster then
+				c.caster.id = nil
+				c.caster:SetHeight2(FX_FIG)
+				c.caster:SetFacing("right")
+				c.caster:SetModelId(caster)
+				c.caster:PlaceFeet(c.card, fxX(c, "caster"), FX_GROUND)
+				c.caster:Show()
+			end
+			if c.target then
+				c.target.id = nil
+				c.target:SetHeight2(FX_FIG)
+				c.target:SetFacing("left")
+				c.target:SetModelId(target)
+				c.target:PlaceFeet(c.card, fxX(c, "target"), FX_GROUND)
+				c.target:Show()
+			end
+			for _, k in ipairs({ "missile", "hand", "hit" }) do
+				local m = c[k]
+				if m then
+					m.id = nil
+					m:SetHeight2(k == "missile" and 22 or (k == "hand" and 34 or 60))
+					m:SetFacing(k == "missile" and "right" or "front")
+					if sp[k] then m:SetModelFile(sp[k]) end
+					m:Hide()
+				end
+			end
+		end
+	end
+	fx.t, fx.phase = 0, 0
+	fx.lines()
+end
+
+-- what each way says under its models
+function fx.lines()
+	local sp = fxSpell()
+	local kits = string.format("키트 %s · %s · %s", tostring(sp.precast or "-"), tostring(sp.cast or "-"), tostring(sp.impact or "-"))
+	for _, c in ipairs(fx.cards) do
+		local L = c.lines
+		local models = "시전자 " .. loadedText(c.caster) .. " · 대상 " .. loadedText(c.target)
+		local missile = sp.missile and ("투사체 파일 " .. loadedText(c.missile)) or "투사체 없음"
+		if c.way.key == "scene" then
+			L[1]:SetText("SetSpellVisualKit " .. (c.res.kit == nil and U.col("aab3c8", "…") or mark(c.res.kit)))
+			L[2]:SetText(missile)
+			L[3]:SetText(models)
+			L[4]:SetText(kits)
+		elseif c.way.key == "model" then
+			L[1]:SetText("ApplySpellVisualKit " .. (c.res.kit == nil and U.col("aab3c8", "…") or mark(c.res.kit)))
+			L[2]:SetText(missile)
+			L[3]:SetText(models)
+			L[4]:SetText(kits)
+		else
+			L[1]:SetText(sp.hand and ("손 효과 파일 " .. loadedText(c.hand)) or "손 효과 없음")
+			L[2]:SetText(missile)
+			L[3]:SetText(sp.hit and ("적중 효과 파일 " .. loadedText(c.hit)) or "적중 효과 없음")
+			L[4]:SetText(models)
+		end
+	end
+end
+
+-- the steps of one cast, for every way at once
+local function fxStart()
+	local sp = fxSpell()
+	for _, c in ipairs(fx.cards) do
+		if sp.precast then fxAnim(c, c.caster, sp.omni and 52 or 51) end
+		if c.way.key == "file" then
+			if c.hand and sp.hand then
+				fxPlace(c, c.hand, fxX(c, "caster") + FX_FIG * 0.18, FX_GROUND + FX_FIG * 0.58)
+				c.hand:Show()
+			end
+		elseif sp.precast then
+			c.res.kit = fxKit(c, c.caster, sp.precast, false)
+		end
+	end
+end
+
+local function fxRelease()
+	local sp = fxSpell()
+	for _, c in ipairs(fx.cards) do
+		fxAnim(c, c.caster, sp.omni and 54 or 53)
+		if c.way.key == "file" then
+			if c.hand then c.hand:Hide() end
+		else
+			if sp.precast then fxKit(c, c.caster, 0) end
+			local r = fxKit(c, c.caster, sp.cast, true)
+			if c.res.kit == nil then c.res.kit = r end
+		end
+		if sp.missile and c.missile then
+			local x, y = fxPath(c, 0)
+			fxPlace(c, c.missile, x, y)
+			c.missile:Show()
+		end
+	end
+end
+
+local function fxHit()
+	local sp = fxSpell()
+	for _, c in ipairs(fx.cards) do
+		if c.missile then c.missile:Hide() end
+		local who = sp.self and c.caster or c.target
+		if not sp.self then fxAnim(c, c.target, 9) end
+		if c.way.key == "file" then
+			if c.hit and sp.hit then
+				local x = sp.self and fxX(c, "caster") or fxX(c, "target")
+				fxPlace(c, c.hit, x, FX_GROUND + FX_FIG * (sp.self and 0.25 or 0.55))
+				c.hit:Show()
+			end
+		else
+			local r = fxKit(c, who, sp.impact, true)
+			if c.res.kit == nil then c.res.kit = r end
+		end
+	end
+end
+
+local function fxRest()
+	for _, c in ipairs(fx.cards) do
+		fxAnim(c, c.caster, 0)
+		fxAnim(c, c.target, 0)
+		if c.hit then c.hit:Hide() end
+	end
+end
+
+function fx.step(dt)
+	local sp = fxSpell()
+	fx.t = (fx.t or 0) + dt
+	local flight = sp.missile and FX_FLIGHT or 0.25
+	if fx.phase == 0 then fxStart() fx.phase = 1 end
+	if fx.phase == 1 and fx.t >= (sp.precast and FX_RELEASE or 0.3) then fxRelease() fx.phase, fx.released = 2, fx.t end
+	if fx.phase == 2 then
+		local share = (fx.t - fx.released) / flight
+		if share >= 1 then
+			fxHit()
+			fx.phase = 3
+		elseif sp.missile then
+			for _, c in ipairs(fx.cards) do
+				if c.missile then fxPlace(c, c.missile, fxPath(c, share)) end
+			end
+		end
+	end
+	if fx.phase == 3 and fx.t >= fx.released + flight + 1.0 then fxRest() fx.phase = 4 end
+	if fx.t >= FX_LOOP then fx.t, fx.phase = 0, 0 end
+	for _, c in ipairs(fx.cards) do
+		if c.way.key ~= "model" then
+			for _, k in ipairs({ "caster", "target", "missile", "hand", "hit" }) do
+				local m = c[k]
+				if m then m:Step(dt) end
+			end
+		end
+	end
+	fx.lines()
+end
+
+------------------------------------------------------------------------
 -- 옷 입히기: a class's dungeon set on its race's own body (the race's base
 -- model with nothing on), next to the bare body and the player's own
 -- character; ◀ ▶ go through every class and faction, 남 · 여 the gender
@@ -668,7 +1017,7 @@ local function build()
 	close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -14)
 	-- which models: the basic check, or the tinker's candidates
 	frame.setButtons = {}
-	for i, s in ipairs({ { "dress", "옷 입히기" }, { "battle", "전투 모습" }, { "other", "다른 후보" }, { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
+	for i, s in ipairs({ { "fx", "효과" }, { "dress", "옷 입히기" }, { "battle", "전투 모습" }, { "other", "다른 후보" }, { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
 		local b = UI.Button(frame, 96, 24, s[2], function()
 			state.set = s[1]
 			setupAll()
