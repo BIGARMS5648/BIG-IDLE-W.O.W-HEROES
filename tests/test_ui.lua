@@ -840,23 +840,75 @@ try("slash bar", SlashCmdList.BIGWOWIDLE, "bar")
 try("slash reset", SlashCmdList.BIGWOWIDLE, "reset")
 try("slash help", SlashCmdList.BIGWOWIDLE, "help")
 
+-- the battle bar draws heroes and monsters as the game's 3D models
+do
+	local Fig = ns.Figure3D
+	Fig.ResetFailed()
+	ns.db.opt.models = true
+	ns.Combat.StartStage()
+	frames(40)
+	local heroes, mobs = ns.Bar.UnitFrames()
+	local hShown, mShown = 0, 0
+	for _, f in ipairs(heroes) do
+		if f:IsShown() and f.model and f.model:IsShown() then
+			hShown = hShown + 1
+			if f.model.__model ~= "creature:" .. tostring(f.model.id) then fail("a hero model should show its NPC: " .. tostring(f.model.__model)) end
+			if math.abs((f.model.__facing or 0) - math.pi / 2) > 1e-6 then fail("hero models should face the monsters (right)") end
+		end
+	end
+	for _, f in ipairs(mobs) do
+		if f:IsShown() and f.model and f.model:IsShown() then
+			mShown = mShown + 1
+			if math.abs((f.model.__facing or 0) - 3 * math.pi / 2) > 1e-6 then fail("monster models should face the heroes (left)") end
+		end
+	end
+	if hShown == 0 then fail("the heroes in battle should be 3D models") end
+	if mShown == 0 then fail("the monsters in battle should be 3D models") end
+	-- an attack plays the attack animation
+	local anims = {}
+	for _ = 1, 60 do
+		frames(1)
+		for _, f in ipairs(heroes) do if f.model and f.model:IsShown() then anims[f.model.__anim or -1] = true end end
+	end
+	if not anims[17] then fail("heroes should play the attack animation (17) in battle") end
+	-- off in the settings: drawn figures or icons again
+	ns.db.opt.models = false
+	frames(2)
+	for _, f in ipairs(heroes) do if f.model and f.model:IsShown() then fail("models should hide when turned off") break end end
+	ns.db.opt.models = true
+	-- a model the client cannot load is given up on, and the icon comes back
+	local getFile = Mock.Model.GetModelFileID
+	Mock.Model.GetModelFileID = function() return nil end
+	Fig.ResetFailed()
+	for _, f in ipairs(heroes) do if f.model then f.model.id = nil end end
+	frames(60) -- 1.5 s per model tried (the other gender is tried too)
+	Mock.Model.GetModelFileID = getFile
+	local back = 0
+	for _, f in ipairs(heroes) do
+		if f:IsShown() then
+			if f.model and f.model:IsShown() then fail("a model that did not load should not stay up") break end
+			if f.icon:IsShown() or f.sprite:IsShown() then back = back + 1 end
+		end
+	end
+	if back == 0 then fail("a hero whose model did not load should fall back to the icon or sprite") end
+	Fig.ResetFailed()
+	frames(2)
+end
+
 -- the 3D model check (/bwi model): five models, animations, facing, distance
 do
 	local MC = ns.ModelCheck
 	try("slash model", SlashCmdList.BIGWOWIDLE, "model")
 	local mf = MC.Frame()
 	if not (mf and mf:IsShown()) then fail("/bwi model should open the model check") end
-	local want = { hero = "unit:player", player = "unit:player", mob = "creature:448", boss = "creature:11502", pet = "creature:416" }
+	-- the hero as the battle bar draws it: the NPC of its class, race and gender
+	local heroNpc = ns.Figure3D.ForHero(ns.Main.SelectedHero(), false)
+	local want = { hero = "creature:" .. tostring(heroNpc), player = "unit:player", mob = "creature:448", boss = "creature:11502", pet = "creature:416" }
 	for _, p in ipairs(MC.panels) do
 		if not p.model then fail("no model frame for " .. p.def.key)
 		elseif p.model.__model ~= want[p.def.key] then fail(p.def.key .. " shows " .. tostring(p.model.__model)) end
 	end
-	local hero = MC.panels[1].model
-	if hero.__race then fail("the race should wait until the player's model has loaded") end
-	frames(20) -- the race goes on, the models report what loaded
-	if not hero.__race then fail("the hero model should be set to its race") end
-	local h = ns.db.heroes[ns.Main.SelectedHero()]
-	if h and hero.__sex ~= (h.sex == "F" and 1 or 0) then fail("the hero model should have the hero's gender") end
+	frames(20) -- the models report what loaded
 	if not (MC.panels[3].name.__text or ""):find("NPC 448", 1, true) or not (MC.panels[3].lines[2].__text or ""):find("이름", 1, true) then fail("a creature card should show its NPC id and the client name") end
 	if not (MC.panels[3].lines[3].__text or ""):find("모델 불러옴", 1, true) then fail("a loaded model should say so: " .. tostring(MC.panels[3].lines[3].__text)) end
 	click("model: attack", function(b) return b.anim == 17 and b:IsVisible() end)
@@ -875,16 +927,16 @@ do
 	MC.state.cycleT = 0
 	frames(3)
 	if MC.state.anim == 18 then fail("the automatic cycle should move on to another animation") end
-	-- a client without the race function: the hero still shows, the card says 없음
-	local custom = Mock.DressUpModel.SetCustomRace
-	Mock.DressUpModel.SetCustomRace = nil
+	-- a client without a model function: the card says 없음
+	local setAnim = Mock.Model.SetAnimation
+	Mock.Model.SetAnimation = nil
 	click("model: load again", function(b) return label(b) == "다시 불러오기" end)
 	frames(10)
-	Mock.DressUpModel.SetCustomRace = custom
-	if not (MC.panels[1].lines[1].__text or ""):find("없음", 1, true) then fail("a missing model function should read 없음: " .. tostring(MC.panels[1].lines[1].__text)) end
+	Mock.Model.SetAnimation = setAnim
+	if not (MC.panels[2].lines[5].__text or ""):find("없음", 1, true) then fail("a missing model function should read 없음: " .. tostring(MC.panels[2].lines[5].__text)) end
 	-- the tinker's candidates: mech, turret and drone models
 	click("model: tinker candidates", function(b) return label(b) == "땜장이 후보" end)
-	if MC.panels[1].model.__model ~= "creature:" .. ns.MODEL.tinker.mech_horde or MC.panels[5].model.__model ~= "creature:" .. ns.MODEL.summon.drone_heal then
+	if MC.panels[1].model.__model ~= "creature:" .. ns.MODEL.tinker.mech_horde or MC.panels[4].model.__model ~= "creature:" .. ns.MODEL.summon.drone_heal then
 		fail("땜장이 후보 should show the mech, turret and drone models")
 	end
 	frames(20)

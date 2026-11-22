@@ -24,6 +24,7 @@ local infoT = 0
 local dt = 0 -- seconds since the last drawn frame
 local HERO_FIG, MOB_FIG = 74, 70 -- sprite cell heights on screen
 local Sprite = ns.Sprite
+local Figure = ns.Figure3D -- the game's 3D models, ahead of the sprites
 
 local function laneX(x)
 	return x / 1000 * SCENE_W
@@ -84,6 +85,7 @@ local function newHero(parent)
 	u.cast:SetPoint("BOTTOM", u, "TOP", 0, 3)
 	u.cast:Hide()
 	u.sprite = Sprite.New(parent, HERO_FIG)
+	u.model = Figure.New(parent, HERO_FIG)
 	u:Hide()
 	return u
 end
@@ -116,8 +118,25 @@ local function newMob(parent)
 	u.hp:SetPoint("TOP", u, "BOTTOM", 0, -2)
 	u.sprite = Sprite.New(parent, MOB_FIG)
 	u.sprite:SetFacing("left")
+	u.model = Figure.New(parent, MOB_FIG)
+	if u.model then u.model:SetFacing("left") end
 	u:Hide()
 	return u
+end
+
+-- The figure a unit is drawn as: the game's 3D model (modelId) when there is
+-- one, else the drawn sprite (spriteId), else nil (the round icon). The one
+-- not used is hidden.
+local function pickFigure(model, sprite, modelId, spriteId)
+	local fig
+	if model and modelId and Figure.Enabled() and model:SetModelId(modelId) then
+		fig = model
+	elseif spriteId and sprite:SetSprite(spriteId) then
+		fig = sprite
+	end
+	if model and fig ~= model then model:Hide() end
+	if fig ~= sprite then sprite:Hide() end
+	return fig
 end
 
 -- Picks the animation for a unit, letting a started attack, skill or hit
@@ -223,11 +242,11 @@ local function drawHeroes(now)
 			local px = spread[i]
 			local moving = f.prevX and math.abs(u.x - f.prevX) > 0.01
 			f.prevX = u.x
-			local sid = Sprite.ForHero(u.id, true)
-			if sid and f.sprite:SetSprite(sid) then
-				if f.spriteFor ~= u.id then
-					f.spriteFor = u.id
-					f.sprite:SetHeight2(HERO_FIG * Sprite.HeroScale(u.id))
+			local fig = pickFigure(f.model, f.sprite, Figure.ForHero(u.id, true), Sprite.ForHero(u.id, true))
+			if fig then
+				if f.figFor ~= u.id or f.figIs ~= fig then
+					f.figFor, f.figIs = u.id, fig
+					fig:SetHeight2(HERO_FIG * Sprite.HeroScale(u.id))
 				end
 				local want = "idle"
 				if u.dead then want = "death"
@@ -235,21 +254,21 @@ local function drawHeroes(now)
 				elseif u.anim > 0 then want = "attack"
 				elseif u.flash > 0.05 then want = "hit"
 				elseif ns.Combat.state.phase == "travel" or moving then want = "walk" end
-				animate(f.sprite, want)
-				f.sprite:PlaceFeet(frame.scene, px + UNIT / 2, FEET + 2)
-				f.sprite:SetAlpha(u.dead and 0.6 or 1)
-				f.sprite:Show()
+				animate(fig, want)
+				fig:PlaceFeet(frame.scene, px + UNIT / 2, FEET + 2)
+				fig:SetAlpha(u.dead and 0.6 or 1)
+				fig:Show()
 				f.disc:Hide()
 				f.icon:Hide()
 				f.ring:Hide()
 			else
-				f.sprite:Hide()
+				f.figFor, f.figIs = nil, nil
 				f.disc:Show()
 				f.icon:Show()
 				f.ring:Show()
 				if u.anim > 0 then px = px + 4 end
 			end
-			local bob = (not u.dead and ns.Combat.state.phase == "travel" and not f.sprite:IsShown()) and (sin(now * 10 + i) * 1.5) or 0
+			local bob = (not u.dead and ns.Combat.state.phase == "travel" and not fig) and (sin(now * 10 + i) * 1.5) or 0
 			place(f, px, FEET + bob)
 			if not backX or u.x < backX then backX = u.x end
 			if u.dead then
@@ -279,7 +298,8 @@ local function drawHeroes(now)
 					f.shield:Hide()
 				end
 			end
-			if u.flash > 0 then f.flash:Show() else f.flash:Hide() end
+			if u.flash > 0 and fig ~= f.model then f.flash:Show() else f.flash:Hide() end
+			if fig == f.model then f.tint:Hide() end -- no round overlay on a 3D model
 			if (u.castT or 0) > 0 and u.castIcon then
 				if f.castIcon ~= u.castIcon then
 					f.castIcon = u.castIcon
@@ -294,6 +314,7 @@ local function drawHeroes(now)
 		else
 			f:Hide()
 			f.sprite:Hide()
+			if f.model then f.model:Hide() end
 			f.shownId = nil
 		end
 	end
@@ -306,20 +327,20 @@ local function drawHeroes(now)
 		end
 		local minX = laneX(backX) - UNIT / 2
 		for i = 1, #list do if spread[i] and spread[i] < minX then minX = spread[i] end end
-		local psid = Sprite.ForPet(pet.id)
-		if psid and frame.petSprite:SetSprite(psid) then
-			animate(frame.petSprite, ns.Combat.state.phase == "travel" and "walk" or "idle")
-			frame.petSprite:PlaceFeet(frame.scene, max(14, minX - 14), FEET + 2)
-			frame.petSprite:Show()
+		local pfig = pickFigure(frame.petModel, frame.petSprite, Figure.ForPet(pet.id), Sprite.ForPet(pet.id))
+		if pfig then
+			animate(pfig, ns.Combat.state.phase == "travel" and "walk" or "idle")
+			pfig:PlaceFeet(frame.scene, max(14, minX - 14), FEET + 2)
+			pfig:Show()
 			frame.pet:Hide()
 		else
-			frame.petSprite:Hide()
 			place(frame.pet, max(2, minX - 26), FEET + 2 + sin(now * 5) * 2)
 			frame.pet:Show()
 		end
 	else
 		frame.pet:Hide()
 		frame.petSprite:Hide()
+		if frame.petModel then frame.petModel:Hide() end
 	end
 	-- summoned creatures, turrets and drones (only drawn with art)
 	local k = 0
@@ -327,11 +348,11 @@ local function drawHeroes(now)
 		local u = list[i]
 		if not u.dead and spread[i] then
 			for sid, pt in pairs(u.pets) do
-				local art = Sprite.ForSkill(sid)
-				if art and k < #frame.summons then
+				local art, mid = Sprite.ForSkill(sid), Figure.ForSkill(sid)
+				if (art or mid) and k < #frame.summons then
 					k = k + 1
-					local sp = frame.summons[k]
-					if sp:SetSprite(art) then
+					local sp = pickFigure(frame.summonModels[k], frame.summons[k], mid, art)
+					if sp then
 						animate(sp, (pt.anim or 0) > 0 and "attack" or "idle")
 						local fly = ns.SKILLS[sid].heal and 34 or 0
 						sp:PlaceFeet(frame.scene, spread[i] + UNIT / 2 + 18, FEET + fly + (fly > 0 and sin(now * 3 + i) * 3 or 0))
@@ -343,16 +364,21 @@ local function drawHeroes(now)
 	end
 	for _, f in ipairs(ns.Combat.fields) do
 		local art = f.sk.summon and Sprite.Get(f.sk.summon) and f.sk.summon
-		if art and k < #frame.summons and not f.src.dead then
+		local mid = Figure.ForSummon(f.sk.summon)
+		if (art or mid) and k < #frame.summons and not f.src.dead then
 			k = k + 1
-			local sp = frame.summons[k]
-			sp:SetSprite(art)
-			animate(sp, (f.tickT or 0) > f.sk.tick - 0.25 and "attack" or "idle")
-			sp:PlaceFeet(frame.scene, laneX(f.src.x) + 34, FEET)
-			sp:Show()
+			local sp = pickFigure(frame.summonModels[k], frame.summons[k], mid, art)
+			if sp then
+				animate(sp, (f.tickT or 0) > f.sk.tick - 0.25 and "attack" or "idle")
+				sp:PlaceFeet(frame.scene, laneX(f.src.x) + 34, FEET)
+				sp:Show()
+			end
 		end
 	end
-	for i = k + 1, #frame.summons do frame.summons[i]:Hide() end
+	for i = k + 1, #frame.summons do
+		frame.summons[i]:Hide()
+		if frame.summonModels[i] then frame.summonModels[i]:Hide() end
+	end
 end
 
 local function drawMobs()
@@ -378,31 +404,36 @@ local function drawMobs()
 				end
 			end
 			local px = laneX(m.x) - size / 2
-			local sid = Sprite.ForMonster(m.def and m.def.id, m.boss and Sprite.BossKey(m.name), m.boss and m.type)
-			if sid and f.sprite:SetSprite(sid) then
-				if f.spriteMob ~= m then
-					f.spriteMob = m
-					f.sprite:SetHeight2(MOB_FIG * (m.boss and 1.4 or 1))
-					local tr, tg, tb = tintFor((m.def and m.def.id) or ns.N(m.name) or "?")
-					f.sprite.tex:SetVertexColor(tr, tg, tb)
-					f.sprite.prevX = nil
+			local st = ns.Combat.state
+			local bossKey = m.boss and not m.summoned and st.diff and (st.diff .. "-" .. st.idx) or nil
+			local fig = pickFigure(f.model, f.sprite, Figure.ForMonster(m.def and m.def.id, bossKey),
+				Sprite.ForMonster(m.def and m.def.id, m.boss and Sprite.BossKey(m.name), m.boss and m.type))
+			if fig then
+				if f.figMob ~= m or f.figIs ~= fig then
+					f.figMob, f.figIs = m, fig
+					fig:SetHeight2(MOB_FIG * (m.boss and 1.4 or 1))
+					if fig == f.sprite then
+						local tr, tg, tb = tintFor((m.def and m.def.id) or ns.N(m.name) or "?")
+						f.sprite.tex:SetVertexColor(tr, tg, tb)
+					end
+					f.prevX = nil
 				end
-				local moving = f.sprite.prevX and math.abs(m.x - f.sprite.prevX) > 0.01
-				f.sprite.prevX = m.x
+				local moving = f.prevX and math.abs(m.x - f.prevX) > 0.01
+				f.prevX = m.x
 				local want = "idle"
 				if m.dead then want = "death"
 				elseif m.anim > 0 then want = "attack"
 				elseif m.flash > 0.05 then want = "hit"
 				elseif moving then want = "walk" end
-				animate(f.sprite, want)
-				f.sprite:PlaceFeet(frame.scene, px + size / 2, FEET + (m.boss and 0 or (m.off / 12) * 3))
-				f.sprite:SetAlpha(m.dead and max(0, (m.fade or 0) / 0.4) or 1)
-				f.sprite:Show()
+				animate(fig, want)
+				fig:PlaceFeet(frame.scene, px + size / 2, FEET + (m.boss and 0 or (m.off / 12) * 3))
+				fig:SetAlpha(m.dead and max(0, (m.fade or 0) / 0.4) or 1)
+				fig:Show()
 				f.back:Hide()
 				f.icon:Hide()
 				f.edge:Hide()
 			else
-				f.sprite:Hide()
+				f.figMob, f.figIs = nil, nil
 				f.back:Show()
 				f.icon:Show()
 				f.edge:Show()
@@ -425,12 +456,14 @@ local function drawMobs()
 			end
 			f.hp:SetValue(m.hp / m.maxhp)
 			if (m.drT or 0) > 0 then f.hp:SetRGB(0.5, 0.75, 1) else f.hp:SetRGB(0.9, 0.2, 0.15) end
-			if m.flash > 0 then f.flash:Show() else f.flash:Hide() end
+			if m.flash > 0 and fig ~= f.model then f.flash:Show() else f.flash:Hide() end
+			if fig == f.model then f.tint:Hide() end -- no square overlay on a 3D model
 			f:Show()
 		else
 			f:Hide()
 			f.sprite:Hide()
-			f.spriteMob = nil
+			if f.model then f.model:Hide() end
+			f.figMob, f.figIs = nil, nil
 			f.shownIcon = nil
 		end
 	end
@@ -846,8 +879,12 @@ function Bar.Create()
 	frame.pet.icon:SetAllPoints(frame.pet)
 	frame.pet:Hide()
 	frame.petSprite = Sprite.New(scene, 40)
-	frame.summons = {}
-	for i = 1, 8 do frame.summons[i] = Sprite.New(scene, 52) end
+	frame.petModel = Figure.New(scene, 40)
+	frame.summons, frame.summonModels = {}, {}
+	for i = 1, 8 do
+		frame.summons[i] = Sprite.New(scene, 52)
+		frame.summonModels[i] = Figure.New(scene, 52)
+	end
 
 	-- everything drawn above the units lives on an overlay layer
 	local over = CreateFrame("Frame", nil, scene)
@@ -1053,6 +1090,9 @@ end
 function Bar.IsShown()
 	return frame and frame:IsShown()
 end
+
+-- the unit frames (heroes, monsters), for the tests
+function Bar.UnitFrames() return heroFrames, mobFrames end
 
 function Bar.ResetPosition()
 	ns.db.ui.barPos = nil

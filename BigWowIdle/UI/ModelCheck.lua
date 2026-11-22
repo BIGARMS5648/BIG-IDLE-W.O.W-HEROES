@@ -1,10 +1,10 @@
 -- 3D model check (/bwi model): a window that shows the game's own 3D models
--- the way the battle bar could use them instead of drawn sprites - a hero as
--- its race and gender, the player's own character, a monster, a boss and a
--- summon - and plays animations on all of them. Every model function is
--- called through pcall, and under each model it says which ones this client
--- has (됨 = worked, 없음 = the client lacks it, 오류 = it failed), so one
--- screenshot shows what the battle bar can rely on.
+-- the way the battle bar uses them - the selected hero (an NPC of its class,
+-- race and gender), the player's own character, a monster, a boss and a
+-- summon; or the tinker's mech, turrets and drone - and plays animations on
+-- all of them. Every model function is called through pcall, and under each
+-- model it says which ones this client has (됨 = worked, 없음 = the client
+-- lacks it, 오류 = it failed) and the client's name for the NPC id.
 local _, ns = ...
 
 local UI, U = ns.UI, ns.U
@@ -12,13 +12,6 @@ local floor, pi, max, min = math.floor, math.pi, math.max, math.min
 
 local Check = {}
 ns.ModelCheck = Check
-
--- ChrRaces ids and the model gender ids (0 male, 1 female)
-local RACE_ID = {
-	HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, UNDEAD = 5, TAUREN = 6, GNOME = 7, TROLL = 8,
-	GOBLIN = 9, BLOODELF = 10, DRAENEI = 11, WORGEN = 22,
-}
-local SEX_ID = { M = 0, F = 1 }
 
 -- animation ids the battle would use (the number shows, and ◀ ▶ step
 -- through every id, in case a name sits on another number in this client)
@@ -30,7 +23,7 @@ for _, a in ipairs(ANIMS) do ANIM_NAME[a[1]] = a[2] end
 
 -- the sample models: creature ids (NPC ids) for the monster, boss and summon
 local SAMPLES = {
-	{ key = "hero", title = "영웅 (종족 모델)", kind = "DressUpModel" },
+	{ key = "hero", title = "영웅 (전투 창 모델)", kind = "DressUpModel" },
 	{ key = "player", title = "내 캐릭터", kind = "PlayerModel" },
 	{ key = "mob", title = "몬스터: 호그", kind = "PlayerModel", creature = 448 },
 	{ key = "boss", title = "우두머리: 라그나로스", kind = "PlayerModel", creature = 11502 },
@@ -40,9 +33,9 @@ local SAMPLES = {
 local TINKER = {
 	{ key = "mech_horde", title = "기갑 (호드)", creature = ns.MODEL.tinker.mech_horde },
 	{ key = "mech_alliance", title = "기갑 (얼라이언스)", creature = ns.MODEL.tinker.mech_alliance },
-	{ key = "mech_alt", title = "기갑 다른 후보", creature = ns.MODEL.tinker.mech_alt },
 	{ key = "turret", title = "포격: 포탑", creature = ns.MODEL.summon.turret_gun },
 	{ key = "drone", title = "정비: 치유 드론", creature = ns.MODEL.summon.drone_heal },
+	{ key = "heal_turret", title = "정비: 치유 포탑", creature = ns.MODEL.summon.turret_heal },
 }
 local SETS = { basic = SAMPLES, tinker = TINKER }
 
@@ -103,46 +96,38 @@ end
 ------------------------------------------------------------------------
 -- Putting the models up
 ------------------------------------------------------------------------
+local function showName(p)
+	local name = npcName(p.def.creature)
+	p.nameTries = (p.nameTries or 0) + 1
+	if name then p.nameTries = nil end
+	setLine(p, 2, "이름 " .. (name and U.col("ffffff", name) or U.col("aab3c8", "받는 중")))
+end
+
+-- the selected hero as the battle bar draws it: an NPC of its class, race
+-- and gender (Data/Models.lua ns.MODEL.hero)
 local function setupHero(p)
 	local m = p.model
 	local id = ns.Main.SelectedHero()
 	local h = id and ns.db.heroes[id]
 	local race = id and ns.Heroes.Race(id) or "HUMAN"
 	local sex = h and h.sex or "M"
+	local npc = id and ns.Figure3D.ForHero(id, false)
 	p.name:SetText(string.format("%s · %s %s", h and ns.Heroes.ShortName(id) or "영웅 없음",
 		ns.N(ns.RACES[race] and ns.RACES[race].name or race), ns.N(ns.SEX[sex].short)))
-	-- the race model rides on a unit: the player goes in first, and the race
-	-- is changed once that model has loaded (a change made before is lost)
-	local unit = call(m, "SetUnit", "player")
-	p.race = { RACE_ID[race] or 1, SEX_ID[sex] or 0 }
-	p.raceDone, p.raceT = false, 0.8
-	setLine(p, 1, "SetUnit " .. mark(unit) .. " · 종족 대기")
-	setLine(p, 2, "")
-end
-
--- After the player's model has loaded: race, then the clothes off and a sword on.
-local function applyRace(p)
-	if p.raceDone or not p.race then return end
-	p.raceDone = true
-	local m = p.model
-	local custom = call(m, "SetCustomRace", p.race[1], p.race[2])
-	local undress = call(m, "Undress")
-	local tryOn = call(m, "TryOn", "item:19019") -- a sword everyone knows, to see gear go on
-	setLine(p, 1, "SetUnit " .. OK .. " · SetCustomRace " .. mark(custom))
-	setLine(p, 2, "Undress " .. mark(undress) .. " · TryOn " .. mark(tryOn))
+	if npc then
+		p.def = { key = "hero", title = p.def.title, creature = npc }
+		setLine(p, 1, "NPC " .. npc .. " · SetCreature " .. mark(call(m, "SetCreature", npc)))
+		p.nameTries = 0
+		showName(p)
+	else
+		setLine(p, 1, "영웅 모델 없음")
+	end
 end
 
 local function setupPlayer(p)
 	p.name:SetText(UnitName and UnitName("player") or "player")
 	setLine(p, 1, "SetUnit(\"player\") " .. mark(call(p.model, "SetUnit", "player")))
 	setLine(p, 2, "")
-end
-
-local function showName(p)
-	local name = npcName(p.def.creature)
-	p.nameTries = (p.nameTries or 0) + 1
-	if name then p.nameTries = nil end
-	setLine(p, 2, "이름 " .. (name and U.col("ffffff", name) or U.col("aab3c8", "받는 중")))
 end
 
 local function setupCreature(p)
@@ -194,22 +179,11 @@ local function reportLoad(p)
 	setLine(p, 3, text)
 end
 
--- whether the race change gave the hero another body than the player's
-local function reportRace()
-	local hero, player = panels[1], panels[2]
-	if not (hero and player and hero.file and player.file and hero.raceDone) then return end
-	if hero.file == player.file then
-		setLine(hero, 3, U.col("ff6a5a", "종족 그대로") .. " · 파일 " .. tostring(hero.file))
-	else
-		setLine(hero, 3, U.col("60e070", "종족 바뀜") .. " · 파일 " .. tostring(hero.file))
-	end
-end
-
 local function setupAll()
 	for i, p in ipairs(panels) do
 		p.def = SETS[state.set][i]
 		p.titleText:SetText(p.def.title)
-		p.race, p.raceDone, p.nameTries, p.file = nil, nil, nil, nil
+		p.nameTries, p.file = nil, nil
 		setLine(p, 2, "")
 		if p.model then
 			call(p.model, "ClearModel")
@@ -318,8 +292,6 @@ local function build()
 		if m then
 			m:SetPoint("TOPLEFT", card, "TOPLEFT", 4, -26)
 			m:SetSize(PANEL_W - 8, MODEL_H)
-			-- the hero's race goes on when the player's model has loaded
-			pcall(m.SetScript, m, "OnModelLoaded", function() applyRace(p) end)
 		end
 		p.name = UI.Text(card, 11)
 		p.name:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -26 - MODEL_H - 4)
@@ -403,11 +375,6 @@ local function build()
 
 	frame:SetScript("OnUpdate", function(_, dt)
 		for _, p in ipairs(panels) do
-			-- the race goes on once the player's model is in (or after a moment)
-			if p.race and not p.raceDone then
-				p.raceT = p.raceT - dt
-				if p.raceT <= 0 then applyRace(p) end
-			end
 			-- NPC names the client did not have yet
 			if p.nameTries and p.nameTries < 8 then
 				p.nameT = (p.nameT or 0) - dt
@@ -418,7 +385,6 @@ local function build()
 			state.loadT = state.loadT - dt
 			if state.loadT <= 0 then
 				for _, p in ipairs(panels) do if p.model then reportLoad(p) end end
-				reportRace()
 			end
 		end
 		if state.cycle then

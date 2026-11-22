@@ -87,9 +87,14 @@ local function build(page)
 		UI.Check(sc, "전투 창 아래 줄 숨기기: 다음 목표·자동 진행·상자·메뉴 (작게 보기)",
 			function() return ns.db.ui.compact end, function(v) ns.db.ui.compact = v and true or nil ns.Bar.ApplyCompact() end),
 		UI.Check(sc, "위치·크기 잠금", function() return ns.db.ui.locked end, function(v) ns.db.ui.locked = v end),
+		UI.Check(sc, "영웅·몬스터를 게임의 3D 모델로 보기", function() return ns.db.opt.models ~= false end,
+			function(v) ns.db.opt.models = v and true or false end),
 	}
 	for i, c in ipairs(sc.checks) do c:SetPoint("TOPLEFT", sc, "TOPLEFT", K.PAD, -150 - (i - 1) * 26) end
-	sc.howto = note(sc, K.PAD, -236, "• 전투 창은 왼쪽 버튼으로 끌어 옮깁니다.\n" ..
+	UI.Tip(sc.checks[4], function()
+		return UI.SimpleTip("3D 모델", "전투 창의 영웅·몬스터·우두머리·소환물·동료를 게임에 들어 있는 3D 모델로 보여 줍니다. 끄면 그림(또는 아이콘)으로 보여 줍니다.")
+	end, "TOP")
+	sc.howto = note(sc, K.PAD, -262, "• 전투 창은 왼쪽 버튼으로 끌어 옮깁니다.\n" ..
 		"• 오른쪽 아래 모서리를 끌면 크기가 바뀝니다 (모서리 우클릭: 원래 크기).\n" ..
 		"• 전투 창을 우클릭하면 메뉴가 열립니다.")
 

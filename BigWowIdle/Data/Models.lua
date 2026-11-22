@@ -324,15 +324,16 @@ ns.MODEL.boss = {
 	["4-30"] = 124828, -- 파멸자 아르거스 · Argus the Unmaker
 }
 
--- summons (skills that call a creature)
+-- summons (skills that call a creature; the turrets and the drone are old
+-- engineering models: the newer ones did not load in game)
 ns.MODEL.summon = {
-	drone_heal     =  24780, -- Field Repair Bot 110G
+	drone_heal     =   9657, -- Lil' Smoky
 	felguard       =  17252, -- Felguard
 	hunters_pet    =     69, -- Diseased Timber Wolf
 	infernal       =     89, -- Infernal
-	turret_gun     =  31884, -- Kor'kron Suppression Turret
+	turret_gun     =   6233, -- Mechanized Sentry
 	turret_heal    =   3527, -- Healing Stream Totem
-	turret_rocket  =  43259, -- Rocket Defense Turret
+	turret_rocket  =   6233, -- Mechanized Sentry
 }
 
 -- companions (Data/Pets.lua ids)
@@ -346,11 +347,11 @@ ns.MODEL.pet = {
 	whelp          =   7544, -- Crimson Whelpling
 }
 
--- tinker: the mech the 기갑 tank fights in
+-- tinker: the mech the 기갑 tank fights in (Alliance: picked in game)
 ns.MODEL.tinker = {
-	mech_alliance  =   6225, -- Mechano-Tank
-	mech_alt       =   7800, -- Mekgineer Thermaplugg
+	mech_alliance  =   7800, -- Mekgineer Thermaplugg
 	mech_horde     =    642, -- Sneed's Shredder
+	mech_alt       =   6225, -- Mechano-Tank
 }
 
 -- druid forms
@@ -359,4 +360,19 @@ ns.MODEL.form = {
 	cat            =   7431, -- Frostsaber
 	moonkin        =  10157, -- Moonkin Oracle
 	tree           =   1964, -- Treant
+}
+
+-- heroes: a class trainer (or for the tinker an engineer) of the class's race
+-- for the faction (Data/Races.lua ns.CLASS_RACE), in the hero's gender
+ns.MODEL.hero = {
+	WARRIOR = { ALLIANCE = { M = 912, F = 164939 }, HORDE = { M = 3353, F = 3338 } },    -- Thran Khorman, Signilda Hardforge / Grezz Ragefist, Sergra Darkthorn
+	PALADIN = { ALLIANCE = { M = 8140, F = 49741 }, HORDE = { M = 50012, F = 17076 } },  -- Brother Karman, Sister Darnhald / Blood Knight Argaron, Lady Liadrin
+	HUNTER  = { ALLIANCE = { M = 3601, F = 4146 }, HORDE = { M = 3406, F = 3154 } },     -- Dazalar, Jocaste / Xor'juul, Jen'shan
+	ROGUE   = { ALLIANCE = { M = 205, F = 52636 }, HORDE = { M = 4583, F = 4582 } },     -- Nightbane Dark Runner, Tana Lentner / Miles Dexter, Carolyn Ward
+	PRIEST  = { ALLIANCE = { M = 17510, F = 20914 }, HORDE = { M = 3046, F = 48614 } },  -- Izmir, Aalun / Father Cobb, Dark Cleric Claressa
+	SHAMAN  = { ALLIANCE = { M = 52292, F = 17219 }, HORDE = { M = 3031, F = 3062 } },   -- Droha, Sulaa / Tigor Skychaser, Meela Dawnstrider
+	MAGE    = { ALLIANCE = { M = 198, F = 5497 }, HORDE = { M = 16646, F = 50010 } },    -- Khelden Bremen, Jennea Cannon / Alamma, Alaressa
+	WARLOCK = { ALLIANCE = { M = 906, F = 459 }, HORDE = { M = 988, F = 3325 } },        -- Maximillian Crowe, Drusilla La Salle / Kartosh, Mirkat
+	DRUID   = { ALLIANCE = { M = 4217, F = 4146 }, HORDE = { M = 3033, F = 1409 } },     -- Mathrengyl Bearwalker, Jocaste / Turak Runetotem, Moorah Stormhoof
+	TINKER  = { ALLIANCE = { M = 5174, F = 11037 }, HORDE = { M = 14742, F = 192165 } }, -- Springspindle Fizzlegear, Jenna Lemkenilli / Zap Farflinger, Winnie Fingerspring
 }
