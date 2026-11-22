@@ -638,6 +638,13 @@ ns.MODEL.dungeonSet = {
 }
 -- the game's race ids (SetCustomRace)
 ns.MODEL.raceId = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, UNDEAD = 5, TAUREN = 6, GNOME = 7, TROLL = 8, GOBLIN = 9 }
+-- Each race's own body with nothing on (the game's base display of the race,
+-- ChrRaces Male/FemaleDisplayID); the original game has only the male goblin
+ns.MODEL.raceBody = {
+	HUMAN = { M = 49, F = 50 }, ORC = { M = 51, F = 52 }, DWARF = { M = 53, F = 54 },
+	NIGHTELF = { M = 55, F = 56 }, UNDEAD = { M = 57, F = 58 }, TAUREN = { M = 59, F = 60 },
+	GNOME = { M = 1563, F = 1564 }, TROLL = { M = 1478, F = 1479 }, GOBLIN = { M = 1140, F = 1140 },
+}
 
 -- Other models to look at (/bwi model, 다른 후보)
 ns.MODEL.candidates = {

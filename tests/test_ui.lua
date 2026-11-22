@@ -1201,15 +1201,27 @@ do
 	for _, slot in ipairs(bp.slots) do
 		if slot.fig and slot.fig:IsShown() and slot.fig.actor and slot.fig.actor.__anim ~= 17 then fail("the animation buttons should play on 전투 모습 too") break end
 	end
-	-- 옷 입히기: a dwarf in the Battlegear of Valor, five ways
+	-- 옷 입히기: a class's set on its race's own body (the race's base display)
 	click("model: dressing", function(b) return label(b) == "옷 입히기" end)
 	local dp = MC.pages.dress
 	if not dp.frame:IsShown() or bp.frame:IsShown() then fail("옷 입히기 should show its own page") end
 	frames(20)
-	local c2 = dp.cards[2]
-	if not (c2.lines[4].__text or ""):find("TryOn 8/8", 1, true) then fail("dressing an NPC body should try the eight pieces on: " .. tostring(c2.lines[4].__text)) end
-	if not (dp.cards[1].lines[2].__text or ""):find("SetCustomRace", 1, true) then fail("the race card should say whether the race could be set") end
-	if not (dp.cards[3].lines[1].__text or ""):find("모델", 1, true) then fail("the scene card should put the NPC body up") end
+	local function bodyOf(i, sex) local cb = dp.COMBOS[i] return ns.MODEL.raceBody[cb.race][sex] end
+	if dp.COMBOS[1].class ~= "WARRIOR" or dp.COMBOS[1].race ~= "DWARF" or #dp.COMBOS ~= 18 then fail("옷 입히기 should start with the dwarf warrior and go through 18 class/faction pairs") end
+	local c1, c2, c3 = dp.cards[1], dp.cards[2], dp.cards[3]
+	if c2.model.__model ~= "display:53" then fail("the dressing card should show the dwarf's own body (53): " .. tostring(c2.model.__model)) end
+	if not (c2.lines[3].__text or ""):find("TryOn 8/8", 1, true) then fail("dressing the race body should try the eight pieces on: " .. tostring(c2.lines[3].__text)) end
+	if (c1.lines[3].__text or ""):find("TryOn", 1, true) then fail("the bare body card should put nothing on") end
+	if c3.model.actor.__display ~= 53 then fail("the scene card should put the race body up: " .. tostring(c3.model.actor.__display)) end
+	click("model: dressing next", function(b) return b == dp.next end)
+	click("model: dressing female", function(b) return b == dp.sexBtn.F end)
+	frames(20)
+	if dp.i ~= 2 or dp.sex ~= "F" or c2.model.__model ~= "display:" .. bodyOf(2, "F") then fail("▶ and 여 should show the orc woman's body: " .. tostring(c2.model.__model)) end
+	if not (dp.label.__text or ""):find("오크 여", 1, true) then fail("the dressing label should name the race and gender: " .. tostring(dp.label.__text)) end
+	click("model: dressing back", function(b) return b == dp.prev end)
+	click("model: dressing back again", function(b) return b == dp.prev end)
+	if dp.i ~= #dp.COMBOS then fail("◀ from the first pair should go round to the last") end
+	dp.Pick(1, "M")
 	click("model: basic check", function(b) return label(b) == "기본 확인" end)
 	if dp.frame:IsShown() or not MC.panels[1].card:IsShown() then fail("기본 확인 should bring the cards back") end
 	if MC.panels[3].model.__model ~= "display:" .. D[MOB] then fail("기본 확인 should bring the basic models back") end

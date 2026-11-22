@@ -434,22 +434,34 @@ function battle.anim(id)
 end
 
 ------------------------------------------------------------------------
--- 옷 입히기: ways to put a class's dungeon set on a body of the class's race
--- (here a dwarf warrior in the Battlegear of Valor), side by side; the one
--- that shows a dwarf in that armor is the way the game can do it
+-- 옷 입히기: a class's dungeon set on its race's own body (the race's base
+-- model with nothing on), next to the bare body and the player's own
+-- character; ◀ ▶ go through every class and faction, 남 · 여 the gender
 ------------------------------------------------------------------------
 local dress = {}
 PAGES.dress = dress
-local DRESS_SET = "WARRIOR"
-local DRESS_RACE = "DWARF"
+local DRESS_TOP, DRESS_MODEL_H = 32, 180
+local DRESS_H = PANEL_H - DRESS_TOP
 
 local DRESS = {
-	{ title = "종족 바꿔 입히기", kind = "DressUpModel", unit = true, race = true },
-	{ title = "NPC 몸에 입히기", kind = "DressUpModel", npc = true },
-	{ title = "NPC 몸 (장면)", kind = "scene", npc = true },
+	{ title = "종족 모델 (몸만)", kind = "DressUpModel", body = true, bare = true },
+	{ title = "종족 모델에 입히기", kind = "DressUpModel", body = true },
+	{ title = "종족 모델 (장면)", kind = "scene", body = true },
 	{ title = "내 캐릭터 (장면)", kind = "scene", unit = true },
 	{ title = "내 캐릭터에 입히기", kind = "DressUpModel", unit = true },
 }
+
+-- every class that has a dungeon set, for both factions: { class, faction, race }
+local COMBOS = {}
+for _, cls in ipairs(ns.CLASS_ORDER) do
+	if ns.MODEL.dungeonSet[cls] then
+		for _, fac in ipairs({ "ALLIANCE", "HORDE" }) do
+			COMBOS[#COMBOS + 1] = { class = cls, faction = fac, race = ns.CLASS_RACE[cls][fac] }
+		end
+	end
+end
+dress.COMBOS = COMBOS
+dress.i, dress.sex = 1, "M"
 
 function dress.build(win)
 	local f = CreateFrame("Frame", nil, win)
@@ -457,10 +469,25 @@ function dress.build(win)
 	f:SetSize(W - 36, PANEL_H)
 	f:Hide()
 	dress.frame = f
+	-- which class, race and gender: ◀ [label] ▶  [남] [여]
+	dress.prev = UI.Button(f, 30, 24, "<", function() dress.Pick(dress.i - 1) end, "dark")
+	dress.prev:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+	dress.label = UI.Text(f, 12)
+	dress.label:SetPoint("LEFT", dress.prev, "RIGHT", 10, 0)
+	dress.label:SetWidth(440)
+	dress.label:SetWordWrap(false)
+	dress.next = UI.Button(f, 30, 24, ">", function() dress.Pick(dress.i + 1) end, "dark")
+	dress.next:SetPoint("LEFT", dress.prev, "RIGHT", 460, 0)
+	dress.sexBtn = {}
+	for k, sx in ipairs(ns.SEXES) do
+		local b = UI.Button(f, 44, 24, ns.SEX[sx].short, function() dress.Pick(dress.i, sx) end, "dark")
+		b:SetPoint("LEFT", dress.next, "RIGHT", 16 + (k - 1) * 50, 0)
+		dress.sexBtn[sx] = b
+	end
 	dress.cards = {}
 	for i, def in ipairs(DRESS) do
-		local card = UI.Panel(f, PANEL_W, PANEL_H, "card")
-		card:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * (PANEL_W + GAP), 0)
+		local card = UI.Panel(f, PANEL_W, DRESS_H, "card")
+		card:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * (PANEL_W + GAP), -DRESS_TOP)
 		local t = UI.Text(card, 12, def.title)
 		t:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -8)
 		t:SetWidth(PANEL_W - 16)
@@ -468,12 +495,12 @@ function dress.build(win)
 		UI.Color(t, UI.C.gold)
 		local c = { def = def, card = card, lines = {} }
 		c.name = UI.Text(card, 11)
-		c.name:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -26 - MODEL_H - 4)
+		c.name:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -26 - DRESS_MODEL_H - 4)
 		c.name:SetWidth(PANEL_W - 16)
 		c.name:SetWordWrap(false)
 		for k = 1, LINES do
 			local l = UI.Text(card, 10)
-			l:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -26 - MODEL_H - 22 - (k - 1) * 15)
+			l:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -26 - DRESS_MODEL_H - 22 - (k - 1) * 15)
 			l:SetWidth(PANEL_W - 16)
 			l:SetWordWrap(false)
 			UI.Color(l, UI.C.sub)
@@ -483,15 +510,17 @@ function dress.build(win)
 	end
 end
 
+local function combo() return COMBOS[dress.i] end
+
 local function dressItems()
-	local set = ns.MODEL.dungeonSet[DRESS_SET]
+	local set = ns.MODEL.dungeonSet[combo().class]
 	return set and set.items or {}
 end
 
--- the plain body of the race: its class trainer's NPC
-local function raceNpc()
-	local t = ns.MODEL.trainer.WARRIOR and ns.MODEL.trainer.WARRIOR.ALLIANCE
-	return t and t.npc
+-- the race's own body for the gender picked
+local function bodyDisplay()
+	local b = ns.MODEL.raceBody[combo().race]
+	return b and b[dress.sex]
 end
 
 -- the widget a card's model is shown in, made the first time
@@ -499,28 +528,40 @@ local function dressModel(c)
 	if c.model ~= nil then return c.model end
 	local def = c.def
 	if def.kind == "scene" then
-		local fig = ns.Figure3D.New(c.card, MODEL_H / 1.5)
+		local fig = ns.Figure3D.New(c.card, DRESS_MODEL_H / 1.5)
 		if fig and fig.kind ~= "scene" then fig:Hide() fig = nil end
 		c.model = fig or false
-		if fig then fig:PlaceFeet(c.card, PANEL_W / 2, -26 - MODEL_H + PANEL_H + 18) end
+		if fig then fig:PlaceFeet(c.card, PANEL_W / 2, DRESS_H - 26 - DRESS_MODEL_H + 18) end
 	else
 		local ok, m = pcall(CreateFrame, def.kind, nil, c.card)
 		if not ok or not m then ok, m = pcall(CreateFrame, "PlayerModel", nil, c.card) end
 		c.model = (ok and m) or false
 		if c.model then
 			m:SetPoint("TOPLEFT", c.card, "TOPLEFT", 4, -26)
-			m:SetSize(PANEL_W - 8, MODEL_H)
+			m:SetSize(PANEL_W - 8, DRESS_MODEL_H)
 		end
 	end
 	return c.model
 end
 
+-- ◀ ▶ and 남 · 여
+function dress.Pick(i, sex)
+	dress.i = ((i - 1) % #COMBOS) + 1
+	if sex then dress.sex = sex end
+	dress.setup()
+end
+
 function dress.setup()
-	local set = ns.MODEL.dungeonSet[DRESS_SET]
-	local disp = ns.MODEL.display[raceNpc()]
+	local cb = combo()
+	local set = ns.MODEL.dungeonSet[cb.class]
+	local raceName = ns.RACES[cb.race].name .. " " .. ns.SEX[dress.sex].short
+	dress.label:SetText(string.format("%s (%s) · %s · %s   %d/%d", ns.N(ns.CLASSES[cb.class].name), ns.FACTIONS[cb.faction].name,
+		raceName, set and set.name or "", dress.i, #COMBOS))
+	for sx, b in pairs(dress.sexBtn) do b:SetStyle(sx == dress.sex and "primary" or "dark") end
+	local disp = bodyDisplay()
 	for _, c in ipairs(dress.cards) do
 		local def, m = c.def, dressModel(c)
-		c.name:SetText((ns.RACES[DRESS_RACE].name) .. " · " .. (set and set.name or ""))
+		c.name:SetText(def.unit and "내 캐릭터" or raceName)
 		for k = 1, LINES do c.lines[k]:SetText("") end
 		c.dressed, c.t = false, 0
 		if not m then
@@ -537,7 +578,7 @@ function dress.setup()
 			if def.unit then
 				c.lines[1]:SetText("SetModelByUnit " .. mark(call(a, "SetModelByUnit", "player", false, true)))
 			else
-				c.lines[1]:SetText("모델 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(a, "SetModelByCreatureDisplayID", disp) or nil))
+				c.lines[1]:SetText("몸 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(a, "SetModelByCreatureDisplayID", disp) or nil))
 			end
 		else
 			call(m, "ClearModel")
@@ -545,27 +586,29 @@ function dress.setup()
 			if def.unit then
 				c.lines[1]:SetText("SetUnit " .. mark(call(m, "SetUnit", "player")))
 			else
-				c.lines[1]:SetText("모델 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(m, "SetDisplayInfo", disp) or nil))
+				c.lines[1]:SetText("몸 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(m, "SetDisplayInfo", disp) or nil))
 			end
 		end
 	end
 end
 
--- once the body is in (or after a moment): race, clothes off, the set on
+-- once the body is in (or after a moment): clothes off, the set on (the bare
+-- body card keeps nothing on)
 local function putOn(c)
 	c.dressed = true
 	local def, m = c.def, c.model
 	local target = def.kind == "scene" and m.actor or m
-	if def.race then
-		c.lines[2]:SetText("SetCustomRace " .. mark(call(target, "SetCustomRace", ns.MODEL.raceId[DRESS_RACE], 0)))
+	c.lines[2]:SetText("Undress " .. mark(call(target, "Undress")))
+	if def.bare then
+		c.lines[3]:SetText("입히지 않음 (몸만)")
+	else
+		local worn, tried = 0, 0
+		for _, item in ipairs(dressItems()) do
+			tried = tried + 1
+			if call(target, "TryOn", "item:" .. item) == true then worn = worn + 1 end
+		end
+		c.lines[3]:SetText(string.format("TryOn %d/%d %s", worn, tried, worn == tried and tried > 0 and OK or (worn > 0 and ERR or NO)))
 	end
-	c.lines[3]:SetText("Undress " .. mark(call(target, "Undress")))
-	local worn, tried = 0, 0
-	for _, item in ipairs(dressItems()) do
-		tried = tried + 1
-		if call(target, "TryOn", "item:" .. item) == true then worn = worn + 1 end
-	end
-	c.lines[4]:SetText(string.format("TryOn %d/%d %s", worn, tried, worn == tried and tried > 0 and OK or (worn > 0 and ERR or NO)))
 	if def.kind == "scene" then
 		m.loaded = true
 		m:Measure()
@@ -587,7 +630,7 @@ function dress.step(dt)
 				inNow = ok and file and file ~= 0
 			end
 			if inNow or c.t > 1.5 then
-				c.lines[5]:SetText(inNow and U.col("60e070", "모델 불러옴") or U.col("ff6a5a", "모델 안 불러짐"))
+				c.lines[4]:SetText(inNow and U.col("60e070", "모델 불러옴") or U.col("ff6a5a", "모델 안 불러짐"))
 				putOn(c)
 			end
 		end
