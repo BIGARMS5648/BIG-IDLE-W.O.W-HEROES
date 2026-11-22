@@ -22,9 +22,8 @@ local frame
 local heroFrames, mobFrames, floats, pips = {}, {}, {}, {}
 local infoT = 0
 local dt = 0 -- seconds since the last drawn frame
-local HERO_FIG, MOB_FIG = 74, 70 -- sprite cell heights on screen
-local Sprite = ns.Sprite
-local Figure = ns.Figure3D -- the game's 3D models, ahead of the sprites
+local HERO_FIG, MOB_FIG = 74, 70 -- model heights on screen
+local Figure = ns.Figure3D -- the game's 3D models
 
 local function laneX(x)
 	return x / 1000 * SCENE_W
@@ -84,7 +83,6 @@ local function newHero(parent)
 	u.cast:SetSize(16, 16)
 	u.cast:SetPoint("BOTTOM", u, "TOP", 0, 3)
 	u.cast:Hide()
-	u.sprite = Sprite.New(parent, HERO_FIG)
 	u.model = Figure.New(parent, HERO_FIG)
 	u:Hide()
 	return u
@@ -116,8 +114,6 @@ local function newMob(parent)
 	u.crown:Hide()
 	u.hp = UI.Bar(u, MOB, 4, 0.9, 0.2, 0.15)
 	u.hp:SetPoint("TOP", u, "BOTTOM", 0, -2)
-	u.sprite = Sprite.New(parent, MOB_FIG)
-	u.sprite:SetFacing("left")
 	u.model = Figure.New(parent, MOB_FIG)
 	if u.model then u.model:SetFacing("left") end
 	u:Hide()
@@ -125,18 +121,10 @@ local function newMob(parent)
 end
 
 -- The figure a unit is drawn as: the game's 3D model (modelId) when there is
--- one, else the drawn sprite (spriteId), else nil (the round icon). The one
--- not used is hidden.
-local function pickFigure(model, sprite, modelId, spriteId)
-	local fig
-	if model and modelId and Figure.Enabled() and model:SetModelId(modelId) then
-		fig = model
-	elseif spriteId and sprite:SetSprite(spriteId) then
-		fig = sprite
-	end
-	if model and fig ~= model then model:Hide() end
-	if fig ~= sprite then sprite:Hide() end
-	return fig
+-- one it can show, else nil (the round icon); the model is hidden then.
+local function pickFigure(model, modelId)
+	if model and modelId and Figure.Enabled() and model:SetModelId(modelId) then return model end
+	if model then model:Hide() end
 end
 
 -- Picks the animation for a unit, letting a started attack, skill or hit
@@ -152,13 +140,6 @@ local function animate(sp, want)
 	sp:Step(dt)
 end
 
--- A soft colour per monster so monsters sharing one drawing look different.
-local function tintFor(key)
-	local h = 0
-	for i = 1, #key do h = (h * 31 + key:byte(i)) % 997 end
-	local k = h / 997
-	return 0.78 + 0.22 * k, 0.78 + 0.22 * ((k * 7) % 1), 0.78 + 0.22 * ((k * 13) % 1)
-end
 
 ------------------------------------------------------------------------
 -- Floating combat text
@@ -242,11 +223,11 @@ local function drawHeroes(now)
 			local px = spread[i]
 			local moving = f.prevX and math.abs(u.x - f.prevX) > 0.01
 			f.prevX = u.x
-			local fig = pickFigure(f.model, f.sprite, Figure.ForHero(u.id, true), Sprite.ForHero(u.id, true))
+			local fig = pickFigure(f.model, Figure.ForHero(u.id, true))
 			if fig then
 				if f.figFor ~= u.id or f.figIs ~= fig then
 					f.figFor, f.figIs = u.id, fig
-					fig:SetHeight2(HERO_FIG * Sprite.HeroScale(u.id))
+					fig:SetHeight2(HERO_FIG * Figure.HeroScale(u.id))
 				end
 				local want = "idle"
 				if u.dead then want = "death"
@@ -298,8 +279,8 @@ local function drawHeroes(now)
 					f.shield:Hide()
 				end
 			end
-			if u.flash > 0 and fig ~= f.model then f.flash:Show() else f.flash:Hide() end
-			if fig == f.model then f.tint:Hide() end -- no round overlay on a 3D model
+			if u.flash > 0 and not fig then f.flash:Show() else f.flash:Hide() end
+			if fig then f.tint:Hide() end -- no round overlay on a 3D model
 			if (u.castT or 0) > 0 and u.castIcon then
 				if f.castIcon ~= u.castIcon then
 					f.castIcon = u.castIcon
@@ -313,7 +294,6 @@ local function drawHeroes(now)
 			f:Show()
 		else
 			f:Hide()
-			f.sprite:Hide()
 			if f.model then f.model:Hide() end
 			f.shownId = nil
 		end
@@ -327,7 +307,7 @@ local function drawHeroes(now)
 		end
 		local minX = laneX(backX) - UNIT / 2
 		for i = 1, #list do if spread[i] and spread[i] < minX then minX = spread[i] end end
-		local pfig = pickFigure(frame.petModel, frame.petSprite, Figure.ForPet(pet.id), Sprite.ForPet(pet.id))
+		local pfig = pickFigure(frame.petModel, Figure.ForPet(pet.id))
 		if pfig then
 			animate(pfig, ns.Combat.state.phase == "travel" and "walk" or "idle")
 			pfig:PlaceFeet(frame.scene, max(14, minX - 14), FEET + 2)
@@ -339,19 +319,18 @@ local function drawHeroes(now)
 		end
 	else
 		frame.pet:Hide()
-		frame.petSprite:Hide()
 		if frame.petModel then frame.petModel:Hide() end
 	end
-	-- summoned creatures, turrets and drones (only drawn with art)
+	-- summoned creatures, turrets and drones (only as 3D models)
 	local k = 0
 	for i = 1, #list do
 		local u = list[i]
 		if not u.dead and spread[i] then
 			for sid, pt in pairs(u.pets) do
-				local art, mid = Sprite.ForSkill(sid), Figure.ForSkill(sid)
-				if (art or mid) and k < #frame.summons then
+				local mid = Figure.ForSkill(sid)
+				if mid and k < #frame.summons then
 					k = k + 1
-					local sp = pickFigure(frame.summonModels[k], frame.summons[k], mid, art)
+					local sp = pickFigure(frame.summons[k], mid)
 					if sp then
 						animate(sp, (pt.anim or 0) > 0 and "attack" or "idle")
 						local fly = ns.SKILLS[sid].heal and 34 or 0
@@ -363,11 +342,10 @@ local function drawHeroes(now)
 		end
 	end
 	for _, f in ipairs(ns.Combat.fields) do
-		local art = f.sk.summon and Sprite.Get(f.sk.summon) and f.sk.summon
 		local mid = Figure.ForSummon(f.sk.summon)
-		if (art or mid) and k < #frame.summons and not f.src.dead then
+		if mid and k < #frame.summons and not f.src.dead then
 			k = k + 1
-			local sp = pickFigure(frame.summonModels[k], frame.summons[k], mid, art)
+			local sp = pickFigure(frame.summons[k], mid)
 			if sp then
 				animate(sp, (f.tickT or 0) > f.sk.tick - 0.25 and "attack" or "idle")
 				sp:PlaceFeet(frame.scene, laneX(f.src.x) + 34, FEET)
@@ -376,8 +354,7 @@ local function drawHeroes(now)
 		end
 	end
 	for i = k + 1, #frame.summons do
-		frame.summons[i]:Hide()
-		if frame.summonModels[i] then frame.summonModels[i]:Hide() end
+		if frame.summons[i] then frame.summons[i]:Hide() end
 	end
 end
 
@@ -406,16 +383,11 @@ local function drawMobs()
 			local px = laneX(m.x) - size / 2
 			local st = ns.Combat.state
 			local bossKey = m.boss and not m.summoned and st.diff and (st.diff .. "-" .. st.idx) or nil
-			local fig = pickFigure(f.model, f.sprite, Figure.ForMonster(m.def and m.def.id, bossKey),
-				Sprite.ForMonster(m.def and m.def.id, m.boss and Sprite.BossKey(m.name), m.boss and m.type))
+			local fig = pickFigure(f.model, Figure.ForMonster(m.def and m.def.id, bossKey))
 			if fig then
 				if f.figMob ~= m or f.figIs ~= fig then
 					f.figMob, f.figIs = m, fig
 					fig:SetHeight2(MOB_FIG * (m.boss and 1.4 or 1))
-					if fig == f.sprite then
-						local tr, tg, tb = tintFor((m.def and m.def.id) or ns.N(m.name) or "?")
-						f.sprite.tex:SetVertexColor(tr, tg, tb)
-					end
 					f.prevX = nil
 				end
 				local moving = f.prevX and math.abs(m.x - f.prevX) > 0.01
@@ -456,12 +428,11 @@ local function drawMobs()
 			end
 			f.hp:SetValue(m.hp / m.maxhp)
 			if (m.drT or 0) > 0 then f.hp:SetRGB(0.5, 0.75, 1) else f.hp:SetRGB(0.9, 0.2, 0.15) end
-			if m.flash > 0 and fig ~= f.model then f.flash:Show() else f.flash:Hide() end
-			if fig == f.model then f.tint:Hide() end -- no square overlay on a 3D model
+			if m.flash > 0 and not fig then f.flash:Show() else f.flash:Hide() end
+			if fig then f.tint:Hide() end -- no square overlay on a 3D model
 			f:Show()
 		else
 			f:Hide()
-			f.sprite:Hide()
 			if f.model then f.model:Hide() end
 			f.figMob, f.figIs = nil, nil
 			f.shownIcon = nil
@@ -547,16 +518,6 @@ local function updateInfo()
 	frame.zone:SetWidth(min(room, frame.zone:GetStringWidth() + 2))
 	frame.banner:SetWidth(min(250, frame.zone:GetWidth() + frame.zoneLv:GetStringWidth() + 80))
 
-	-- scenery: imported two-layer background, else the tinted built-in one
-	if frame.bgTheme ~= stg.theme then
-		frame.bgTheme = stg.theme
-		if frame.bg:SetTheme(stg.theme) then
-			frame.sky:Hide()
-		else
-			frame.bg:Hide()
-			frame.sky:Show()
-		end
-	end
 
 	frame.gold:SetLabel(U.fmt(db.gold))
 
@@ -607,69 +568,15 @@ local function updateInfo()
 	for _, mb in ipairs(frame.menu) do mb:SetBadge(badges[mb.key]) end
 end
 
-local function drawEffects(elapsed)
+-- the combat's effect events (shots, hits) are not drawn
+local function drawEffects()
 	local list = ns.Combat.vfx
-	if not frame.fxOn then
-		for i = #list, 1, -1 do list[i] = nil end
-		return
-	end
-	for i = 1, #list do
-		local e = list[i]
-		list[i] = nil
-		local w
-		for _, cand in ipairs(frame.fxPool) do
-			if not cand.active then w = cand break end
-		end
-		if w then
-			if e.k == "shot" then
-				local id = Sprite.Projectile(e.school, e.gun)
-				if id and w:Start(id, 26, 26, 0.25, 16) then
-					w.x1, w.x2, w.y = laneX(e.x1) + 10, laneX(e.x2), FEET + 30
-				end
-			elseif e.k == "hit" then
-				local id = Sprite.Impact(e.school)
-				if id and w:Start(id, 44, 44, nil, 18) then
-					w.x1, w.x2, w.y = laneX(e.x) + math.random(-6, 6), nil, FEET + 22 + math.random(0, 10)
-				end
-			end
-		end
-	end
-	for _, w in ipairs(frame.fxPool) do
-		if w.active and w:Step(elapsed) then
-			local x = w.x1
-			if w.x2 then x = w.x1 + (w.x2 - w.x1) * math.min(1, w.t / w.life) end
-			w:ClearAllPoints()
-			w:SetPoint("CENTER", frame.scene, "BOTTOMLEFT", x, w.y)
-		end
-	end
-	-- ground effects of area skills
-	local n = 0
-	for _, f in ipairs(ns.Combat.fields) do
-		local id = not f.sk.summon and Sprite.Field(f.sk.id, f.sk.school)
-		if id and n < #frame.fieldFx then
-			n = n + 1
-			local w = frame.fieldFx[n]
-			if w.field ~= f then
-				w.field = f
-				w:Start(id, 150, 75, 999, 12)
-			end
-			w:Step(elapsed)
-			local target = ns.Combat.mobs[1]
-			local x = target and laneX(target.x) or SCENE_W * 0.75
-			w:ClearAllPoints()
-			w:SetPoint("BOTTOM", frame.scene, "BOTTOMLEFT", x, FEET - 8)
-		end
-	end
-	for i = n + 1, #frame.fieldFx do
-		frame.fieldFx[i].field = nil
-		frame.fieldFx[i]:Stop()
-	end
+	for i = #list, 1, -1 do list[i] = nil end
 end
 
 local function onUpdate(self, elapsed)
 	local now = GetTime()
 	dt = elapsed
-	if ns.Combat.state.phase == "travel" then frame.bg:Scroll(elapsed * 80) end
 	drawHeroes(now)
 	drawMobs()
 	drawPips(now)
@@ -681,7 +588,7 @@ local function onUpdate(self, elapsed)
 		end
 	end
 	updateFloats(elapsed)
-	drawEffects(elapsed)
+	drawEffects()
 	infoT = infoT - elapsed
 	if infoT <= 0 then
 		infoT = 0.25
@@ -863,7 +770,6 @@ function Bar.Create()
 	frame.sky = scene:CreateTexture(nil, "BACKGROUND")
 	frame.sky:SetAllPoints(scene)
 	frame.sky:SetTexture(UI.Tex("scene_hills"))
-	frame.bg = Sprite.NewBackground(scene, SCENE_W, SCENE_H)
 	local topShade = UI.Art(scene, "grad_v", "BORDER", 0, 0, 0, 0.6)
 	topShade:SetPoint("TOPLEFT", scene, "TOPLEFT", 0, 0)
 	topShade:SetPoint("TOPRIGHT", scene, "TOPRIGHT", 0, 0)
@@ -878,13 +784,9 @@ function Bar.Create()
 	frame.pet.icon = frame.pet:CreateTexture(nil, "ARTWORK")
 	frame.pet.icon:SetAllPoints(frame.pet)
 	frame.pet:Hide()
-	frame.petSprite = Sprite.New(scene, 40)
 	frame.petModel = Figure.New(scene, 40)
-	frame.summons, frame.summonModels = {}, {}
-	for i = 1, 8 do
-		frame.summons[i] = Sprite.New(scene, 52)
-		frame.summonModels[i] = Figure.New(scene, 52)
-	end
+	frame.summons = {}
+	for i = 1, 8 do frame.summons[i] = Figure.New(scene, 52) end
 
 	-- everything drawn above the units lives on an overlay layer
 	local over = CreateFrame("Frame", nil, scene)
@@ -942,11 +844,6 @@ function Bar.Create()
 	frame.result:SetJustifyH("CENTER")
 	frame.result:Hide()
 
-	frame.fxPool = {}
-	for i = 1, 14 do frame.fxPool[i] = Sprite.NewFX(over) end
-	frame.fieldFx = {}
-	for i = 1, 3 do frame.fieldFx[i] = Sprite.NewFX(scene, "BORDER") end
-	frame.fxOn = next((ns.ART and ns.ART.fx) or {}) ~= nil
 
 	for i = 1, MAX_FLOATS do
 		local fs = UI.Text(over, 12, nil, "OUTLINE")

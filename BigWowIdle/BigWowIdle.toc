@@ -8,7 +8,6 @@
 
 Core\Core.lua
 
-Data\Art.lua
 
 Data\Items.lua
 Data\Skills.lua
@@ -34,7 +33,6 @@ Systems\Guide.lua
 
 UI\Widgets.lua
 UI\Layout.lua
-UI\Sprite.lua
 UI\Figure3D.lua
 UI\Bar.lua
 UI\Main.lua

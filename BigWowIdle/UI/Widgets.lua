@@ -93,24 +93,8 @@ function UI.SetArtOrIcon(tex, artId, iconName)
 	end
 end
 
--- Hero face: the head of the hero's own sprite when the art exists (first
--- idle frame), otherwise the class circle. Returns true for the sprite.
+-- Hero face: the class circle.
 function UI.SetHeroIcon(tex, heroId)
-	local Sprite = ns.Sprite
-	local id = Sprite and Sprite.ForHero(heroId, false)
-	local e = id and Sprite.Get(id)
-	if e and e.anims.idle then
-		tex:SetTexture(Sprite.PATH .. e.file)
-		local l, r, t, b = Sprite.CellCoords(e, e.anims.idle[1], false)
-		local fw, fh = r - l, b - t
-		-- the head sits in the upper part of the body: a square around it
-		local top = t + fh * 0.06
-		local size = fh * 0.42
-		local cx = l + fw * 0.5
-		local half = size * e.h / e.w / 2
-		tex:SetTexCoord(cx - half, cx + half, top, top + size)
-		return true
-	end
 	local h = ns.db and ns.db.heroes[heroId]
 	UI.SetClassIcon(tex, h and ns.SPECS[h.spec].class)
 	return false

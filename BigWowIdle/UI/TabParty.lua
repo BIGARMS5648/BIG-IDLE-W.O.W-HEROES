@@ -142,23 +142,27 @@ local function heroTip(id)
 	return lines
 end
 
--- A portrait that becomes a small animated figure once hero art exists.
+-- A portrait that shows the hero as the game's 3D model when it can.
 local function heroFigure(parent, size)
 	local p = UI.Portrait(parent, size)
-	p.fig = ns.Sprite.New(parent, size * 1.5)
-	p.fig:SetScript("OnUpdate", function(self, dt) self:Step(dt) end)
-	p.fig:EnableMouse(false)
+	-- the model belongs to the portrait, so hiding the portrait hides it too
+	p.fig = ns.Figure3D.New(p, size * 1.5)
+	if p.fig then
+		p.fig:SetFacing("front")
+		p.fig:SetScript("OnUpdate", function(self, dt) self:Step(dt) end)
+		p.fig:EnableMouse(false)
+	end
 	function p:SetHeroFigure(id)
 		self:SetHero(id)
-		local sid = id and ns.Sprite.ForHero(id, false)
-		if sid and self.fig:SetSprite(sid) then
-			self.fig:SetHeight2(size * 1.5 * ns.Sprite.HeroScale(id))
+		local mid = id and ns.Figure3D.Enabled() and ns.Figure3D.ForHero(id, false)
+		if self.fig and mid and self.fig:SetModelId(mid) then
+			self.fig:SetHeight2(size * 1.5 * ns.Figure3D.HeroScale(id))
 			self.fig:PlaceFeet(self, size / 2, 0)
 			self.fig:Show()
 			self.icon:Hide()
 			self.disc:Hide()
 		else
-			self.fig:Hide()
+			if self.fig then self.fig:Hide() end
 			self.disc:Show()
 			if id then UI.SetHeroIcon(self.icon, id) end
 		end
@@ -335,8 +339,11 @@ local function buildCreate()
 	create.portrait = UI.Portrait(mid, 120)
 	create.portrait:SetPoint("TOP", mid, "TOP", 0, -40)
 	create.portrait.lvl:Hide()
-	create.fig = ns.Sprite.New(mid, 190)
-	create.fig:SetScript("OnUpdate", function(self, dt) self:Step(dt) end)
+	create.fig = ns.Figure3D.New(mid, 190)
+	if create.fig then
+		create.fig:SetFacing("front")
+		create.fig:SetScript("OnUpdate", function(self, dt) self:Step(dt) end)
+	end
 	create.race = UI.Text(mid, 12)
 	create.race:SetPoint("TOP", mid, "TOP", 0, -196)
 	create.race:SetJustifyH("CENTER")
@@ -480,14 +487,14 @@ function create.refresh()
 	local race = ns.RACES[ns.ClassRace(cid)]
 	local fac = ns.FACTIONS[ns.Faction() or "ALLIANCE"]
 	create.race:SetText(string.format("%s  ·  %s %s", ns.N(fac.name), race.name, ns.SEX[create.sex].name))
-	local sid = "hero_" .. cid:lower() .. "_" .. (ns.Faction() or "ALLIANCE"):lower() .. "_" .. create.sex:lower()
-	if create.fig:SetSprite(sid) then
-		create.fig:SetHeight2(190 * (ns.Sprite.RACE_SCALE[race.id] or 1))
+	local mid = ns.Figure3D.Enabled() and ns.Figure3D.ForClass(cid, ns.Faction(), create.sex)
+	if create.fig and mid and create.fig:SetModelId(mid) then
+		create.fig:SetHeight2(190 * (ns.Figure3D.RACE_SCALE[race.id] or 1))
 		create.fig:PlaceFeet(create.mid, 135, 210)
 		create.fig:Show()
 		create.portrait:Hide()
 	else
-		create.fig:Hide()
+		if create.fig then create.fig:Hide() end
 		create.portrait:Show()
 		UI.SetClassIcon(create.portrait.icon, cid)
 		create.portrait.icon:Show()

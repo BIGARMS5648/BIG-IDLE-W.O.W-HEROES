@@ -200,6 +200,9 @@ do
 	press("take the healer out", pp.slots[5].out)
 	if ns.db.party[5] then fail("빼기 should free the healer's slot") end
 	Main.Refresh()
+	-- the empty slot shows no leftover 3D model of the hero who left
+	local leftover = pp.slots[5].fig.fig
+	if leftover and leftover:IsVisible() then fail("an empty slot should not keep the old hero's 3D model") end
 	try("pick the empty slot", pp.slots[5].Click, pp.slots[5], "LeftButton")
 	if pp.selSlot ~= 5 then fail("clicking an empty slot should choose it") end
 	Main.Refresh()
@@ -887,10 +890,10 @@ do
 	for _, f in ipairs(heroes) do
 		if f:IsShown() then
 			if f.model and f.model:IsShown() then fail("a model that did not load should not stay up") break end
-			if f.icon:IsShown() or f.sprite:IsShown() then back = back + 1 end
+			if f.icon:IsShown() then back = back + 1 end
 		end
 	end
-	if back == 0 then fail("a hero whose model did not load should fall back to the icon or sprite") end
+	if back == 0 then fail("a hero whose model did not load should fall back to the icon") end
 	Fig.ResetFailed()
 	frames(2)
 end
@@ -981,15 +984,7 @@ for path in pairs(Mock.textures) do
 		fail("malformed icon path: " .. path)
 	end
 	local media = path:match("\\Media\\([%w_]+)%.tga$")
-	local art = path:match("\\Media\\Art\\([%w_]+)$") or path:match("\\Media\\Art\\([%w_]+)%.tga$")
-	if art then
-		local A = ns.ART or {}
-		local known = false
-		for _, sec in ipairs({ "ui", "icons", "sprites", "fx", "bg" }) do
-			for _, e in pairs(A[sec] or {}) do if e.file == art then known = true end end
-		end
-		if not known then fail("texture from imported art that is not in Data/Art.lua: " .. art) end
-	elseif media then
+	if media then
 		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigWowIdle/Media/" .. media .. ".tga"), "rb")
 		if f then f:close() else fail("missing texture file: Media/" .. media .. ".tga") end
 	elseif path:find("AddOns") then

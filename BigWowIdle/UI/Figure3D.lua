@@ -1,8 +1,8 @@
--- 3D figures for the battle bar: the game's own models (PlayerModel with an
--- NPC id from Data/Models.lua) driven like the drawn sprites (UI/Sprite.lua),
--- with the same calls: SetHeight2, SetFacing, Play, Playing, Step, PlaceFeet.
--- A model the client cannot load is remembered and the bar falls back to the
--- sprite or the icon for it. Settings: db.opt.models = false turns them off.
+-- 3D figures: the game's own models (PlayerModel with an NPC id from
+-- Data/Models.lua) for the battle bar, the formation and the create window:
+-- SetModelId, SetHeight2, SetFacing, Play, Playing, Step, PlaceFeet.
+-- A model the client cannot load is remembered and the caller falls back to
+-- the icon for it. Settings: db.opt.models = false turns them off.
 local _, ns = ...
 
 local pi, min = math.pi, math.min
@@ -13,7 +13,7 @@ ns.Figure3D = Figure
 local ANIM_ID = { idle = 0, walk = 4, attack = 17, cast = 53, hit = 9, death = 1, dead = 6 }
 local ONESHOT = { attack = 0.7, cast = 0.9, hit = 0.35, death = 1.2 }
 -- right = toward the monsters (checked in game with /bwi model: 90° faces right)
-local FACE = { right = pi / 2, left = 3 * pi / 2 }
+local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0 }
 local LOAD_WAIT = 1.5 -- seconds before a model that shows nothing counts as missing
 
 local failed = {} -- [npc id] = true when the client could not load it
@@ -48,6 +48,20 @@ function Figure.ForHero(heroId, inCombat)
 	local byFaction = byClass and byClass[faction]
 	if not byFaction then return nil end
 	return usable(byFaction[h.sex == "F" and "F" or "M"]) or usable(byFaction[h.sex == "F" and "M" or "F"])
+end
+
+-- A class's body for a faction and gender (the create window's preview).
+function Figure.ForClass(classId, faction, sex)
+	local byClass = ns.MODEL.hero[classId]
+	local byFaction = byClass and byClass[faction or ns.Faction() or "ALLIANCE"]
+	if not byFaction then return nil end
+	return usable(byFaction[sex == "F" and "F" or "M"]) or usable(byFaction[sex == "F" and "M" or "F"])
+end
+
+-- How tall each body stands next to an ordinary hero.
+Figure.RACE_SCALE = { GNOME = 0.78, GOBLIN = 0.82, DWARF = 0.9, TAUREN = 1.12, DRAENEI = 1.05, NIGHTELF = 1.04, TROLL = 1.06 }
+function Figure.HeroScale(heroId)
+	return Figure.RACE_SCALE[ns.Heroes.Race(heroId)] or 1
 end
 
 function Figure.ForMonster(monsterId, bossKey)
