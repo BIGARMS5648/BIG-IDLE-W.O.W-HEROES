@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.wowhead.com)",
+      "WebFetch(domain:nether.wowhead.com)",
+      "WebFetch(domain:warcraft.wiki.gg)",
+      "Bash(curl -s https://nether.wowhead.com/tooltip/*)"
+    ]
+  }
+}
