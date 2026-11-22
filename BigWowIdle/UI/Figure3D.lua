@@ -30,6 +30,9 @@ local ONESHOT = { attack = 0.7, cast = 0.9, hit = 0.35, death = 1.2 }
 -- FEET_AT above its bottom; a narrow camera straight from the front, far
 -- enough back that the model is not seen from below or above
 local SIDE, FEET_AT, FOV = 3.0, 0.32, 0.3
+-- a bust (SetBust): the frame is the portrait and shows the top of the
+-- model, from mid-chest to just over the head (in model heights)
+local BUST_SIDE, BUST_TZ = 0.62, 0.74
 local SCENE_WAIT = 1.5 -- seconds a display id is given to come up
 -- a long model (a dragon, a wolf) is fitted by this much of its length, so it
 -- stays inside the frame
@@ -309,8 +312,10 @@ local function setCamera(f)
 	local rx, ry, rz = fy, -fx, 0 -- forward x up
 	ok, a, b, c = call(f, "GetCameraRight")
 	if ok and type(a) == "number" and type(b) == "number" and type(c) == "number" then rx, ry, rz = a, b, c end
-	local d = SIDE / (2 * tan(FOV / 2)) * Figure.camFix
-	local tz = SIDE / 2 - FEET_AT
+	local side, tz = SIDE, SIDE / 2 - FEET_AT
+	if f.bust then side, tz = BUST_SIDE, BUST_TZ end
+	f.viewSide, f.viewTz = side, tz
+	local d = side / (2 * tan(FOV / 2)) * Figure.camFix
 	call(f, "SetCameraFieldOfView", FOV)
 	call(f, "SetCameraNearClip", 0.05)
 	call(f, "SetCameraFarClip", d * 2 + 20)
@@ -344,7 +349,7 @@ local function measureProjection(f)
 	local okW, w = call(f, "GetWidth")
 	local okH, h = call(f, "GetHeight")
 	if not (okW and okH and type(w) == "number" and type(h) == "number" and w > 8 and h > 8) then return nil, "no size" end
-	local tz = SIDE / 2 - FEET_AT
+	local side, tz = f.viewSide or SIDE, f.viewTz or (SIDE / 2 - FEET_AT)
 	local ok0, x0, y0 = call(f, "Project3DPointTo2D", 0, 0, tz)
 	local ok1, _, y1 = call(f, "Project3DPointTo2D", 0, 0, tz + 1)
 	local r = f.camRight or { 0, 1, 0 }
@@ -379,7 +384,7 @@ local function measureProjection(f)
 	end
 	if not best or bestErr > 0.1 then return nil, string.format("units unknown (x %.1f)", x0) end
 	local shown = dy / best[2]            -- one unit, in frame units
-	local fix = shown * Figure.camFix * SIDE / h
+	local fix = shown * Figure.camFix * side / h
 	if fix < 0.5 or fix > 3 then return nil, string.format("factor out of range (%.2f)", fix) end
 	-- the camera's "right" drawn on the screen's right: then the right yaw
 	-- (side + pi) faces right only because the game turns the other way round
@@ -528,6 +533,16 @@ function scene:SetHeight2(h)
 	self:SetSize(h * SIDE, h * SIDE)
 end
 
+-- Only the head and chest, in a square of px (the caller places the frame,
+-- e.g. over a portrait): nothing is drawn outside it.
+function scene:SetBust(px)
+	self.bust = true
+	self.height = px
+	self:SetSize(px, px)
+	setCamera(self)
+	if self.loaded then self:Look() end
+end
+
 -- Feet at (x, y) of the anchor's bottom-left corner.
 function scene:PlaceFeet(anchor, x, y)
 	self:ClearAllPoints()
@@ -605,6 +620,14 @@ function model:SetHeight2(h)
 	self.height = h
 	self:SetSize(h * FRAME_W, h * FRAME_H)
 	self:Rescaled()
+end
+
+-- Only the head and chest, in a square of px (the game's portrait framing).
+function model:SetBust(px)
+	self.bust = true
+	self.height = px
+	self:SetSize(px, px)
+	call(self, "SetPortraitZoom", 1)
 end
 
 -- Feet at (x, y) of the anchor's bottom-left corner. The model stands in the

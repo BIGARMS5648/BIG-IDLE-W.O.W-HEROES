@@ -142,13 +142,19 @@ local function heroTip(id)
 	return lines
 end
 
--- A portrait that shows the hero as the game's 3D model when it can.
+-- A portrait that shows the hero as the game's 3D model when it can: only
+-- the head and chest, inside the portrait's square (nothing reaches the
+-- writing around it); no role ring or role mark behind the model.
 local function heroFigure(parent, size)
 	local p = UI.Portrait(parent, size)
+	p.ringT:Hide()
 	-- the model belongs to the portrait, so hiding the portrait hides it too
-	p.fig = ns.Figure3D.New(p, size * 1.5)
+	p.fig = ns.Figure3D.New(p, size)
 	if p.fig then
 		p.fig:SetFacing("front")
+		p.fig:SetBust(size)
+		p.fig:ClearAllPoints()
+		p.fig:SetAllPoints(p)
 		-- the class circle stays until the model is in, so nothing blinks
 		p.fig:SetScript("OnUpdate", function(self, dt)
 			self:Step(dt)
@@ -160,10 +166,10 @@ local function heroFigure(parent, size)
 	end
 	function p:SetHeroFigure(id)
 		self:SetHero(id)
+		self.ringT:Hide()
+		self.role:Hide()
 		local mid = id and ns.Figure3D.Enabled() and ns.Figure3D.ForHero(id, false)
 		if self.fig and mid and self.fig:SetModelId(mid) then
-			self.fig:SetHeight2(size * 1.5 * ns.Figure3D.HeroScale(id))
-			self.fig:PlaceFeet(self, size / 2, 0)
 			self.fig:Show()
 			local inModel = self.fig:IsLoaded()
 			self.icon:SetShown(not inModel)
@@ -865,7 +871,7 @@ local function refresh(page)
 			c.bg:SetColor(0.42, 0.46, 0.62, 1)
 			c.fig:SetHeroFigure(id)
 			c.fig.lvl:Hide()
-			c.fig:SetBadge(ns.Guide.HeroNeeds(id))
+			c.fig:SetBadge(false)
 			c.fig:Show()
 			c.name:SetText(U.col("ffb84a", H.ShortName(id)))
 			c.spec:SetText(string.format("Lv %d %s", h.level, ns.SpecLabel(h.spec)))

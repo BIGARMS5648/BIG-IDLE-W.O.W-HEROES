@@ -196,6 +196,19 @@ do
 	local x1 = select(4, pp.slots[1]:GetPoint(1))
 	local x5 = select(4, pp.slots[5]:GetPoint(1))
 	if not (x1 and x5 and x1 > x5) then fail("the tank's slot should be drawn in front (right of the healer)") end
+	-- a party card's model: head and chest inside the portrait's square, no
+	-- red dot, no role ring or role mark behind it
+	for i = 1, ns.PARTY_SIZE do
+		local p = pp.slots[i].fig
+		if p and p:IsVisible() then
+			local m = p.fig
+			if m and (not m.bust or math.abs(m:GetWidth() - p:GetWidth()) > 1e-6 or math.abs(m:GetHeight() - p:GetHeight()) > 1e-6) then
+				fail("a party card's model should be a bust the size of its portrait")
+			end
+			if p.badge:IsShown() then fail("a party card should show no red dot") end
+			if p.ringT:IsShown() or p.role:IsShown() then fail("a party card should show no role ring or role mark behind the model") end
+		end
+	end
 	local healer = ns.db.party[5]
 	press("take the healer out", pp.slots[5].out)
 	if ns.db.party[5] then fail("빼기 should free the healer's slot") end
