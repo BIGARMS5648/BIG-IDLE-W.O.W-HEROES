@@ -142,8 +142,10 @@ local function slash(msg)
 	elseif msg == "reset" then
 		ns.Bar.ResetPosition()
 		ns.Bar.Toggle(true)
+	elseif msg == "model" or msg == "모델" then
+		ns.ModelCheck.Toggle()
 	else
-		ns.Print("/bwi (메뉴) · /bwi bar (전투 창 표시/숨김) · /bwi reset (전투 창 위치 초기화)")
+		ns.Print("/bwi (메뉴) · /bwi bar (전투 창 표시/숨김) · /bwi reset (전투 창 위치 초기화) · /bwi model (3D 모델 확인)")
 	end
 end
 

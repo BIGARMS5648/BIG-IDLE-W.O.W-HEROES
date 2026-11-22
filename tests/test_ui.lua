@@ -839,6 +839,46 @@ frames(20)
 try("slash bar", SlashCmdList.BIGWOWIDLE, "bar")
 try("slash reset", SlashCmdList.BIGWOWIDLE, "reset")
 try("slash help", SlashCmdList.BIGWOWIDLE, "help")
+
+-- the 3D model check (/bwi model): five models, animations, facing, distance
+do
+	local MC = ns.ModelCheck
+	try("slash model", SlashCmdList.BIGWOWIDLE, "model")
+	local mf = MC.Frame()
+	if not (mf and mf:IsShown()) then fail("/bwi model should open the model check") end
+	local want = { hero = "unit:player", player = "unit:player", mob = "creature:448", boss = "creature:11502", pet = "creature:416" }
+	for _, p in ipairs(MC.panels) do
+		if not p.model then fail("no model frame for " .. p.def.key)
+		elseif p.model.__model ~= want[p.def.key] then fail(p.def.key .. " shows " .. tostring(p.model.__model)) end
+	end
+	local hero = MC.panels[1].model
+	if not hero.__race then fail("the hero model should be set to its race") end
+	local h = ns.db.heroes[ns.Main.SelectedHero()]
+	if h and hero.__sex ~= (h.sex == "F" and 1 or 0) then fail("the hero model should have the hero's gender") end
+	frames(20) -- the models report what loaded
+	if not (MC.panels[3].lines[3].__text or ""):find("모델 불러옴", 1, true) then fail("a loaded model should say so: " .. tostring(MC.panels[3].lines[3].__text)) end
+	click("model: attack", function(b) return b.anim == 17 and b:IsVisible() end)
+	for _, p in ipairs(MC.panels) do if p.model.__anim ~= 17 then fail("the attack button should play animation 17 on " .. p.def.key) end end
+	click("model: next animation", function(b) return label(b) == ">" and b:GetParent() == mf end)
+	if MC.state.anim ~= 18 or MC.panels[2].model.__anim ~= 18 then fail("> should step to the next animation number") end
+	click("model: turn", function(b) return label(b) == "돌리기 >" end)
+	if math.abs((MC.panels[1].model.__facing or 0) - math.pi / 4) > 1e-6 then fail("turning should face the models 45 degrees round") end
+	click("model: farther", function(b) return label(b) == "멀리" end)
+	if MC.panels[4].model.__dist ~= 1.25 then fail("멀리 should move the camera back") end
+	MC.state.cycle = true
+	MC.state.cycleT = 0
+	frames(3)
+	if MC.state.anim == 18 then fail("the automatic cycle should move on to another animation") end
+	-- a client without the race function: the hero still shows, the card says 없음
+	local custom = Mock.DressUpModel.SetCustomRace
+	Mock.DressUpModel.SetCustomRace = nil
+	click("model: load again", function(b) return label(b) == "다시 불러오기" end)
+	Mock.DressUpModel.SetCustomRace = custom
+	if not (MC.panels[1].lines[1].__text or ""):find("없음", 1, true) then fail("a missing model function should read 없음: " .. tostring(MC.panels[1].lines[1].__text)) end
+	hoverAll()
+	try("slash model again", SlashCmdList.BIGWOWIDLE, "모델")
+	if mf:IsShown() then fail("/bwi model again should close the model check") end
+end
 try("compartment", BigWowIdle_OnAddonCompartmentClick)
 
 -- a long stretch with a full party fighting, then lag spikes

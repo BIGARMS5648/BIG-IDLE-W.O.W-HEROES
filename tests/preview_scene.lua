@@ -307,6 +307,11 @@ S.runes = function() show("runes", { rune = "c5" }) end
 S.runes_locked = function() show("runes", { rune = "w9" }) end
 
 -- 스테이지
+-- the 3D model check (/bwi model); the models themselves are empty boxes here
+S.model_check = function()
+	ns.ModelCheck.Toggle(true)
+	S.restore = function() ns.ModelCheck.Toggle(false) end
+end
 -- every rune learned: the 보너스 합계 list is longer than its box and scrolls
 S.runes_full = function()
 	local saved = {}

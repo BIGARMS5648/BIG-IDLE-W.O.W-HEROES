@@ -12,7 +12,7 @@ _G.WoWMock = Mock
 local POINTS = { TOPLEFT = 1, TOP = 1, TOPRIGHT = 1, LEFT = 1, CENTER = 1, RIGHT = 1, BOTTOMLEFT = 1, BOTTOM = 1, BOTTOMRIGHT = 1 }
 local LAYERS = { BACKGROUND = 1, BORDER = 1, ARTWORK = 1, OVERLAY = 1, HIGHLIGHT = 1 }
 local STRATA = { BACKGROUND = 1, LOW = 1, MEDIUM = 1, HIGH = 1, DIALOG = 1, FULLSCREEN = 1, FULLSCREEN_DIALOG = 1, TOOLTIP = 1 }
-local FRAME_TYPES = { Frame = 1, Button = 1, ScrollFrame = 1, CheckButton = 1, StatusBar = 1, EditBox = 1 }
+local FRAME_TYPES = { Frame = 1, Button = 1, ScrollFrame = 1, CheckButton = 1, StatusBar = 1, EditBox = 1, PlayerModel = 1, DressUpModel = 1 }
 local SCRIPTS = {
 	OnUpdate = 1, OnEvent = 1, OnShow = 1, OnHide = 1, OnEnter = 1, OnLeave = 1, OnMouseDown = 1, OnMouseUp = 1,
 	OnMouseWheel = 1, OnDragStart = 1, OnDragStop = 1, OnSizeChanged = 1, OnClick = 1, OnDoubleClick = 1,
@@ -313,7 +313,32 @@ function ScrollFrame:GetVerticalScrollRange()
 end
 function ScrollFrame:UpdateScrollChildRect() end
 
-local CLASSES = { Frame = Frame, Button = Button, CheckButton = Button, ScrollFrame = ScrollFrame, StatusBar = Frame, EditBox = Frame }
+-- 3D model frames: they record what was put up and how it is shown
+local Model = setmetatable({}, { __index = Frame })
+function Model:SetCreature(id) check(type(id) == "number", "SetCreature: id must be a number") self.__model = "creature:" .. id end
+function Model:SetDisplayInfo(id) check(type(id) == "number", "SetDisplayInfo: id must be a number") self.__model = "display:" .. id end
+function Model:SetUnit(unit) check(type(unit) == "string", "SetUnit: unit must be a string") self.__model = "unit:" .. unit end
+function Model:ClearModel() self.__model = nil end
+function Model:GetModelFileID() return self.__model and 123456 or nil end
+function Model:GetDisplayInfo() return self.__model and 4567 or 0 end
+function Model:SetAnimation(id) check(type(id) == "number", "SetAnimation: id must be a number") self.__anim = id end
+function Model:SetFacing(r) check(type(r) == "number", "SetFacing: radians must be a number") self.__facing = r end
+function Model:SetCamDistanceScale(v) check(type(v) == "number" and v > 0, "SetCamDistanceScale: bad scale") self.__dist = v end
+function Model:SetPortraitZoom(v) end
+function Model:SetPosition(x, y, z) end
+function Model:SetModelScale(v) end
+local DressUpModel = setmetatable({}, { __index = Model })
+function DressUpModel:SetCustomRace(race, sex)
+	check(self.__model ~= nil, "SetCustomRace before a unit is set")
+	check(type(race) == "number", "SetCustomRace: race must be a number")
+	self.__race, self.__sex = race, sex
+end
+function DressUpModel:Undress() end
+function DressUpModel:TryOn(link) check(type(link) == "string" or type(link) == "number", "TryOn: bad item") end
+Mock.Model, Mock.DressUpModel = Model, DressUpModel
+
+local CLASSES = { Frame = Frame, Button = Button, CheckButton = Button, ScrollFrame = ScrollFrame, StatusBar = Frame, EditBox = Frame,
+	PlayerModel = Model, DressUpModel = DressUpModel }
 
 function _G.CreateFrame(ftype, name, parent, template)
 	check(FRAME_TYPES[ftype], "CreateFrame: unknown frame type " .. tostring(ftype))
