@@ -84,7 +84,7 @@ local function build(page)
 	UI.Tip(sc.resetPos, function() return UI.SimpleTip("원래대로", "전투 창의 위치와 크기를 처음 상태로 되돌립니다.") end, "TOP")
 	sc.checks = {
 		UI.Check(sc, "전투 창 보이기", function() return ns.db.ui.shown ~= false end, function(v) ns.Bar.Toggle(v) end),
-		UI.Check(sc, "전투 창 아래 줄 숨기기: 다음 목표·자동 진행·상자·메뉴 (작게 보기)",
+		UI.Check(sc, "전투 창 아래 줄 숨기기: 추천·자동 진행·상자·메뉴 (작게 보기)",
 			function() return ns.db.ui.compact end, function(v) ns.db.ui.compact = v and true or nil ns.Bar.ApplyCompact() end),
 		UI.Check(sc, "위치·크기 잠금", function() return ns.db.ui.locked end, function(v) ns.db.ui.locked = v end),
 		UI.Check(sc, "영웅·몬스터를 게임의 3D 모델로 보기", function() return ns.db.opt.models ~= false end,
@@ -199,7 +199,7 @@ local function refresh(page)
 		for i, r in ipairs(inf.rows) do r:Set(rows[i][1], rows[i][2]) end
 		inf.help:SetText(string.format(
 			"• /bwi : 메뉴 열기·닫기   • /bwi bar : 전투 창 보이기·숨기기\n" ..
-			"• '다음 목표'를 누르면 지금 할 일을 바로 하거나 그 화면을 엽니다.\n" ..
+			"• '추천'을 누르면 지금 할 일을 바로 하거나 그 화면을 엽니다.\n" ..
 			"• 빨간 점은 지금 할 수 있는 일이 있다는 표시입니다.\n" ..
 			"• 레벨마다 특성 점수(능력치), 4레벨마다 기술 점수(기술)가 생깁니다.\n" ..
 			"• 가방에서 클릭은 장착, 우클릭은 분해, Alt+클릭은 보호, Shift+클릭은 창고 보관입니다.\n" ..

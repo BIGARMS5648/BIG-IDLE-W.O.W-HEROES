@@ -921,7 +921,7 @@ function Bar.Create()
 		goal.star:SetVertexColor(1, 1, 1)
 	end
 	goal.star:SetPoint("LEFT", goal, "LEFT", 10, 0)
-	goal.head = UI.Text(goal, 10, "다음 목표")
+	goal.head = UI.Text(goal, 10, "추천")
 	UI.Color(goal.head, UI.C.gold)
 	goal.text = UI.Text(goal, 11)
 	goal.text:SetPoint("TOPLEFT", goal.head, "BOTTOMLEFT", 0, -2)
@@ -946,7 +946,7 @@ function Bar.Create()
 	goal.onEnter = function(self) self.bg:SetColor(1.2, 1.2, 1.3, 1) end
 	goal.onLeave = function(self) self.bg:SetColor(1, 1, 1, 1) end
 	UI.Tip(goal, function()
-		return UI.SimpleTip("다음 목표", "지금 하면 좋은 일입니다. 클릭하면 바로 하거나 해당 화면을 엽니다.")
+		return UI.SimpleTip("추천", "지금 하면 좋은 일입니다. 클릭하면 바로 하거나 해당 화면을 엽니다.")
 	end, "TOP")
 	frame.goal = goal
 
