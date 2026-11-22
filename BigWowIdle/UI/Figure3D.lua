@@ -1,8 +1,10 @@
 -- 3D figures: the game's own models (PlayerModel with an NPC id from
 -- Data/Models.lua) for the battle bar, the formation and the create window:
--- SetModelId, SetHeight2, SetFacing, Play, Playing, Step, PlaceFeet.
--- A model the client cannot load is remembered and the caller falls back to
--- the icon for it. Settings: db.opt.models = false turns them off.
+-- SetModelId, SetHeight2, SetFacing, Play, Playing, Step, PlaceFeet, IsLoaded.
+-- A model is put up by its display id first (straight from the game's data),
+-- then by the NPC id (the server is asked about the NPC) a few more times; one
+-- that never loads is remembered and the caller keeps the icon for it.
+-- Settings: db.opt.models = false turns them off.
 local _, ns = ...
 
 local pi, min = math.pi, math.min
@@ -14,7 +16,14 @@ local ANIM_ID = { idle = 0, walk = 4, attack = 17, cast = 53, hit = 9, death = 1
 local ONESHOT = { attack = 0.7, cast = 0.9, hit = 0.35, death = 1.2 }
 -- right = toward the monsters (checked in game with /bwi model: 90° faces right)
 local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0 }
-local LOAD_WAIT = 1.5 -- seconds before a model that shows nothing counts as missing
+-- tries: 1 = the display id, then the NPC id; seconds to wait after each
+local WAIT = { 1.0, 1.5, 2.5, 4.0 }
+-- the frame around a model, in model heights: room on the sides and above so
+-- wide and tall models (wings, tails, raised weapons) are not cut off; the
+-- camera stands back by as much, so the model keeps its size
+local FRAME_W, FRAME_H = 2.4, 1.6
+-- feet: a little above the bottom of the model's own height
+local FEET_UP = 0.06
 
 local failed = {} -- [npc id] = true when the client could not load it
 
@@ -98,9 +107,12 @@ function Figure.New(parent, height)
 	for k, v in pairs(proto) do f[k] = v end
 	f.isOverlay = true -- fighters overlap as they move
 	f.height = height or 64
-	f:SetSize(f.height, f.height)
+	f:SetSize(f.height * FRAME_W, f.height * FRAME_H)
 	f.facing = "right"
 	f.anim, f.left, f.done = "idle", 0, true
+	if f.SetScript then
+		pcall(f.SetScript, f, "OnModelLoaded", function(self) self:Loaded() end)
+	end
 	f:Hide()
 	return f
 end
@@ -116,23 +128,58 @@ function proto:SetModelId(id)
 	if not id or failed[id] then return false end
 	if self.id ~= id then
 		self.id = id
-		call(self, "ClearModel")
-		if not call(self, "SetCreature", id) then
+		self.tries = 0
+		self.loaded = false
+		self.anim, self.left, self.done = nil, 0, true
+		if not self:Load() then
 			failed[id] = true
 			self.id = nil
 			return false
 		end
-		self.loadT = LOAD_WAIT
-		self.anim, self.left, self.done = nil, 0, true
-		call(self, "ModelFacing", FACE[self.facing] or FACE.right)
 		self:Play("idle")
 	end
 	return true
 end
 
+-- One try: the display id the first time (the game's own data, no waiting
+-- for the server), the NPC id after that.
+function proto:Load()
+	local id = self.id
+	self.tries = (self.tries or 0) + 1
+	call(self, "ClearModel")
+	local disp = ns.MODEL.display and ns.MODEL.display[id]
+	local ok = false
+	if self.tries == 1 and disp then ok = call(self, "SetDisplayInfo", disp) end
+	if not ok then
+		if self.tries == 1 and disp then self.tries = 2 end
+		ok = call(self, "SetCreature", id)
+	end
+	self.loadT = WAIT[self.tries] or WAIT[#WAIT]
+	self:Look()
+	return ok
+end
+
+-- camera distance and facing (set again once a model is in)
+function proto:Look()
+	call(self, "SetCamDistanceScale", FRAME_H)
+	call(self, "ModelFacing", FACE[self.facing] or FACE.right)
+end
+
+-- The model is in: look and animation again (a model takes them only once
+-- it is there).
+function proto:Loaded()
+	if self.loaded or not self.id then return end
+	self.loaded = true
+	self.loadT = nil
+	self:Look()
+	if self.anim then call(self, "SetAnimation", ANIM_ID[self.done and self.anim == "death" and "dead" or self.anim]) end
+end
+
+function proto:IsLoaded() return self.loaded and true or false end
+
 function proto:SetHeight2(h)
 	self.height = h
-	self:SetSize(h, h)
+	self:SetSize(h * FRAME_W, h * FRAME_H)
 end
 
 function proto:SetFacing(dir)
@@ -156,15 +203,22 @@ function proto:Playing()
 end
 
 function proto:Step(dt)
-	-- a model that never loaded is given up on (the bar falls back next frame)
-	if self.loadT then
-		self.loadT = self.loadT - dt
-		if self.loadT <= 0 then
-			self.loadT = nil
-			local ok, file = call(self, "GetModelFileID")
-			if ok and (not file or file == 0) and self.id then
-				failed[self.id] = true
-				self.id = nil
+	-- waiting for the model: in as soon as the game knows its file; tried
+	-- again (by the NPC id) when it does not come, given up after the last try
+	if self.loadT and self.id then
+		local ok, file = call(self, "GetModelFileID")
+		if ok and file and file ~= 0 then
+			self:Loaded()
+		else
+			self.loadT = self.loadT - dt
+			if self.loadT <= 0 then
+				if (self.tries or 1) < #WAIT then
+					self:Load()
+				else
+					self.loadT = nil
+					failed[self.id] = true
+					self.id = nil
+				end
 			end
 		end
 	end
@@ -178,11 +232,11 @@ function proto:Step(dt)
 	end
 end
 
--- Feet at (x, y) of the anchor's bottom-left corner (models stand a little
--- above their frame's bottom edge).
+-- Feet at (x, y) of the anchor's bottom-left corner. The model stands in the
+-- middle of its (taller) frame, so the frame reaches below the feet.
 function proto:PlaceFeet(anchor, x, y)
 	self:ClearAllPoints()
-	self:SetPoint("BOTTOM", anchor, "BOTTOMLEFT", x, y - self.height * 0.06)
+	self:SetPoint("BOTTOM", anchor, "BOTTOMLEFT", x, y - self.height * (FRAME_H / 2 - 0.5 + FEET_UP))
 end
 
 -- for tests: forget the models that did not load

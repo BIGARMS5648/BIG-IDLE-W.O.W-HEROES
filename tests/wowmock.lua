@@ -156,35 +156,10 @@ function Texture:SetVertexColor(r, g, b, a)
 	check(type(r) == "number" and type(g) == "number" and type(b) == "number", "SetVertexColor: numbers expected")
 	self.__vertex = { r, g, b, a or 1 }
 end
-function Texture:SetBlendMode(m) check(m == "ADD" or m == "BLEND" or m == "DISABLE" or m == "MOD" or m == "ALPHAKEY", "SetBlendMode: bad mode") self.__blend = m end
+function Texture:SetBlendMode(m) check(m == "ADD" or m == "BLEND" or m == "DISABLE" or m == "MOD" or m == "ALPHAKEY", "SetBlendMode: bad mode") end
 function Texture:SetDrawLayer(l, sub) check(LAYERS[l], "SetDrawLayer: bad layer") self.__layer = l end
 function Texture:SetDesaturated(v) self.__desat = v and true or nil end
 function Texture:SetRotation(r) check(type(r) == "number", "SetRotation: number expected") end
--- the game's atlases (Mock.ATLAS: the ones the addon uses, with Forever's
--- display sizes); an unknown name is an error, as a typo would be in game
-function Texture:SetAtlas(name, useSize, filter, resetTC)
-	check(type(name) == "string", "SetAtlas: atlas name expected")
-	local a = Mock.ATLAS[name]
-	check(a ~= nil, "SetAtlas: no such atlas in the client: " .. name)
-	self.__tex = "atlas:" .. name
-	self.__atlas = name
-	self.__color = nil
-	if useSize then self:SetSize(a[1], a[2]) end
-	Mock.textures["atlas:" .. name] = true
-	return true
-end
-function Texture:GetAtlas() return self.__atlas end
-function Texture:SetHorizTile(v) check(type(v) == "boolean", "SetHorizTile: boolean expected") self.__htile = v end
-function Texture:SetVertTile(v) check(type(v) == "boolean", "SetVertTile: boolean expected") self.__vtile = v end
-function Texture:SetTexelSnappingBias(v) check(type(v) == "number", "SetTexelSnappingBias: number expected") end
-function Texture:SetSnapToPixelGrid(v) check(type(v) == "boolean", "SetSnapToPixelGrid: boolean expected") end
-function Texture:AddMaskTexture(m) check(type(m) == "table" and m.__type == "MaskTexture", "AddMaskTexture: mask texture expected") self.__mask = m end
--- SetGradient(orientation, minColor, maxColor) with colour objects (CreateColor)
-function Texture:SetGradient(o, c1, c2)
-	check(o == "HORIZONTAL" or o == "VERTICAL", "SetGradient: HORIZONTAL or VERTICAL expected")
-	check(type(c1) == "table" and type(c1.r) == "number" and type(c2) == "table" and type(c2.r) == "number", "SetGradient: colour objects expected (CreateColor)")
-	self.__grad = { o, { c1.r, c1.g, c1.b, c1.a or 1 }, { c2.r, c2.g, c2.b, c2.a or 1 } }
-end
 
 ------------------------------------------------------------------------
 -- FontString
@@ -270,11 +245,6 @@ function Frame:CreateTexture(name, layer, template, sub)
 	self.__regions[#self.__regions + 1] = t
 	return t
 end
--- a mask is not drawn itself: it only crops the textures it is added to
-function Frame:CreateMaskTexture(name, layer)
-	return setmetatable({ __widget = true, __type = "MaskTexture", __points = {}, __anchors = {}, __shown = true, __parent = self, __name = name,
-		__layer = layer or "ARTWORK" }, { __index = Texture })
-end
 function Frame:CreateFontString(name, layer, template)
 	check(layer == nil or LAYERS[layer], "CreateFontString: bad layer " .. tostring(layer))
 	local t = setmetatable({ __widget = true, __type = "FontString", __points = {}, __anchors = {}, __shown = true, __parent = self, __name = name, __text = "",
@@ -347,6 +317,7 @@ function ScrollFrame:UpdateScrollChildRect() end
 local Model = setmetatable({}, { __index = Frame })
 function Model:SetCreature(id) check(type(id) == "number", "SetCreature: id must be a number") self.__model = "creature:" .. id end
 function Model:SetDisplayInfo(id) check(type(id) == "number", "SetDisplayInfo: id must be a number") self.__model = "display:" .. id end
+function Model:SetModel(f) check(type(f) == "number" or type(f) == "string", "SetModel: file id or path expected") self.__model = "file:" .. f end
 function Model:SetUnit(unit) check(type(unit) == "string", "SetUnit: unit must be a string") self.__model = "unit:" .. unit end
 function Model:ClearModel() self.__model = nil end
 function Model:GetModelFileID() return self.__model and 123456 or nil end
@@ -400,64 +371,6 @@ _G.UIParent = CreateFrame("Frame", "UIParent")
 UIParent:SetSize(1920, 1080)
 _G.GetLocale = function() return Mock.locale end
 _G.GetTime = function() return Mock.now end
--- width, height, tiles horizontally, tiles vertically (Forever's atlases)
-Mock.ATLAS = {
-	["!Tooltip-NineSlice-EdgeLeft"] = { 7, 16, false, true },
-	["!Tooltip-NineSlice-EdgeRight"] = { 7, 16, false, true },
-	["!UI-Frame-DiamondMetal-EdgeLeft"] = { 64, 64, false, true },
-	["!UI-Frame-DiamondMetal-EdgeRight"] = { 64, 64, false, true },
-	["!UI-Frame-InnerLeftTile"] = { 3, 256, false, true },
-	["!UI-Frame-InnerRightTile"] = { 3, 256, false, true },
-	["!UI-Frame-Metal-EdgeLeft"] = { 95, 128, false, true },
-	["!UI-Frame-Metal-EdgeRight"] = { 95, 128, false, true },
-	["AdventureMapIcon-Lock"] = { 28, 37, false, false },
-	["PetJournal-FavoritesIcon"] = { 25, 25, false, false },
-	["RedButton-Exit"] = { 32, 32, false, false },
-	["RedButton-Highlight"] = { 32, 32, false, false },
-	["RedButton-exit-pressed"] = { 32, 32, false, false },
-	["Tooltip-NineSlice-Center"] = { 64, 64, true, true },
-	["Tooltip-NineSlice-CornerBottomLeft"] = { 7, 7, false, false },
-	["Tooltip-NineSlice-CornerBottomRight"] = { 7, 7, false, false },
-	["Tooltip-NineSlice-CornerTopLeft"] = { 7, 7, false, false },
-	["Tooltip-NineSlice-CornerTopRight"] = { 7, 7, false, false },
-	["UI-Frame-DiamondMetal-CornerBottomLeft"] = { 64, 64, false, false },
-	["UI-Frame-DiamondMetal-CornerBottomRight"] = { 64, 64, false, false },
-	["UI-Frame-DiamondMetal-CornerTopLeft"] = { 64, 64, false, false },
-	["UI-Frame-DiamondMetal-CornerTopRight"] = { 64, 64, false, false },
-	["UI-Frame-InnerBotLeftCorner"] = { 6, 6, false, false },
-	["UI-Frame-InnerBotRight"] = { 6, 6, false, false },
-	["UI-Frame-InnerTopLeft"] = { 6, 6, false, false },
-	["UI-Frame-InnerTopRight"] = { 6, 6, false, false },
-	["UI-Frame-Metal-CornerBottomLeft"] = { 95, 100, false, false },
-	["UI-Frame-Metal-CornerBottomRight"] = { 95, 100, false, false },
-	["UI-Frame-Metal-CornerTopRight"] = { 95, 95, false, false },
-	["UI-Frame-PortraitMetal-CornerTopLeft"] = { 95, 95, false, false },
-	["UI-RefreshButton"] = { 32, 32, false, false },
-	["_Tooltip-NineSlice-EdgeBottom"] = { 16, 7, true, false },
-	["_Tooltip-NineSlice-EdgeTop"] = { 16, 7, true, false },
-	["_UI-Frame-DiamondMetal-EdgeBottom"] = { 64, 64, true, false },
-	["_UI-Frame-DiamondMetal-EdgeTop"] = { 64, 64, true, false },
-	["_UI-Frame-InnerBotTile"] = { 256, 3, true, false },
-	["_UI-Frame-InnerTopTile"] = { 256, 3, true, false },
-	["_UI-Frame-Metal-EdgeBottom"] = { 128, 100, true, false },
-	["_UI-Frame-Metal-EdgeTop"] = { 128, 95, true, false },
-	["_UI-Frame-TopTileStreaks"] = { 256, 43, true, false },
-	["bags-item-slot64"] = { 32, 32, true, true },
-	["ChallengeMode-SoftYellowGlow"] = { 206, 206, false, false },
-	["bankslot-icon-lock-c60"] = { 27, 27, false, false },
-	["groupfinder-icon-leader"] = { 19, 15, false, false },
-	["groupfinder-icon-role-large-dps"] = { 27, 27, false, false },
-	["groupfinder-icon-role-large-heal"] = { 27, 27, false, false },
-	["groupfinder-icon-role-large-tank"] = { 27, 27, false, false },
-}
-_G.C_Texture = {
-	GetAtlasInfo = function(name)
-		local a = Mock.ATLAS[name]
-		if not a then return nil end
-		return { width = a[1], height = a[2], tilesHorizontally = a[3], tilesVertically = a[4] }
-	end,
-}
-_G.CreateColor = function(r, g, b, a) return { r = r, g = g, b = b, a = a or 1 } end
 _G.time = function() return Mock.wall end
 _G.date = os.date
 _G.STANDARD_TEXT_FONT = "Fonts\\2002.TTF"
@@ -559,10 +472,6 @@ function Mock.Export()
 			e.layer = w.__layer
 			e.color = w.__color
 			e.tex = (w.__tex ~= "color") and w.__tex or nil
-			e.skin = w.skinName
-			e.grad = w.__grad
-			e.blend = w.__blend
-			e.round = w.__mask and true or nil
 			e.vertex = w.__vertex
 			e.tc = w.__tc
 			e.tc8 = w.__tc8

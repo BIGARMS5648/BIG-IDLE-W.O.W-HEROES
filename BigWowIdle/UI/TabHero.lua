@@ -608,7 +608,7 @@ local function refreshTree(page, id)
 			local a = ns.AFFIX[node.p]
 			local lvl = H.NodeLevel(id, t, n)
 			b.icon:Clear()
-			b.icon:SetIconName(UI.STAT_ICON[node.p] or "INV_Misc_QuestionMark")
+			b.icon:SetArtIcon(UI.STAT_ART[node.p], UI.STAT_ICON[node.p] or "INV_Misc_QuestionMark")
 			b.icon:SetDim(not open)
 			b.icon:SetLocked(not open)
 			b.title:SetText(open and ns.N(a.n) or U.col("8a90a2", ns.N(a.n)))

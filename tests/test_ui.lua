@@ -855,7 +855,15 @@ do
 	for _, f in ipairs(heroes) do
 		if f:IsShown() and f.model and f.model:IsShown() then
 			hShown = hShown + 1
-			if f.model.__model ~= "creature:" .. tostring(f.model.id) then fail("a hero model should show its NPC: " .. tostring(f.model.__model)) end
+			-- put up by its display id: straight from the game's data
+			local want = "display:" .. tostring(ns.MODEL.display[f.model.id])
+			if f.model.__model ~= want then fail("a hero model should be put up by its display id: " .. tostring(f.model.__model) .. " / " .. want) end
+			if not f.model:IsLoaded() or f.icon:IsShown() then fail("a hero whose model is in should not show the icon too") end
+			-- room around the model so wide and tall ones are not cut off
+			local hgt = f.model.height
+			if f.model:GetWidth() < 2 * hgt or f.model:GetHeight() < 1.5 * hgt or (f.model.__dist or 1) < 1.5 then
+				fail("a model's frame should leave room around it (cut-off models)")
+			end
 			if math.abs((f.model.__facing or 0) - math.pi / 2) > 1e-6 then fail("hero models should face the monsters (right)") end
 		end
 	end
@@ -879,12 +887,27 @@ do
 	frames(2)
 	for _, f in ipairs(heroes) do if f.model and f.model:IsShown() then fail("models should hide when turned off") break end end
 	ns.db.opt.models = true
-	-- a model the client cannot load is given up on, and the icon comes back
+	-- a model that does not come: the icon stays meanwhile, the NPC id is
+	-- tried after the display id, and in the end it is given up on
 	local getFile = Mock.Model.GetModelFileID
 	Mock.Model.GetModelFileID = function() return nil end
 	Fig.ResetFailed()
 	for _, f in ipairs(heroes) do if f.model then f.model.id = nil end end
-	frames(60) -- 1.5 s per model tried (the other gender is tried too)
+	frames(3)
+	local waiting, byNpc = 0, 0
+	for _, f in ipairs(heroes) do
+		if f:IsShown() and f.model and f.model:IsShown() then
+			waiting = waiting + 1
+			if not f.icon:IsShown() then fail("the icon should stay while the model is not in yet") break end
+		end
+	end
+	if waiting == 0 then fail("a model that is still loading should be up (waiting)") end
+	frames(12) -- past the display id's wait: the NPC id is asked for
+	for _, f in ipairs(heroes) do
+		if f.model and f.model:IsShown() and tostring(f.model.__model):find("^creature:") then byNpc = byNpc + 1 end
+	end
+	if byNpc == 0 then fail("a display id that does not load should be followed by the NPC id") end
+	frames(400) -- every try of every model (the other gender is tried too)
 	Mock.Model.GetModelFileID = getFile
 	local back = 0
 	for _, f in ipairs(heroes) do
@@ -906,7 +929,9 @@ do
 	if not (mf and mf:IsShown()) then fail("/bwi model should open the model check") end
 	-- the hero as the battle bar draws it: the NPC of its class, race and gender
 	local heroNpc = ns.Figure3D.ForHero(ns.Main.SelectedHero(), false)
-	local want = { hero = "creature:" .. tostring(heroNpc), player = "unit:player", mob = "creature:448", boss = "creature:11502", pet = "creature:416" }
+	-- every NPC by its model (display id), as the battle bar puts it up
+	local D = ns.MODEL.display
+	local want = { hero = "display:" .. tostring(D[heroNpc]), player = "unit:player", mob = "display:" .. D[448], boss = "display:" .. D[11502], pet = "display:" .. D[416] }
 	for _, p in ipairs(MC.panels) do
 		if not p.model then fail("no model frame for " .. p.def.key)
 		elseif p.model.__model ~= want[p.def.key] then fail(p.def.key .. " shows " .. tostring(p.model.__model)) end
@@ -939,12 +964,21 @@ do
 	if not (MC.panels[2].lines[5].__text or ""):find("없음", 1, true) then fail("a missing model function should read 없음: " .. tostring(MC.panels[2].lines[5].__text)) end
 	-- the tinker's candidates: mech, turret and drone models
 	click("model: tinker candidates", function(b) return label(b) == "땜장이 후보" end)
-	if MC.panels[1].model.__model ~= "creature:" .. ns.MODEL.tinker.mech_horde or MC.panels[4].model.__model ~= "creature:" .. ns.MODEL.summon.drone_heal then
+	if MC.panels[1].model.__model ~= "display:" .. D[ns.MODEL.tinker.mech_horde] or MC.panels[4].model.__model ~= "display:" .. D[ns.MODEL.summon.drone_heal] then
 		fail("땜장이 후보 should show the mech, turret and drone models")
 	end
 	frames(20)
+	-- 드론·포탑: 활력제 친구's drone by its file, the search for its model,
+	-- the Hellfire cannons and the turret used now
+	click("model: drone and turrets", function(b) return label(b) == "드론·포탑" end)
+	if MC.panels[1].model.__model ~= "file:" .. ns.MODEL.file.drone_pickmeup then fail("드론·포탑 should show 활력제 친구's drone file: " .. tostring(MC.panels[1].model.__model)) end
+	if MC.panels[3].model.__model ~= "display:" .. ns.MODEL.cannon[1].display then fail("드론·포탑 should show the Fel Cannon") end
+	if not (MC.panels[2].lines[1].__text or ""):find("찾는 중", 1, true) then fail("the drone search should start") end
+	frames(120) -- the search goes through every model id
+	if MC.panels[2].scan then fail("the drone search should finish") end
+	if not (MC.panels[2].lines[1].__text or ""):find("못 찾음", 1, true) then fail("the drone search should say what it found: " .. tostring(MC.panels[2].lines[1].__text)) end
 	click("model: basic check", function(b) return label(b) == "기본 확인" end)
-	if MC.panels[3].model.__model ~= "creature:448" then fail("기본 확인 should bring the basic models back") end
+	if MC.panels[3].model.__model ~= "display:" .. D[448] then fail("기본 확인 should bring the basic models back") end
 	hoverAll()
 	try("slash model again", SlashCmdList.BIGWOWIDLE, "모델")
 	if mf:IsShown() then fail("/bwi model again should close the model check") end
@@ -978,54 +1012,17 @@ local st = ns.db.stat
 print(string.format("  after the run: %d kills, %d clears, %d chests opened, forge level %d, %d heroes",
 	st.kills, st.clears, st.chests, ns.db.forge.level, H.Count()))
 
--- the game's look: the menu window is the character sheet's frame, buttons
--- are the red panel button, the close button is the game's red X
-do
-	Main.Toggle(true)
-	frames(2)
-	local f = BigWowIdleMain
-	local atl = {}
-	local function collect(fr)
-		for _, r in ipairs(fr.__regions or {}) do if r.__atlas then atl[r.__atlas] = (atl[r.__atlas] or 0) + 1 end end
-	end
-	collect(f.chrome)
-	for _, piece in ipairs({ "UI-Frame-PortraitMetal-CornerTopLeft", "UI-Frame-Metal-CornerTopRight", "UI-Frame-Metal-CornerBottomLeft",
-		"UI-Frame-Metal-CornerBottomRight", "_UI-Frame-Metal-EdgeTop", "_UI-Frame-Metal-EdgeBottom", "!UI-Frame-Metal-EdgeLeft", "!UI-Frame-Metal-EdgeRight" }) do
-		if not atl[piece] then fail("the menu window should have the metal frame piece " .. piece) end
-	end
-	if not (f.bg and f.bg:GetTexture() == "Interface\\FrameGeneral\\UI-Background-Rock") then fail("the menu window should stand on the game's rock background") end
-	if not (f.title:GetText() or ""):find("BIG W.O.W IDLE", 1, true) then fail("the title bar should name the game") end
-	if f.close.n.__atlas ~= "RedButton-Exit" then fail("the close button should be the game's red X") end
-	if not f.crest.__mask then fail("the crest should be round in the portrait corner") end
-	-- a panel button: up, pressed when on, greyed when off
-	local UI = ns.UI
-	local b = UI.Button(UIParent, 120, 26, "시험", nil, "primary")
-	local face = function() return b.parts[2]:GetTexture() end
-	if face() ~= "Interface\\Buttons\\UI-Panel-Button-Up" then fail("a button should start as the game's panel button: " .. tostring(face())) end
-	b:SetOn(true)
-	if face() ~= "Interface\\Buttons\\UI-Panel-Button-Down" then fail("a switched-on button should look pressed") end
-	b:SetOn(false)
-	b:SetOff(true)
-	if face() ~= "Interface\\Buttons\\UI-Panel-Button-Disabled" then fail("a button that cannot be used should be greyed out") end
-	b:Hide()
-	-- a check box is the game's check box
-	local on = false
-	local c = UI.Check(UIParent, "시험", function() return on end, function(v) on = v end)
-	if c.box:GetTexture() ~= "Interface\\Buttons\\UI-CheckBox-Up" then fail("a toggle should be the game's check box") end
-	c:Hide()
-	Main.Toggle(false)
-end
-
--- every texture is the game's own: interface files and atlases (an unknown
--- atlas already fails in the mock), never a file of the addon
+-- every texture path must be well-formed; addon textures must exist on disk
 for path in pairs(Mock.textures) do
 	if path:find("Interface\\Icons\\") and (path:find("%s") or path:sub(-1) == "\\") then
 		fail("malformed icon path: " .. path)
 	end
-	if path:find("AddOns") or path:find("%.tga$") then
-		fail("the addon should draw only the game's art, not its own file: " .. path)
-	elseif not (path:find("^Interface\\") or path:find("^atlas:") or path == "color") then
-		fail("unexpected texture: " .. path)
+	local media = path:match("\\Media\\([%w_]+)%.tga$")
+	if media then
+		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigWowIdle/Media/" .. media .. ".tga"), "rb")
+		if f then f:close() else fail("missing texture file: Media/" .. media .. ".tga") end
+	elseif path:find("AddOns") then
+		fail("unexpected addon texture path: " .. path)
 	end
 end
 

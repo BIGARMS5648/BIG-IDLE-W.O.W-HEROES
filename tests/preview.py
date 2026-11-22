@@ -4,12 +4,12 @@
 The mocked WoW API records where every frame, texture and text is anchored.
 This script arranges a few scenes, exports them, and writes
 tests/out/preview_<locale>.html, a page that resolves the anchors and paints
-each scene: the real text, and stand-ins for the game's art, which the
-repository cannot contain (the window and dialog borders, insets, tooltip
-borders, panel buttons, slots, marks, item / spell icons and class
-portraits), each painted from its kind in the colours the game uses.
+each scene: the addon's own textures (Media/, embedded as PNG) with their
+texture coordinates and tints, the real text, and stand-ins for game art the
+repository cannot contain (item / spell icons and class portraits).
 It is a layout check, not a pixel-accurate rendering of the game.
 
+    python3 tools/make_art.py          # once, to have the PNG twins of Media/
     python3 tests/preview.py
 """
 import base64
@@ -47,6 +47,7 @@ PAGE = r"""<!doctype html>
 <div id="root"></div>
 <script>
 const SCENES = __DATA__;
+const MEDIA = __MEDIA__;
 const FONT = '"WenQuanYi Zen Hei","Noto Sans CJK KR","Malgun Gothic",sans-serif';
 const LAYER = { BACKGROUND:0, BORDER:1, ARTWORK:2, OVERLAY:3, HIGHLIGHT:4 };
 const STRATA = { BACKGROUND:0, LOW:1, MEDIUM:2, HIGH:3, DIALOG:4, FULLSCREEN:5, FULLSCREEN_DIALOG:6, TOOLTIP:7 };
@@ -56,6 +57,7 @@ const CLASS = { // texcoord left,top of the class circle sheet (2 decimals) -> c
   '0,0.25':['#abd473','H'], '0.25,0.25':['#2e8bff','S'], '0.5,0.25':['#ffffff','P'], '0.74,0.25':['#9482c9','L'],
   '0,0.5':['#f58cba','Pa'] };
 const mctx = document.createElement('canvas').getContext('2d');
+const images = {};
 
 function segments(text) {
   const out = []; let color = null; let i = 0;
@@ -115,117 +117,70 @@ function layoutText(e, wrapW) {
 
 function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
 
-// ---------------------------------------------------------------------------
-// The game's art as stand-ins: each piece (e.skin, the addon's name for it)
-// painted in the colours of the game's own texture.
-// ---------------------------------------------------------------------------
-const col = (v, a) => `rgba(${Math.round(v[0]*255)},${Math.round(v[1]*255)},${Math.round(v[2]*255)},${a == null ? (v[3] == null ? 1 : v[3]) : a})`;
-const mul = (v, c) => [c[0] * v[0], c[1] * v[1], c[2] * v[2], v[3] == null ? 1 : v[3]];
-function rr(g, x, y, w, h, r) { g.beginPath(); r = Math.max(0, Math.min(r, w / 2, h / 2)); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
-function star(g, cx, cy, R, r, n) { g.beginPath(); for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + i * Math.PI / n, d = i % 2 ? r : R; g.lineTo(cx + Math.cos(a) * d, cy + Math.sin(a) * d); } g.closePath(); }
-const ROLE_COL = { role_tank: '#3a7bd5', role_heal: '#3fae4f', role_dps: '#c43a2f' };
-
-function drawSkin(g, e, x, y, w, h, frameRect) {
-  const v = e.vertex || [1, 1, 1, 1];
-  const k = e.skin, n = String(e.tex || '');
-  const cx = x + w / 2, cy = y + h / 2;
-  g.save();
-  g.globalAlpha *= (v[3] == null ? 1 : v[3]);
-  switch (k) {
-    case 'window': {      // rock, the metal frame and its title bar
-      g.fillStyle = '#2d2a26'; g.fillRect(x, y, w, h);
-      const fx = x - 2, fy = y - 21, fw = w + 4, fh = h + 23;
-      g.fillStyle = '#141414'; g.fillRect(fx, fy, fw, 21);
-      g.strokeStyle = '#77716a'; g.lineWidth = 4; g.strokeRect(fx - 1, fy - 1, fw + 2, fh + 2);
-      g.strokeStyle = '#c4a24c'; g.lineWidth = 1; g.strokeRect(fx + 1.5, fy + 1.5, fw - 3, fh - 3);
-      g.beginPath(); g.moveTo(fx, fy + 21); g.lineTo(fx + fw, fy + 21); g.strokeStyle = '#5c574f'; g.lineWidth = 2; g.stroke();
-      break;
-    }
-    case 'panel': {       // the dialog: dark background, diamond metal border
-      g.fillStyle = '#0d0d10'; g.fillRect(x, y, w, h);
-      const fx = x - 7, fy = y - 7, fw = w + 14, fh = h + 14;
-      g.strokeStyle = '#6e6e74'; g.lineWidth = 5; g.strokeRect(fx + 2.5, fy + 2.5, fw - 5, fh - 5);
-      g.strokeStyle = '#b39a55'; g.lineWidth = 1; g.strokeRect(fx + 5.5, fy + 5.5, fw - 11, fh - 11);
-      g.fillStyle = '#c9b06a';
-      for (const [px, py] of [[fx + 3, fy + 3], [fx + fw - 3, fy + 3], [fx + 3, fy + fh - 3], [fx + fw - 3, fy + fh - 3]]) { g.beginPath(); g.moveTo(px, py - 5); g.lineTo(px + 5, py); g.lineTo(px, py + 5); g.lineTo(px - 5, py); g.fill(); }
-      break;
-    }
-    case 'inset': g.fillStyle = col(mul(v, [0.17, 0.17, 0.17])); g.fillRect(x, y, w, h); break;
-    case 'card': case 'pill': case 'tooltip': g.fillStyle = col(v); g.fillRect(x, y, w, h); break;
-    case 'scene': g.fillStyle = col(mul(v, [0.24, 0.22, 0.19])); g.fillRect(x, y, w, h); break;
-    case 'shade': {
-      if (e.grad) {
-        const [o, c1, c2] = e.grad;
-        const lg = o === 'HORIZONTAL' ? g.createLinearGradient(x, 0, x + w, 0) : g.createLinearGradient(0, y + h, 0, y);
-        lg.addColorStop(0, col(c1)); lg.addColorStop(1, col(c2)); g.fillStyle = lg;
-      } else g.fillStyle = col(v);
-      g.fillRect(x, y, w, h); break;
-    }
-    case 'border': {      // thin borders: a line on the outer side of each piece
-      const tip = n.includes('Tooltip'), inner = n.includes('Inner');
-      if (!tip && !inner) break;  // the metal ones come with their background
-      g.strokeStyle = tip ? col([v[0] * 0.62, v[1] * 0.64, v[2] * 0.68], 1) : '#050505';
-      if (tip && (v[0] < 0.99 || v[1] < 0.99 || v[2] < 0.99)) g.strokeStyle = col(v, 1);
-      const lw = tip ? 2 : 1.5; g.lineWidth = lw; g.beginPath();
-      const T = /Top/.test(n), B = /Bot/.test(n), L = /Left/.test(n), Rt = /Right/.test(n);
-      if (T) { g.moveTo(x, y + lw / 2); g.lineTo(x + w, y + lw / 2); }
-      if (B) { g.moveTo(x, y + h - lw / 2); g.lineTo(x + w, y + h - lw / 2); }
-      if (L) { g.moveTo(x + lw / 2, y); g.lineTo(x + lw / 2, y + h); }
-      if (Rt) { g.moveTo(x + w - lw / 2, y); g.lineTo(x + w - lw / 2, y + h); }
-      g.stroke(); break;
-    }
-    case 'button': {      // the red panel button (Up / Down / Disabled)
-      const state = /Disabled/.test(n) ? 2 : /Down/.test(n) ? 1 : 0;
-      const top = ['#a4281a', '#6a160d', '#5b5b5b'][state], bot = ['#5a0d06', '#3a0703', '#2f2f2f'][state];
-      const lg = g.createLinearGradient(0, y, 0, y + h); lg.addColorStop(0, top); lg.addColorStop(1, bot);
-      g.fillStyle = lg; g.fillRect(x, y, w, h);
-      const tc = e.tc || [0, 1, 0, 1]; const part = tc[0] < 0.01 ? 'L' : tc[0] > 0.5 ? 'R' : 'M';
-      g.strokeStyle = state === 2 ? '#777' : '#c9a24a'; g.lineWidth = 1; g.beginPath();
-      g.moveTo(x, y + 0.5); g.lineTo(x + w, y + 0.5); g.moveTo(x, y + h - 0.5); g.lineTo(x + w, y + h - 0.5);
-      if (part === 'L') { g.moveTo(x + 0.5, y); g.lineTo(x + 0.5, y + h); }
-      if (part === 'R') { g.moveTo(x + w - 0.5, y); g.lineTo(x + w - 0.5, y + h); }
-      g.stroke(); break;
-    }
-    case 'glow': {
-      if (/UI-CheckBox|Panel-Button|RedButton|Minimize/.test(n)) { g.fillStyle = col(v, 0.22); g.fillRect(x, y, w, h); break; }
-      const rg = g.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) / 2);
-      rg.addColorStop(0, col(v, 0.55)); rg.addColorStop(1, col(v, 0));
-      g.fillStyle = rg; g.beginPath(); g.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2); g.fill(); break;
-    }
-    case 'hilite': g.fillStyle = col(v, 0.25); g.fillRect(x, y, w, h); g.strokeStyle = col(v, 0.7); g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); break;
-    case 'circle': g.fillStyle = col(v, 1); g.beginPath(); g.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2); g.fill(); break;
-    case 'ring': {
-      const c = e.desat ? v : mul(v, [0.86, 0.69, 0.25]);
-      g.strokeStyle = col(c, 1); g.lineWidth = Math.max(2, Math.min(w, h) * 0.08);
-      g.beginPath(); g.ellipse(cx, cy, w / 2 - g.lineWidth / 2, h / 2 - g.lineWidth / 2, 0, 0, Math.PI * 2); g.stroke(); break;
-    }
-    case 'frame': g.strokeStyle = col(v, 1); g.lineWidth = 2; g.strokeRect(x + 1, y + 1, w - 2, h - 2); break;
-    case 'slot': g.fillStyle = '#121212'; g.fillRect(x, y, w, h); g.strokeStyle = '#3c3c3c'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); break;
-    case 'bar': {
-      const lg = g.createLinearGradient(0, y, 0, y + h); lg.addColorStop(0, col(mul(v, [1.15, 1.15, 1.15]), 1)); lg.addColorStop(1, col(mul(v, [0.7, 0.7, 0.7]), 1));
-      g.fillStyle = lg; g.fillRect(x, y, w, h); break;
-    }
-    case 'checkbox': rr(g, x + w * 0.18, y + h * 0.18, w * 0.64, h * 0.64, 3); g.fillStyle = '#151515'; g.fill(); g.strokeStyle = '#8a8a8a'; g.lineWidth = 1.5; g.stroke(); break;
-    case 'check': g.strokeStyle = '#ffd200'; g.lineWidth = Math.max(2, w * 0.14); g.lineCap = 'round'; g.beginPath(); g.moveTo(x + w * 0.28, y + h * 0.52); g.lineTo(x + w * 0.45, y + h * 0.7); g.lineTo(x + w * 0.75, y + h * 0.3); g.stroke(); break;
-    case 'lock': g.fillStyle = '#c9a24a'; g.fillRect(x + w * 0.22, y + h * 0.45, w * 0.56, h * 0.45); g.strokeStyle = '#c9a24a'; g.lineWidth = Math.max(1.5, w * 0.12); g.beginPath(); g.arc(cx, y + h * 0.45, w * 0.2, Math.PI, 0); g.stroke(); break;
-    case 'plus': g.strokeStyle = '#d8c27a'; g.lineWidth = Math.max(2, w * 0.14); g.beginPath(); g.moveTo(cx, y + h * 0.2); g.lineTo(cx, y + h * 0.8); g.moveTo(x + w * 0.2, cy); g.lineTo(x + w * 0.8, cy); g.stroke(); break;
-    case 'arrow': g.fillStyle = '#f0c040'; g.beginPath(); g.moveTo(x + w * 0.3, y + h * 0.2); g.lineTo(x + w * 0.75, cy); g.lineTo(x + w * 0.3, y + h * 0.8); g.fill(); break;
-    case 'star': g.fillStyle = '#ffd24a'; star(g, cx, cy, w * 0.48, w * 0.2, 5); g.fill(); break;
-    case 'crown': g.fillStyle = '#f2c43c'; g.beginPath(); g.moveTo(x + w * 0.1, y + h * 0.8); g.lineTo(x + w * 0.1, y + h * 0.3); g.lineTo(x + w * 0.32, y + h * 0.55); g.lineTo(cx, y + h * 0.2); g.lineTo(x + w * 0.68, y + h * 0.55); g.lineTo(x + w * 0.9, y + h * 0.3); g.lineTo(x + w * 0.9, y + h * 0.8); g.fill(); break;
-    case 'skull': g.fillStyle = col(v, 1); g.beginPath(); g.arc(cx, cy - h * 0.06, w * 0.38, 0, Math.PI * 2); g.fill(); g.fillStyle = '#222'; g.beginPath(); g.arc(cx - w * 0.14, cy - h * 0.06, w * 0.08, 0, Math.PI * 2); g.arc(cx + w * 0.14, cy - h * 0.06, w * 0.08, 0, Math.PI * 2); g.fill(); break;
-    case 'auto': g.strokeStyle = '#ffd24a'; g.lineWidth = Math.max(2, w * 0.12); g.beginPath(); g.arc(cx, cy, w * 0.3, 0.3, Math.PI * 1.7); g.stroke(); break;
-    case 'role_tank': case 'role_heal': case 'role_dps': {
-      g.fillStyle = ROLE_COL[k]; g.beginPath(); g.arc(cx, cy, Math.min(w, h) * 0.46, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#fff'; g.font = 'bold ' + Math.round(h * 0.5) + 'px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(k === 'role_tank' ? 'T' : k === 'role_heal' ? '+' : 'D', cx, cy + 1); g.textAlign = 'left'; break;
-    }
-    case 'close': {
-      rr(g, x + 3, y + 3, w - 6, h - 6, 4); g.fillStyle = /pressed/.test(n) ? '#6a120c' : '#9a1c12'; g.fill(); g.strokeStyle = '#c9a24a'; g.lineWidth = 1; g.stroke();
-      g.strokeStyle = '#f4e6c8'; g.lineWidth = 2; g.beginPath(); g.moveTo(x + w * 0.35, y + h * 0.35); g.lineTo(x + w * 0.65, y + h * 0.65); g.moveTo(x + w * 0.65, y + h * 0.35); g.lineTo(x + w * 0.35, y + h * 0.65); g.stroke(); break;
-    }
-    default: break;  // streaks and anything subtle
+// rotated or skewed texture coordinates (SetTexCoord with 8 numbers: the
+// corners UL, LL, UR, LR): map the image so each corner lands on its own
+function drawTex8(g, img, e, x, y, w, h) {
+  const [ulx, uly, llx, lly, urx, ury] = e.tc8;
+  const iw = img.width, ih = img.height;
+  const S = 2, cw = Math.max(1, Math.ceil(w * S)), ch = Math.max(1, Math.ceil(h * S));
+  const off = document.createElement('canvas'); off.width = cw; off.height = ch;
+  const o = off.getContext('2d');
+  const p0x = ulx * iw, p0y = uly * ih;
+  const ax = (urx - ulx) * iw, ay = (ury - uly) * ih;   // along the rect's width
+  const bx = (llx - ulx) * iw, by = (lly - uly) * ih;   // along its height
+  const det = ax * by - bx * ay;
+  if (Math.abs(det) < 1e-9) return;
+  const A = cw * by / det, C = -cw * bx / det, B = -ch * ay / det, D = ch * ax / det;
+  o.setTransform(A, B, C, D, -(A * p0x + C * p0y), -(B * p0x + D * p0y));
+  o.drawImage(img, 0, 0);
+  o.setTransform(1, 0, 0, 1, 0, 0);
+  const v = e.vertex;
+  if (v && (v[0] < 0.999 || v[1] < 0.999 || v[2] < 0.999)) {
+    o.globalCompositeOperation = 'multiply';
+    o.fillStyle = `rgb(${v[0]*255},${v[1]*255},${v[2]*255})`;
+    o.fillRect(0, 0, cw, ch);
+    o.globalCompositeOperation = 'destination-in';
+    o.setTransform(A, B, C, D, -(A * p0x + C * p0y), -(B * p0x + D * p0y));
+    o.drawImage(img, 0, 0);
+    o.setTransform(1, 0, 0, 1, 0, 0);
   }
+  g.save();
+  g.globalAlpha *= (v && v[3] != null ? v[3] : 1);
+  g.drawImage(off, x, y, w, h);
   g.restore();
+}
+
+// draw part of an image (texture coordinates), tinted, into the rect
+function drawTex(g, img, e, x, y, w, h) {
+  if (e.tc8) return drawTex8(g, img, e, x, y, w, h);
+  const tc = e.tc || [0, 1, 0, 1];
+  const iw = img.width, ih = img.height;
+  let [u0, u1, v0, v1] = tc;
+  const flipX = u1 < u0, flipY = v1 < v0;
+  const sx = Math.min(u0, u1) * iw, sw = Math.max(1e-3, Math.abs(u1 - u0) * iw);
+  const sy = Math.min(v0, v1) * ih, sh = Math.max(1e-3, Math.abs(v1 - v0) * ih);
+  const S = 2, cw = Math.max(1, Math.ceil(w * S)), ch = Math.max(1, Math.ceil(h * S));
+  const off = document.createElement('canvas'); off.width = cw; off.height = ch;
+  const o = off.getContext('2d');
+  o.save();
+  o.translate(flipX ? cw : 0, flipY ? ch : 0); o.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  o.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+  o.restore();
+  const v = e.vertex;
+  if (v && (v[0] < 0.999 || v[1] < 0.999 || v[2] < 0.999)) {
+    o.globalCompositeOperation = 'multiply';
+    o.fillStyle = `rgb(${v[0]*255},${v[1]*255},${v[2]*255})`;
+    o.fillRect(0, 0, cw, ch);
+    o.globalCompositeOperation = 'destination-in';
+    o.save(); o.translate(flipX ? cw : 0, flipY ? ch : 0); o.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+    o.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch); o.restore();
+  }
+  if (e.desat) g.filter = 'grayscale(1)';
+  const a = g.globalAlpha;
+  if (v && v[3] != null) g.globalAlpha = a * v[3];
+  g.drawImage(off, x, y, w, h);
+  g.globalAlpha = a;
+  g.filter = 'none';
 }
 
 // Where everything is: rectangles (WoW coordinates, y up) and the draw order.
@@ -328,15 +283,15 @@ function draw(scene, title) {
     g.globalAlpha = a;
     if (e.kind === 'texture') {
       const x = r.l, y = Y(r.t), w = r.r - r.l, h = r.t - r.b; if (w <= 0 || h <= 0) continue;
-      if (e.skin) {
-        drawSkin(g, e, x, y, w, h);
-      } else if (e.color) {
+      if (e.color) {
         g.fillStyle = `rgba(${Math.round(e.color[0]*255)},${Math.round(e.color[1]*255)},${Math.round(e.color[2]*255)},${e.color[3]})`;
         g.fillRect(x, y, w, h);
       } else if (e.tex) {
         const path = String(e.tex);
         const name = path.split('\\').pop().replace(/\.tga$/i, '');
-        if (path.includes('UI-Classes-Circles')) {
+        if (path.includes('\\Media\\') && images[name]) {
+          drawTex(g, images[name], e, x, y, w, h);
+        } else if (path.includes('UI-Classes-Circles')) {
           const r2 = v => String(Math.round(v * 100) / 100);
           const key = e.tc ? r2(e.tc[0]) + ',' + r2(e.tc[2]) : '0,0';
           const [col, ini] = CLASS[key] || ['#888', '?'];
@@ -345,8 +300,7 @@ function draw(scene, title) {
           g.fillStyle = 'rgba(0,0,0,0.55)'; g.font = 'bold ' + Math.round(h * 0.42) + 'px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
           g.fillText(ini, x + w / 2, y + h / 2 + 1); g.textAlign = 'left'; g.filter = 'none';
         } else {
-          // a game icon: a shaded tile with a short label (round when masked)
-          if (e.round) { g.save(); g.beginPath(); g.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2); g.clip(); }
+          // a game icon: a shaded tile with a short label
           const hue = hash(name) % 360;
           if (e.desat) g.filter = 'grayscale(1)';
           const grd = g.createLinearGradient(x, y, x, y + h);
@@ -358,7 +312,6 @@ function draw(scene, title) {
             g.fillText(label.slice(0, Math.max(3, Math.floor(w / 5))), x + 2, y + 2);
           }
           g.filter = 'none';
-          if (e.round) g.restore();
         }
       }
     } else if (e.kind === 'text') {
@@ -385,10 +338,10 @@ function draw(scene, title) {
 // Layout check: problems a player would see. Every visible item of a scene is
 // tested; tests/layout_check.js prints the list and fails on any problem.
 // ---------------------------------------------------------------------------
-const SEE_THROUGH = new Set(['glow','hilite','ring','frame','shade','border','streaks','check','lock','star','crown','arrow','plus',
-  'auto','skull','role_tank','role_dps','role_heal','circle','bar','checkbox'])
-const SLICES = new Set(['panel','card','inset','button','pill','slot','tooltip','window']);
-function texName(e) { return e.skin || (e.tex ? String(e.tex).split('\\').pop().replace(/\.tga$/i, '') : null); }
+const SEE_THROUGH = new Set(['glow','ring','frame','shadow','grad_h','grad_v','check','lock','star','crown','arrow','plus',
+  'close','auto','skull','role_tank','role_dps','role_heal','circle','bar']);
+const SLICES = new Set(['panel','card','inset','button','pill','slot','menu']);
+function texName(e) { return e.tex ? String(e.tex).split('\\').pop().replace(/\.tga$/i, '') : null; }
 
 function lint(scene, title) {
   const R = resolve(scene); const byId = R.byId, order = R.order, root = R.root;
@@ -403,12 +356,10 @@ function lint(scene, title) {
   const opaque = e => {
     if (e.kind !== 'texture' || !vis(e)) return false;
     const a = alpha(e);
-    const n = texName(e);
+    if (e.color) return e.color[3] * a >= 0.8;
+    const n = texName(e); if (!n) return false;
     const va = (e.vertex && e.vertex[3] != null) ? e.vertex[3] : 1;
-    if (e.skin && (SEE_THROUGH.has(n) || !SLICES.has(n))) return false;
-    if (e.color) return e.color[3] * va * a >= 0.8;
-    if (!n) return false;
-    if (e.skin) {
+    if (String(e.tex).includes('\\Media\\') && !String(e.tex).includes('\\Art\\')) {
       if (SEE_THROUGH.has(n) || !SLICES.has(n)) return false;
       return va * a >= 0.8;
     }
@@ -468,7 +419,7 @@ function lint(scene, title) {
   for (const e of act) {
     const top = tops.get(e); if (!top || top === e || tooltip(e)) continue;
     const n = texName(e);
-    if (e.kind === 'texture' && (!opaque(e) || SEE_THROUGH.has(n) || e.round)) continue;
+    if (e.kind === 'texture' && (!opaque(e) || SEE_THROUGH.has(n))) continue;
     if (e.kind === 'frame' && !(buttons.includes(e))) continue;
     let b = box(e); if (!b || area(b) <= 0) continue;
     if (e._clip) { b = inter(b, e._clip); if (b.r - b.l <= 0 || b.t - b.b <= 0) continue; }
@@ -515,7 +466,7 @@ function lint(scene, title) {
   // are a little wider than the game's, so a gap that passes here is at
   // least as wide in the game.
   const GAP = 6;
-  const SOFT = new Set(['glow', 'hilite', 'shade', 'border', 'streaks', 'bar', 'frame']);
+  const SOFT = new Set(['glow', 'shadow', 'grad_h', 'grad_v', 'bar', 'frame']);
   const units = [];
   {
     const sliceOf = new Map();
@@ -647,7 +598,10 @@ function lint(scene, title) {
   return out;
 }
 
-Promise.resolve().then(() => {
+const loads = Object.entries(MEDIA).map(([k, src]) => new Promise(res => {
+  const im = new Image(); im.onload = () => { images[k] = im; res(); }; im.onerror = res; im.src = src;
+}));
+Promise.all(loads).then(() => {
   for (const [title, scene] of SCENES) draw(scene, title);
   window.LINT = [];
   for (const [title, scene] of SCENES) window.LINT.push(...lint(scene, title));
@@ -655,6 +609,18 @@ Promise.resolve().then(() => {
 });
 </script></body></html>
 """
+
+
+def media():
+    d = os.path.join(run.HERE, "out", "media")
+    out = {}
+    if not os.path.isdir(d):
+        sys.exit("run tools/make_art.py first (it writes the PNG twins of Media/)")
+    for f in sorted(os.listdir(d)):
+        if f.endswith(".png"):
+            with open(os.path.join(d, f), "rb") as fh:
+                out[f[:-4]] = "data:image/png;base64," + base64.b64encode(fh.read()).decode("ascii")
+    return out
 
 
 def main(argv):
@@ -669,7 +635,7 @@ def main(argv):
     out_dir = os.path.join(run.HERE, "out")
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "preview_%s.html" % locale)
-    page = PAGE.replace("__LOCALE__", locale).replace("__DATA__", json.dumps(data, ensure_ascii=False))
+    page = PAGE.replace("__LOCALE__", locale).replace("__MEDIA__", json.dumps(media())).replace("__DATA__", json.dumps(data, ensure_ascii=False))
     with open(path, "w", encoding="utf-8") as f:
         f.write(page)
     print("wrote %s (%d scenes)" % (path, len(data)))

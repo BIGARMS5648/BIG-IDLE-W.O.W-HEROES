@@ -149,7 +149,13 @@ local function heroFigure(parent, size)
 	p.fig = ns.Figure3D.New(p, size * 1.5)
 	if p.fig then
 		p.fig:SetFacing("front")
-		p.fig:SetScript("OnUpdate", function(self, dt) self:Step(dt) end)
+		-- the class circle stays until the model is in, so nothing blinks
+		p.fig:SetScript("OnUpdate", function(self, dt)
+			self:Step(dt)
+			local inModel = self:IsLoaded()
+			p.icon:SetShown(not inModel)
+			p.disc:SetShown(not inModel)
+		end)
 		p.fig:EnableMouse(false)
 	end
 	function p:SetHeroFigure(id)
@@ -159,8 +165,9 @@ local function heroFigure(parent, size)
 			self.fig:SetHeight2(size * 1.5 * ns.Figure3D.HeroScale(id))
 			self.fig:PlaceFeet(self, size / 2, 0)
 			self.fig:Show()
-			self.icon:Hide()
-			self.disc:Hide()
+			local inModel = self.fig:IsLoaded()
+			self.icon:SetShown(not inModel)
+			self.disc:SetShown(not inModel)
 		else
 			if self.fig then self.fig:Hide() end
 			self.disc:Show()
@@ -211,7 +218,7 @@ local function buildFaction()
 		local crest = half:CreateTexture(nil, "ARTWORK")
 		crest:SetSize(72, 72)
 		crest:SetPoint("TOP", half, "TOP", 0, -18)
-		UI.SetIcon(crest, f.icon)
+		UI.SetArtOrIcon(crest, "icon_" .. fid:lower(), f.icon)
 		local name = UI.Text(half, 24, ns.N(f.name))
 		name:SetPoint("TOP", crest, "BOTTOM", 0, -10)
 		name:SetJustifyH("CENTER")
@@ -342,7 +349,11 @@ local function buildCreate()
 	create.fig = ns.Figure3D.New(mid, 190)
 	if create.fig then
 		create.fig:SetFacing("front")
-		create.fig:SetScript("OnUpdate", function(self, dt) self:Step(dt) end)
+		-- the class circle stays until the model is in
+		create.fig:SetScript("OnUpdate", function(self, dt)
+			self:Step(dt)
+			create.portrait:SetShown(not self:IsLoaded())
+		end)
 	end
 	create.race = UI.Text(mid, 12)
 	create.race:SetPoint("TOP", mid, "TOP", 0, -196)
@@ -357,6 +368,13 @@ local function buildCreate()
 		end, "dark")
 		b:SetPoint("TOP", mid, "TOP", (i - 1.5) * 116, -222)
 		b.sex = sex
+		local art = UI.ArtIcon(sex == "M" and "icon_male" or "icon_female")
+		if art then
+			b.sym = b:CreateTexture(nil, "OVERLAY")
+			b.sym:SetSize(18, 18)
+			b.sym:SetTexture(art)
+			b.sym:SetPoint("RIGHT", b.label, "LEFT", -4, 0)
+		end
 		create.sexes[i] = b
 	end
 	local nameLabel = UI.Text(mid, 11, "이름")
@@ -481,18 +499,18 @@ function create.refresh()
 	local fac = ns.FACTIONS[ns.Faction() or "ALLIANCE"]
 	create.race:SetText(string.format("%s  ·  %s %s", ns.N(fac.name), race.name, ns.SEX[create.sex].name))
 	local mid = ns.Figure3D.Enabled() and ns.Figure3D.ForClass(cid, ns.Faction(), create.sex)
+	UI.SetClassIcon(create.portrait.icon, cid)
+	create.portrait.icon:Show()
+	create.portrait.ringT:SetVertexColor(U.rgb(ns.CLASSES[cid].hex))
+	create.portrait.role:Hide()
 	if create.fig and mid and create.fig:SetModelId(mid) then
 		create.fig:SetHeight2(190 * (ns.Figure3D.RACE_SCALE[race.id] or 1))
 		create.fig:PlaceFeet(create.mid, 135, 210)
 		create.fig:Show()
-		create.portrait:Hide()
+		create.portrait:SetShown(not create.fig:IsLoaded())
 	else
 		if create.fig then create.fig:Hide() end
 		create.portrait:Show()
-		UI.SetClassIcon(create.portrait.icon, cid)
-		create.portrait.icon:Show()
-		create.portrait.ringT:SetVertexColor(U.rgb(ns.CLASSES[cid].hex))
-		create.portrait.role:Hide()
 	end
 	for _, b in ipairs(create.sexes) do
 		b:SetStyle(b.sex == create.sex and "blue" or "dark")

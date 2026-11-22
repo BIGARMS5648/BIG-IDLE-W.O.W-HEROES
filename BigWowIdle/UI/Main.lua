@@ -113,7 +113,7 @@ function Main.RefreshHeader()
 	local fid = ns.Faction() or "ALLIANCE"
 	local f = ns.FACTIONS[fid]
 	UI.SetIcon(frame.crest, f.icon)
-	frame.title:SetText("BIG W.O.W IDLE  " .. U.col(f.hex, ns.N(f.name)))
+	frame.faction:SetText(U.col(f.hex, ns.N(f.name)))
 	local st = db.stage
 	local d = ns.DIFFS[st.diff]
 	local power = 0
@@ -148,6 +148,8 @@ function Main.RefreshNav()
 	local badges = ns.Guide.Badges()
 	for _, b in ipairs(frame.nav) do
 		local on = b.key == current
+		local over = UI.ArtUI(on and "ui_tab_on" or "ui_tab")
+		if over and b.bg.art ~= over then b.bg:SetArt(over) end
 		if on then
 			b.bg:SetColor(1.0, 0.86, 0.45, 1)
 			b.label:SetTextColor(1, 0.86, 0.35)
@@ -222,43 +224,8 @@ function Main.Create()
 	frame:SetFrameStrata("HIGH")
 	frame:SetClampedToScreen(true)
 	frame:SetToplevel(true)
-	-- the game's window: the metal frame of the character sheet with its
-	-- round portrait, the rock behind, the title bar and the red close button
-	frame.bg = UI.TiledBg(frame, UI.FILE.rock, "BACKGROUND", -6)
-	frame.bg:SetPoint("TOPLEFT", frame, "TOPLEFT", 2, -21)
-	frame.bg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2, 2)
-	frame.bg.skinName = "window"
-	if UI.HasAtlas("_UI-Frame-TopTileStreaks") then
-		frame.streaks = frame:CreateTexture(nil, "BORDER")
-		frame.streaks:SetAtlas("_UI-Frame-TopTileStreaks", true)
-		frame.streaks:SetHorizTile(true)
-		frame.streaks:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, -21)
-		frame.streaks:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -21)
-		frame.streaks.skinName = "streaks"
-	end
-	-- the border over everything on the window (as the game's NineSlice);
-	-- the modal layer and the lists open above it
-	local chrome = CreateFrame("Frame", nil, frame)
-	chrome:SetAllPoints(frame)
-	chrome:SetFrameLevel(frame:GetFrameLevel() + 30)
-	chrome.isOverlay = true
-	frame.chrome = chrome
-	local portrait = CreateFrame("Frame", nil, frame)
-	portrait:SetSize(1, 1)
-	portrait:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
-	portrait:SetFrameLevel(frame:GetFrameLevel() + 29)
-	portrait.isOverlay = true
-	frame.crest = portrait:CreateTexture(nil, "OVERLAY")
-	frame.crest:SetSize(62, 62)
-	frame.crest:SetPoint("TOPLEFT", frame, "TOPLEFT", -5, 7)
-	UI.Round(frame.crest, portrait)
-	UI.NineSlice(chrome, "PortraitFrameTemplate")
-	frame.title = UI.Text(chrome, 13, "BIG W.O.W IDLE")
-	frame.title:SetPoint("TOPLEFT", frame, "TOPLEFT", 60, -4)
-	frame.title:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -30, -4)
-	frame.title:SetJustifyH("CENTER")
-	frame.title:SetWordWrap(false)
-	UI.Color(frame.title, { 1, 0.82, 0 })
+	UI.Slice(frame, "shadow", "BACKGROUND", nil, 14)
+	UI.Slice(frame, "panel", "BACKGROUND")
 	frame:SetMovable(true)
 	frame:EnableMouse(true)
 	frame:RegisterForDrag("LeftButton")
@@ -276,36 +243,53 @@ function Main.Create()
 	end
 	frame:SetScale(ns.db.ui.scale or 1)
 
-	-- under the title bar: where the party fights and its power; gold and
-	-- materials; settings
+	-- title bar: crest, name and faction; where the party fights and its
+	-- power; gold and materials; settings; close
+	local head = CreateFrame("Frame", nil, frame)
+	head:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
+	head:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -3)
+	head:SetHeight(56)
+	local hbg = UI.Art(head, "grad_v", "BORDER", 0.10, 0.13, 0.22, 0.9)
+	hbg:SetAllPoints(head)
+	if UI.ArtUI("ui_header") then UI.Slice(head, "card", "BACKGROUND"):SetArt(UI.ArtUI("ui_header")) end
 	local line = UI.Line(frame, Main.W - 24, 0.55, 0.60, 0.75, 0.35)
 	line:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -59)
-	frame.where = UI.Text(frame, 12)
-	frame.where:SetPoint("TOPLEFT", frame, "TOPLEFT", 66, -35)
-	frame.where:SetWidth(300)
+	frame.crest = frame:CreateTexture(nil, "ARTWORK")
+	frame.crest:SetSize(34, 34)
+	frame.crest:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -13)
+	frame.brand = UI.Title(frame, "BIG W.O.W IDLE", 16)
+	frame.brand:SetPoint("TOPLEFT", frame, "TOPLEFT", 58, -12)
+	UI.Color(frame.brand, { 0.92, 0.94, 1 })
+	frame.faction = UI.Text(frame, 14)
+	frame.faction:SetPoint("LEFT", frame.brand, "RIGHT", 8, 0)
+	frame.where = UI.Text(frame, 11)
+	frame.where:SetPoint("TOPLEFT", frame, "TOPLEFT", 58, -34)
+	frame.where:SetWidth(330)
 	frame.where:SetWordWrap(false)
 	UI.Color(frame.where, UI.C.sub)
 
-	frame.close = UI.CloseButton(chrome, function() Main.Toggle(false) end)
-	frame.close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 3)
+	frame.close = UI.Button(frame, 30, 30, "", function() Main.Toggle(false) end, "dark")
+	frame.close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -14)
+	local x = UI.Glyph(frame.close, "close", 14)
+	x:SetPoint("CENTER", frame.close, "CENTER", 0, 0)
 	UI.Tip(frame.close, function() return UI.SimpleTip("닫기", "Esc 키로도 닫힙니다. 전투는 계속됩니다.") end)
-	frame.gear = UI.Button(frame, 34, 28, "", function()
+	frame.gear = UI.Button(frame, 34, 30, "", function()
 		if current == "options" then
 			Main.ShowTab(Main.lastNav or "hero")
 		else
 			Main.ShowTab("options")
 		end
 	end, "dark")
-	frame.gear:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -27)
+	frame.gear:SetPoint("RIGHT", frame.close, "LEFT", -6, 0)
 	frame.gear.icon = frame.gear:CreateTexture(nil, "ARTWORK")
-	frame.gear.icon:SetSize(18, 18)
+	frame.gear.icon:SetSize(20, 20)
 	frame.gear.icon:SetPoint("CENTER", frame.gear, "CENTER", 0, 0)
-	UI.SetIcon(frame.gear.icon, "Trade_Engineering")
+	UI.SetArtOrIcon(frame.gear.icon, "icon_settings", "Trade_Engineering")
 	UI.Tip(frame.gear, function() return UI.SimpleTip("설정", "화면 크기, 진영, 통계, 도움말, 초기화") end)
 
 	-- gold and the materials, right to left
-	local function pill(w, icon)
-		local p = UI.Pill(frame, w, 26, 0.02, 0.03, 0.07, 0.85)
+	local function pill(w, icon, art)
+		local p = UI.Pill(frame, w, 28, 0.02, 0.03, 0.07, 0.85)
 		p.text:ClearAllPoints()
 		p.text:SetPoint("RIGHT", p, "RIGHT", -10, 0)
 		p.text:SetJustifyH("RIGHT")
@@ -313,7 +297,7 @@ function Main.Create()
 		p.coin = p:CreateTexture(nil, "OVERLAY")
 		p.coin:SetSize(18, 18)
 		p.coin:SetPoint("LEFT", p, "LEFT", 6, 0)
-		UI.SetIcon(p.coin, icon)
+		UI.SetArtOrIcon(p.coin, art, icon)
 		return p
 	end
 	frame.currency = {}
@@ -341,16 +325,17 @@ function Main.Create()
 		frame.currency[i] = p
 		right = p
 	end
-	frame.gold = pill(100, "INV_Misc_Coin_01")
+	frame.gold = pill(100, "INV_Misc_Coin_01", "icon_gold")
 	frame.gold:SetPoint("RIGHT", right, "LEFT", -6, 0)
 	UI.Color(frame.gold.text, UI.C.gold)
 	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 만들기, 룬, 장비 제작·강화와 기능 해금에 씁니다.") end)
 
 	-- bottom navigation
-	local navBg = UI.Shade(frame, "BORDER", "VERTICAL", 0.45, 0)
-	navBg:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 2, 2)
-	navBg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2, 2)
+	local navBg = UI.Art(frame, "grad_v", "BORDER", 0, 0, 0, 0.45)
+	navBg:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 3, 3)
+	navBg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -3, 3)
 	navBg:SetHeight(NAV_H)
+	navBg:SetTexCoord(0, 1, 1, 0) -- dark at the bottom
 	frame.nav = {}
 	local navTabs = {}
 	for _, def in ipairs(tabs) do
@@ -374,7 +359,7 @@ function Main.Create()
 		b.icon = b:CreateTexture(nil, "ARTWORK")
 		b.icon:SetSize(28, 28)
 		b.icon:SetPoint("TOP", b, "TOP", 0, -6)
-		UI.SetIcon(b.icon, def.icon)
+		UI.SetArtOrIcon(b.icon, def.art, def.icon)
 		b.label = UI.Text(b, 13, ns.N(def.title))
 		b.label:SetPoint("BOTTOM", b, "BOTTOM", 0, 6)
 		b.label:SetJustifyH("CENTER")
@@ -402,7 +387,7 @@ function Main.Create()
 	local dim = modal:CreateTexture(nil, "BACKGROUND")
 	dim:SetAllPoints(modal)
 	UI.Fill(dim, 0, 0, 0, 0.65)
-	modal.box = UI.Panel(modal, 600, 400, "panel")
+	modal.box = UI.Panel(modal, 600, 400, "panel", true)
 	modal.box:SetPoint("CENTER", modal, "CENTER", 0, 10)
 	modal.box.contents = {}
 	modal:Hide()

@@ -1,8 +1,9 @@
 -- 3D model check (/bwi model): a window that shows the game's own 3D models
 -- the way the battle bar uses them - the selected hero (an NPC of its class,
 -- race and gender), the player's own character, a monster, a boss and a
--- summon; or the tinker's mech, turrets and drone - and plays animations on
--- all of them. Every model function is called through pcall, and under each
+-- summon; or the tinker's mech, turrets and drone; or 활력제 친구's drone
+-- (its file, and a search for its model) and the turret candidates - and
+-- plays animations on all of them. Every model function is called through pcall, and under each
 -- model it says which ones this client has (됨 = worked, 없음 = the client
 -- lacks it, 오류 = it failed) and the client's name for the NPC id.
 local _, ns = ...
@@ -37,7 +38,19 @@ local TINKER = {
 	{ key = "drone", title = "정비: 치유 드론", creature = ns.MODEL.summon.drone_heal },
 	{ key = "heal_turret", title = "정비: 치유 포탑", creature = ns.MODEL.summon.turret_heal },
 }
-local SETS = { basic = SAMPLES, tinker = TINKER }
+-- 드론·포탑: 활력제 친구's heal-ray drone (known only by its file: the
+-- file itself, and a search for the model that wears it), the Hellfire cannons
+-- and the turret used now
+local DRONE = {
+	{ key = "pickmeup", title = "활력제 친구 (파일)", file = ns.MODEL.file.drone_pickmeup },
+	{ key = "pickmeup_find", title = "활력제 친구 (모델 찾기)", find = ns.MODEL.file.drone_pickmeup },
+	{ key = "cannon1", title = ns.MODEL.cannon[1].name, creature = ns.MODEL.cannon[1].npc, display = ns.MODEL.cannon[1].display },
+	{ key = "cannon2", title = ns.MODEL.cannon[2].name, creature = ns.MODEL.cannon[2].npc, display = ns.MODEL.cannon[2].display },
+	{ key = "turret_now", title = "지금 포탑", creature = ns.MODEL.summon.turret_gun },
+}
+local SETS = { basic = SAMPLES, tinker = TINKER, drone = DRONE }
+-- the model ids the drone search goes through
+local FIND_FROM, FIND_TO, FIND_STEP = 100000, 140000, 400
 
 local W, H = 830, 556
 local PANEL_W, PANEL_H, MODEL_H, GAP = 154, 340, 210, 8
@@ -96,6 +109,8 @@ end
 ------------------------------------------------------------------------
 -- Putting the models up
 ------------------------------------------------------------------------
+local applyLook, applyAnim -- (below)
+
 local function showName(p)
 	local name = npcName(p.def.creature)
 	p.nameTries = (p.nameTries or 0) + 1
@@ -116,7 +131,12 @@ local function setupHero(p)
 		ns.N(ns.RACES[race] and ns.RACES[race].name or race), ns.N(ns.SEX[sex].short)))
 	if npc then
 		p.def = { key = "hero", title = p.def.title, creature = npc }
-		setLine(p, 1, "NPC " .. npc .. " · SetCreature " .. mark(call(m, "SetCreature", npc)))
+		local disp = ns.MODEL.display and ns.MODEL.display[npc]
+		if disp then
+			setLine(p, 1, "모델 " .. disp .. " · SetDisplayInfo " .. mark(call(m, "SetDisplayInfo", disp)))
+		else
+			setLine(p, 1, "NPC " .. npc .. " · SetCreature " .. mark(call(m, "SetCreature", npc)))
+		end
 		p.nameTries = 0
 		showName(p)
 	else
@@ -130,33 +150,83 @@ local function setupPlayer(p)
 	setLine(p, 2, "")
 end
 
+-- An NPC by its model (display id: the game's own data, as the battle bar
+-- does), or by the NPC id when there is no model id for it
 local function setupCreature(p)
-	local r = call(p.model, "SetCreature", p.def.creature)
-	p.name:SetText("NPC " .. p.def.creature)
-	setLine(p, 1, "SetCreature " .. mark(r))
+	local disp = p.def.display or (ns.MODEL.display and ns.MODEL.display[p.def.creature])
+	p.name:SetText("NPC " .. p.def.creature .. (disp and (" · 모델 " .. disp) or ""))
+	if disp then
+		setLine(p, 1, "SetDisplayInfo " .. mark(call(p.model, "SetDisplayInfo", disp)))
+	else
+		setLine(p, 1, "SetCreature " .. mark(call(p.model, "SetCreature", p.def.creature)))
+	end
 	p.nameTries = 0
 	showName(p) -- the client's own name for the id, on the second line
 end
 
-local SETUP = { hero = setupHero, player = setupPlayer }
+-- A model known only by its file
+local function setupFile(p)
+	p.name:SetText("파일 " .. p.def.file)
+	setLine(p, 1, "SetModel " .. mark(call(p.model, "SetModel", p.def.file)))
+	setLine(p, 2, "")
+end
+
+-- Looks for the model that wears the file: tries model ids one after another
+-- and keeps those whose file is the drone's
+local function setupFind(p)
+	p.name:SetText("파일 " .. p.def.find .. "을 쓰는 모델")
+	p.scan = { id = FIND_FROM, found = {} }
+	setLine(p, 1, "찾는 중…")
+	setLine(p, 2, "")
+end
+
+local function stepFind(p)
+	local sc = p.scan
+	local target = p.def.find
+	for _ = 1, FIND_STEP do
+		if sc.id > FIND_TO then break end
+		if call(p.model, "SetDisplayInfo", sc.id) then
+			local ok, file = call(p.model, "GetModelFileID")
+			if ok and file == target then sc.found[#sc.found + 1] = sc.id end
+		end
+		sc.id = sc.id + 1
+	end
+	if sc.id <= FIND_TO then
+		setLine(p, 1, string.format("찾는 중… %d / %d", sc.id - FIND_FROM, FIND_TO - FIND_FROM + 1))
+		return
+	end
+	p.scan = nil
+	if #sc.found > 0 then
+		call(p.model, "SetDisplayInfo", sc.found[1])
+		setLine(p, 1, U.col("60e070", "찾음") .. " · 모델 " .. table.concat(sc.found, ", ", 1, math.min(#sc.found, 4)))
+	else
+		call(p.model, "ClearModel")
+		setLine(p, 1, U.col("ff6a5a", "못 찾음") .. string.format(" (모델 %d~%d)", FIND_FROM, FIND_TO))
+	end
+	applyLook(p)
+	applyAnim(p)
+	state.loadT = 1.6
+end
+
+local SETUP = { hero = setupHero, player = setupPlayer, pickmeup = setupFile, pickmeup_find = setupFind }
 
 -- 전투 방향: heroes turned to the right (where the monsters come from),
 -- monsters to the left; the facing value used shows in the window
 local function facingOf(p)
 	if not state.battle then return state.facing end
 	-- the tinker's mech, turret and drone stand with the heroes
-	local hero = state.set == "tinker" or p.def.key == "hero" or p.def.key == "player"
+	local hero = state.set == "tinker" or state.set == "drone" or p.def.key == "hero" or p.def.key == "player"
 	return hero and (pi / 2) or (3 * pi / 2)
 end
 
-local function applyLook(p)
+function applyLook(p)
 	local m = p.model
 	local f = call(m, "SetFacing", facingOf(p))
 	local d = call(m, "SetCamDistanceScale", state.dist)
 	setLine(p, 4, "SetFacing " .. mark(f) .. " · 거리 " .. mark(d))
 end
 
-local function applyAnim(p)
+function applyAnim(p)
 	local how, r = "SetAnimation", call(p.model, "SetAnimation", state.anim)
 	if r == nil then how, r = "SetSequence", call(p.model, "SetSequence", state.anim) end
 	setLine(p, 5, "동작 " .. how .. " " .. mark(r))
@@ -183,7 +253,7 @@ local function setupAll()
 	for i, p in ipairs(panels) do
 		p.def = SETS[state.set][i]
 		p.titleText:SetText(p.def.title)
-		p.nameTries, p.file = nil, nil
+		p.nameTries, p.file, p.scan = nil, nil, nil
 		setLine(p, 2, "")
 		if p.model then
 			call(p.model, "ClearModel")
@@ -243,6 +313,7 @@ local function build()
 	frame:SetFrameStrata("DIALOG")
 	frame:SetClampedToScreen(true)
 	frame:SetToplevel(true)
+	UI.Slice(frame, "shadow", "BACKGROUND", nil, 14)
 	UI.Slice(frame, "panel", "BACKGROUND")
 	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
 	frame:SetMovable(true)
@@ -259,11 +330,11 @@ local function build()
 	desc:SetWidth(W - 90)
 	desc:SetWordWrap(false)
 	UI.Color(desc, UI.C.sub)
-	local close = UI.CloseButton(frame, function() Check.Toggle(false) end)
-	close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -12)
+	local close = UI.Button(frame, 30, 30, "", function() Check.Toggle(false) end, "dark")
+	close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -14)
 	-- which models: the basic check, or the tinker's candidates
 	frame.setButtons = {}
-	for i, s in ipairs({ { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
+	for i, s in ipairs({ { "drone", "드론·포탑" }, { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
 		local b = UI.Button(frame, 96, 24, s[2], function()
 			state.set = s[1]
 			setupAll()
@@ -273,6 +344,8 @@ local function build()
 		b.set = s[1]
 		frame.setButtons[i] = b
 	end
+	local x = UI.Glyph(close, "close", 14)
+	x:SetPoint("CENTER", close, "CENTER", 0, 0)
 
 	-- one card per sample: title, the model, its name, five lines of results
 	for i, def in ipairs(SAMPLES) do
@@ -372,6 +445,7 @@ local function build()
 
 	frame:SetScript("OnUpdate", function(_, dt)
 		for _, p in ipairs(panels) do
+			if p.scan and p.model then stepFind(p) end
 			-- NPC names the client did not have yet
 			if p.nameTries and p.nameTries < 8 then
 				p.nameT = (p.nameT or 0) - dt
