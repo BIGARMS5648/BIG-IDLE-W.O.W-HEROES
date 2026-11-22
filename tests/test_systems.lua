@@ -813,11 +813,15 @@ check(ns.Offline.Claim(1030) == nil, "less than a minute pays nothing")
 ------------------------------------------------------------------------
 section("companions")
 db.pets = {}
-db.kills = { beast = 5000 }
+local catNeed = ns.PET_BY_ID.cat.unlock.n
+db.kills = { beast = catNeed - 1 }
 ns.Runes.Invalidate()
 local e0 = ns.Bonus("exp")
 ns.CheckPets()
-check(db.pets.cat and ns.Bonus("exp") == e0 + 15, "5000 beast kills unlock the cat and its bonus")
+check(not db.pets.cat, "the cat waits for its kill count")
+db.kills = { beast = catNeed }
+ns.CheckPets()
+check(db.pets.cat and ns.Bonus("exp") == e0 + 15, "enough beast kills unlock the cat and its bonus")
 
 ------------------------------------------------------------------------
 section("save repair and migration")
