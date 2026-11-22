@@ -39,6 +39,8 @@ do
 		if pet.id ~= "skull" and not isId(ns.MODEL.pet[pet.id]) then noModel[#noModel + 1] = "pet " .. pet.id end
 	end
 	for k in pairs(ns.MODEL.mob) do if not ns.MONSTERS[k] then noModel[#noModel + 1] = "model for no monster: " .. k end end
+	-- the gnome tinker (Alliance, male) is High Tinker Mekkatorque
+	check(ns.MODEL.hero.TINKER.ALLIANCE.M == 7937, "the male gnome tinker should use Mekkatorque's model (NPC 7937)")
 	check(#noModel == 0, "3D models for every monster, boss and companion: " .. table.concat(noModel, ", "))
 end
 do

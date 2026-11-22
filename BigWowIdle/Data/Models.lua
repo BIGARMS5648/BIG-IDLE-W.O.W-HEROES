@@ -374,5 +374,5 @@ ns.MODEL.hero = {
 	MAGE    = { ALLIANCE = { M = 198, F = 5497 }, HORDE = { M = 16646, F = 50010 } },    -- Khelden Bremen, Jennea Cannon / Alamma, Alaressa
 	WARLOCK = { ALLIANCE = { M = 906, F = 459 }, HORDE = { M = 988, F = 3325 } },        -- Maximillian Crowe, Drusilla La Salle / Kartosh, Mirkat
 	DRUID   = { ALLIANCE = { M = 4217, F = 4146 }, HORDE = { M = 3033, F = 1409 } },     -- Mathrengyl Bearwalker, Jocaste / Turak Runetotem, Moorah Stormhoof
-	TINKER  = { ALLIANCE = { M = 5174, F = 11037 }, HORDE = { M = 14742, F = 192165 } }, -- Springspindle Fizzlegear, Jenna Lemkenilli / Zap Farflinger, Winnie Fingerspring
+	TINKER  = { ALLIANCE = { M = 7937, F = 11037 }, HORDE = { M = 14742, F = 192165 } }, -- High Tinker Mekkatorque, Jenna Lemkenilli / Zap Farflinger, Winnie Fingerspring
 }
