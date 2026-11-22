@@ -2,7 +2,7 @@
 local ADDON, ns = ...
 ns = ns or {}
 ns.ADDON = ADDON or "BigWowIdle"
-ns.VERSION = "3.5.0"
+ns.VERSION = "3.5.1"
 
 local floor, max, min, random = math.floor, math.max, math.min, math.random
 local format = string.format
@@ -209,7 +209,7 @@ end
 
 function ns.Print(msg)
 	if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
-		DEFAULT_CHAT_FRAME:AddMessage("|cffffd100[방치형 영웅단]|r " .. tostring(msg))
+		DEFAULT_CHAT_FRAME:AddMessage("|cffffd100[B.W.I]|r " .. tostring(msg))
 	end
 end
 
