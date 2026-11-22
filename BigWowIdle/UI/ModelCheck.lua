@@ -22,11 +22,13 @@ local ANIM_NAME = {}
 for _, a in ipairs(ANIMS) do ANIM_NAME[a[1]] = a[2] end
 
 -- the sample models: creature ids (NPC ids) for the monster, boss and summon
+-- (the first stage's first monster, the Molten Core's last boss)
+local FIRST_MOB = ns.STAGES[1][1].mobs[1][1]
 local SAMPLES = {
 	{ key = "hero", title = "영웅 (전투 창 모델)", kind = "DressUpModel" },
 	{ key = "player", title = "내 캐릭터", kind = "PlayerModel" },
-	{ key = "mob", title = "몬스터: 호그", kind = "PlayerModel", creature = 448 },
-	{ key = "boss", title = "우두머리: 라그나로스", kind = "PlayerModel", creature = 11502 },
+	{ key = "mob", title = "몬스터: " .. ns.MONSTERS[FIRST_MOB].name, kind = "PlayerModel", creature = ns.MODEL.mob[FIRST_MOB] },
+	{ key = "boss", title = "우두머리: " .. ns.STAGES[4][10].boss.name, kind = "PlayerModel", creature = ns.MODEL.boss["4-10"] },
 	{ key = "pet", title = "소환물: 임프", kind = "PlayerModel", creature = 416 },
 }
 -- 땜장이 후보: what the tinker's mech, turret and drone could look like
@@ -44,6 +46,8 @@ for i, c in ipairs(ns.MODEL.candidates) do
 	OTHER[i] = { key = "other" .. i, title = c.name, creature = c.npc, name = c.name }
 end
 local SETS = { basic = SAMPLES, tinker = TINKER, other = OTHER }
+-- pages drawn their own way (not the five cards)
+local PAGES = {}
 
 local W, H = 830, 556
 local PANEL_W, PANEL_H, MODEL_H, GAP = 154, 340, 210, 8
@@ -203,6 +207,15 @@ local function reportLoad(p)
 end
 
 local function setupAll()
+	local page = PAGES[state.set]
+	for name, pg in pairs(PAGES) do
+		if pg.frame then pg.frame:SetShown(pg == page) end
+	end
+	for _, p in ipairs(panels) do p.card:SetShown(not page) end
+	if page then
+		page.setup()
+		return
+	end
 	for i, p in ipairs(panels) do
 		p.def = SETS[state.set][i]
 		p.titleText:SetText(p.def.title)
@@ -245,6 +258,8 @@ end
 local function setAnim(id)
 	state.anim = max(0, min(999, id))
 	for _, p in ipairs(panels) do if p.model then applyAnim(p) end end
+	local page = PAGES[state.set]
+	if page and page.anim then page.anim(state.anim) end
 	refresh()
 end
 
@@ -254,6 +269,286 @@ local function setLook(facing, dist, battle)
 	state.dist = max(0.25, min(4, dist))
 	for _, p in ipairs(panels) do if p.model then applyLook(p) end end
 	refresh()
+end
+
+------------------------------------------------------------------------
+-- 전투 모습: the models as the battle bar draws them, side by side on one
+-- ground line at the battle's sizes (twice as big)
+------------------------------------------------------------------------
+local BATTLE_K, GROUND = 2, 70
+local battle = {}
+PAGES.battle = battle
+
+function battle.build(win)
+	local f = UI.Panel(win, W - 36, PANEL_H, "card")
+	f:SetPoint("TOPLEFT", win, "TOPLEFT", 18, -66)
+	if f.SetClipsChildren then f:SetClipsChildren(true) end
+	f:Hide()
+	battle.frame = f
+	local line = f:CreateTexture(nil, "ARTWORK")
+	line:SetHeight(2)
+	line:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 8, GROUND)
+	line:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -8, GROUND)
+	UI.Fill(line, 1, 0.82, 0.3, 0.6)
+	local t = UI.Text(f, 11, "전투 창과 같은 방식으로 띄운 모델입니다. 노란 선이 땅이고, 모든 모델의 발이 선 위에 서야 합니다.")
+	t:SetPoint("TOPLEFT", f, "TOPLEFT", 10, -8)
+	t:SetWidth(W - 56)
+	t:SetWordWrap(false)
+	UI.Color(t, UI.C.sub)
+	battle.slots = {}
+	for i = 1, 6 do
+		local slot = {}
+		slot.name = UI.Text(f, 11)
+		slot.name:SetWidth(124)
+		slot.name:SetJustifyH("CENTER")
+		slot.name:SetWordWrap(false)
+		slot.state = UI.Text(f, 10)
+		slot.state:SetWidth(124)
+		slot.state:SetJustifyH("CENTER")
+		slot.state:SetWordWrap(false)
+		UI.Color(slot.state, UI.C.sub)
+		battle.slots[i] = slot
+	end
+end
+
+local function battleState(fig)
+	if not fig then return U.col("ff6a5a", "모델 없음") end
+	local how = fig.kind == "scene" and "장면" or "모델 틀"
+	local load
+	if fig:IsLoaded() then
+		load = U.col("60e070", "불러옴")
+	elseif fig.id then
+		load = U.col("aab3c8", "불러오는 중")
+	else
+		load = U.col("ff6a5a", "안 불러짐")
+	end
+	local size = ""
+	if fig.kind == "scene" and fig:IsLoaded() then
+		size = " · " .. (fig.box and U.col("60e070", "크기 잼") or U.col("ff6a5a", "크기 못 잼"))
+	end
+	return how .. " · " .. load .. size
+end
+
+function battle.setup()
+	local list = {}
+	local party = ns.db and ns.db.party or {}
+	for i = 1, ns.PARTY_SIZE do
+		local id = party[i]
+		if id and ns.db.heroes[id] and #list < 3 then
+			list[#list + 1] = { npc = ns.Figure3D.ForHero(id, true), h = 74 * ns.Figure3D.HeroScale(id), face = "right", name = ns.Heroes.ShortName(id) }
+		end
+	end
+	local st = ns.db and ns.db.stage or {}
+	local stage = ns.Stage(st.diff or 1, st.idx or 1)
+	if stage then
+		local mob = stage.mobs[1] and stage.mobs[1][1]
+		if mob then list[#list + 1] = { npc = ns.MODEL.mob[mob], h = 70, face = "left", name = ns.N(ns.MONSTERS[mob].name) } end
+		list[#list + 1] = { npc = ns.MODEL.boss[(st.diff or 1) .. "-" .. (st.idx or 1)], h = 98, face = "left", name = ns.N(stage.boss.name) }
+	end
+	list[#list + 1] = { npc = ns.MODEL.boss["4-10"], h = 98, face = "left", name = ns.N(ns.STAGES[4][10].boss.name) }
+	local f = battle.frame
+	local step = (W - 36) / #list
+	for i, slot in ipairs(battle.slots) do
+		local e = list[i]
+		if slot.fig then slot.fig:Hide() end
+		slot.name:SetShown(e ~= nil)
+		slot.state:SetShown(e ~= nil)
+		if e then
+			slot.fig = slot.fig or ns.Figure3D.New(f, 64)
+			local x = step * (i - 0.5)
+			if slot.fig then
+				slot.fig.id = nil
+				slot.fig:SetHeight2(e.h * BATTLE_K)
+				slot.fig:SetFacing(e.face)
+				ns.Figure3D.ResetFailed()
+				slot.fig:SetModelId(e.npc)
+				slot.fig:PlaceFeet(f, x, GROUND)
+				slot.fig:Show()
+			end
+			slot.name:ClearAllPoints()
+			slot.name:SetPoint("TOP", f, "BOTTOMLEFT", x, GROUND - 6)
+			slot.name:SetText(e.name or "")
+			slot.state:ClearAllPoints()
+			slot.state:SetPoint("TOP", slot.name, "BOTTOM", 0, -3)
+			slot.state:SetText(battleState(slot.fig))
+		end
+	end
+end
+
+function battle.step(dt)
+	for _, slot in ipairs(battle.slots) do
+		if slot.fig and slot.fig:IsShown() then
+			slot.fig:Step(dt)
+			slot.state:SetText(battleState(slot.fig))
+		end
+	end
+end
+
+function battle.anim(id)
+	for _, slot in ipairs(battle.slots) do
+		if slot.fig and slot.fig:IsShown() and slot.fig.SetAnim then slot.fig:SetAnim(id) end
+	end
+end
+
+------------------------------------------------------------------------
+-- 옷 입히기: ways to put a class's dungeon set on a body of the class's race
+-- (here a dwarf warrior in the Battlegear of Valor), side by side; the one
+-- that shows a dwarf in that armor is the way the game can do it
+------------------------------------------------------------------------
+local dress = {}
+PAGES.dress = dress
+local DRESS_SET = "WARRIOR"
+local DRESS_RACE = "DWARF"
+
+local DRESS = {
+	{ title = "종족 바꿔 입히기", kind = "DressUpModel", unit = true, race = true },
+	{ title = "NPC 몸에 입히기", kind = "DressUpModel", npc = true },
+	{ title = "NPC 몸 (장면)", kind = "scene", npc = true },
+	{ title = "내 캐릭터 (장면)", kind = "scene", unit = true },
+	{ title = "내 캐릭터에 입히기", kind = "DressUpModel", unit = true },
+}
+
+function dress.build(win)
+	local f = CreateFrame("Frame", nil, win)
+	f:SetPoint("TOPLEFT", win, "TOPLEFT", 18, -66)
+	f:SetSize(W - 36, PANEL_H)
+	f:Hide()
+	dress.frame = f
+	dress.cards = {}
+	for i, def in ipairs(DRESS) do
+		local card = UI.Panel(f, PANEL_W, PANEL_H, "card")
+		card:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * (PANEL_W + GAP), 0)
+		local t = UI.Text(card, 12, def.title)
+		t:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -8)
+		t:SetWidth(PANEL_W - 16)
+		t:SetWordWrap(false)
+		UI.Color(t, UI.C.gold)
+		local c = { def = def, card = card, lines = {} }
+		c.name = UI.Text(card, 11)
+		c.name:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -26 - MODEL_H - 4)
+		c.name:SetWidth(PANEL_W - 16)
+		c.name:SetWordWrap(false)
+		for k = 1, LINES do
+			local l = UI.Text(card, 10)
+			l:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -26 - MODEL_H - 22 - (k - 1) * 15)
+			l:SetWidth(PANEL_W - 16)
+			l:SetWordWrap(false)
+			UI.Color(l, UI.C.sub)
+			c.lines[k] = l
+		end
+		dress.cards[i] = c
+	end
+end
+
+local function dressItems()
+	local set = ns.MODEL.dungeonSet[DRESS_SET]
+	return set and set.items or {}
+end
+
+-- the plain body of the race: its class trainer's NPC
+local function raceNpc()
+	local t = ns.MODEL.trainer.WARRIOR and ns.MODEL.trainer.WARRIOR.ALLIANCE
+	return t and t.npc
+end
+
+-- the widget a card's model is shown in, made the first time
+local function dressModel(c)
+	if c.model ~= nil then return c.model end
+	local def = c.def
+	if def.kind == "scene" then
+		local fig = ns.Figure3D.New(c.card, MODEL_H / 1.5)
+		if fig and fig.kind ~= "scene" then fig:Hide() fig = nil end
+		c.model = fig or false
+		if fig then fig:PlaceFeet(c.card, PANEL_W / 2, -26 - MODEL_H + PANEL_H + 18) end
+	else
+		local ok, m = pcall(CreateFrame, def.kind, nil, c.card)
+		if not ok or not m then ok, m = pcall(CreateFrame, "PlayerModel", nil, c.card) end
+		c.model = (ok and m) or false
+		if c.model then
+			m:SetPoint("TOPLEFT", c.card, "TOPLEFT", 4, -26)
+			m:SetSize(PANEL_W - 8, MODEL_H)
+		end
+	end
+	return c.model
+end
+
+function dress.setup()
+	local set = ns.MODEL.dungeonSet[DRESS_SET]
+	local disp = ns.MODEL.display[raceNpc()]
+	for _, c in ipairs(dress.cards) do
+		local def, m = c.def, dressModel(c)
+		c.name:SetText((ns.RACES[DRESS_RACE].name) .. " · " .. (set and set.name or ""))
+		for k = 1, LINES do c.lines[k]:SetText("") end
+		c.dressed, c.t = false, 0
+		if not m then
+			c.lines[1]:SetText((def.kind == "scene" and "ModelScene" or def.kind) .. " 만들기 " .. NO)
+		elseif def.kind == "scene" then
+			local a = m.actor
+			m.loaded, m.id = false, nil
+			m:SetFacing("front")
+			m:Show()
+			call(a, "ClearModel")
+			call(a, "SetScale", 1)
+			call(a, "SetYaw", 0)
+			call(a, "SetPosition", 0, 0, 0)
+			if def.unit then
+				c.lines[1]:SetText("SetModelByUnit " .. mark(call(a, "SetModelByUnit", "player", false, true)))
+			else
+				c.lines[1]:SetText("모델 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(a, "SetModelByCreatureDisplayID", disp) or nil))
+			end
+		else
+			call(m, "ClearModel")
+			call(m, "SetFacing", 0)
+			if def.unit then
+				c.lines[1]:SetText("SetUnit " .. mark(call(m, "SetUnit", "player")))
+			else
+				c.lines[1]:SetText("모델 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(m, "SetDisplayInfo", disp) or nil))
+			end
+		end
+	end
+end
+
+-- once the body is in (or after a moment): race, clothes off, the set on
+local function putOn(c)
+	c.dressed = true
+	local def, m = c.def, c.model
+	local target = def.kind == "scene" and m.actor or m
+	if def.race then
+		c.lines[2]:SetText("SetCustomRace " .. mark(call(target, "SetCustomRace", ns.MODEL.raceId[DRESS_RACE], 0)))
+	end
+	c.lines[3]:SetText("Undress " .. mark(call(target, "Undress")))
+	local worn, tried = 0, 0
+	for _, item in ipairs(dressItems()) do
+		tried = tried + 1
+		if call(target, "TryOn", "item:" .. item) == true then worn = worn + 1 end
+	end
+	c.lines[4]:SetText(string.format("TryOn %d/%d %s", worn, tried, worn == tried and tried > 0 and OK or (worn > 0 and ERR or NO)))
+	if def.kind == "scene" then
+		m.loaded = true
+		m:Measure()
+		m:Look()
+	end
+end
+
+function dress.step(dt)
+	for _, c in ipairs(dress.cards) do
+		local m = c.model
+		if m and not c.dressed then
+			c.t = c.t + dt
+			local inNow
+			if c.def.kind == "scene" then
+				local ok, l = call(m.actor, "IsLoaded")
+				inNow = ok and l
+			else
+				local ok, file = call(m, "GetModelFileID")
+				inNow = ok and file and file ~= 0
+			end
+			if inNow or c.t > 1.5 then
+				c.lines[5]:SetText(inNow and U.col("60e070", "모델 불러옴") or U.col("ff6a5a", "모델 안 불러짐"))
+				putOn(c)
+			end
+		end
+	end
 end
 
 ------------------------------------------------------------------------
@@ -287,7 +582,7 @@ local function build()
 	close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -14)
 	-- which models: the basic check, or the tinker's candidates
 	frame.setButtons = {}
-	for i, s in ipairs({ { "other", "다른 후보" }, { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
+	for i, s in ipairs({ { "dress", "옷 입히기" }, { "battle", "전투 모습" }, { "other", "다른 후보" }, { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
 		local b = UI.Button(frame, 96, 24, s[2], function()
 			state.set = s[1]
 			setupAll()
@@ -396,7 +691,11 @@ local function build()
 	local buildNo = GetBuildInfo and select(4, GetBuildInfo())
 	frame.info:SetText(string.format("ModelScene %s · 클라이언트 빌드 %s", scene and OK or NO, tostring(buildNo or "?")))
 
+	for _, pg in pairs(PAGES) do if pg.build then pg.build(frame) end end
+
 	frame:SetScript("OnUpdate", function(_, dt)
+		local page = PAGES[state.set]
+		if page and page.step and page.frame and page.frame:IsShown() then page.step(dt) end
 		for _, p in ipairs(panels) do
 			-- NPC names the client did not have yet
 			if p.nameTries and p.nameTries < 8 then
@@ -435,5 +734,14 @@ function Check.Toggle(show)
 end
 
 function Check.Frame() return frame end
+
+-- shows one set of models (basic, tinker, other, battle, dress)
+function Check.ShowSet(name)
+	if not frame then build() end
+	state.set = name
+	setupAll()
+	refresh()
+end
 Check.panels = panels
 Check.state = state
+Check.pages = PAGES

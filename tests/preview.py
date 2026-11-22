@@ -31,7 +31,7 @@ SCENES = [
     "runes", "runes_locked", "runes_full",
     "map", "map_heroic", "map_raid", "map_locked",
     "pets", "pets_locked",
-    "options", "options_game", "options_info", "options_reset", "model_check",
+    "options", "options_game", "options_info", "options_reset", "model_check", "model_check_battle", "model_check_dress",
     "new_hero", "new_equip", "new_mats", "new_party", "new_create", "new_one", "new_one_skills", "new_one_equip", "new_one_party",
     "new_map", "new_runes", "new_pets",
 ]

@@ -312,6 +312,17 @@ S.model_check = function()
 	ns.ModelCheck.Toggle(true)
 	S.restore = function() ns.ModelCheck.Toggle(false) end
 end
+-- the model check's battle look and dressing pages
+S.model_check_battle = function()
+	ns.ModelCheck.Toggle(true)
+	ns.ModelCheck.ShowSet("battle")
+	S.restore = function() ns.ModelCheck.ShowSet("basic") ns.ModelCheck.Toggle(false) end
+end
+S.model_check_dress = function()
+	ns.ModelCheck.Toggle(true)
+	ns.ModelCheck.ShowSet("dress")
+	S.restore = function() ns.ModelCheck.ShowSet("basic") ns.ModelCheck.Toggle(false) end
+end
 -- every rune learned: the 보너스 합계 list is longer than its box and scrolls
 S.runes_full = function()
 	local saved = {}

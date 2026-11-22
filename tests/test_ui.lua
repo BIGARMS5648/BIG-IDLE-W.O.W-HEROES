@@ -962,7 +962,8 @@ do
 	Fig.ResetFailed()
 	ns.db.models = nil
 	local D = ns.MODEL.display
-	Mock.boxes[D[448]] = { -1, -1, 0, 1, 1, 2 }        -- 2 tall, 2 long
+	local MOB = ns.MODEL.mob[ns.STAGES[1][1].mobs[1][1]]
+	Mock.boxes[D[MOB]] = { -1, -1, 0, 1, 1, 2 }        -- 2 tall, 2 long
 	Mock.boxes[D[11502]] = { -3, -2, -1.5, 5, 2, 14.5 } -- huge, standing in lava below its origin
 	Mock.boxes[D[416]] = { -0.2, -0.2, 0, 0.4, 0.2, 0.6 } -- small and off its middle
 	local function stand(npc, h)
@@ -973,7 +974,7 @@ do
 		m:Show()
 		return m
 	end
-	for _, c in ipairs({ { 448, 70 }, { 11502, 98 }, { 416, 70 } }) do
+	for _, c in ipairs({ { MOB, 70 }, { 11502, 98 }, { 416, 70 } }) do
 		local m = stand(c[1], c[2])
 		local a = m.actor
 		local b = Mock.boxes[D[c[1]]]
@@ -1007,7 +1008,7 @@ do
 	Mock.boxes = {}
 	-- the game's own answer is kept: the display id a model came up with is
 	-- used first next time; one the game lacks is not waited for again
-	local npc = 448
+	local npc = MOB
 	local m = stand(npc, 60)
 	if ns.db.models.ok[npc] ~= D[npc] then fail("the display id a model came up with should be kept") end
 	ns.db.models.ok[npc] = 777
@@ -1093,13 +1094,14 @@ do
 	local heroNpc = ns.Figure3D.ForHero(ns.Main.SelectedHero(), false)
 	-- every NPC by its model (display id), as the battle bar puts it up
 	local D = ns.MODEL.display
-	local want = { hero = "display:" .. tostring(D[heroNpc]), player = "unit:player", mob = "display:" .. D[448], boss = "display:" .. D[11502], pet = "display:" .. D[416] }
+	local MOB = ns.MODEL.mob[ns.STAGES[1][1].mobs[1][1]]
+	local want = { hero = "display:" .. tostring(D[heroNpc]), player = "unit:player", mob = "display:" .. D[MOB], boss = "display:" .. D[11502], pet = "display:" .. D[416] }
 	for _, p in ipairs(MC.panels) do
 		if not p.model then fail("no model frame for " .. p.def.key)
 		elseif p.model.__model ~= want[p.def.key] then fail(p.def.key .. " shows " .. tostring(p.model.__model)) end
 	end
 	frames(20) -- the models report what loaded
-	if not (MC.panels[3].name.__text or ""):find("NPC 448", 1, true) or not (MC.panels[3].lines[2].__text or ""):find("이름", 1, true) then fail("a creature card should show its NPC id and the client name") end
+	if not (MC.panels[3].name.__text or ""):find("NPC " .. MOB, 1, true) or not (MC.panels[3].lines[2].__text or ""):find("이름", 1, true) then fail("a creature card should show its NPC id and the client name") end
 	if not (MC.panels[3].lines[3].__text or ""):find("모델 불러옴", 1, true) then fail("a loaded model should say so: " .. tostring(MC.panels[3].lines[3].__text)) end
 	click("model: attack", function(b) return b.anim == 17 and b:IsVisible() end)
 	for _, p in ipairs(MC.panels) do if p.model.__anim ~= 17 then fail("the attack button should play animation 17 on " .. p.def.key) end end
@@ -1134,8 +1136,36 @@ do
 	click("model: other candidates", function(b) return label(b) == "다른 후보" end)
 	if MC.panels[1].model.__model ~= "display:" .. D[ns.MODEL.candidates[1].npc] then fail("다른 후보 should show the other models: " .. tostring(MC.panels[1].model.__model)) end
 	if not (MC.panels[1].lines[2].__text or ""):find(ns.MODEL.candidates[1].name, 1, true) then fail("다른 후보 should name the models") end
+	-- 전투 모습: the models as the battle draws them, on one ground line
+	click("model: battle look", function(b) return label(b) == "전투 모습" end)
+	local bp = MC.pages.battle
+	if not bp.frame:IsShown() or MC.panels[1].card:IsShown() then fail("전투 모습 should show its own page instead of the cards") end
+	frames(5)
+	local figs = 0
+	for _, slot in ipairs(bp.slots) do
+		if slot.fig and slot.fig:IsShown() then
+			figs = figs + 1
+			if not slot.fig:IsLoaded() then fail("a 전투 모습 model should load") end
+			if not (slot.state.__text or ""):find("불러옴", 1, true) then fail("a 전투 모습 model should say it loaded: " .. tostring(slot.state.__text)) end
+		end
+	end
+	if figs < 3 then fail("전투 모습 should stand heroes and monsters side by side (" .. figs .. ")") end
+	click("model: attack on the battle look", function(b) return b.anim == 17 and b:IsVisible() end)
+	for _, slot in ipairs(bp.slots) do
+		if slot.fig and slot.fig:IsShown() and slot.fig.actor and slot.fig.actor.__anim ~= 17 then fail("the animation buttons should play on 전투 모습 too") break end
+	end
+	-- 옷 입히기: a dwarf in the Battlegear of Valor, five ways
+	click("model: dressing", function(b) return label(b) == "옷 입히기" end)
+	local dp = MC.pages.dress
+	if not dp.frame:IsShown() or bp.frame:IsShown() then fail("옷 입히기 should show its own page") end
+	frames(20)
+	local c2 = dp.cards[2]
+	if not (c2.lines[4].__text or ""):find("TryOn 8/8", 1, true) then fail("dressing an NPC body should try the eight pieces on: " .. tostring(c2.lines[4].__text)) end
+	if not (dp.cards[1].lines[2].__text or ""):find("SetCustomRace", 1, true) then fail("the race card should say whether the race could be set") end
+	if not (dp.cards[3].lines[1].__text or ""):find("모델", 1, true) then fail("the scene card should put the NPC body up") end
 	click("model: basic check", function(b) return label(b) == "기본 확인" end)
-	if MC.panels[3].model.__model ~= "display:" .. D[448] then fail("기본 확인 should bring the basic models back") end
+	if dp.frame:IsShown() or not MC.panels[1].card:IsShown() then fail("기본 확인 should bring the cards back") end
+	if MC.panels[3].model.__model ~= "display:" .. D[MOB] then fail("기본 확인 should bring the basic models back") end
 	hoverAll()
 	try("slash model again", SlashCmdList.BIGWOWIDLE, "모델")
 	if mf:IsShown() then fail("/bwi model again should close the model check") end

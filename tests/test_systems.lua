@@ -136,16 +136,26 @@ for id, sk in pairs(ns.SKILLS) do
 	if sk.act == "count" then check(sk.n and sk.n > 0, id .. ": attack count missing") end
 end
 do
-	-- 4 difficulties x 30 stages, all different places with different bosses
+	-- 4 difficulties x 30 stages in the original game's dungeons and raids
+	-- (a dungeon spans a few stages in a row), every stage a different boss
 	local names, bosses = {}, {}
+	local ORIGINAL = { ["성난불길 협곡"] = 1, ["통곡의 동굴"] = 1, ["죽음의 폐광"] = 1, ["그림자송곳니 성채"] = 1, ["스톰윈드 지하감옥"] = 1,
+		["검은심연 나락"] = 1, ["놈리건"] = 1, ["가시덩굴 우리"] = 1, ["붉은십자군 수도원"] = 1, ["가시덩굴 구릉"] = 1, ["울다만"] = 1,
+		["줄파락"] = 1, ["마라우돈"] = 1, ["아탈학카르 신전"] = 1, ["검은바위 나락"] = 1, ["검은바위 첨탑 하층"] = 1, ["검은바위 첨탑 상층"] = 1,
+		["혈투의 전장"] = 1, ["스트라솔름"] = 1, ["스칼로맨스"] = 1, ["안퀴라즈 폐허"] = 1, ["줄구룹"] = 1, ["화산 심장부"] = 1,
+		["오닉시아의 둥지"] = 1, ["검은날개 둥지"] = 1, ["안퀴라즈 사원"] = 1, ["낙스라마스"] = 1 }
+	local last
 	check(#ns.STAGES == #ns.DIFFS and #ns.DIFFS == 4, "four difficulties")
 	for d = 1, #ns.DIFFS do
 		check(#ns.STAGES[d] == ns.STAGE_COUNT, "difficulty " .. d .. ": stage count " .. #ns.STAGES[d])
 		check(#ns.DIFFS[d].acts == 3, "difficulty " .. d .. ": three acts")
 		for i, stg in ipairs(ns.STAGES[d]) do
 			local where = d .. "-" .. i
-			check(type(stg.name) == "string" and not names[stg.name], where .. ": zone name reused: " .. tostring(stg.name))
-			names[stg.name] = true
+			local place = type(stg.name) == "string" and stg.name:match("^([^:]+)")
+			check(place and ORIGINAL[place], where .. ": not a dungeon or raid of the original game: " .. tostring(stg.name))
+			-- a dungeon comes back only right after itself
+			check(not names[place] or place == last, where .. ": " .. tostring(place) .. " again after another place")
+			names[place], last = true, place
 			check(not bosses[stg.boss.name], where .. ": boss reused: " .. tostring(stg.boss.name))
 			bosses[stg.boss.name] = true
 			check(ns.THEMES[stg.theme], where .. ": unknown theme " .. tostring(stg.theme))
@@ -163,7 +173,8 @@ do
 			check(type(ns.StageLabel(d, i)) == "string", where .. ": label")
 		end
 	end
-	check(ns.U.count(names) == 120, "120 distinct zones")
+	check(ns.U.count(names) == 27, "the 27 dungeons and raids of the original game: " .. ns.U.count(names))
+	check(ns.STAGES[4][30].name == "낙스라마스", "the last stage is Naxxramas")
 end
 do
 	local used = {}
