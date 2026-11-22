@@ -1,7 +1,8 @@
 -- 3D models for the battle: the NPC (creature) id whose model stands in for
--- each monster, boss, summon and companion, shown with PlayerModel:SetCreature.
--- Every id was checked against wowhead's name for it (the English name in
--- the comment); where the game has no such creature the closest look is used.
+-- each monster, boss, summon, companion and hero (UI/Figure3D.lua puts it up
+-- by its display id, below). Every id was checked against wowhead's name for
+-- it (the English name in the comment); where the game has no such creature
+-- the closest look is used.
 local _, ns = ...
 
 ns.MODEL = {}
@@ -324,15 +325,15 @@ ns.MODEL.boss = {
 	["4-30"] = 124828, -- 파멸자 아르거스 · Argus the Unmaker
 }
 
--- summons (skills that call a creature; the turrets and the drone are old
--- engineering models: the newer ones did not load in game)
+-- summons (skills that call a creature): engineering models; the healing
+-- turret is the field repair robot
 ns.MODEL.summon = {
-	drone_heal     =   9657, -- Lil' Smoky
+	drone_heal     =   9657, -- Lil' Smoky (꼬마 폴폴이)
 	felguard       =  17252, -- Felguard
 	hunters_pet    =     69, -- Diseased Timber Wolf
 	infernal       =     89, -- Infernal
-	turret_gun     =   6233, -- Mechanized Sentry
-	turret_heal    =   3527, -- Healing Stream Totem
+	turret_gun     =   6233, -- Mechanized Sentry (기계화 보초병)
+	turret_heal    =  14337, -- Field Repair Bot 74A (야전수리로봇 74A)
 	turret_rocket  =   6233, -- Mechanized Sentry
 }
 
@@ -362,230 +363,138 @@ ns.MODEL.form = {
 	tree           =   1964, -- Treant
 }
 
--- heroes: a class trainer (or for the tinker an engineer) of the class's race
--- for the faction (Data/Races.lua ns.CLASS_RACE), in the hero's gender
-ns.MODEL.hero = {
-	WARRIOR = { ALLIANCE = { M = 912, F = 164939 }, HORDE = { M = 3353, F = 3338 } },    -- Thran Khorman, Signilda Hardforge / Grezz Ragefist, Sergra Darkthorn
-	PALADIN = { ALLIANCE = { M = 8140, F = 49741 }, HORDE = { M = 50012, F = 17076 } },  -- Brother Karman, Sister Darnhald / Blood Knight Argaron, Lady Liadrin
-	HUNTER  = { ALLIANCE = { M = 3601, F = 4146 }, HORDE = { M = 3406, F = 3154 } },     -- Dazalar, Jocaste / Xor'juul, Jen'shan
-	ROGUE   = { ALLIANCE = { M = 205, F = 52636 }, HORDE = { M = 4583, F = 4582 } },     -- Nightbane Dark Runner, Tana Lentner / Miles Dexter, Carolyn Ward
-	PRIEST  = { ALLIANCE = { M = 17510, F = 20914 }, HORDE = { M = 3046, F = 48614 } },  -- Izmir, Aalun / Father Cobb, Dark Cleric Claressa
-	SHAMAN  = { ALLIANCE = { M = 52292, F = 17219 }, HORDE = { M = 3031, F = 3062 } },   -- Droha, Sulaa / Tigor Skychaser, Meela Dawnstrider
-	MAGE    = { ALLIANCE = { M = 198, F = 5497 }, HORDE = { M = 16646, F = 50010 } },    -- Khelden Bremen, Jennea Cannon / Alamma, Alaressa
-	WARLOCK = { ALLIANCE = { M = 906, F = 459 }, HORDE = { M = 988, F = 3325 } },        -- Maximillian Crowe, Drusilla La Salle / Kartosh, Mirkat
-	DRUID   = { ALLIANCE = { M = 4217, F = 4146 }, HORDE = { M = 3033, F = 1409 } },     -- Mathrengyl Bearwalker, Jocaste / Turak Runetotem, Moorah Stormhoof
-	TINKER  = { ALLIANCE = { M = 7937, F = 11037 }, HORDE = { M = 14742, F = 192165 } }, -- High Tinker Mekkatorque, Jenna Lemkenilli / Zap Farflinger, Winnie Fingerspring
+-- The 기갑 tinker in battle: Alliance in Mimiron's Leviathan Mk II (Ulduar;
+-- Mekgineer Thermaplugg behind it), Horde in Sneed's Shredder
+ns.MODEL.mech = { ALLIANCE = { 33432, 7800 }, HORDE = { 642 } }
+
+-- Every spec as one famous NPC of the class, one for each faction, in the
+-- version the classic-era game data has (nil: the class trainer below)
+ns.MODEL.famous = {
+	WARRIOR_ARMS    = { ALLIANCE = { npc = 2784, sex = "M", name = "국왕 마그니 브론즈비어드" }, HORDE = { npc = 25256, sex = "M", name = "대군주 사울팽" } },
+	WARRIOR_FURY    = { ALLIANCE = { npc = 29611, sex = "M", name = "국왕 바리안 린" }, HORDE = { npc = 18076, sex = "M", name = "그롬마쉬 헬스크림" } },
+	WARRIOR_PROT    = { ALLIANCE = { npc = 36948, sex = "M", name = "무라딘 브론즈비어드" }, HORDE = { npc = 25237, sex = "M", name = "가로쉬 헬스크림" } },
+	PALADIN_HOLY    = { ALLIANCE = { npc = 26528, sex = "M", name = "빛의 수호자 우서" }, HORDE = { npc = 17076, sex = "F", name = "여군주 리아드린" } },
+	PALADIN_PROT    = { ALLIANCE = { npc = 1748, sex = "M", name = "대영주 볼바르 폴드라곤" }, HORDE = { npc = 17717, sex = "M", name = "기사군주 블러드밸러" } },
+	PALADIN_RET     = { ALLIANCE = { npc = 28179, sex = "M", name = "대영주 티리온 폴드링" }, HORDE = { npc = 17076, sex = "F", name = "여군주 리아드린" } },
+	HUNTER_BM       = { ALLIANCE = { npc = 27986, sex = "M", name = "헤멧 네싱워리" }, HORDE = { npc = 21984, sex = "M", name = "렉사르" } },
+	HUNTER_MM       = { ALLIANCE = { npc = 30115, sex = "F", name = "베리사 윈드러너" }, HORDE = { npc = 10181, sex = "F", name = "여군주 실바나스 윈드러너" } },
+	HUNTER_SV       = { ALLIANCE = { npc = 3936, sex = "F", name = "샨드리스 페더문" }, HORDE = { npc = 16801, sex = "M", name = "할두런 브라이트윙" } },
+	ROGUE_ASSA      = { ALLIANCE = { npc = 29607, sex = "F", name = "발리라 생귀나르" }, HORDE = { npc = 6768, sex = "M", name = "조라크 라벤홀트 경" } },
+	ROGUE_OUTLAW    = { ALLIANCE = { npc = 2496, sex = "M", name = "남작 레빌가즈" }, HORDE = { npc = 2496, sex = "M", name = "남작 레빌가즈" } },
+	ROGUE_SUB       = { ALLIANCE = { npc = 332, sex = "M", name = "단장 마티아스 쇼" }, HORDE = nil },
+	PRIEST_DISC     = { ALLIANCE = { npc = 1747, sex = "M", name = "안두인 린" }, HORDE = nil },
+	PRIEST_HOLY     = { ALLIANCE = { npc = 17468, sex = "M", name = "예언자 벨렌" }, HORDE = nil },
+	PRIEST_SHADOW   = { ALLIANCE = { npc = 1284, sex = "M", name = "대주교 베네딕투스" }, HORDE = nil },
+	SHAMAN_ELE      = { ALLIANCE = { npc = 17204, sex = "M", name = "선견자 노분도" }, HORDE = { npc = 11946, sex = "M", name = "드렉타르" } },
+	SHAMAN_ENH      = { ALLIANCE = nil, HORDE = { npc = 4949, sex = "M", name = "스랄" } },
+	SHAMAN_RESTO    = { ALLIANCE = nil, HORDE = { npc = 17123, sex = "F", name = "대지술사 리가" } },
+	MAGE_ARCANE     = { ALLIANCE = { npc = 18166, sex = "M", name = "대마법사 카드가" }, HORDE = { npc = 30116, sex = "M", name = "대마법사 에이타스 선리버" } },
+	MAGE_FIRE       = { ALLIANCE = { npc = 16128, sex = "M", name = "로닌" }, HORDE = { npc = 19622, sex = "M", name = "캘타스 선스트라이더" } },
+	MAGE_FROST      = { ALLIANCE = { npc = 4968, sex = "F", name = "여군주 제이나 프라우드무어" }, HORDE = { npc = 16800, sex = "M", name = "대마법학자 롬매스" } },
+	WARLOCK_AFF     = { ALLIANCE = nil, HORDE = nil },
+	WARLOCK_DEMO    = { ALLIANCE = { npc = 35458, sex = "M", name = "윌프레드 피즐뱅" }, HORDE = { npc = 17008, sex = "M", name = "굴단" } },
+	WARLOCK_DESTRO  = { ALLIANCE = nil, HORDE = nil },
+	DRUID_BALANCE   = { ALLIANCE = { npc = 15362, sex = "M", name = "말퓨리온 스톰레이지" }, HORDE = { npc = 5769, sex = "M", name = "대드루이드 하뮬 룬토템" } },
+	DRUID_FERAL     = { ALLIANCE = { npc = 15382, sex = "M", name = "판드랄 스태그헬름" }, HORDE = { npc = 3679, sex = "M", name = "나랄렉스" } },
+	DRUID_GUARDIAN  = { ALLIANCE = { npc = 29604, sex = "M", name = "브롤 베어맨틀" }, HORDE = { npc = 3057, sex = "M", name = "케른 블러드후프" } },
+	DRUID_RESTO     = { ALLIANCE = { npc = 11832, sex = "M", name = "수호자 레물로스" }, HORDE = nil },
+	TINKER_MECH     = { ALLIANCE = { npc = 7937, sex = "M", name = "땜장이왕 멕카토크" }, HORDE = { npc = 3391, sex = "M", name = "가즈로" } },
+	TINKER_TURRET   = { ALLIANCE = { npc = 7937, sex = "M", name = "땜장이왕 멕카토크" }, HORDE = { npc = 3391, sex = "M", name = "가즈로" } },
+	TINKER_MEDIC    = { ALLIANCE = { npc = 7937, sex = "M", name = "땜장이왕 멕카토크" }, HORDE = { npc = 3391, sex = "M", name = "가즈로" } },
 }
 
--- The model each NPC above is drawn with (its creature display id). A model
--- put up by its display id comes straight from the game's data, without
--- asking the server about the NPC, so it shows at once and does not depend on
--- the server knowing that NPC. Source: TrinityCore world database (TDB 12.1,
--- creature_template_model), the first visible display of each NPC.
+-- The class trainer of the class's race for the faction (Data/Races.lua
+-- ns.CLASS_RACE): the look of a spec without a famous NPC, and the one that
+-- stands in when the game cannot show the famous one
+ns.MODEL.trainer = {
+	WARRIOR = { ALLIANCE = { npc =    912, sex = "M" }, HORDE = { npc =   3353, sex = "M" } },
+	PALADIN = { ALLIANCE = { npc =   8140, sex = "M" }, HORDE = { npc =  17076, sex = "F" } },
+	HUNTER  = { ALLIANCE = { npc =   3601, sex = "M" }, HORDE = { npc =   3406, sex = "M" } },
+	ROGUE   = { ALLIANCE = { npc =    205, sex = "M" }, HORDE = { npc =   4583, sex = "M" } },
+	PRIEST  = { ALLIANCE = { npc =  17510, sex = "M" }, HORDE = { npc =   3046, sex = "M" } },
+	SHAMAN  = { ALLIANCE = { npc =  17219, sex = "F" }, HORDE = { npc =   3031, sex = "M" } },
+	MAGE    = { ALLIANCE = { npc =    198, sex = "M" }, HORDE = { npc =  16646, sex = "M" } },
+	WARLOCK = { ALLIANCE = { npc =    906, sex = "M" }, HORDE = { npc =    988, sex = "M" } },
+	DRUID   = { ALLIANCE = { npc =   4217, sex = "M" }, HORDE = { npc =   3033, sex = "M" } },
+	TINKER  = { ALLIANCE = { npc =   7937, sex = "M" }, HORDE = { npc =  14742, sex = "M" } },
+}
+
+-- Other models to look at (/bwi model, 다른 후보)
+ns.MODEL.candidates = {
+	{ npc = 33651, name = "VX-001" },  -- VX-001 (Mimiron)
+	{ npc = 33670, name = "공중 지휘기" },  -- Aerial Command Unit (Mimiron)
+	{ npc = 34147, name = "화재경보로봇" },  -- Emergency Fire Bot
+	{ npc = 24780, name = "야전수리로봇 110G" },  -- Field Repair Bot 110G
+	{ npc = 6225, name = "기계보행전차" },   -- Mechano-Tank
+}
+
+-- The model each NPC above is drawn with (its creature display id), in the
+-- classic-era game data: the vanilla, then Burning Crusade, then Wrath of the
+-- Lich King version (CMaNGOS databases; the famous NPCs in their latest of
+-- those), and for the few NPCs from later only, the retail one (TrinityCore).
+-- A model put up by its display id comes straight from the game's data,
+-- without asking the server about the NPC.
 ns.MODEL.display = {
-	[36] = 367, [38] = 4470, [48] = 200, [69] = 31048, [89] = 87778, [115] = 379,
-	[117] = 175, [198] = 5001, [205] = 33574, [217] = 955, [257] = 2299, [334] = 6050,
-	[412] = 1693, [416] = 64799, [440] = 6033, [448] = 108956, [459] = 3345, [515] = 441,
-	[533] = 33576, [587] = 4570, [619] = 2329, [622] = 7109, [639] = 2029, [642] = 1269,
+	[36] = 367, [38] = 5035, [48] = 200, [69] = 604, [89] = 169, [115] = 379,
+	[117] = 175, [198] = 5001, [205] = 736, [217] = 955, [257] = 10912, [332] = 1736,
+	[334] = 6050, [412] = 1693, [416] = 4449, [440] = 6033, [448] = 384, [515] = 441,
+	[533] = 203, [587] = 4570, [619] = 2329, [622] = 7109, [639] = 2029, [642] = 1269,
 	[647] = 7113, [682] = 320, [685] = 788, [731] = 616, [846] = 646, [906] = 3271,
-	[912] = 3399, [988] = 4567, [1123] = 27464, [1186] = 707, [1216] = 32790, [1409] = 4375,
-	[1693] = 1080, [1784] = 11397, [1853] = 40322, [1860] = 113621, [1964] = 27443, [2671] = 7937,
-	[2701] = 10704, [2962] = 10877, [3031] = 2102, [3033] = 2106, [3046] = 2137, [3062] = 10180,
-	[3100] = 193, [3124] = 2485, [3154] = 1882, [3265] = 1253, [3275] = 4874, [3325] = 1325,
-	[3338] = 3850, [3353] = 1374, [3406] = 4239, [3527] = 4587, [3601] = 1703, [3636] = 1747,
-	[3654] = 4088, [3743] = 6824, [4127] = 2710, [4146] = 2206, [4217] = 2261, [4294] = 2524,
-	[4421] = 31042, [4582] = 2659, [4583] = 2639, [4671] = 2016, [4726] = 2742, [5048] = 4317,
-	[5497] = 3292, [5852] = 35681, [5990] = 2743, [6010] = 1913, [6225] = 5926, [6233] = 6978,
-	[6427] = 4629, [6498] = 5239, [6500] = 5240, [6523] = 825, [6559] = 1146, [7040] = 143,
-	[7047] = 397, [7382] = 5554, [7431] = 37545, [7458] = 10579, [7544] = 6290, [7800] = 36563,
-	[7855] = 6944, [7937] = 7006, [8140] = 7356, [8376] = 7920, [8529] = 7847, [8600] = 7894,
-	[8893] = 8757, [9019] = 8807, [9657] = 8910, [10041] = 11086, [10157] = 12236, [10317] = 9734,
+	[912] = 3399, [988] = 4567, [1123] = 5626, [1186] = 707, [1216] = 9570, [1284] = 5072,
+	[1693] = 1034, [1747] = 31201, [1748] = 5566, [1784] = 11403, [1853] = 11070, [1860] = 1132,
+	[1964] = 864, [2496] = 7167, [2671] = 7937, [2701] = 10704, [2784] = 3597, [2962] = 10877,
+	[3031] = 2102, [3033] = 2106, [3046] = 2137, [3057] = 4307, [3100] = 193, [3124] = 2485,
+	[3265] = 6094, [3275] = 4874, [3353] = 1374, [3391] = 7052, [3406] = 4239, [3527] = 4587,
+	[3601] = 1703, [3636] = 1747, [3654] = 4088, [3679] = 4216, [3743] = 6824, [3936] = 2035,
+	[4127] = 2710, [4217] = 2261, [4294] = 2524, [4421] = 4642, [4583] = 2639, [4671] = 2021,
+	[4726] = 2742, [4949] = 4527, [4968] = 30863, [5048] = 4317, [5769] = 4519, [5852] = 5488,
+	[5990] = 2743, [6010] = 1913, [6225] = 5926, [6233] = 6978, [6427] = 4629, [6498] = 5239,
+	[6500] = 5240, [6523] = 825, [6559] = 1146, [6768] = 6572, [7040] = 143, [7047] = 397,
+	[7382] = 5554, [7431] = 9953, [7458] = 10579, [7544] = 6290, [7800] = 6980, [7855] = 6944,
+	[7937] = 31658, [8140] = 7356, [8376] = 7920, [8529] = 7847, [8600] = 7894, [8893] = 8757,
+	[9019] = 8807, [9657] = 8910, [10041] = 11086, [10157] = 12236, [10181] = 28213, [10317] = 9734,
 	[10363] = 10115, [10414] = 1693, [10439] = 12818, [10440] = 10729, [10464] = 8782, [10477] = 11163,
-	[10826] = 27984, [11037] = 10575, [11502] = 11121, [11583] = 11380, [11658] = 8269, [11661] = 12030,
-	[11671] = 12168, [11859] = 64965, [12053] = 12165, [12056] = 12129, [12143] = 5488, [12265] = 2172,
-	[12397] = 12449, [13996] = 13991, [14605] = 12073, [14742] = 14775, [14887] = 15364, [15101] = 613,
-	[15213] = 15407, [15274] = 16217, [15324] = 15741, [15339] = 15432, [15355] = 15347, [15517] = 15509,
-	[15548] = 16408, [15690] = 19274, [15726] = 15788, [15727] = 15787, [15989] = 113690, [15990] = 15945,
-	[16028] = 16174, [16125] = 16612, [16168] = 14710, [16409] = 16464, [16427] = 7869, [16646] = 16787,
-	[16808] = 19799, [16880] = 16572, [16998] = 46897, [17008] = 16642, [17076] = 16820, [17130] = 19219,
-	[17134] = 11549, [17199] = 16885, [17219] = 16914, [17252] = 64802, [17256] = 9865, [17259] = 17052,
-	[17306] = 18236, [17377] = 17153, [17465] = 17185, [17510] = 17249, [17694] = 17189, [17711] = 21435,
-	[17770] = 17228, [17798] = 20235, [17800] = 18389, [17801] = 18392, [17880] = 19066, [17881] = 20510,
-	[17942] = 18224, [17968] = 20939, [18096] = 19135, [18127] = 18229, [18129] = 17752, [18170] = 19058,
-	[18205] = 19582, [18309] = 19778, [18323] = 18628, [18328] = 17865, [18344] = 19780, [18411] = 18155,
-	[18464] = 20025, [18473] = 18636, [18631] = 18586, [18733] = 18671, [18831] = 18649, [18850] = 19452,
-	[18855] = 19115, [18877] = 19272, [18975] = 20045, [19044] = 18698, [19220] = 20033, [19598] = 19021,
-	[19622] = 20023, [19713] = 18647, [20870] = 19882, [20912] = 19943, [20914] = 16726, [21174] = 20127,
-	[21212] = 20748, [21350] = 20241, [21362] = 17765, [21696] = 5561, [21818] = 20515, [21838] = 21168,
-	[21949] = 19215, [22093] = 20791, [22844] = 21115, [22917] = 21135, [23542] = 22273, [23689] = 24717,
-	[23863] = 38118, [23954] = 21953, [23960] = 22289, [23961] = 22281, [24043] = 19705, [24469] = 24848,
-	[24560] = 22596, [24614] = 26423, [24684] = 22583, [24882] = 22711, [25227] = 9758, [25315] = 23200,
-	[25367] = 23154, [25484] = 23474, [25489] = 26268, [25502] = 18996, [25740] = 23344, [26423] = 24938,
-	[26530] = 26581, [26632] = 27072, [26635] = 27058, [26639] = 27083, [26723] = 24307, [26727] = 24312,
-	[26782] = 27469, [26861] = 28019, [27635] = 25250, [27686] = 24590, [27978] = 27483, [27985] = 26148,
-	[28079] = 25387, [28732] = 23567, [28858] = 26382, [28859] = 26752, [28860] = 27035, [28923] = 27485,
-	[29120] = 27856, [29306] = 27061, [29311] = 27408, [29375] = 27092, [29829] = 12249, [29978] = 26065,
-	[30114] = 27378, [30245] = 24316, [30961] = 25226, [31134] = 27508, [32865] = 28977, [33136] = 28465,
-	[33288] = 28817, [33772] = 28844, [34127] = 29099, [34797] = 21601, [34897] = 6374, [35451] = 29837,
-	[35460] = 14360, [36502] = 30148, [36597] = 30721, [36609] = 67146, [36612] = 31119, [36658] = 30277,
-	[36678] = 30881, [36701] = 16946, [36853] = 30362, [37132] = 27549, [37736] = 30827, [37949] = 30965,
+	[10826] = 7847, [11502] = 11121, [11583] = 11380, [11658] = 8269, [11661] = 12030, [11671] = 12168,
+	[11832] = 11906, [11859] = 1912, [11946] = 11894, [12053] = 12165, [12056] = 12129, [12143] = 5488,
+	[12265] = 2172, [12397] = 12449, [13996] = 13991, [14337] = 14379, [14605] = 12073, [14742] = 14775,
+	[14887] = 15364, [15101] = 613, [15213] = 15407, [15274] = 16217, [15324] = 15741, [15339] = 15432,
+	[15355] = 15347, [15362] = 15399, [15382] = 15421, [15517] = 15509, [15548] = 16408, [15690] = 19274,
+	[15726] = 15788, [15727] = 15787, [15989] = 16033, [15990] = 15945, [16028] = 16174, [16125] = 16612,
+	[16128] = 16024, [16168] = 14710, [16409] = 16464, [16427] = 7869, [16646] = 16787, [16800] = 19706,
+	[16801] = 19707, [16808] = 19799, [16880] = 16572, [16998] = 16622, [17008] = 16642, [17076] = 16820,
+	[17123] = 16867, [17130] = 19219, [17134] = 11549, [17199] = 16885, [17204] = 17600, [17219] = 16914,
+	[17252] = 14255, [17256] = 9865, [17259] = 17052, [17306] = 18236, [17377] = 17153, [17465] = 17185,
+	[17468] = 17822, [17510] = 17249, [17694] = 17189, [17711] = 21435, [17717] = 17199, [17770] = 17228,
+	[17798] = 20235, [17800] = 18389, [17801] = 18392, [17880] = 19066, [17881] = 20510, [17942] = 18224,
+	[17968] = 20939, [18076] = 17470, [18096] = 19135, [18127] = 18229, [18129] = 17752, [18166] = 18921,
+	[18170] = 19058, [18205] = 19582, [18309] = 19778, [18323] = 18628, [18328] = 17865, [18344] = 19780,
+	[18411] = 18155, [18464] = 20025, [18473] = 18636, [18631] = 18586, [18733] = 18671, [18831] = 18649,
+	[18850] = 19452, [18855] = 19115, [18877] = 19272, [18975] = 20045, [19044] = 18698, [19220] = 20033,
+	[19598] = 19021, [19622] = 20023, [19713] = 18647, [20870] = 19882, [20912] = 19943, [21174] = 20127,
+	[21212] = 20748, [21350] = 20241, [21362] = 19682, [21696] = 5561, [21818] = 20515, [21838] = 21168,
+	[21949] = 19215, [21984] = 20918, [22093] = 20791, [22844] = 21115, [22917] = 21135, [23542] = 22273,
+	[23689] = 24717, [23863] = 21899, [23954] = 21953, [23960] = 22289, [23961] = 22281, [24043] = 19705,
+	[24469] = 24848, [24560] = 22596, [24614] = 26423, [24684] = 22583, [24780] = 15200, [24882] = 22711,
+	[25227] = 9758, [25237] = 23006, [25256] = 23033, [25315] = 23200, [25367] = 23154, [25484] = 23474,
+	[25489] = 26268, [25502] = 18996, [25740] = 23344, [26423] = 24938, [26528] = 23889, [26530] = 26581,
+	[26632] = 27072, [26635] = 27058, [26639] = 27083, [26723] = 24307, [26727] = 24312, [26782] = 27469,
+	[26861] = 28019, [27635] = 25250, [27686] = 24590, [27978] = 27483, [27985] = 26148, [27986] = 24969,
+	[28079] = 25387, [28179] = 22209, [28732] = 23567, [28858] = 26382, [28859] = 26752, [28860] = 27035,
+	[28923] = 27485, [29120] = 27856, [29306] = 27061, [29311] = 27408, [29375] = 27092, [29604] = 26364,
+	[29607] = 26365, [29611] = 28127, [29829] = 26590, [29978] = 26065, [30114] = 27378, [30115] = 28222,
+	[30116] = 26770, [30245] = 24316, [30961] = 25226, [31134] = 27508, [32865] = 28977, [33136] = 28465,
+	[33288] = 28817, [33432] = 28831, [33651] = 28841, [33670] = 28979, [33772] = 28844, [34127] = 29099,
+	[34147] = 6888, [34797] = 21601, [34897] = 6374, [35451] = 29837, [35458] = 29814, [35460] = 14360,
+	[36502] = 30148, [36597] = 30721, [36609] = 25452, [36612] = 31119, [36658] = 30277, [36678] = 30881,
+	[36701] = 16946, [36853] = 30362, [36948] = 30508, [37132] = 27549, [37736] = 30827, [37949] = 30965,
 	[38112] = 30972, [39708] = 34088, [40586] = 34342, [40633] = 92314, [40634] = 91648, [42333] = 26448,
 	[42465] = 32913, [43324] = 34576, [44080] = 33482, [44566] = 34135, [44819] = 35388, [45269] = 35773,
-	[47753] = 35806, [48614] = 36291, [49741] = 36590, [50010] = 36949, [50012] = 36947, [50250] = 36212,
-	[52292] = 37822, [52571] = 37953, [52636] = 37994, [56173] = 39355, [56184] = 44471, [56439] = 45980,
+	[47753] = 35806, [50250] = 36212, [52571] = 37953, [56173] = 39355, [56184] = 44471, [56439] = 45980,
 	[56448] = 41125, [56471] = 39405, [56717] = 40339, [58201] = 40708, [58215] = 40059, [58757] = 40271,
 	[59479] = 42969, [59562] = 39500, [60399] = 41391, [60491] = 41448, [61250] = 40138, [62511] = 43126,
 	[62543] = 43141, [62837] = 42730, [63318] = 42937, [64659] = 45740, [68397] = 46770, [71859] = 49176,
 	[71865] = 49585, [71979] = 49266, [91007] = 62392, [92113] = 65688, [93549] = 25750, [94710] = 68213,
 	[95675] = 65873, [96028] = 66741, [96124] = 65393, [99192] = 71688, [99593] = 64494, [100497] = 66676,
 	[104247] = 70563, [105468] = 70108, [106643] = 69082, [109431] = 68752, [116939] = 74497, [121017] = 6411,
-	[121975] = 76570, [124828] = 78709, [127809] = 81327, [157757] = 93289, [164939] = 95629, [192165] = 107711,
-	[19399] = 18820, [21233] = 18505, [22461] = 18505,
+	[121975] = 76570, [124828] = 78709, [127809] = 81327, [157757] = 93289,
 }
-
--- (the retail models below)
-ns.MODEL.display_retail = {
-	[78487] = 116250,
-	[94158] = 67214,
-	[96528] = 64939,
-	[98009] = 68026,
-	[98094] = 83274,
-	[98771] = 65975,
-	[105995] = 69535,
-	[118887] = 76278,
-	[120590] = 87892,
-	[121239] = 76222,
-	[122053] = 77112,
-	[124153] = 77835,
-	[124252] = 83258,
-	[124651] = 86014,
-	[127021] = 82021,
-	[130423] = 81646,
-	[130576] = 81302,
-	[131146] = 88147,
-	[137224] = 85799,
-	[137225] = 86964,
-	[137591] = 84934,
-	[138341] = 88062,
-	[138708] = 89342,
-	[144796] = 89236,
-	[145054] = 88958,
-	[146810] = 90858,
-	[147516] = 85239,
-	[151585] = 90773,
-	[151647] = 87839,
-	[152023] = 91085,
-	[155098] = 94908,
-	[155561] = 92688,
-	[155786] = 93248,
-	[156344] = 31605,
-	[156513] = 92900,
-	[159587] = 94036,
-	[161360] = 94481,
-	[166573] = 115495,
-	[177416] = 100769,
-	[178869] = 101177,
-	[182878] = 105509,
-	[183556] = 107041,
-	[196170] = 108944,
-	[198883] = 110980,
-	[203678] = 112017,
-	[207118] = 112776,
-	[208205] = 113516,
-	[208212] = 113518,
-	[210905] = 116131,
-	[211349] = 118072,
-	[211351] = 115995,
-	[211996] = 123748,
-	[216760] = 116740,
-	[224857] = 121049,
-	[225678] = 117404,
-	[227200] = 121080,
-	[228325] = 122501,
-	[230154] = 129142,
-	[232131] = 123489,
-	[234148] = 128688,
-	[234745] = 127693,
-	[235420] = 141146,
-	[235482] = 140873,
-	[235902] = 136435,
-	[238072] = 141202,
-	[242097] = 128179,
-	[250406] = 141311,
-}
-for npc, d in pairs(ns.MODEL.display_retail) do ns.MODEL.display[npc] = d end
-ns.MODEL.display_retail = nil
-
--- Models known only by their file (no NPC carries them):
--- 활력제 친구 (Mister Pick-Me-Up, Liberation of Undermine): the heal-ray drone
-ns.MODEL.file = {
-	drone_pickmeup = 5872184, -- creature/healraydrone/healraydrone.m2
-}
-
-------------------------------------------------------------------------
--- Retail models (Battle for Azeroth and later, high-resolution): used first;
--- where the game cannot show one, the classic model above stands in.
-------------------------------------------------------------------------
--- Every spec as one famous NPC of the class, one for each faction (also for
--- the other gender).
-ns.MODEL.famous = {
-	WARRIOR_ARMS    = { ALLIANCE = 230154, HORDE = 155786 }, -- Danath Trollbane / Varok Saurfang
-	WARRIOR_FURY    = { ALLIANCE = 208205, HORDE = 203678 }, -- Varian Wrynn / Grommash Hellscream
-	WARRIOR_PROT    = { ALLIANCE = 127021, HORDE = 151647 }, -- Muradin Bronzebeard / Garrosh Hellscream
-	PALADIN_HOLY    = { ALLIANCE = 182878, HORDE = 228325 }, -- Uther the Lightbringer / Aponi Brightmane
-	PALADIN_PROT    = { ALLIANCE = 235420, HORDE = 238072 }, -- High Exarch Turalyon / Sunwalker Dezco
-	PALADIN_RET     = { ALLIANCE = 177416, HORDE = 235902 }, -- Tirion Fordring / Lady Liadrin
-	HUNTER_BM       = { ALLIANCE = 234745, HORDE = 155098 }, -- Hemet Nesingwary / Rexxar
-	HUNTER_MM       = { ALLIANCE = 211349, HORDE = 124651 }, -- Alleria Windrunner / Lady Sylvanas Windrunner
-	HUNTER_SV       = { ALLIANCE = 137225, HORDE = 146810 }, -- Shandris Feathermoon / Nathanos Blightcaller
-	ROGUE_ASSA      = { ALLIANCE = 210905, HORDE = 138708 }, -- Princess Tess Greymane / Garona Halforcen
-	ROGUE_OUTLAW    = { ALLIANCE = 121239, HORDE = 198883 }, -- Flynn Fairwind / Vanessa VanCleef
-	ROGUE_SUB       = { ALLIANCE =  98094, HORDE =  94158 }, -- Master Mathias Shaw / Valeera Sanguinar
-	PRIEST_DISC     = { ALLIANCE = 211351, HORDE = 156513 }, -- Anduin Wrynn / Calia Menethil
-	PRIEST_HOLY     = { ALLIANCE = 242097, HORDE = 131146 }, -- Prophet Velen / Princess Talanji
-	PRIEST_SHADOW   = { ALLIANCE = 234148, HORDE = 137224 }, -- Magister Umbric / Lilian Voss
-	SHAMAN_ELE      = { ALLIANCE =  96528, HORDE =  78487 }, -- Farseer Nobundo / Rokhan
-	SHAMAN_ENH      = { ALLIANCE = 130576, HORDE = 166573 }, -- Brother Pike / Thrall
-	SHAMAN_RESTO    = { ALLIANCE = 105995, HORDE = 124252 }, -- Muln Earthfury / Spiritwalker Ebonhorn
-	MAGE_ARCANE     = { ALLIANCE = 183556, HORDE = 211996 }, -- Archmage Khadgar / Archmage Aethas Sunreaver
-	MAGE_FIRE       = { ALLIANCE = 227200, HORDE = 161360 }, -- Archmage Modera / Kael'thas Sunstrider
-	MAGE_FROST      = { ALLIANCE = 120590, HORDE = 235482 }, -- Lady Jaina Proudmoore / Grand Magister Rommath
-	WARLOCK_AFF     = { ALLIANCE =  98771, HORDE = 178869 }, -- Ritssyn Flamescowl / Ner'zhul
-	WARLOCK_DEMO    = { ALLIANCE = 118887, HORDE = 122053 }, -- Kanrethad Ebonlocke / Gul'dan
-	WARLOCK_DESTRO  = { ALLIANCE = 124153, HORDE = 208212 }, -- Wilfred Fizzlebang / Cho'gall
-	DRUID_BALANCE   = { ALLIANCE = 145054, HORDE =  98009 }, -- Malfurion Stormrage / Naralex
-	DRUID_FERAL     = { ALLIANCE = 196170, HORDE = 250406 }, -- Fandral Staghelm / Zen'tabra
-	DRUID_GUARDIAN  = { ALLIANCE = 216760, HORDE = 130423 }, -- Broll Bearmantle / Baine Bloodhoof
-	DRUID_RESTO     = { ALLIANCE = 207118, HORDE = 156344 }, -- Keeper Remulos / Archdruid Hamuul Runetotem
-	TINKER_MECH     = { ALLIANCE = 159587, HORDE = 224857 }, -- Gelbin Mekkatorque / Monte Gazlowe
-	TINKER_TURRET   = { ALLIANCE = 159587, HORDE = 224857 }, -- Gelbin Mekkatorque / Monte Gazlowe
-	TINKER_MEDIC    = { ALLIANCE = 159587, HORDE = 224857 }, -- Gelbin Mekkatorque / Monte Gazlowe
-}
-
--- The 기갑 tinker in battle: Mekkatorque's mech (Battle of Dazar'alor) and
--- Chrome King Gallywix's (Liberation of Undermine)
-ns.MODEL.mech = { ALLIANCE = 144796, HORDE = 232131 }
-
--- Summons (Data/Skills.lua keys): 녹슨나사 소형 포탑, 고물촌 포탑, 알가리 수리로봇 11O,
--- 치유의 해일 토템
-ns.MODEL.summon_retail = {
-	turret_gun    = 155561, -- Rustbolt Pocket Turret
-	turret_rocket = 152023, -- Junker Turret
-	drone_heal    = 225678, -- Algari Repair Bot 11O
-	turret_heal   = 137591, -- Healing Tide Totem
-}
-
--- Other turrets to look at (/bwi model, 드론·포탑)
-ns.MODEL.turrets = {
-	{ npc = 138341, name = "충격 포탑" },   -- Shock Turret
-	{ npc = 147516, name = "공성 포탑" },   -- Siege Turret (the Lion's Roar)
-	{ npc = 151585, name = "수리 로봇" },   -- Repair Bot (Mechagon)
-}
-
--- NPCs only the retail game has: put up by their model alone (the server
--- would not know them)
-ns.MODEL.retail = {}
-for _, f in pairs(ns.MODEL.famous) do ns.MODEL.retail[f.ALLIANCE] = true ns.MODEL.retail[f.HORDE] = true end
-for _, id in pairs(ns.MODEL.mech) do ns.MODEL.retail[id] = true end
-for _, id in pairs(ns.MODEL.summon_retail) do ns.MODEL.retail[id] = true end
-for _, t in ipairs(ns.MODEL.turrets) do ns.MODEL.retail[t.npc] = true end

@@ -189,7 +189,7 @@ function ns.InitDB()
 			if from < 3 then migrateV2Hero(h) end
 			h.sk = h.sk or {}
 			clampHero(h)
-			if h.sex ~= "M" and h.sex ~= "F" then h.sex = math.random() < 0.5 and "M" or "F" end
+			h.sex = ns.Heroes.SpecSex(h.spec) -- the look of the spec decides it
 			if type(h.name) == "table" then h.name = h.name[1] end -- version 2.0 kept two spellings
 			if type(h.name) ~= "string" or h.name == "" then
 				h.name = nil -- named below, once every other name is known
@@ -204,7 +204,7 @@ function ns.InitDB()
 	if db.faction ~= "ALLIANCE" and db.faction ~= "HORDE" then db.faction = nil end
 	ns.db = db
 	for _, h in pairs(db.heroes) do
-		if not h.name then h.name = ns.Heroes.RollName(h.spec, h.sex) end
+		if not h.name then h.name = ns.Heroes.RollName(h.spec) end
 	end
 	for i = 1, ns.PARTY_SIZE do
 		local id = db.party[i]

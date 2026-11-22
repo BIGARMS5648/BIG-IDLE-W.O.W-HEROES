@@ -114,13 +114,29 @@ try("open create dialog", page.create.Click, page.create, "LeftButton")
 click("class Tinker", function(b) return b.cid == "TINKER" end)
 click("class Hunter", function(b) return b.cid == "HUNTER" end)
 click("spec Marksmanship", function(b) return b.sid == "HUNTER_MM" end)
-click("female", function(b) return b.sex == "F" end)
+-- one look per spec: no gender to pick; the window names whose look it is
+for _, f in ipairs(Mock.frames) do
+	if f.sex and f:IsVisible() then fail("the create window should have no gender buttons") break end
+end
+do
+	local look = ns.MODEL.famous.HUNTER_MM[ns.Faction()].name
+	local found = false
+	for _, f in ipairs(Mock.frames) do
+		if f:IsVisible() then
+			for _, r in ipairs(f.__regions or {}) do
+				if r.__type == "FontString" and r:IsVisible() and (r.__text or ""):find(look, 1, true) then found = true end
+			end
+		end
+	end
+	if not found then fail("the create window should name the spec's look: " .. look) end
+end
 click("reroll name", labelIs("다시"))
 click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 210 end)
 if H.Count() ~= 1 then fail("creating through the dialog did not make a hero") end
 local first = H.List()[1]
 if first and ns.db.heroes[first].spec ~= "HUNTER_MM" then fail("the hero has the wrong specialization") end
-if first and ns.db.heroes[first].sex ~= "F" then fail("the chosen gender was not kept") end
+-- no gender to pick: a spec has one look (Horde marksman: Sylvanas)
+if first and H.Sex(first) ~= "F" then fail("the hero's gender should be its spec's look's (Sylvanas)") end
 if first and H.Race(first) ~= "TROLL" then fail("a Horde hunter should be a troll") end
 if first and H.PartySlot(first) ~= 2 then fail("the first damage dealer should join slot 2") end
 if first and not tostring(ns.db.heroes[first].name):find("^%S+ %S+$") then fail("hero name should be given + family name") end
@@ -877,9 +893,10 @@ do
 	if mShown == 0 then fail("the monsters in battle should be 3D models") end
 	-- an attack plays the attack animation
 	local anims = {}
-	for _ = 1, 60 do
+	for _ = 1, 400 do -- until the party has met the monsters and fought a while
 		frames(1)
 		for _, f in ipairs(heroes) do if f.model and f.model:IsShown() then anims[f.model.__anim or -1] = true end end
+		if anims[17] then break end
 	end
 	if not anims[17] then fail("heroes should play the attack animation (17) in battle") end
 	-- off in the settings: drawn figures or icons again
@@ -921,54 +938,73 @@ do
 	frames(2)
 end
 
--- every spec is one famous NPC per faction (a retail model, for both
--- genders); the classic NPC stands in when the game cannot show it
+-- every spec looks like one NPC per faction: its famous NPC, else the class
+-- trainer; the trainer stands in when the game cannot show the famous one
 do
 	local Fig = ns.Figure3D
 	Fig.ResetFailed()
-	for specId in pairs(ns.SPECS) do
-		local f = ns.MODEL.famous[specId]
-		if not f then fail("no famous NPC for " .. specId) else
-			for _, fac in ipairs({ "ALLIANCE", "HORDE" }) do
-				if not ns.MODEL.display[f[fac]] then fail("no model id for the famous NPC of " .. specId .. " " .. fac) end
-				for _, sex in ipairs({ "M", "F" }) do
-					if Fig.ForSpec(specId, fac, sex) ~= f[fac] then fail("the " .. specId .. " " .. fac .. " body should be its famous NPC") end
-				end
-			end
+	for specId, sp in pairs(ns.SPECS) do
+		for _, fac in ipairs({ "ALLIANCE", "HORDE" }) do
+			local f = ns.MODEL.famous[specId] and ns.MODEL.famous[specId][fac]
+			local t = ns.MODEL.trainer[sp.class][fac]
+			local want = f and f.npc or t.npc
+			if not ns.MODEL.display[want] then fail("no model id for the look of " .. specId .. " " .. fac) end
+			if Fig.ForSpec(specId, fac) ~= want then fail("the " .. specId .. " " .. fac .. " body should be its look") end
+			if f and (not f.name or f.name == "") then fail("the famous NPC of " .. specId .. " needs its name") end
 		end
 	end
-	local f = ns.MODEL.famous.PALADIN_HOLY.ALLIANCE
+	local f = ns.MODEL.famous.PALADIN_HOLY.ALLIANCE.npc
 	Fig.failed[f] = true
-	local classic = ns.MODEL.hero.PALADIN.ALLIANCE.M
-	if Fig.ForSpec("PALADIN_HOLY", "ALLIANCE", "M") ~= classic then fail("when the famous model cannot be shown, the classic NPC should stand in") end
+	if Fig.ForSpec("PALADIN_HOLY", "ALLIANCE") ~= ns.MODEL.trainer.PALADIN.ALLIANCE.npc then fail("when the famous model cannot be shown, the class trainer should stand in") end
 	Fig.ResetFailed()
-	-- a retail NPC is put up by its model only, never asked of the server
-	local m = Fig.New(UIParent, 60)
-	local getFile = Mock.Model.GetModelFileID
-	Mock.Model.GetModelFileID = function() return nil end
-	m:Show()
-	m:SetModelId(f)
-	local asked = false
-	for _ = 1, 60 do
-		m:Step(0.1)
-		if tostring(m.__model):find("^creature:") then asked = true end
-	end
-	Mock.Model.GetModelFileID = getFile
-	if asked then fail("a retail NPC should not be asked of the server") end
-	if not Fig.failed[f] then fail("a retail model that does not come should be given up (the classic one then)") end
-	m:Hide()
-	Fig.ResetFailed()
-	-- the 기갑 tinker fights in the retail mech of the faction
+	-- the 기갑 tinker fights in the mech of the faction
 	local was = ns.db.faction
 	for _, fac in ipairs({ "ALLIANCE", "HORDE" }) do
 		ns.db.faction = fac
-		local h = H.NewRecord("TINKER_MECH", "M")
+		local h = H.NewRecord("TINKER_MECH")
 		ns.db.heroes[h.id] = h
-		if Fig.ForHero(h.id, true) ~= ns.MODEL.mech[fac] then fail("the 기갑 tinker should fight in the " .. fac .. " retail mech") end
-		if Fig.ForHero(h.id, false) ~= ns.MODEL.famous.TINKER_MECH[fac] then fail("the 기갑 tinker's body should be the famous tinker") end
+		if Fig.ForHero(h.id, true) ~= ns.MODEL.mech[fac][1] then fail("the 기갑 tinker should fight in the " .. fac .. " mech") end
+		if Fig.ForHero(h.id, false) ~= ns.MODEL.famous.TINKER_MECH[fac].npc then fail("the 기갑 tinker's body should be the famous tinker") end
 		ns.db.heroes[h.id] = nil
 	end
 	ns.db.faction = was
+	-- the game's own answer is kept: the display id a model came up with is
+	-- used first next time; one the game lacks is not waited for again
+	local npc = 448
+	ns.db.models = nil
+	local m = Fig.New(UIParent, 60)
+	m:Show()
+	m:SetModelId(npc)
+	m:Step(0.05)
+	if ns.db.models.ok[npc] ~= ns.MODEL.display[npc] then fail("the display id a model came up with should be kept") end
+	ns.db.models.ok[npc] = 777
+	local m2 = Fig.New(UIParent, 60)
+	m2:Show()
+	m2:SetModelId(npc)
+	if m2.__model ~= "display:777" then fail("a kept display id should be used first: " .. tostring(m2.__model)) end
+	local getFile = Mock.Model.GetModelFileID
+	Mock.Model.GetModelFileID = function(self)
+		if (self.__model or ""):find("^display:") then return nil end -- this game lacks the display id
+		return 123456
+	end
+	ns.db.models.ok[npc] = nil
+	local m3 = Fig.New(UIParent, 60)
+	m3:Show()
+	m3:SetModelId(npc)
+	for _ = 1, 30 do m3:Step(0.1) end
+	if not ns.db.models.bad[ns.MODEL.display[npc]] then fail("a display id the game does not have should be noted") end
+	if not m3:IsLoaded() or not tostring(m3.__model):find("^creature:") then fail("after a missing display id the NPC id should bring the model") end
+	local m4 = Fig.New(UIParent, 60)
+	m4:Show()
+	m4:SetModelId(npc)
+	-- next time: the display id the game reported for it, not the missing one
+	if m4.__model ~= "display:" .. tostring(ns.db.models.ok[npc]) or ns.db.models.ok[npc] == ns.MODEL.display[npc] then
+		fail("a noted missing display id should not be tried again: " .. tostring(m4.__model))
+	end
+	Mock.Model.GetModelFileID = getFile
+	for _, x in ipairs({ m, m2, m3, m4 }) do x:Hide() end
+	ns.db.models = nil
+	Fig.ResetFailed()
 end
 
 -- fighters move evenly: drawn a little further every frame, not hopping on
@@ -984,8 +1020,13 @@ do
 		xs[n] = f:IsShown() and select(4, f:GetPoint(1)) or nil
 		if f.model and f.model:IsShown() then anims[#anims + 1] = f.model.__anim end
 	end
-	local moved, still, biggest, total = 0, 0, 0, 0
+	-- while it walks: from its first step to its last (it stops to fight)
+	local first, last
 	for n = 2, 60 do
+		if xs[n] and xs[n - 1] and math.abs(xs[n] - xs[n - 1]) > 0.01 then first = first or n last = n end
+	end
+	local moved, still, biggest, total = 0, 0, 0, 0
+	for n = (first or 2), (last or 1) do
 		if xs[n] and xs[n - 1] then
 			local d = math.abs(xs[n] - xs[n - 1])
 			if d > 0.01 then moved = moved + 1 total = total + d biggest = math.max(biggest, d) else still = still + 1 end
@@ -1042,19 +1083,14 @@ do
 	if not (MC.panels[2].lines[5].__text or ""):find("없음", 1, true) then fail("a missing model function should read 없음: " .. tostring(MC.panels[2].lines[5].__text)) end
 	-- the tinker's candidates: mech, turret and drone models
 	click("model: tinker candidates", function(b) return label(b) == "땜장이 후보" end)
-	if MC.panels[1].model.__model ~= "display:" .. D[ns.MODEL.mech.HORDE] or MC.panels[4].model.__model ~= "display:" .. D[ns.MODEL.summon_retail.drone_heal] then
+	if MC.panels[1].model.__model ~= "display:" .. D[ns.MODEL.mech.HORDE[1]] or MC.panels[4].model.__model ~= "display:" .. D[ns.MODEL.summon.drone_heal] then
 		fail("땜장이 후보 should show the mech, turret and drone models")
 	end
 	frames(20)
-	-- 드론·포탑: 활력제 친구's drone by its file, the search for its model,
-	-- the Hellfire cannons and the turret used now
-	click("model: drone and turrets", function(b) return label(b) == "드론·포탑" end)
-	if MC.panels[1].model.__model ~= "file:" .. ns.MODEL.file.drone_pickmeup then fail("드론·포탑 should show 활력제 친구's drone file: " .. tostring(MC.panels[1].model.__model)) end
-	if MC.panels[3].model.__model ~= "display:" .. D[ns.MODEL.turrets[1].npc] then fail("드론·포탑 should show the other turrets") end
-	if not (MC.panels[2].lines[1].__text or ""):find("찾는 중", 1, true) then fail("the drone search should start") end
-	frames(120) -- the search goes through every model id
-	if MC.panels[2].scan then fail("the drone search should finish") end
-	if not (MC.panels[2].lines[1].__text or ""):find("못 찾음", 1, true) then fail("the drone search should say what it found: " .. tostring(MC.panels[2].lines[1].__text)) end
+	-- 다른 후보: more mechs, drones and robots
+	click("model: other candidates", function(b) return label(b) == "다른 후보" end)
+	if MC.panels[1].model.__model ~= "display:" .. D[ns.MODEL.candidates[1].npc] then fail("다른 후보 should show the other models: " .. tostring(MC.panels[1].model.__model)) end
+	if not (MC.panels[1].lines[2].__text or ""):find(ns.MODEL.candidates[1].name, 1, true) then fail("다른 후보 should name the models") end
 	click("model: basic check", function(b) return label(b) == "기본 확인" end)
 	if MC.panels[3].model.__model ~= "display:" .. D[448] then fail("기본 확인 should bring the basic models back") end
 	hoverAll()

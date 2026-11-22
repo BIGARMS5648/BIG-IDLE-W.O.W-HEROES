@@ -1,9 +1,8 @@
 -- 3D model check (/bwi model): a window that shows the game's own 3D models
 -- the way the battle bar uses them - the selected hero (an NPC of its class,
 -- race and gender), the player's own character, a monster, a boss and a
--- summon; or the tinker's mech, turrets and drone; or 활력제 친구's drone
--- (its file, and a search for its model) and the turret candidates - and
--- plays animations on all of them. Every model function is called through pcall, and under each
+-- summon; or the tinker's mech, turrets and drone; or other mechs, drones
+-- and robots to choose from - and plays animations on all of them. Every model function is called through pcall, and under each
 -- model it says which ones this client has (됨 = worked, 없음 = the client
 -- lacks it, 오류 = it failed) and the client's name for the NPC id.
 local _, ns = ...
@@ -31,27 +30,20 @@ local SAMPLES = {
 	{ key = "pet", title = "소환물: 임프", kind = "PlayerModel", creature = 416 },
 }
 -- 땜장이 후보: what the tinker's mech, turret and drone could look like
-local R = ns.MODEL.summon_retail
+local M, S = ns.MODEL.mech, ns.MODEL.summon
 local TINKER = {
-	{ key = "mech_horde", title = "기갑 (호드)", creature = ns.MODEL.mech.HORDE, name = "크롬왕 갤리윅스" },
-	{ key = "mech_alliance", title = "기갑 (얼라이언스)", creature = ns.MODEL.mech.ALLIANCE, name = "땜장이왕 멕카토크" },
-	{ key = "turret", title = "포격: 포탑", creature = R.turret_gun, name = "녹슨나사 소형 포탑" },
-	{ key = "drone", title = "정비: 치유 드론", creature = R.drone_heal, name = "알가리 수리로봇 11O" },
-	{ key = "heal_turret", title = "정비: 치유 포탑", creature = R.turret_heal, name = "치유의 해일 토템" },
+	{ key = "mech_horde", title = "기갑 (호드)", creature = M.HORDE[1], name = "스니드의 벌목기" },
+	{ key = "mech_alliance", title = "기갑 (얼라이언스)", creature = M.ALLIANCE[1], name = "거대 전차 마크 II" },
+	{ key = "turret", title = "포격: 포탑", creature = S.turret_gun, name = "기계화 보초병" },
+	{ key = "drone", title = "정비: 치유 드론", creature = S.drone_heal, name = "꼬마 폴폴이" },
+	{ key = "heal_turret", title = "정비: 치유 포탑", creature = S.turret_heal, name = "야전수리로봇 74A" },
 }
--- 드론·포탑: 활력제 친구's heal-ray drone (known only by its file: the
--- file itself, and a search for the model that wears it) and other turrets
-local T = ns.MODEL.turrets
-local DRONE = {
-	{ key = "pickmeup", title = "활력제 친구 (파일)", file = ns.MODEL.file.drone_pickmeup },
-	{ key = "pickmeup_find", title = "활력제 친구 (모델 찾기)", find = ns.MODEL.file.drone_pickmeup },
-	{ key = "turret1", title = T[1].name, creature = T[1].npc, name = T[1].name },
-	{ key = "turret2", title = T[2].name, creature = T[2].npc, name = T[2].name },
-	{ key = "turret3", title = T[3].name, creature = T[3].npc, name = T[3].name },
-}
-local SETS = { basic = SAMPLES, tinker = TINKER, drone = DRONE }
--- the model ids the drone search goes through
-local FIND_FROM, FIND_TO, FIND_STEP = 100000, 140000, 400
+-- 다른 후보: more mechs, drones and robots to choose from
+local OTHER = {}
+for i, c in ipairs(ns.MODEL.candidates) do
+	OTHER[i] = { key = "other" .. i, title = c.name, creature = c.npc, name = c.name }
+end
+local SETS = { basic = SAMPLES, tinker = TINKER, other = OTHER }
 
 local W, H = 830, 556
 local PANEL_W, PANEL_H, MODEL_H, GAP = 154, 340, 210, 8
@@ -126,10 +118,10 @@ local function setupHero(p)
 	local id = ns.Main.SelectedHero()
 	local h = id and ns.db.heroes[id]
 	local race = id and ns.Heroes.Race(id) or "HUMAN"
-	local sex = h and h.sex or "M"
+	local look = h and ns.Figure3D.SpecLook(h.spec)
 	local npc = id and ns.Figure3D.ForHero(id, false)
-	p.name:SetText(string.format("%s · %s %s", h and ns.Heroes.ShortName(id) or "영웅 없음",
-		ns.N(ns.RACES[race] and ns.RACES[race].name or race), ns.N(ns.SEX[sex].short)))
+	p.name:SetText(string.format("%s · %s", h and ns.Heroes.ShortName(id) or "영웅 없음",
+		(look and look.name) or ns.N(ns.RACES[race] and ns.RACES[race].name or race)))
 	if npc then
 		p.def = { key = "hero", title = p.def.title, creature = npc }
 		local disp = ns.MODEL.display and ns.MODEL.display[npc]
@@ -162,7 +154,7 @@ local function setupCreature(p)
 		setLine(p, 1, "SetCreature " .. mark(call(p.model, "SetCreature", p.def.creature)))
 	end
 	if p.def.name then
-		-- a retail NPC: the server does not know it, the name is ours
+		-- the name we know (the server may not know this NPC)
 		setLine(p, 2, "이름 " .. U.col("ffffff", p.def.name))
 	else
 		p.nameTries = 0
@@ -170,58 +162,14 @@ local function setupCreature(p)
 	end
 end
 
--- A model known only by its file
-local function setupFile(p)
-	p.name:SetText("파일 " .. p.def.file)
-	setLine(p, 1, "SetModel " .. mark(call(p.model, "SetModel", p.def.file)))
-	setLine(p, 2, "")
-end
-
--- Looks for the model that wears the file: tries model ids one after another
--- and keeps those whose file is the drone's
-local function setupFind(p)
-	p.name:SetText("파일 " .. p.def.find .. "을 쓰는 모델")
-	p.scan = { id = FIND_FROM, found = {} }
-	setLine(p, 1, "찾는 중…")
-	setLine(p, 2, "")
-end
-
-local function stepFind(p)
-	local sc = p.scan
-	local target = p.def.find
-	for _ = 1, FIND_STEP do
-		if sc.id > FIND_TO then break end
-		if call(p.model, "SetDisplayInfo", sc.id) then
-			local ok, file = call(p.model, "GetModelFileID")
-			if ok and file == target then sc.found[#sc.found + 1] = sc.id end
-		end
-		sc.id = sc.id + 1
-	end
-	if sc.id <= FIND_TO then
-		setLine(p, 1, string.format("찾는 중… %d / %d", sc.id - FIND_FROM, FIND_TO - FIND_FROM + 1))
-		return
-	end
-	p.scan = nil
-	if #sc.found > 0 then
-		call(p.model, "SetDisplayInfo", sc.found[1])
-		setLine(p, 1, U.col("60e070", "찾음") .. " · 모델 " .. table.concat(sc.found, ", ", 1, math.min(#sc.found, 4)))
-	else
-		call(p.model, "ClearModel")
-		setLine(p, 1, U.col("ff6a5a", "못 찾음") .. string.format(" (모델 %d~%d)", FIND_FROM, FIND_TO))
-	end
-	applyLook(p)
-	applyAnim(p)
-	state.loadT = 1.6
-end
-
-local SETUP = { hero = setupHero, player = setupPlayer, pickmeup = setupFile, pickmeup_find = setupFind }
+local SETUP = { hero = setupHero, player = setupPlayer }
 
 -- 전투 방향: heroes turned to the right (where the monsters come from),
 -- monsters to the left; the facing value used shows in the window
 local function facingOf(p)
 	if not state.battle then return state.facing end
 	-- the tinker's mech, turret and drone stand with the heroes
-	local hero = state.set == "tinker" or state.set == "drone" or p.def.key == "hero" or p.def.key == "player"
+	local hero = state.set == "tinker" or state.set == "other" or p.def.key == "hero" or p.def.key == "player"
 	return hero and (pi / 2) or (3 * pi / 2)
 end
 
@@ -259,7 +207,7 @@ local function setupAll()
 	for i, p in ipairs(panels) do
 		p.def = SETS[state.set][i]
 		p.titleText:SetText(p.def.title)
-		p.nameTries, p.file, p.scan = nil, nil, nil
+		p.nameTries, p.file = nil, nil
 		setLine(p, 2, "")
 		if p.model then
 			call(p.model, "ClearModel")
@@ -340,7 +288,7 @@ local function build()
 	close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -14)
 	-- which models: the basic check, or the tinker's candidates
 	frame.setButtons = {}
-	for i, s in ipairs({ { "drone", "드론·포탑" }, { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
+	for i, s in ipairs({ { "other", "다른 후보" }, { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
 		local b = UI.Button(frame, 96, 24, s[2], function()
 			state.set = s[1]
 			setupAll()
@@ -451,7 +399,6 @@ local function build()
 
 	frame:SetScript("OnUpdate", function(_, dt)
 		for _, p in ipairs(panels) do
-			if p.scan and p.model then stepFind(p) end
 			-- NPC names the client did not have yet
 			if p.nameTries and p.nameTries < 8 then
 				p.nameT = (p.nameT or 0) - dt

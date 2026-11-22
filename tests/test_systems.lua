@@ -39,8 +39,16 @@ do
 		if pet.id ~= "skull" and not isId(ns.MODEL.pet[pet.id]) then noModel[#noModel + 1] = "pet " .. pet.id end
 	end
 	for k in pairs(ns.MODEL.mob) do if not ns.MONSTERS[k] then noModel[#noModel + 1] = "model for no monster: " .. k end end
-	-- the gnome tinker (Alliance, male) is High Tinker Mekkatorque
-	check(ns.MODEL.hero.TINKER.ALLIANCE.M == 7937, "the male gnome tinker should use Mekkatorque's model (NPC 7937)")
+	-- the Alliance tinker is High Tinker Mekkatorque; every NPC has a model id
+	check(ns.MODEL.famous.TINKER_MECH.ALLIANCE.npc == 7937, "the gnome tinker should be Mekkatorque (NPC 7937)")
+	local noDisplay = {}
+	local function needs(id) if id and not ns.MODEL.display[id] then noDisplay[#noDisplay + 1] = tostring(id) end end
+	for _, id in pairs(ns.MODEL.mob) do needs(id) end
+	for _, id in pairs(ns.MODEL.boss) do needs(id) end
+	for _, id in pairs(ns.MODEL.summon) do needs(id) end
+	for _, f in pairs(ns.MODEL.famous) do needs(f.ALLIANCE and f.ALLIANCE.npc) needs(f.HORDE and f.HORDE.npc) end
+	for _, t in pairs(ns.MODEL.trainer) do needs(t.ALLIANCE.npc) needs(t.HORDE.npc) end
+	check(#noDisplay == 0, "a model id for every NPC: " .. table.concat(noDisplay, ", "))
 	check(#noModel == 0, "3D models for every monster, boss and companion: " .. table.concat(noModel, ", "))
 end
 do
@@ -189,7 +197,7 @@ check(ns.Heroes.CreateCost() == 0, "first hero is free")
 local okc, firstId = ns.Heroes.Create("HUNTER_MM")
 check(okc and db.heroes[firstId], "create starter")
 check(type(db.heroes[firstId].name) == "string" and db.heroes[firstId].name:find("^%S+ %S+$"), "a new hero gets a given and a family name: " .. tostring(db.heroes[firstId].name))
-check(db.heroes[firstId].sex == "M" or db.heroes[firstId].sex == "F", "a new hero has a gender")
+check(ns.Heroes.Sex(firstId) == ns.Heroes.SpecSex("HUNTER_MM"), "a new hero's gender is its spec's look's")
 check(ns.Heroes.PartySlot(firstId) == 2, "damage dealer goes to slot 2")
 check(ns.Heroes.CreateCost() == ns.HERO_COST[2], "later heroes cost gold")
 check(not ns.Heroes.Create("PRIEST_HOLY"), "cannot create without gold")
@@ -284,7 +292,7 @@ do
 	end
 	check(not clash, "no rolled name is a game word or a famous name (" .. tostring(clash) .. ")")
 	local okF, f = ns.Heroes.Create("PRIEST_SHADOW", "F")
-	check(okF and db.heroes[f].sex == "F" and ns.Heroes.Sex(f) == "F", "create a female hero")
+	check(okF and ns.Heroes.Sex(f) == ns.Heroes.SpecSex("PRIEST_SHADOW"), "no gender is picked: it is the spec's look's")
 	local okN, n = ns.Heroes.Create("PRIEST_SHADOW", "M", "테스트 이름")
 	check(okN and db.heroes[n].name == "테스트 이름" and ns.Heroes.ShortName(n) == "테스트", "create with a chosen name")
 	ns.Heroes.Dismiss(f)
@@ -832,7 +840,7 @@ check(ns.db.forge.level == 1 and ns.db.opt.auto == true, "missing fields get def
 BigWowIdleDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 5, name = { "아르단", "Ardan" } } }, party = { false, "h1" } }
 ns.InitDB()
 check(ns.db.heroes.h1.name:find("^아르단 %S+$"), "2.0 names keep the Korean given name and get a family name: " .. ns.db.heroes.h1.name)
-check(ns.db.heroes.h1.sex == "M" or ns.db.heroes.h1.sex == "F", "old heroes get a gender")
+check(ns.db.heroes.h1.sex == ns.Heroes.SpecSex("MAGE_FIRE"), "old heroes take their spec's look's gender")
 check(ns.db.faction == nil, "old saves still choose a faction")
 -- version 2.0 kept skills in the talent tree
 BigWowIdleDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 22, name = "가 나",

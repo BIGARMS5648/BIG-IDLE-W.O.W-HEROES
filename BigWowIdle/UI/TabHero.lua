@@ -264,7 +264,8 @@ local function refreshHeader(page, id)
 	UI.SetHeroIcon(hc.portrait.icon, id)
 	hc.portrait.lvl:Hide()
 	hc.name:SetText(U.col("ffb84a", H.Name(id)))
-	hc.info:SetText(string.format("Lv %d · %s %s · %s · %s", h.level, race.name, ns.SEX[H.Sex(id)].name,
+	local look = ns.Figure3D.SpecLook(h.spec)
+	hc.info:SetText(string.format("Lv %d · %s · %s · %s", h.level, (look and look.name) or race.name,
 		U.col(ns.CLASSES[sp.class].hex, ns.SpecLabel(h.spec)), ns.N(ns.ROLE[sp.role].name)))
 	if h.level >= ns.HERO_MAX_LEVEL then
 		hc.xp:SetValue(1)

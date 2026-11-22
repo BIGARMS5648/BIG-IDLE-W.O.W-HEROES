@@ -321,7 +321,15 @@ function Model:SetModel(f) check(type(f) == "number" or type(f) == "string", "Se
 function Model:SetUnit(unit) check(type(unit) == "string", "SetUnit: unit must be a string") self.__model = "unit:" .. unit end
 function Model:ClearModel() self.__model = nil end
 function Model:GetModelFileID() return self.__model and 123456 or nil end
-function Model:GetDisplayInfo() return self.__model and 4567 or 0 end
+-- the display id the model shows: the one put up, or one for the NPC
+function Model:GetDisplayInfo()
+	local m = self.__model or ""
+	local d = m:match("^display:(%d+)$")
+	if d then return tonumber(d) end
+	local c = m:match("^creature:(%d+)$")
+	if c then return 500000 + tonumber(c) end
+	return 0
+end
 function Model:SetAnimation(id) check(type(id) == "number", "SetAnimation: id must be a number") self.__anim = id end
 function Model:SetFacing(r) check(type(r) == "number", "SetFacing: radians must be a number") self.__facing = r end
 function Model:SetCamDistanceScale(v) check(type(v) == "number" and v > 0, "SetCamDistanceScale: bad scale") self.__dist = v end

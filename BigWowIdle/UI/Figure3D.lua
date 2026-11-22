@@ -4,6 +4,9 @@
 -- A model is put up by its display id first (straight from the game's data),
 -- then by the NPC id (the server is asked about the NPC) a few more times; one
 -- that never loads is remembered and the caller keeps the icon for it.
+-- What this game showed is kept in the saved data (db.models): the display id
+-- each NPC came up with, and display ids this game does not have, so the next
+-- time a model comes up at once and no wait is spent on a missing one.
 -- Settings: db.opt.models = false turns them off.
 local _, ns = ...
 
@@ -18,8 +21,6 @@ local ONESHOT = { attack = 0.7, cast = 0.9, hit = 0.35, death = 1.2 }
 local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0 }
 -- tries: 1 = the display id, then the NPC id; seconds to wait after each
 local WAIT = { 1.0, 1.5, 2.5, 4.0 }
--- a retail NPC: its model only, twice (the server would not know the NPC)
-local WAIT_RETAIL = { 1.5, 2.5 }
 -- the frame around a model, in model heights: room on the sides and above so
 -- wide and tall models (wings, tails, raised weapons) are not cut off; the
 -- camera stands back by as much, so the model keeps its size
@@ -51,16 +52,26 @@ end
 ------------------------------------------------------------------------
 local FORM = { DRUID_GUARDIAN = "bear", DRUID_FERAL = "cat", DRUID_BALANCE = "moonkin", DRUID_RESTO = "tree" }
 
--- The body of a spec: its famous NPC (a retail model) for the faction, else
--- the classic NPC of the class's race in the hero's gender.
-function Figure.ForSpec(specId, faction, sex)
+-- The look of a spec for a faction: its famous NPC, or the class trainer
+-- where it has none ({ npc, sex, name }).
+function Figure.SpecLook(specId, faction)
 	local sp = ns.SPECS[specId]
 	if not sp then return nil end
 	faction = faction or ns.Faction() or "ALLIANCE"
-	local famous = ns.MODEL.famous and ns.MODEL.famous[specId]
-	local byClass = ns.MODEL.hero[sp.class]
-	local byFaction = byClass and byClass[faction] or {}
-	return usable(famous and famous[faction], byFaction[sex == "F" and "F" or "M"], byFaction[sex == "F" and "M" or "F"])
+	local f = ns.MODEL.famous[specId] and ns.MODEL.famous[specId][faction]
+	if f then return f end
+	return ns.MODEL.trainer[sp.class] and ns.MODEL.trainer[sp.class][faction]
+end
+
+-- The body of a spec: its famous NPC, else (or when the game cannot show
+-- that one) the class trainer.
+function Figure.ForSpec(specId, faction)
+	local sp = ns.SPECS[specId]
+	if not sp then return nil end
+	faction = faction or ns.Faction() or "ALLIANCE"
+	local f = ns.MODEL.famous[specId] and ns.MODEL.famous[specId][faction]
+	local t = ns.MODEL.trainer[sp.class] and ns.MODEL.trainer[sp.class][faction]
+	return usable(f and f.npc, t and t.npc)
 end
 
 -- A hero: druids fight in their form, the mech tinker in the mech
@@ -73,24 +84,20 @@ function Figure.ForHero(heroId, inCombat)
 		local form = FORM[h.spec]
 		if form and usable(ns.MODEL.form[form]) then return ns.MODEL.form[form] end
 		if h.spec == "TINKER_MECH" then
-			local mech = usable(ns.MODEL.mech and ns.MODEL.mech[faction],
-				ns.MODEL.tinker[faction == "HORDE" and "mech_horde" or "mech_alliance"])
+			local mech = usable(ns.MODEL.mech[faction])
 			if mech then return mech end
 		end
 	end
-	return Figure.ForSpec(h.spec, faction, h.sex)
+	return Figure.ForSpec(h.spec, faction)
 end
 
--- A class's body for a faction and gender (the create window's preview;
--- specId: the spec picked there).
-function Figure.ForClass(classId, faction, sex, specId)
+-- The create window's preview: the spec picked there, else the class trainer.
+function Figure.ForClass(classId, faction, specId)
 	if specId and ns.SPECS[specId] and ns.SPECS[specId].class == classId then
-		return Figure.ForSpec(specId, faction, sex)
+		return Figure.ForSpec(specId, faction)
 	end
-	local byClass = ns.MODEL.hero[classId]
-	local byFaction = byClass and byClass[faction or ns.Faction() or "ALLIANCE"]
-	if not byFaction then return nil end
-	return usable(byFaction[sex == "F" and "F" or "M"], byFaction[sex == "F" and "M" or "F"])
+	local t = ns.MODEL.trainer[classId] and ns.MODEL.trainer[classId][faction or ns.Faction() or "ALLIANCE"]
+	return usable(t and t.npc)
 end
 
 -- How tall each body stands next to an ordinary hero.
@@ -107,14 +114,12 @@ end
 function Figure.ForSkill(skillId)
 	local sk = ns.SKILLS[skillId]
 	if not sk then return nil end
-	local retail = ns.MODEL.summon_retail or {}
-	return usable(sk.summon and retail[sk.summon], sk.summon and ns.MODEL.summon[sk.summon], retail[skillId], ns.MODEL.summon[skillId])
+	return usable(sk.summon and ns.MODEL.summon[sk.summon], ns.MODEL.summon[skillId])
 end
 
 -- a ground summon by its key (the turrets of a field skill)
 function Figure.ForSummon(key)
-	if not key then return nil end
-	return usable((ns.MODEL.summon_retail or {})[key], ns.MODEL.summon[key])
+	return usable(key and ns.MODEL.summon[key])
 end
 
 function Figure.ForPet(petId)
@@ -169,25 +174,59 @@ function proto:SetModelId(id)
 	return true
 end
 
+-- what this game showed before (saved): ok[npc] = display id it came up
+-- with, bad[display id] = true for one the game does not have
+local function memory()
+	local db = ns.db
+	if not db then return nil end
+	db.models = db.models or {}
+	db.models.ok = db.models.ok or {}
+	db.models.bad = db.models.bad or {}
+	return db.models
+end
+
+-- The display id to try first for an NPC: the one this game showed it with,
+-- else the known one unless this game lacks it.
+local function displayFor(id)
+	local mem = memory()
+	local seen = mem and mem.ok[id]
+	if seen then return seen end
+	local disp = ns.MODEL.display and ns.MODEL.display[id]
+	if disp and not (mem and mem.bad[disp]) then return disp end
+	return nil
+end
+
 -- One try: the display id the first time (the game's own data, no waiting
 -- for the server), the NPC id after that.
 function proto:Load()
 	local id = self.id
 	self.tries = (self.tries or 0) + 1
 	call(self, "ClearModel")
-	local disp = ns.MODEL.display and ns.MODEL.display[id]
-	local retail = ns.MODEL.retail and ns.MODEL.retail[id]
+	self.tryDisplay = nil
+	local disp = self.tries == 1 and displayFor(id) or nil
 	local ok = false
-	if (self.tries == 1 or retail) and disp then ok = call(self, "SetDisplayInfo", disp) end
-	if not ok and not retail then
-		if self.tries == 1 and disp then self.tries = 2 end
+	if disp then
+		ok = call(self, "SetDisplayInfo", disp)
+		if ok then self.tryDisplay = disp end
+	end
+	if not ok then
+		if self.tries == 1 then self.tries = 2 end
 		ok = call(self, "SetCreature", id)
 	end
-	local wait = retail and WAIT_RETAIL or WAIT
-	self.lastTry = self.tries >= #wait
-	self.loadT = wait[self.tries] or wait[#wait]
+	self.lastTry = self.tries >= #WAIT
+	self.loadT = WAIT[self.tries] or WAIT[#WAIT]
 	self:Look()
 	return ok
+end
+
+-- A try that did not bring the model: a display id this game lacks is noted
+-- (and forgotten as the NPC's), so it is not waited for again.
+function proto:TryFailed()
+	local mem = memory()
+	if mem and self.tryDisplay then
+		mem.bad[self.tryDisplay] = true
+		if mem.ok[self.id] == self.tryDisplay then mem.ok[self.id] = nil end
+	end
 end
 
 -- camera distance and facing (set again once a model is in)
@@ -202,6 +241,16 @@ function proto:Loaded()
 	if self.loaded or not self.id then return end
 	self.loaded = true
 	self.loadT = nil
+	-- remember the display id it came up with (also when asked by NPC id)
+	local mem = memory()
+	if mem then
+		local ok, d = call(self, "GetDisplayInfo")
+		d = (ok and type(d) == "number" and d > 0) and d or self.tryDisplay
+		if d then
+			mem.ok[self.id] = d
+			mem.bad[d] = nil
+		end
+	end
 	self:Look()
 	if self.anim then call(self, "SetAnimation", ANIM_ID[self.done and self.anim == "death" and "dead" or self.anim]) end
 end
@@ -243,6 +292,7 @@ function proto:Step(dt)
 		else
 			self.loadT = self.loadT - dt
 			if self.loadT <= 0 then
+				self:TryFailed()
 				if not self.lastTry then
 					self:Load()
 				else
