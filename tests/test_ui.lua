@@ -882,6 +882,14 @@ do
 	frames(10)
 	Mock.DressUpModel.SetCustomRace = custom
 	if not (MC.panels[1].lines[1].__text or ""):find("없음", 1, true) then fail("a missing model function should read 없음: " .. tostring(MC.panels[1].lines[1].__text)) end
+	-- the tinker's candidates: mech, turret and drone models
+	click("model: tinker candidates", function(b) return label(b) == "땜장이 후보" end)
+	if MC.panels[1].model.__model ~= "creature:" .. ns.MODEL.tinker.mech_horde or MC.panels[5].model.__model ~= "creature:" .. ns.MODEL.summon.drone_heal then
+		fail("땜장이 후보 should show the mech, turret and drone models")
+	end
+	frames(20)
+	click("model: basic check", function(b) return label(b) == "기본 확인" end)
+	if MC.panels[3].model.__model ~= "creature:448" then fail("기본 확인 should bring the basic models back") end
 	hoverAll()
 	try("slash model again", SlashCmdList.BIGWOWIDLE, "모델")
 	if mf:IsShown() then fail("/bwi model again should close the model check") end

@@ -36,6 +36,15 @@ local SAMPLES = {
 	{ key = "boss", title = "우두머리: 라그나로스", kind = "PlayerModel", creature = 11502 },
 	{ key = "pet", title = "소환물: 임프", kind = "PlayerModel", creature = 416 },
 }
+-- 땜장이 후보: what the tinker's mech, turret and drone could look like
+local TINKER = {
+	{ key = "mech_horde", title = "기갑 (호드)", creature = ns.MODEL.tinker.mech_horde },
+	{ key = "mech_alliance", title = "기갑 (얼라이언스)", creature = ns.MODEL.tinker.mech_alliance },
+	{ key = "mech_alt", title = "기갑 다른 후보", creature = ns.MODEL.tinker.mech_alt },
+	{ key = "turret", title = "포격: 포탑", creature = ns.MODEL.summon.turret_gun },
+	{ key = "drone", title = "정비: 치유 드론", creature = ns.MODEL.summon.drone_heal },
+}
+local SETS = { basic = SAMPLES, tinker = TINKER }
 
 local W, H = 830, 556
 local PANEL_W, PANEL_H, MODEL_H, GAP = 154, 340, 210, 8
@@ -43,7 +52,7 @@ local LINES = 5
 
 local frame
 local panels = {}
-local state = { anim = 0, facing = 0, dist = 1, cycle = false, cycleT = 0, cycleI = 1, loadT = 0 }
+local state = { anim = 0, facing = 0, dist = 1, cycle = false, cycleT = 0, cycleI = 1, loadT = 0, set = "basic" }
 
 local OK, NO, ERR = U.col("60e070", "됨"), U.col("ff6a5a", "없음"), U.col("ff6a5a", "오류")
 
@@ -150,7 +159,8 @@ local SETUP = { hero = setupHero, player = setupPlayer }
 -- monsters to the left; the facing value used shows in the window
 local function facingOf(p)
 	if not state.battle then return state.facing end
-	local hero = p.def.key == "hero" or p.def.key == "player"
+	-- the tinker's mech, turret and drone stand with the heroes
+	local hero = state.set == "tinker" or p.def.key == "hero" or p.def.key == "player"
 	return hero and (pi / 2) or (3 * pi / 2)
 end
 
@@ -196,7 +206,11 @@ local function reportRace()
 end
 
 local function setupAll()
-	for _, p in ipairs(panels) do
+	for i, p in ipairs(panels) do
+		p.def = SETS[state.set][i]
+		p.titleText:SetText(p.def.title)
+		p.race, p.raceDone, p.nameTries, p.file = nil, nil, nil, nil
+		setLine(p, 2, "")
 		if p.model then
 			call(p.model, "ClearModel")
 			local fn = SETUP[p.def.key] or setupCreature
@@ -226,6 +240,7 @@ local function refresh()
 		frame.lookText:SetText(string.format("방향 %d° · 거리 %s", floor(state.facing * 180 / pi + 0.5) % 360, U.num(state.dist, 2)))
 	end
 	frame.battleDir:SetStyle(state.battle and "primary" or "dark")
+	for _, b in ipairs(frame.setButtons) do b:SetStyle(b.set == state.set and "primary" or "dark") end
 	for _, b in ipairs(frame.animButtons) do b:SetStyle(b.anim == state.anim and "primary" or "dark") end
 	frame.cycle:Refresh()
 end
@@ -273,6 +288,18 @@ local function build()
 	UI.Color(desc, UI.C.sub)
 	local close = UI.Button(frame, 30, 30, "", function() Check.Toggle(false) end, "dark")
 	close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -14)
+	-- which models: the basic check, or the tinker's candidates
+	frame.setButtons = {}
+	for i, s in ipairs({ { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
+		local b = UI.Button(frame, 96, 24, s[2], function()
+			state.set = s[1]
+			setupAll()
+			refresh()
+		end, "dark")
+		b:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -54 - (i - 1) * 104, -12)
+		b.set = s[1]
+		frame.setButtons[i] = b
+	end
 	local x = UI.Glyph(close, "close", 14)
 	x:SetPoint("CENTER", close, "CENTER", 0, 0)
 
@@ -285,7 +312,7 @@ local function build()
 		t:SetWidth(PANEL_W - 16)
 		t:SetWordWrap(false)
 		UI.Color(t, UI.C.gold)
-		local p = { def = def, card = card, lines = {} }
+		local p = { def = def, card = card, lines = {}, titleText = t }
 		local m, kind = newModel(card, def.kind)
 		p.model, p.kind = m, kind
 		if m then

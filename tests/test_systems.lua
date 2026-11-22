@@ -26,6 +26,22 @@ end
 ------------------------------------------------------------------------
 section("data integrity")
 do
+	-- every monster, stage boss, summon and companion has a 3D model (an NPC id)
+	local function isId(v) return type(v) == "number" and v > 0 and v == math.floor(v) end
+	local noModel = {}
+	for id in pairs(ns.MONSTERS) do if not isId(ns.MODEL.mob[id]) then noModel[#noModel + 1] = id end end
+	for d = 1, #ns.DIFFS do
+		for i = 1, ns.STAGE_COUNT do
+			if not isId(ns.MODEL.boss[d .. "-" .. i]) then noModel[#noModel + 1] = "boss " .. d .. "-" .. i end
+		end
+	end
+	for _, pet in ipairs(ns.PETS) do
+		if pet.id ~= "skull" and not isId(ns.MODEL.pet[pet.id]) then noModel[#noModel + 1] = "pet " .. pet.id end
+	end
+	for k in pairs(ns.MODEL.mob) do if not ns.MONSTERS[k] then noModel[#noModel + 1] = "model for no monster: " .. k end end
+	check(#noModel == 0, "3D models for every monster, boss and companion: " .. table.concat(noModel, ", "))
+end
+do
 	local roles = { TANK = 0, DPS = 0, HEALER = 0 }
 	local seenSkill = {}
 	for _, cid in ipairs(ns.CLASS_ORDER) do
