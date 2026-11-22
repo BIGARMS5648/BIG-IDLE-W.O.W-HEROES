@@ -369,15 +369,32 @@ end
 Mock.missingDisplays = {}
 Mock.boxes = {}
 local Actor = {}
-function Actor:SetModelByCreatureDisplayID(id)
+function Actor:SetModelByCreatureDisplayID(id, useActivePlayerCustomizations)
 	strict(type(id) == "number" and id > 0, "SetModelByCreatureDisplayID: display id expected")
+	strict(useActivePlayerCustomizations == nil or type(useActivePlayerCustomizations) == "boolean", "SetModelByCreatureDisplayID: a boolean expected")
 	self.__display = id
+	self.__mine = useActivePlayerCustomizations or nil
 	return true
 end
 -- a model file (a spell's effect or missile) by its file id
 function Actor:SetModelByFileID(id)
 	strict(type(id) == "number" and id > 0, "SetModelByFileID: file id expected")
 	self.__display = "file:" .. id
+	return true
+end
+-- the unit's model (the race given by customRaceID, the 7th argument)
+function Actor:SetModelByUnit(unit, sheathe, autoDress, hideWeapons, native, holdBow, raceId)
+	strict(type(unit) == "string", "SetModelByUnit: unit expected")
+	strict(raceId == nil or type(raceId) == "number", "SetModelByUnit: customRaceID must be a number")
+	self.__display = "unit:" .. unit
+	self.__race, self.__dressed = raceId, autoDress ~= false
+	return true
+end
+function Actor:Undress() self.__worn = {} end
+function Actor:TryOn(link)
+	strict(type(link) == "string" or type(link) == "number", "TryOn: item link or id expected")
+	self.__worn = self.__worn or {}
+	self.__worn[#self.__worn + 1] = link
 	return true
 end
 -- spell visual kits played on an actor: none clears; Mock.kits notes them
@@ -433,6 +450,9 @@ function ModelScene:SetLightDiffuseColor(r, g, b) strict(nums(3, r, g, b), "SetL
 -- would (what the game was seen to do); answers in frame units from the
 -- frame's bottom-left corner, screen right along GetCameraRight.
 Mock.projMag = 1.25
+-- how the mock game answers: units per frame unit (projK), y from the top
+-- (projDown), and a shift of the drawn picture in frame units (projShift)
+Mock.projK, Mock.projDown, Mock.projShift = 1, false, nil
 function ModelScene:Project3DPointTo2D(x, y, z)
 	strict(nums(3, x, y, z), "Project3DPointTo2D: x, y, z expected")
 	local c = self.__camPos
@@ -445,7 +465,10 @@ function ModelScene:Project3DPointTo2D(x, y, z)
 	local t = math.tan(self.__fov / 2) * depth / Mock.projMag
 	local u, v = (vx * rx + vy * ry + vz * rz) / t, vz / t
 	local w, h = self:GetWidth(), self:GetHeight()
-	return w / 2 + u * w / 2, h / 2 + v * h / 2, depth
+	local px, py = w / 2 + u * w / 2, h / 2 + v * h / 2
+	if Mock.projShift then px, py = px + Mock.projShift[1], py + Mock.projShift[2] end
+	if Mock.projDown then py = h - py end
+	return px * Mock.projK, py * Mock.projK, depth
 end
 Mock.ModelScene, Mock.Actor = ModelScene, Actor
 -- a client without ModelScene: creating one fails
@@ -499,6 +522,7 @@ _G.GetCursorPosition = function() return 400, 300 end
 _G.ReloadUI = function() Mock.reloaded = true end
 _G.GetScreenWidth = function() return 1920 end
 _G.GetScreenHeight = function() return 1080 end
+_G.GetPhysicalScreenSize = function() return 2560, 1440 end
 _G.UISpecialFrames = {}
 _G.strsplit = function(sep, s)
 	local out = {}

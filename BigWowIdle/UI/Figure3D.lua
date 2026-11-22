@@ -218,6 +218,15 @@ function base:SetModelFile(file)
 	return true
 end
 
+-- The model at a given scale instead of fitted to the figure's height, its
+-- origin on the figure's ground point: a missile as big as it is next to a
+-- model of scale s in a figure of the same height. nil fits again.
+function base:SetFixedScale(s)
+	if self.fixedScale == s then return end
+	self.fixedScale = s
+	if self.loaded then self:Look() end
+end
+
 -- A try that did not bring the model: a display id this game lacks is noted
 -- (and forgotten as the NPC's), so it is not waited for again.
 function base:TryFailed()
@@ -242,6 +251,7 @@ function base:Loaded()
 			mem.bad[d] = nil
 		end
 	end
+	self.corrScale, self.corrXf, self.corrYf, self.fixTries, self.fixInfo = nil, nil, nil, 0, nil
 	self:Measure()
 	self:Look()
 	if self.anim then self:SetAnim(ANIM_ID[self.done and self.anim == "death" and "dead" or self.anim]) end
@@ -290,7 +300,17 @@ function base:Step(dt)
 			end
 		end
 	end
-	if self.loaded and self.kind == "scene" then Figure.Calibrate(self) end
+	if self.loaded and self.kind == "scene" then
+		Figure.Calibrate(self)
+		-- each figure checks where its feet and head really are, a few times
+		if self.Correct and (self.fixTries or 0) < 3 then
+			local now = GetTime and GetTime() or 0
+			if not self.nextFix or now >= self.nextFix then
+				self.nextFix = now + 0.25
+				self:Correct()
+			end
+		end
+	end
 	if ONESHOT[self.anim] and not self.done then
 		self.left = self.left - dt
 		if self.left <= 0 then
@@ -357,60 +377,124 @@ local function setCamera(f)
 	call(f, "SetLightDiffuseColor", 0.7, 0.7, 0.7)
 end
 
--- The game's projection of one model unit straight up from the camera's
--- target, against what the frame should show (SIDE units over its height).
--- The game answers in units of its own; the right ones are those that put the
--- camera's target on the frame's middle. Returns the camera factor that makes
--- a unit come out at its size and the units found; nil and why when it cannot
--- tell yet (a frame not laid out or not drawn), false when the client has no
--- projection.
-local function measureProjection(f)
+-- The game's projection (Project3DPointTo2D) answers in units and from an
+-- origin of its own. They are read off the camera's target, which is the
+-- frame's middle: the units are the ones in which the target's x and y both
+-- come out where the frame's middle is (the frame is square, so in the
+-- frame's own units both are half its side; on the screen they are its
+-- centre); a point one unit higher tells which way y runs. Returns
+-- { kind = "frame" | "screen", k = units per frame unit, up = y runs up },
+-- or nil and why.
+local function decode(f)
 	if type(f.Project3DPointTo2D) ~= "function" then return false, "no projection" end
 	local okV, vis = call(f, "IsVisible")
 	if okV and not vis then return nil, "hidden" end
 	local okW, w = call(f, "GetWidth")
 	local okH, h = call(f, "GetHeight")
 	if not (okW and okH and type(w) == "number" and type(h) == "number" and w > 8 and h > 8) then return nil, "no size" end
-	local side, tz = f.viewSide or SIDE, f.viewTz or (SIDE / 2 - FEET_AT)
+	local tz = f.viewTz or (SIDE / 2 - FEET_AT)
 	local ok0, x0, y0 = call(f, "Project3DPointTo2D", 0, 0, tz)
 	local ok1, _, y1 = call(f, "Project3DPointTo2D", 0, 0, tz + 1)
-	local r = f.camRight or { 0, 1, 0 }
-	local ok2, xr = call(f, "Project3DPointTo2D", r[1], r[2], tz + r[3])
-	if not (ok0 and ok1 and ok2 and type(x0) == "number" and type(y0) == "number" and type(y1) == "number" and type(xr) == "number") then
+	if not (ok0 and ok1 and type(x0) == "number" and type(y0) == "number" and type(y1) == "number") then
 		return nil, "projection gave nothing"
 	end
-	local dy = abs(y1 - y0)
-	if dy <= 0 then return nil, "projection flat" end
-	local _, l = call(f, "GetLeft")
-	local _, eff = call(f, "GetEffectiveScale")
-	eff = type(eff) == "number" and eff > 0 and eff or 1
-	-- { name, units per frame unit, where the frame's middle lands }
-	local units = { { "frame", 1, w / 2 }, { "frame 0..1", 1 / w, 0.5 } }
-	if type(l) == "number" then
-		units[#units + 1] = { "screen", 1, l + w / 2 }
-		units[#units + 1] = { "screen x scale", eff, (l + w / 2) * eff }
-		local ph
+	f.rawProj = { x0, y0, y1, w, h }
+	Figure.lastRaw = f.rawProj
+	if y1 == y0 then return nil, "projection flat" end
+	local up = y1 > y0
+	local cands = { { kind = "frame", ex = w / 2, ey = h / 2 } }
+	local okC, cx, cy = call(f, "GetCenter")
+	local okE, eff = call(f, "GetEffectiveScale")
+	local sh
+	if UIParent and okE and type(eff) == "number" and eff > 0 then
+		local okU, uh = call(UIParent, "GetHeight")
+		local okUE, ueff = call(UIParent, "GetEffectiveScale")
+		if okU and okUE and type(uh) == "number" and type(ueff) == "number" then sh = uh * ueff / eff end
+	end
+	if okC and type(cx) == "number" and type(cy) == "number" then
+		cands[#cands + 1] = { kind = "screen", ex = cx, ey = up and cy or (sh and sh - cy) }
+	end
+	-- the units come from x; y only tells the kinds apart (the game may draw
+	-- the picture a little higher or lower, which each figure corrects)
+	local best, bestErr, second
+	for _, c in ipairs(cands) do
+		if c.ex and c.ex > 0 and c.ey then
+			local k = x0 / c.ex
+			if k > 0 then
+				c.k = k
+				local err = abs(y0 - k * c.ey) / (k * h)
+				if not bestErr or err < bestErr then
+					second = bestErr
+					best, bestErr = c, err
+				elseif not second or err < second then
+					second = err
+				end
+			end
+		end
+	end
+	if not best or bestErr > 0.35 or (second and second < bestErr * 2) then
+		return nil, string.format("units unknown (x %.1f y %.1f, frame %.0f)", x0, y0, w)
+	end
+	-- a picture drawn a little to the side would skew the units read from x:
+	-- the game's units are one of these, so the nearest one is taken
+	local k = best.k
+	local nice = { 1, 1 / w }
+	if okE and type(eff) == "number" and eff > 0 then
+		nice[#nice + 1] = eff
 		if type(GetPhysicalScreenSize) == "function" then
-			local okP, _, v = pcall(GetPhysicalScreenSize)
-			if okP then ph = v end
-		end
-		if type(ph) == "number" and ph > 0 then
-			local k = eff * ph / 768
-			units[#units + 1] = { "pixels", k, (l + w / 2) * k }
+			local okP, _, ph = pcall(GetPhysicalScreenSize)
+			if okP and type(ph) == "number" and ph > 0 then
+				nice[#nice + 1] = eff * ph / 768
+				nice[#nice + 1] = ph / 768
+			end
 		end
 	end
-	local best, bestErr
-	for _, u in ipairs(units) do
-		local err = abs(x0 - u[3]) / (w * u[2]) -- in frame widths
-		if not bestErr or err < bestErr then best, bestErr = u, err end
+	local near, nearErr
+	for _, n in ipairs(nice) do
+		local e = abs(k - n) / n
+		if not nearErr or e < nearErr then near, nearErr = n, e end
 	end
-	if not best or bestErr > 0.1 then return nil, string.format("units unknown (x %.1f)", x0) end
-	local shown = dy / best[2]            -- one unit, in frame units
+	if nearErr and nearErr < 0.08 then k = near end
+	return { kind = best.kind, k = k, up = up, sh = sh }
+end
+
+-- A projected point in the frame's own units from its bottom-left corner.
+local function toLocal(f, conv, px, py)
+	local x, y = px / conv.k, py / conv.k
+	local w, h = f:GetWidth(), f:GetHeight()
+	if conv.kind == "screen" then
+		local _, cx, cy = call(f, "GetCenter")
+		x = x - (cx - w / 2)
+		if not conv.up then y = (conv.sh or 0) - y end
+		y = y - (cy - h / 2)
+		return x, y
+	end
+	if not conv.up then y = h - y end
+	return x, y
+end
+
+-- The camera factor (how much farther the camera has to stand for one unit
+-- to come out at its size) and which way the game turns a model, from the
+-- projection; nil and why when it cannot tell yet, false when the client has
+-- no projection.
+local function measureProjection(f)
+	local conv, why = decode(f)
+	if not conv then return conv, why end
+	local side, tz = f.viewSide or SIDE, f.viewTz or (SIDE / 2 - FEET_AT)
+	local h = f:GetHeight()
+	local _, x0, y0 = call(f, "Project3DPointTo2D", 0, 0, tz)
+	local _, _, y1 = call(f, "Project3DPointTo2D", 0, 0, tz + 1)
+	local r = f.camRight or { 0, 1, 0 }
+	local okR, xr = call(f, "Project3DPointTo2D", r[1], r[2], tz + r[3])
+	local shown = abs(y1 - y0) / conv.k -- one unit, in frame units
 	local fix = shown * Figure.camFix * side / h
-	if fix < 0.5 or fix > 3 then return nil, string.format("factor out of range (%.2f)", fix) end
+	if fix < 0.3 or fix > 4 then return nil, string.format("factor out of range (%.2f)", fix) end
 	-- the camera's "right" drawn on the screen's right: then the right yaw
 	-- (side + pi) faces right only because the game turns the other way round
-	return fix, best[1], (xr > x0) and -1 or 1
+	local sense = 1
+	if okR and type(xr) == "number" and xr > x0 then sense = -1 end
+	Figure.conv = conv
+	return fix, conv.kind .. string.format(" x%.2f", conv.k), sense
 end
 
 -- Measures once and sets every scene's camera again with the factor found.
@@ -434,9 +518,12 @@ local function calibrate(f)
 	Figure.camInfo = { how = "measured", fix = fix, units = how, before = Figure.camFix, sense = sense }
 	Figure.camFix = fix
 	Figure.yawSense = sense
+	-- every figure checks itself again with the new camera
 	for s in pairs(scenes) do
+		s.corrScale, s.corrXf, s.corrYf, s.fixTries, s.fixInfo, s.nextFix = nil, nil, nil, 0, nil, nil
 		setCamera(s)
 		if s.loaded then s:Look() end
+		if s.anchorTo then s:PlaceFeet(s.anchorTo, s.anchorX, s.anchorY) end
 	end
 end
 Figure.Calibrate = calibrate
@@ -447,10 +534,13 @@ function Figure.ResetCalibration()
 	Figure.camInfo = { how = "default", fix = CAM_FIX }
 	Figure.yawSense = nil
 	Figure.nextProbe = nil
+	Figure.conv = nil
 	projectTries = 0
 	for s in pairs(scenes) do
+		s.corrScale, s.corrXf, s.corrYf, s.fixTries, s.fixInfo, s.nextFix = nil, nil, nil, 0, nil, nil
 		setCamera(s)
 		if s.loaded then s:Look() end
+		if s.anchorTo then s:PlaceFeet(s.anchorTo, s.anchorX, s.anchorY) end
 	end
 end
 
@@ -535,9 +625,10 @@ function scene:Look()
 	local yaw = (self.yaws and self.yaws[self.facing or "right"]) or 0
 	call(a, "SetYaw", yaw)
 	if not self.loaded then return end
-	local s = self.norm or 0.5
+	-- a fixed scale (SetFixedScale) keeps the model's own size and origin
+	local s = self.fixedScale or (self.norm or 0.5) * (self.corrScale or 1)
 	call(a, "SetScale", s)
-	local b = self.box
+	local b = not self.fixedScale and self.box
 	local cx, cy, z1 = 0, 0, 0
 	if b then cx, cy, z1 = (b[1] + b[4]) / 2, (b[2] + b[5]) / 2, b[3] end
 	-- the box's middle turned as the game turns the model (yawSense)
@@ -574,8 +665,52 @@ end
 
 -- Feet at (x, y) of the anchor's bottom-left corner.
 function scene:PlaceFeet(anchor, x, y)
+	self.anchorTo, self.anchorX, self.anchorY = anchor, x, y
+	local h = self.height or 0
 	self:ClearAllPoints()
-	self:SetPoint("BOTTOM", anchor, "BOTTOMLEFT", x, y - self.height * FEET_AT)
+	self:SetPoint("BOTTOM", anchor, "BOTTOMLEFT", x + (self.corrXf or 0) * h, y - h * FEET_AT + (self.corrYf or 0) * h)
+end
+
+-- Where the game really draws the model: its feet (the world's origin) and
+-- its head (its height above), read with the projection. The model is made
+-- as tall as the figure and moved so the feet land where they were placed.
+-- Shifts are kept as shares of the figure's height (the window can grow).
+function scene:Correct()
+	if self.bust or self.fixedScale or not self.box or not self.height or self.height <= 0 then
+		self.fixTries = 3
+		return
+	end
+	local conv, why = decode(self)
+	if not conv then
+		if conv == false then
+			self.fixTries = 3
+		elseif why ~= "hidden" and why ~= "no size" then
+			self.fixTries = (self.fixTries or 0) + 1
+		end
+		self.fixWhy = why
+		return
+	end
+	local b = self.box
+	local norm = self.norm or 0.5
+	local s = norm * (self.corrScale or 1)
+	local H = (b[6] - b[3]) * s
+	local okF, fx, fy = call(self, "Project3DPointTo2D", 0, 0, 0)
+	local okT, tx, ty = call(self, "Project3DPointTo2D", 0, 0, H)
+	if not (okF and okT and type(fx) == "number" and type(fy) == "number" and type(ty) == "number") then return end
+	local lx, ly = toLocal(self, conv, fx, fy)
+	local _, ly2 = toLocal(self, conv, tx, ty)
+	local h = self.height
+	local want = h * (b[6] - b[3]) * norm
+	local got = ly2 - ly
+	self.fixTries = (self.fixTries or 0) + 1
+	if got > 1 then self.corrScale = max(0.4, min(2.5, (self.corrScale or 1) * want / got)) end
+	-- feet: from the frame's bottom-left they should be at (middle, FEET_AT)
+	local w = self:GetWidth()
+	self.corrXf = (w / 2 - lx) / h
+	self.corrYf = (h * FEET_AT - ly) / h
+	self.fixInfo = { scale = self.corrScale or 1, dx = w / 2 - lx, dy = h * FEET_AT - ly, size = got / want }
+	self:Look()
+	if self.anchorTo then self:PlaceFeet(self.anchorTo, self.anchorX, self.anchorY) end
 end
 
 ------------------------------------------------------------------------

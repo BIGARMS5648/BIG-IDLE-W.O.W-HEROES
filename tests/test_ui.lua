@@ -1054,6 +1054,35 @@ do
 		if math.abs((topY - footY) - h) > 1e-6 then fail(string.format("a model should project at its figure's height: %.2f / %d", topY - footY, h)) end
 		m:Hide()
 	end
+	-- a game that answers in screen pixels (1440 high: 1.875 per frame unit),
+	-- counts y from the top and draws the picture 14 lower and 3 to the
+	-- right: the units are read off the frame's middle, and each figure moves
+	-- and sizes its model until the feet are on the line and the head one
+	-- height above
+	local K = 1440 / 768
+	Mock.projMag, Mock.projK, Mock.projDown, Mock.projShift = 1.1, K, true, { 3, -14 }
+	Fig.ResetCalibration()
+	do
+		local h = 64
+		local m = stand(MOB, h)
+		for _ = 1, 12 do Mock.now = Mock.now + 0.5 m:Step(0.05) end
+		if Fig.camInfo.how ~= "measured" or not Fig.conv or Fig.conv.kind ~= "frame" or math.abs(Fig.conv.k - K) > 1e-9 or Fig.conv.up then
+			fail("the projection's units should be read off the frame's middle: " .. tostring(Fig.conv and Fig.conv.kind) .. " " .. tostring(Fig.conv and Fig.conv.k) .. " (" .. tostring(Fig.camInfo.why) .. ")")
+		end
+		local a, b = m.actor, Mock.boxes[D[MOB]]
+		local s = a.__scale
+		-- where the mock draws the feet and the head, in frame units from the bottom
+		local _, fy = m:Project3DPointTo2D(0, 0, 0)
+		local _, ty = m:Project3DPointTo2D(0, 0, (b[6] - b[3]) * s)
+		fy, ty = h * Fig.SIDE - fy / K, h * Fig.SIDE - ty / K
+		local _, _, _, x, y = m:GetPoint(1)
+		local feetOnScreen = y + fy
+		if math.abs(feetOnScreen - 100) > 0.5 then fail(string.format("feet should be put back on the line: %.2f / 100 (shift %.3f)", feetOnScreen, m.corrYf or 0)) end
+		if math.abs((ty - fy) - h * (b[6] - b[3]) * m.norm) > 0.5 then fail(string.format("the model should be its figure's height: %.2f / %.2f", ty - fy, h * (b[6] - b[3]) * m.norm)) end
+		if math.abs((x - 300) + 3) > 0.5 then fail(string.format("the model should be moved back over its place: %.2f", x - 300)) end
+		m:Hide()
+	end
+	Mock.projK, Mock.projDown, Mock.projShift = 1, false, nil
 	-- no projection: the factor seen in game stays
 	local proj = Mock.ModelScene.Project3DPointTo2D
 	Mock.ModelScene.Project3DPointTo2D = nil
@@ -1221,15 +1250,25 @@ do
 	frames(20)
 	local function bodyOf(i, sex) local cb = dp.COMBOS[i] return ns.MODEL.raceBody[cb.race][sex] end
 	if dp.COMBOS[1].class ~= "WARRIOR" or dp.COMBOS[1].race ~= "DWARF" or #dp.COMBOS ~= 18 then fail("옷 입히기 should start with the dwarf warrior and go through 18 class/faction pairs") end
-	local c1, c2, c3 = dp.cards[1], dp.cards[2], dp.cards[3]
-	if c2.model.__model ~= "display:53" then fail("the dressing card should show the dwarf's own body (53): " .. tostring(c2.model.__model)) end
-	if not (c2.lines[3].__text or ""):find("TryOn 8/8", 1, true) then fail("dressing the race body should try the eight pieces on: " .. tostring(c2.lines[3].__text)) end
-	if (c1.lines[3].__text or ""):find("TryOn", 1, true) then fail("the bare body card should put nothing on") end
-	if c3.model.actor.__display ~= 53 then fail("the scene card should put the race body up: " .. tostring(c3.model.actor.__display)) end
+	local c1, c2, c3, c4 = dp.cards[1], dp.cards[2], dp.cards[3], dp.cards[4]
+	local a1, a2, a3, a4 = c1.model.actor, c2.model.actor, c3.model.actor, c4.model.actor
+	-- the player's own body as the race (customRaceID), nothing worn
+	if a1.__display ~= "unit:player" or a1.__race ~= ns.MODEL.raceId.DWARF or a1.__dressed then
+		fail("the first card should be the player's body as a dwarf, undressed: " .. tostring(a1.__display) .. " " .. tostring(a1.__race))
+	end
+	if a1.__worn and #a1.__worn > 0 then fail("the bare card should put nothing on") end
+	if not (a2.__worn and #a2.__worn == 8) or not (c2.lines[3].__text or ""):find("TryOn 8/8", 1, true) then
+		fail("the second card should try the eight pieces on the changed body: " .. tostring(c2.lines[3].__text))
+	end
+	-- the race's body with the player's looks
+	if a3.__display ~= 53 or not a3.__mine then fail("the third card should be the dwarf's body with the player's looks: " .. tostring(a3.__display)) end
+	if not (a4.__worn and #a4.__worn == 8) then fail("the fourth card should try the set on that body") end
 	click("model: dressing next", function(b) return b == dp.next end)
 	click("model: dressing female", function(b) return b == dp.sexBtn.F end)
 	frames(20)
-	if dp.i ~= 2 or dp.sex ~= "F" or c2.model.__model ~= "display:" .. bodyOf(2, "F") then fail("▶ and 여 should show the orc woman's body: " .. tostring(c2.model.__model)) end
+	if dp.i ~= 2 or dp.sex ~= "F" or a3.__display ~= bodyOf(2, "F") or a1.__race ~= ns.MODEL.raceId.ORC then
+		fail("▶ and 여 should show the orc: " .. tostring(a3.__display) .. " " .. tostring(a1.__race))
+	end
 	if not (dp.label.__text or ""):find("오크 여", 1, true) then fail("the dressing label should name the race and gender: " .. tostring(dp.label.__text)) end
 	click("model: dressing back", function(b) return b == dp.prev end)
 	click("model: dressing back again", function(b) return b == dp.prev end)

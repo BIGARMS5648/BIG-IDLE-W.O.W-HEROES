@@ -321,6 +321,11 @@ function battle.build(win)
 		slot.size:SetJustifyH("CENTER")
 		slot.size:SetWordWrap(false)
 		UI.Color(slot.size, UI.C.sub)
+		slot.fix = UI.Text(over, 10)
+		slot.fix:SetWidth(124)
+		slot.fix:SetJustifyH("CENTER")
+		slot.fix:SetWordWrap(false)
+		UI.Color(slot.fix, UI.C.sub)
 		battle.slots[i] = slot
 	end
 end
@@ -334,8 +339,17 @@ local function camText()
 		how = U.col("60e070", "게임 투영으로 잼") .. " (" .. tostring(info.units) .. ", 회전 " .. (info.sense == -1 and "반대" or "기본") .. ")"
 	else
 		how = U.col("ffb84a", "기본값") .. (info.why and (" (" .. tostring(info.why) .. ")") or "")
+		local r = F.lastRaw
+		if r then how = how .. string.format(" · 투영 %.1f, %.1f, %.1f / 틀 %.0f", r[1], r[2], r[3], r[4]) end
 	end
 	return string.format("카메라 거리 보정 %.2f배 · %s", F.camFix or 1, how)
+end
+
+-- how a figure corrected itself after measuring where the game drew it
+local function fixText(fig)
+	local f = fig and fig.fixInfo
+	if not f then return fig and fig.fixWhy and U.col("ffb84a", "보정 못 함") or "" end
+	return string.format("보정 크기 ×%.2f · 발 %+.0f", f.scale, f.dy)
 end
 
 -- the model's measured box: height and length in its own units
@@ -410,8 +424,12 @@ function battle.setup()
 			slot.size:ClearAllPoints()
 			slot.size:SetPoint("TOP", slot.state, "BOTTOM", 0, -2)
 			slot.size:SetText(sizeText(slot.fig))
+			slot.fix:ClearAllPoints()
+			slot.fix:SetPoint("TOP", slot.size, "BOTTOM", 0, -2)
+			slot.fix:SetText(fixText(slot.fig))
 		end
 		slot.size:SetShown(e ~= nil)
+		slot.fix:SetShown(e ~= nil)
 	end
 	battle.cam:SetText(camText())
 end
@@ -422,6 +440,7 @@ function battle.step(dt)
 			slot.fig:Step(dt)
 			slot.state:SetText(battleState(slot.fig))
 			slot.size:SetText(sizeText(slot.fig))
+			slot.fix:SetText(fixText(slot.fig))
 		end
 	end
 	battle.cam:SetText(camText())
@@ -446,7 +465,7 @@ local FX_TOP = 34
 local FX_H = PANEL_H - FX_TOP
 local FX_W = floor((W - 36 - 2 * GAP) / 3)
 local FX_GROUND, FX_FIG = 84, 96 -- the ground line over a card's bottom; a figure's height
-local FX_LOOP, FX_RELEASE, FX_FLIGHT = 3.4, 1.3, 0.55
+local FX_LOOP, FX_RELEASE, FX_FLIGHT = 4.4, 1.3, 1.0
 local FX_LINES = 4
 local FX_WAYS = {
 	{ key = "scene", title = "장면 모델 · 효과 키트" },
@@ -457,9 +476,12 @@ fx.i = 1
 
 local function fxSpell() return ns.SPELL_FX[fx.i] end
 
--- the caster: the trainer of the spell's class (the player's faction); the
--- target: the first stage's first monster
+-- the caster: the hero model of the spell's class (as in battle), else its
+-- trainer; the target: the first stage's first monster
 local function fxCaster()
+	local cls = ns.CLASSES[fxSpell().class]
+	local id = cls and cls.specs and ns.Figure3D.ForSpec(cls.specs[1], ns.Faction(), "M")
+	if id then return id end
 	local t = ns.MODEL.trainer[fxSpell().class]
 	t = t and t[ns.Faction() or "ALLIANCE"]
 	return t and t.npc
@@ -554,7 +576,7 @@ local function fxModels(c)
 	else
 		c.caster = fxFig(c, FX_FIG)
 		c.target = fxFig(c, FX_FIG)
-		c.missile = fxFig(c, 22)
+		c.missile = fxFig(c, FX_FIG)
 		if key == "file" then
 			c.hand = fxFig(c, 34)
 			c.hit = fxFig(c, 60)
@@ -595,6 +617,8 @@ local function fxPlace(c, m, x, y)
 	m:ClearAllPoints()
 	if c.way.key == "model" then
 		m:SetPoint("CENTER", c.card, "BOTTOMLEFT", x, y)
+	elseif m.fixedScale then
+		m:PlaceFeet(c.card, x, y) -- its own origin on the path
 	else
 		m:PlaceFeet(c.card, x, y - (m.height or 0) / 2)
 	end
@@ -631,29 +655,28 @@ function fx.setup()
 				c.missile:Hide()
 			end
 		else
-			if c.caster then
-				c.caster.id = nil
-				c.caster:SetHeight2(FX_FIG)
-				c.caster:SetFacing("right")
-				c.caster:SetModelId(caster)
-				c.caster:PlaceFeet(c.card, fxX(c, "caster"), FX_GROUND)
-				c.caster:Show()
+			-- a model the game lacks shows nothing (not the one before it)
+			local function put(m, id, facing, x)
+				m.id = nil
+				m:SetHeight2(FX_FIG)
+				m:SetFacing(facing)
+				if m:SetModelId(id) then
+					m:PlaceFeet(c.card, x, FX_GROUND)
+					m:Show()
+				else
+					m.loaded = false
+					m:Hide()
+				end
 			end
-			if c.target then
-				c.target.id = nil
-				c.target:SetHeight2(FX_FIG)
-				c.target:SetFacing("left")
-				c.target:SetModelId(target)
-				c.target:PlaceFeet(c.card, fxX(c, "target"), FX_GROUND)
-				c.target:Show()
-			end
+			if c.caster then put(c.caster, caster, "right", fxX(c, "caster")) end
+			if c.target then put(c.target, target, "left", fxX(c, "target")) end
 			for _, k in ipairs({ "missile", "hand", "hit" }) do
 				local m = c[k]
 				if m then
 					m.id = nil
-					m:SetHeight2(k == "missile" and 22 or (k == "hand" and 34 or 60))
+					m:SetHeight2(k == "missile" and FX_FIG or (k == "hand" and 34 or 60))
 					m:SetFacing(k == "missile" and "right" or "front")
-					if sp[k] then m:SetModelFile(sp[k]) end
+					if not (sp[k] and m:SetModelFile(sp[k])) then m.loaded = false end
 					m:Hide()
 				end
 			end
@@ -718,6 +741,10 @@ local function fxRelease()
 			if c.res.kit == nil then c.res.kit = r end
 		end
 		if sp.missile and c.missile then
+			-- as big as it really is next to the caster
+			if c.way.key ~= "model" and c.caster and c.caster.loaded then
+				c.missile:SetFixedScale((c.caster.norm or 0.5) * (c.caster.corrScale or 1))
+			end
 			local x, y = fxPath(c, 0)
 			fxPlace(c, c.missile, x, y)
 			c.missile:Show()
@@ -792,11 +819,14 @@ PAGES.dress = dress
 local DRESS_TOP, DRESS_MODEL_H = 32, 180
 local DRESS_H = PANEL_H - DRESS_TOP
 
+-- asRace: the player's own body made that race (SetModelByUnit's
+-- customRaceID), nothing worn; mine: the race's body with the player's own
+-- looks (SetModelByCreatureDisplayID's useActivePlayerCustomizations)
 local DRESS = {
-	{ title = "종족 모델 (몸만)", kind = "DressUpModel", body = true, bare = true },
-	{ title = "종족 모델에 입히기", kind = "DressUpModel", body = true },
-	{ title = "종족 모델 (장면)", kind = "scene", body = true },
-	{ title = "내 캐릭터 (장면)", kind = "scene", unit = true },
+	{ title = "종족으로 바꾼 내 몸", kind = "scene", asRace = true, bare = true },
+	{ title = "바꾼 몸에 입히기", kind = "scene", asRace = true },
+	{ title = "종족 몸 + 내 꾸미기", kind = "scene", body = true, mine = true, bare = true },
+	{ title = "꾸민 종족 몸에 입히기", kind = "scene", body = true, mine = true },
 	{ title = "내 캐릭터에 입히기", kind = "DressUpModel", unit = true },
 }
 
@@ -910,7 +940,7 @@ function dress.setup()
 	local disp = bodyDisplay()
 	for _, c in ipairs(dress.cards) do
 		local def, m = c.def, dressModel(c)
-		c.name:SetText(def.unit and "내 캐릭터" or raceName)
+		c.name:SetText(def.unit and "내 캐릭터" or (def.asRace and (ns.RACES[cb.race].name .. " · 내 성별") or raceName))
 		for k = 1, LINES do c.lines[k]:SetText("") end
 		c.dressed, c.t = false, 0
 		if not m then
@@ -924,10 +954,14 @@ function dress.setup()
 			call(a, "SetScale", 1)
 			call(a, "SetYaw", 0)
 			call(a, "SetPosition", 0, 0, 0)
-			if def.unit then
+			if def.asRace then
+				-- the player, unarmed and undressed, as the race (game race id)
+				local rid = ns.MODEL.raceId[combo().race]
+				c.lines[1]:SetText("종족 " .. tostring(rid) .. " · SetModelByUnit " .. mark(call(a, "SetModelByUnit", "player", false, false, true, true, false, rid)))
+			elseif def.unit then
 				c.lines[1]:SetText("SetModelByUnit " .. mark(call(a, "SetModelByUnit", "player", false, true)))
 			else
-				c.lines[1]:SetText("몸 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(a, "SetModelByCreatureDisplayID", disp) or nil))
+				c.lines[1]:SetText("몸 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(a, "SetModelByCreatureDisplayID", disp, def.mine and true or nil) or nil))
 			end
 		else
 			call(m, "ClearModel")
