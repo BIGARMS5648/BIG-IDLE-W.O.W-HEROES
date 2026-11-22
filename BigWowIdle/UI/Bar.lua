@@ -594,10 +594,18 @@ local function updateInfo()
 		cb:SetDim(count == 0)
 		if count >= ns.ChestCap(t) then cb:SetBorderRGB(1, 0.25, 0.2) else cb:SetQuality(t == 1 and 3 or (t == 2 and 5 or 6)) end
 	end
-	local auto = db.opt.auto
-	frame.auto.glyph:SetVertexColor(auto and 0.15 or 0.75, auto and 0.12 or 0.78, auto and 0.05 or 0.85)
-	frame.auto.disc:SetVertexColor(auto and 1 or 0.14, auto and 0.78 or 0.17, auto and 0.25 or 0.26)
-	frame.auto.caption:SetText(auto and "자동 진행" or "반복")
+	local auto = db.opt.auto and true or false
+	local ab = frame.auto
+	if ab.on ~= auto then
+		ab.on = auto
+		-- on: » (on to the next stage) on gold; off: a loop (this stage again) on dark
+		UI.SetGlyph(ab.glyph, auto and "auto" or "repeat")
+		if auto then ab.glyph:SetVertexColor(0.18, 0.12, 0.02) else ab.glyph:SetVertexColor(0.86, 0.89, 0.96) end
+		ab.disc:SetVertexColor(auto and 1 or 0.16, auto and 0.76 or 0.2, auto and 0.22 or 0.3)
+		ab.ringT:SetVertexColor(auto and 1 or 0.55, auto and 0.9 or 0.62, auto and 0.6 or 0.8)
+		ab.caption:SetText(auto and "자동 진행" or "반복")
+		UI.Color(ab.caption, auto and UI.C.gold or UI.C.sub)
+	end
 
 	local goal = ns.Guide.Current()
 	frame.goal.text:SetText(ns.N(goal.text))
@@ -951,7 +959,7 @@ function Bar.Create()
 	auto.ringT = UI.Art(auto, "ring", "ARTWORK", 0.55, 0.62, 0.80)
 	auto.ringT:SetSize(36, 36)
 	auto.ringT:SetPoint("TOP", auto, "TOP", 0, 0)
-	auto.glyph = UI.Glyph(auto, "auto", 22)
+	auto.glyph = UI.Glyph(auto, "auto", 24)
 	auto.glyph:SetPoint("CENTER", auto.disc, "CENTER", 0, 0)
 	auto.caption = UI.Text(auto, 10)
 	auto.caption:SetPoint("TOP", auto.disc, "BOTTOM", 0, -1)
@@ -979,7 +987,8 @@ function Bar.Create()
 		end)
 		cb.chestType = t
 		cb:SetArtIcon(({ "icon_chest_common", "icon_chest_boss", "icon_chest_raid" })[t], ns.CHEST[t].icon)
-		cb:SetPoint("TOPLEFT", auto, "TOPRIGHT", 8 + (t - 1) * 41, 1)
+		-- the boxes have no caption: they sit on the dock's middle line
+		cb:SetPoint("TOPLEFT", dock, "TOPLEFT", goal:GetWidth() + 8 + 40 + 8 + (t - 1) * 41, -(DOCK_H - 38) / 2)
 		UI.Tip(cb, chestTip, "TOP")
 		frame.chests[t] = cb
 	end

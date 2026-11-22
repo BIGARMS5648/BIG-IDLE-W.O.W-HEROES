@@ -771,9 +771,22 @@ do
 	else
 		Main.Toggle(false)
 		local auto = ns.db.opt.auto
+		local function glyphOf() return tostring(bar.auto.glyph:GetTexture()):match("([%w_]+)%.tga$") end
+		local before = glyphOf()
+		if before ~= (auto and "auto" or "repeat") then fail("the auto button should show » when on and the loop when off, got " .. tostring(before)) end
 		try("auto toggle", bar.auto.Click, bar.auto, "LeftButton")
 		if ns.db.opt.auto == auto then fail("the HUD auto button should toggle auto-advance") end
+		if glyphOf() ~= (ns.db.opt.auto and "auto" or "repeat") then fail("the auto button picture should follow the setting") end
+		if bar.auto.caption:GetText() ~= (ns.db.opt.auto and "자동 진행" or "반복") then fail("the auto button caption should follow the setting") end
 		try("auto toggle back", bar.auto.Click, bar.auto, "LeftButton")
+		if glyphOf() ~= before then fail("toggling back should bring the first picture back") end
+		-- the chest boxes sit on the dock's middle line
+		for t, cb in ipairs(bar.chests) do
+			local p, rel, rp, x, y = cb:GetPoint(1)
+			if rel ~= bar.dock or p ~= "TOPLEFT" or math.abs(-y * 2 + cb:GetHeight() - bar.dock:GetHeight()) > 0.01 then
+				fail("chest box " .. t .. " should be centered in the dock (y " .. tostring(y) .. ")")
+			end
+		end
 		ns.Loot.AddChest(1, 10, 1)
 		try("chest", bar.chests[1].Click, bar.chests[1], "LeftButton")
 		if #bar.menu ~= 6 then fail("the HUD menu should have the six screens") end

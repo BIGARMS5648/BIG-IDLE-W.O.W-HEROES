@@ -22,6 +22,9 @@ local LEFT_COL = { "head", "neck", "chest", "wrist" }
 local RIGHT_COL = { "hands", "feet", "ring", "trinket" }
 local WEAPONS = { "mh", "oh" }
 local CX, CW = 70, 220 -- the summary between the slot columns
+local PORTRAIT, PORTRAIT_GAP = 32, 5 -- the hero picker: two rows at the top
+local SLOT_Y = -8 - 2 * PORTRAIT - PORTRAIT_GAP - 15 -- first slot row, under the picker
+local DY = 18 -- the summary starts this far under its rows' base (the name sits beside the picker)
 
 local TABS = {
 	{ "bag", "가방" }, { "fuse", "융합" }, { "craft", "제작" }, { "gem", "보석" },
@@ -59,11 +62,13 @@ local function buildLeft(page)
 	local lp = UI.Panel(page, LEFT_W, K.H, "inset")
 	lp:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
 	page.left = lp
-	page.strip = UI.HeroStrip(lp, ns.ROSTER_MAX, 24, 4, function(id)
+	-- every hero in two rows; the chosen one wears a gold ring and its name
+	-- stands to the right
+	page.strip = UI.HeroStrip(lp, ns.ROSTER_MAX, PORTRAIT, PORTRAIT_GAP, function(id)
 		Main.SelectHero(id)
 		Main.Refresh()
-	end, function(id) return ns.Guide.UpgradeHeroes()[id] end) -- red dot: better gear in the bag
-	page.strip:SetPoint("TOPLEFT", lp, "TOPLEFT", 12, -10)
+	end, function(id) return ns.Guide.UpgradeHeroes()[id] end, ns.ROSTER_MAX / 2) -- red dot: better gear in the bag
+	page.strip:SetPoint("TOPLEFT", lp, "TOPLEFT", 12, -8)
 	page.slots = {}
 	local function slotButton(slot, x, y)
 		local b = UI.IconButton(lp, SLOT, function(self, button)
@@ -101,20 +106,21 @@ local function buildLeft(page)
 		end)
 		page.slots[slot] = b
 	end
-	for i, slot in ipairs(LEFT_COL) do slotButton(slot, 12, -48 - (i - 1) * 60) end
-	for i, slot in ipairs(RIGHT_COL) do slotButton(slot, LEFT_W - 12 - SLOT, -48 - (i - 1) * 60) end
+	for i, slot in ipairs(LEFT_COL) do slotButton(slot, 12, SLOT_Y - (i - 1) * 60) end
+	for i, slot in ipairs(RIGHT_COL) do slotButton(slot, LEFT_W - 12 - SLOT, SLOT_Y - (i - 1) * 60) end
 	-- the weapons right under "착용 가능 무기"
-	for i, slot in ipairs(WEAPONS) do slotButton(slot, LEFT_W / 2 - SLOT - 6 + (i - 1) * (SLOT + 12), -340) end
+	for i, slot in ipairs(WEAPONS) do slotButton(slot, LEFT_W / 2 - SLOT - 6 + (i - 1) * (SLOT + 12), -340 - DY) end
 
 	-- the summary
-	page.name = UI.Text(lp, 14)
-	page.name:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -50)
-	page.name:SetWidth(130)
+	local nameX = 12 + page.strip:GetWidth() + 12
+	local nameW = LEFT_W - 12 - nameX
+	page.name = UI.Text(lp, 15)
+	page.name:SetPoint("TOPLEFT", lp, "TOPLEFT", nameX, -18)
+	page.name:SetWidth(nameW)
 	page.name:SetWordWrap(false)
 	page.spec = UI.Text(lp, 11)
-	page.spec:SetPoint("TOPRIGHT", lp, "TOPLEFT", CX + CW, -52)
-	page.spec:SetWidth(88)
-	page.spec:SetJustifyH("RIGHT")
+	page.spec:SetPoint("TOPLEFT", page.name, "BOTTOMLEFT", 0, -4)
+	page.spec:SetWidth(nameW)
 	page.spec:SetWordWrap(false)
 	UI.Color(page.spec, UI.C.sub)
 	local function rows(n, y)
@@ -129,15 +135,15 @@ local function buildLeft(page)
 		end
 		return out
 	end
-	page.top = rows(3, -72)
+	page.top = rows(3, -72 - DY)
 	page.statHead = UI.Section(lp, CW, "능력치")
-	page.statHead:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -136)
-	page.stats = rows(6, -160)
+	page.statHead:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -136 - DY)
+	page.stats = rows(6, -160 - DY)
 	page.weaponHead = UI.Text(lp, 11, "착용 가능 무기")
-	page.weaponHead:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -282)
+	page.weaponHead:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -282 - DY)
 	UI.Color(page.weaponHead, UI.C.gold)
 	page.weapons = UI.Text(lp, 11)
-	page.weapons:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -298)
+	page.weapons:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -298 - DY)
 	page.weapons:SetWidth(CW)
 	page.weapons:SetJustifyV("TOP")
 	UI.Color(page.weapons, UI.C.sub)
@@ -176,7 +182,7 @@ local function buildLeft(page)
 	page.unequip:SetPoint("BOTTOMRIGHT", lp, "BOTTOMLEFT", CX + CW, 14)
 	page.unequip.clickWhenOff = true
 	page.slotHint = UI.Text(lp, 11, "칸 클릭: 가방에서 그 부위 보기\n오른쪽 클릭: 해제")
-	page.slotHint:SetPoint("TOP", lp, "TOPLEFT", CX + CW / 2, -400)
+	page.slotHint:SetPoint("TOP", lp, "TOPLEFT", CX + CW / 2, -400 - DY)
 	page.slotHint:SetWidth(CW)
 	page.slotHint:SetJustifyH("CENTER")
 	UI.Color(page.slotHint, UI.C.dim)

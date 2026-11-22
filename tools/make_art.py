@@ -185,6 +185,35 @@ def bar():
     return save("bar", img)
 
 
+def badge():
+    """The notification dot: a glossy red ball with a dark red rim and a white
+    shine at the upper left. Painted in its own colours (never tinted)."""
+    w = h = 64
+    img = blank(w, h)
+
+    def disc(cx, cy, r, blur=0.0):
+        return mask_from(lambda d, s: d.ellipse([(cx - r) * s, (cy - r) * s, (cx + r) * s, (cy + r) * s], fill=255), w, h, blur)
+
+    outer = disc(32, 32, 30.5)
+    inner = disc(32, 32, 27.5)
+    over(img, hexrgb("8a0000"), outer)                                  # rim
+    yy, xx = np.mgrid[0:h, 0:w]
+    t = np.clip(((xx - 14) + (yy - 12)) / 70.0, 0, 1)[..., None]        # top-left bright → bottom-right deep
+    body = hexrgb("ff2a2a") * (1 - t) + hexrgb("ad0005") * t
+    over(img, body, inner)
+    edge = np.clip(inner - disc(32, 32, 25.5), 0, 1) * np.clip((xx + yy - 64) / 30.0, 0, 1)
+    over(img, hexrgb("ff3b3b"), edge * 0.7)                              # light lower-right edge inside the rim
+
+    # a crescent along the upper-left edge, brightest at the top
+    crescent = np.clip(disc(32, 32, 24.5, blur=0.5) - disc(37.5, 38.5, 25.5, blur=0.8), 0, 1)
+    crescent *= np.clip(1 - (xx - 34) / 12.0, 0, 1) * np.clip(1 - (yy - 26) / 10.0, 0, 1)
+    fade = np.clip(1 - (yy - 9) / 26.0, 0.25, 1)
+    over(img, WHITE, crescent * fade * 0.9)
+    dot = mask_from(lambda d, s: d.ellipse([11 * s, 30 * s, 15.5 * s, 36 * s], fill=255), w, h, blur=0.4)
+    over(img, WHITE, dot * 0.5)
+    return save("badge", img)
+
+
 def glow():
     w = h = 64
     yy, xx = np.mgrid[0:h, 0:w]
@@ -281,12 +310,34 @@ def glyphs():
         d.rounded_rectangle([8 * s, 48 * s, 56 * s, 55 * s], radius=2 * s, fill=255)
     glyph("crown", crown)
 
+    def stroke(d, s, pts, w):
+        """A polyline with rounded joints and rounded ends."""
+        d.line(P(s, *pts), fill=255, width=int(w * s), joint="curve")
+        for x, y in (pts[0], pts[-1]):
+            d.ellipse([(x - w / 2) * s, (y - w / 2) * s, (x + w / 2) * s, (y + w / 2) * s], fill=255)
+
+    # auto advance: two chevrons pointing right (on to the next stage)
     def auto(d, s):
-        d.arc([12 * s, 12 * s, 52 * s, 52 * s], 200, 20, fill=255, width=7 * s)
-        d.polygon(P(s, (46, 14), (58, 26), (42, 30)), fill=255)
-        d.arc([12 * s, 12 * s, 52 * s, 52 * s], 40, 160, fill=255, width=7 * s)
-        d.polygon(P(s, (18, 50), (6, 38), (22, 34)), fill=255)
+        stroke(d, s, [(14, 15), (29, 32), (14, 49)], 8)
+        stroke(d, s, [(33, 15), (48, 32), (33, 49)], 8)
     glyph("auto", auto)
+
+    # repeat: one clockwise loop; the head sits on the end of the arc and
+    # points along it
+    def repeat(d, s):
+        cx, cy, r, w = 32.0, 33.0, 17.0, 7.0
+        a0, a1 = 20.0, 285.0  # degrees, clockwise from 3 o'clock (y down)
+        R = r + w / 2
+        d.arc([(cx - R) * s, (cy - R) * s, (cx + R) * s, (cy + R) * s], a0, a1, fill=255, width=int(w * s))
+        sx, sy = cx + r * math.cos(math.radians(a0)), cy + r * math.sin(math.radians(a0))
+        d.ellipse([(sx - w / 2) * s, (sy - w / 2) * s, (sx + w / 2) * s, (sy + w / 2) * s], fill=255)
+        t = math.radians(a1)
+        ex, ey = cx + r * math.cos(t), cy + r * math.sin(t)
+        fx, fy = -math.sin(t), math.cos(t)   # direction of travel at the end
+        nx, ny = math.cos(t), math.sin(t)    # outward
+        bx, by = ex - fx * 3, ey - fy * 3
+        d.polygon(P(s, (bx + nx * 10, by + ny * 10), (ex + fx * 12, ey + fy * 12), (bx - nx * 10, by - ny * 10)), fill=255)
+    glyph("repeat", repeat)
 
     def skull(d, s):
         d.ellipse([12 * s, 8 * s, 52 * s, 44 * s], fill=255)
@@ -361,7 +412,7 @@ def ridge_ruins(xs, layer, rng):
 
 
 def main():
-    made = [panel(), card(), inset(), button(), pill(), slot(), frame(), ring(), circle(), bar(), glow(), shadow(), gradients()]
+    made = [panel(), card(), inset(), button(), pill(), slot(), frame(), ring(), circle(), badge(), bar(), glow(), shadow(), gradients()]
     glyphs()
     scenery("scene_hills", ridge_hills)
     scenery("scene_peaks", ridge_peaks)

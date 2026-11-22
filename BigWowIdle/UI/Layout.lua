@@ -296,18 +296,27 @@ end
 
 -- A row of hero portraits (party first). onPick(heroId); badge(heroId):
 -- whether that hero gets a red dot here (each screen says what it is about).
-function UI.HeroStrip(parent, count, size, gap, onPick, badge)
+-- cols: portraits per row (all in one row when nil). The chosen hero wears a
+-- thick gold ring.
+function UI.HeroStrip(parent, count, size, gap, onPick, badge, cols)
+	cols = cols or count
+	local rows = math.ceil(count / cols)
 	local f = CreateFrame("Frame", nil, parent)
-	f:SetSize(count * (size + gap) - gap, size + 4)
+	f:SetSize(cols * (size + gap) - gap, rows * (size + gap) - gap + 4)
 	f.items = {}
 	for i = 1, count do
 		local b = UI.Portrait(f, size, function(self)
 			if self.heroId and onPick then onPick(self.heroId) end
 		end)
-		b:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * (size + gap), -2)
+		b:SetPoint("TOPLEFT", f, "TOPLEFT", ((i - 1) % cols) * (size + gap), -2 - floor((i - 1) / cols) * (size + gap))
 		b.lvl:Hide()
 		b.badge:ClearAllPoints()
 		b.badge:SetPoint("TOPRIGHT", b, "TOPRIGHT", -1, 1) -- inside: the next portrait is close
+		b.selRing = UI.Art(b, "ring", "OVERLAY", UI.C.gold[1], UI.C.gold[2], UI.C.gold[3])
+		b.selRing:SetDrawLayer("OVERLAY", 2)
+		b.selRing:SetPoint("TOPLEFT", b, "TOPLEFT", -3, 3)
+		b.selRing:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 3, -3)
+		b.selRing:Hide()
 		UI.Tip(b, function(self)
 			local id = self.heroId
 			local h = id and ns.db.heroes[id]
@@ -329,6 +338,7 @@ function UI.HeroStrip(parent, count, size, gap, onPick, badge)
 				UI.SetHeroIcon(b.icon, id)
 				b.lvl:Hide()
 				b:SetSelected(id == sel)
+				b.selRing:SetShown(id == sel)
 				b:SetDim(ns.Heroes.PartySlot(id) == nil)
 				b:SetBadge(badge and badge(id) and true or false)
 				b:Show()
