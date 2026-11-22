@@ -95,7 +95,7 @@ function UI.StatRow(parent, w, icon, art, split)
 		f.icon = f:CreateTexture(nil, "ARTWORK")
 		f.icon:SetSize(16, 16)
 		f.icon:SetPoint("LEFT", f, "LEFT", 0, 0)
-		UI.SetArtOrIcon(f.icon, art, icon)
+		UI.SetIcon(f.icon, icon)
 		x = 22
 	end
 	local lw = floor(w * (split or 0.5)) -- the label's share of the row
@@ -237,9 +237,8 @@ end
 -- Gold frame around whatever is selected.
 function UI.SelFrame(parent, out)
 	out = out or 2
-	local t = UI.Slice(parent, "frame", "OVERLAY", 11, out)
+	local t = UI.Slice(parent, "frame", "OVERLAY", nil, out)
 	t:SetColor(K.SEL[1], K.SEL[2], K.SEL[3], 1)
-	if UI.ArtUI("ui_select") then t:SetArt(UI.ArtUI("ui_select")) end
 	t:SetShown(false)
 	return t
 end
@@ -460,10 +459,8 @@ function UI.Card(parent, w, h)
 	d.sub:SetWidth(w - K.PAD * 2 - 58)
 	d.sub:SetWordWrap(false)
 	UI.Color(d.sub, UI.C.sub)
-	d.close = UI.Button(d, 24, 24, "", nil, "dark")
-	d.close:SetPoint("TOPRIGHT", d, "TOPRIGHT", -8, -8)
-	d.close.x = UI.Glyph(d.close, "close", 12)
-	d.close.x:SetPoint("CENTER", d.close, "CENTER", 0, 0)
+	d.close = UI.CloseButton(d, nil, 24)
+	d.close:SetPoint("TOPRIGHT", d, "TOPRIGHT", -6, -6)
 	d.close:Hide()
 	d.div = UI.Line(d, w - 2 * K.PAD, 0.5, 0.55, 0.72, 0.35)
 	d.div:SetPoint("TOPLEFT", d, "TOPLEFT", K.PAD, -72)
@@ -514,7 +511,7 @@ function UI.Card(parent, w, h)
 		elseif o.class then
 			self.icon:SetClass(o.class)
 		elseif o.icon then
-			if o.art then self.icon:SetArtIcon(o.art, o.icon) else self.icon:SetIconName(o.icon) end
+			self.icon:SetIconName(o.icon)
 			self.icon:SetQuality(o.quality)
 			self.icon:SetCount(o.count)
 			self.icon:SetLocked(o.locked)
@@ -534,13 +531,7 @@ function UI.Card(parent, w, h)
 		if o.titleRGB then self.title:SetTextColor(o.titleRGB[1], o.titleRGB[2], o.titleRGB[3]) else UI.Color(self.title, UI.C.gold) end
 		self.sub:SetText(o.sub or "")
 		if o.band then
-			local art = UI.ArtPath("ui_band")
-			if art then
-				self.band:SetTexture(art)
-				self.band:SetVertexColor(o.band[1] * 0.8 + 0.2, o.band[2] * 0.8 + 0.2, o.band[3] * 0.8 + 0.2, 1)
-			else
-				UI.Fill(self.band, o.band[1] * 0.38, o.band[2] * 0.38, o.band[3] * 0.38, 0.9)
-			end
+			UI.Fill(self.band, o.band[1] * 0.38, o.band[2] * 0.38, o.band[3] * 0.38, 0.9)
 			self.band:Show()
 		else
 			self.band:Hide()

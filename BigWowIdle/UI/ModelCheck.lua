@@ -243,7 +243,6 @@ local function build()
 	frame:SetFrameStrata("DIALOG")
 	frame:SetClampedToScreen(true)
 	frame:SetToplevel(true)
-	UI.Slice(frame, "shadow", "BACKGROUND", nil, 14)
 	UI.Slice(frame, "panel", "BACKGROUND")
 	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
 	frame:SetMovable(true)
@@ -260,8 +259,8 @@ local function build()
 	desc:SetWidth(W - 90)
 	desc:SetWordWrap(false)
 	UI.Color(desc, UI.C.sub)
-	local close = UI.Button(frame, 30, 30, "", function() Check.Toggle(false) end, "dark")
-	close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -14)
+	local close = UI.CloseButton(frame, function() Check.Toggle(false) end)
+	close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -12)
 	-- which models: the basic check, or the tinker's candidates
 	frame.setButtons = {}
 	for i, s in ipairs({ { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
@@ -274,8 +273,6 @@ local function build()
 		b.set = s[1]
 		frame.setButtons[i] = b
 	end
-	local x = UI.Glyph(close, "close", 14)
-	x:SetPoint("CENTER", close, "CENTER", 0, 0)
 
 	-- one card per sample: title, the model, its name, five lines of results
 	for i, def in ipairs(SAMPLES) do

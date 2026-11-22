@@ -252,7 +252,7 @@ local function buildCraft(page, f)
 		local row = UI.Row(f, W, 36, function() p.tier = i Main.Refresh() end)
 		row:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -66 - (i - 1) * 40)
 		row:Layout(220)
-		row.icon:SetArtIcon("forge_craft", OP_ICON.craft)
+		row.icon:SetIconName(OP_ICON.craft)
 		p.tiers[i] = row
 	end
 	local y = -66 - #ns.CRAFT_TIERS * 40 - 6

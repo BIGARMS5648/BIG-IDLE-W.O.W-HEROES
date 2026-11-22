@@ -57,7 +57,7 @@ local function newHero(parent)
 	local u = CreateFrame("Frame", nil, parent)
 	u.isOverlay = true -- fighters overlap as they move
 	u:SetSize(UNIT, UNIT)
-	u.shadow = UI.Art(u, "glow", "BACKGROUND", 0, 0, 0, 0.7)
+	u.shadow = UI.Art(u, "circle", "BACKGROUND", 0, 0, 0, 0.45)
 	u.shadow:SetSize(UNIT + 8, 10)
 	u.shadow:SetPoint("CENTER", u, "BOTTOM", 0, 0)
 	u.disc = UI.Art(u, "circle", "BACKGROUND", 0.05, 0.06, 0.1)
@@ -92,7 +92,7 @@ local function newMob(parent)
 	local u = CreateFrame("Frame", nil, parent)
 	u.isOverlay = true -- fighters overlap as they move
 	u:SetSize(MOB, MOB)
-	u.shadow = UI.Art(u, "glow", "BACKGROUND", 0, 0, 0, 0.7)
+	u.shadow = UI.Art(u, "circle", "BACKGROUND", 0, 0, 0, 0.45)
 	u.shadow:SetSize(MOB + 8, 10)
 	u.shadow:SetPoint("CENTER", u, "BOTTOM", 0, 0)
 	u.back = UI.Art(u, "slot", "BACKGROUND")
@@ -466,7 +466,7 @@ local function drawPips(now)
 			p:ClearAllPoints()
 			p:SetPoint("CENTER", frame.scene, "TOPLEFT", x0 + (i - 1) * 16, -17)
 			local isBoss = i == n
-			p.dot:SetTexture(UI.Tex(isBoss and "skull" or "circle"))
+			if p.dot.skinName ~= (isBoss and "skull" or "circle") then UI.SetGlyph(p.dot, isBoss and "skull" or "circle") end
 			local size = isBoss and 16 or 9
 			if i < wave or (i == wave and st.phase ~= "fight") then
 				p.dot:SetVertexColor(1, 0.80, 0.28) -- cleared
@@ -500,8 +500,7 @@ local function updateInfo()
 	if frame.themeKey ~= stg.theme then
 		frame.themeKey = stg.theme
 		local th = ns.THEMES[stg.theme] or ns.THEMES.forest
-		frame.sky:SetTexture(UI.Tex(th.art))
-		frame.sky:SetVertexColor(th.rgb[1] * 0.85, th.rgb[2] * 0.85, th.rgb[3] * 0.85)
+		UI.SetScene(frame.sky, th)
 	end
 
 	-- zone banner
@@ -743,9 +742,7 @@ function Bar.Create()
 	frame:SetSize(W, 8 + SCENE_H + 4 + DOCK_H + 6)
 	frame:SetFrameStrata("MEDIUM")
 	frame:SetClampedToScreen(true)
-	UI.Slice(frame, "shadow", "BACKGROUND", nil, 12)
-	local body = UI.Slice(frame, "panel", "BACKGROUND")
-	if UI.ArtUI("ui_battle_frame") then body:SetArt(UI.ArtUI("ui_battle_frame")) end
+	UI.Slice(frame, "panel", "BACKGROUND")
 	frame:SetMovable(true)
 	frame:EnableMouse(true)
 	frame:RegisterForDrag("LeftButton")
@@ -769,13 +766,12 @@ function Bar.Create()
 	frame.scene = scene
 	frame.sky = scene:CreateTexture(nil, "BACKGROUND")
 	frame.sky:SetAllPoints(scene)
-	frame.sky:SetTexture(UI.Tex("scene_hills"))
-	local topShade = UI.Art(scene, "grad_v", "BORDER", 0, 0, 0, 0.6)
+	UI.SetScene(frame.sky, ns.THEMES.forest)
+	local topShade = UI.Shade(scene, "BORDER", "VERTICAL", 0, 0.6)
 	topShade:SetPoint("TOPLEFT", scene, "TOPLEFT", 0, 0)
 	topShade:SetPoint("TOPRIGHT", scene, "TOPRIGHT", 0, 0)
 	topShade:SetHeight(40)
-	local edge = UI.Slice(scene, "frame", "OVERLAY", 10)
-	edge:SetColor(0.14, 0.17, 0.27, 1)
+	UI.NineSlice(scene, "InsetFrameTemplate", 0, "OVERLAY")
 
 	for i = 1, ns.PARTY_SIZE do heroFrames[i] = newHero(scene) end
 	for i = 1, MAX_MOBS do mobFrames[i] = newMob(scene) end
@@ -830,10 +826,7 @@ function Bar.Create()
 	-- the boss bar sits in the top row, where the wave dots are (the boss is
 	-- always the last wave), so nothing in the fight below can cover it
 	frame.bossBar = UI.Bar(over, 290, 16, 0.85, 0.15, 0.12)
-	if UI.ArtUI("ui_boss_bar") then
-		local deco = UI.Slice(frame.bossBar, "pill", "OVERLAY", 14, 10)
-		deco:SetArt(UI.ArtUI("ui_boss_bar"))
-	end
+	UI.NineSlice(frame.bossBar, "TooltipDefaultLayout", 2, "OVERLAY", nil, true)
 	frame.bossBar:SetPoint("CENTER", scene, "TOPLEFT", 418, -17)
 	frame.bossBar:Hide()
 
@@ -865,10 +858,6 @@ function Bar.Create()
 	goal.bg = UI.Slice(goal, "card", "BACKGROUND")
 	goal.bg:SetColor(1, 1, 1, 1)
 	goal.star = UI.Glyph(goal, "star", 22, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3])
-	if UI.ArtPath("icon_goal") then
-		goal.star:SetTexture(UI.ArtPath("icon_goal"))
-		goal.star:SetVertexColor(1, 1, 1)
-	end
 	goal.star:SetPoint("LEFT", goal, "LEFT", 10, 0)
 	goal.head = UI.Text(goal, 10, "다음 목표")
 	UI.Color(goal.head, UI.C.gold)
@@ -902,7 +891,7 @@ function Bar.Create()
 	local auto = CreateFrame("Button", nil, dock)
 	auto:SetSize(40, 49)
 	auto:SetPoint("TOPLEFT", goal, "TOPRIGHT", 8, 1)
-	auto.disc = UI.Art(auto, "circle", "BACKGROUND")
+	auto.disc = UI.Art(auto, "circle", "BACKGROUND", 0.06, 0.08, 0.14)
 	auto.disc:SetSize(36, 36)
 	auto.disc:SetPoint("TOP", auto, "TOP", 0, 0)
 	auto.ringT = UI.Art(auto, "ring", "ARTWORK", 0.55, 0.62, 0.80)
@@ -935,7 +924,7 @@ function Bar.Create()
 			UI.RefreshTip()
 		end)
 		cb.chestType = t
-		cb:SetArtIcon(({ "icon_chest_common", "icon_chest_boss", "icon_chest_raid" })[t], ns.CHEST[t].icon)
+		cb:SetIconName(ns.CHEST[t].icon)
 		cb:SetPoint("TOPLEFT", auto, "TOPRIGHT", 8 + (t - 1) * 41, 1)
 		UI.Tip(cb, chestTip, "TOP")
 		frame.chests[t] = cb
@@ -1028,7 +1017,6 @@ local function ensureToast()
 	toast.rows = {}
 	for i = 1, 3 do
 		local r = UI.Pill(toast, 480, 26, 0.02, 0.03, 0.06, 0.88)
-		if UI.ArtUI("ui_toast") then r.bg:SetArt(UI.ArtUI("ui_toast")) end
 		r:SetPoint("BOTTOM", toast, "BOTTOM", 0, (i - 1) * 29)
 		r.text:SetWidth(460)
 		r.text:SetWordWrap(false)

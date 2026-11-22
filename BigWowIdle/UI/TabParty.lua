@@ -211,7 +211,7 @@ local function buildFaction()
 		local crest = half:CreateTexture(nil, "ARTWORK")
 		crest:SetSize(72, 72)
 		crest:SetPoint("TOP", half, "TOP", 0, -18)
-		UI.SetArtOrIcon(crest, "icon_" .. fid:lower(), f.icon)
+		UI.SetIcon(crest, f.icon)
 		local name = UI.Text(half, 24, ns.N(f.name))
 		name:SetPoint("TOP", crest, "BOTTOM", 0, -10)
 		name:SetJustifyH("CENTER")
@@ -357,13 +357,6 @@ local function buildCreate()
 		end, "dark")
 		b:SetPoint("TOP", mid, "TOP", (i - 1.5) * 116, -222)
 		b.sex = sex
-		local art = UI.ArtIcon(sex == "M" and "icon_male" or "icon_female")
-		if art then
-			b.sym = b:CreateTexture(nil, "OVERLAY")
-			b.sym:SetSize(18, 18)
-			b.sym:SetTexture(art)
-			b.sym:SetPoint("RIGHT", b.label, "LEFT", -4, 0)
-		end
 		create.sexes[i] = b
 	end
 	local nameLabel = UI.Text(mid, 11, "이름")

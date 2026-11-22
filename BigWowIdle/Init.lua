@@ -25,7 +25,7 @@ local function showOffline(r)
 			lines[#lines + 1] = string.format("영웅 레벨 +%d", r.levels)
 		end
 	end
-	local f = UI.Panel(UIParent, 360, 210, "panel", true)
+	local f = UI.Panel(UIParent, 360, 210, "panel")
 	f:SetFrameStrata("DIALOG")
 	f.isPopup = true -- shown once over everything until 받기
 	f:SetPoint("CENTER", UIParent, "CENTER", 0, 120)

@@ -25,24 +25,24 @@ ns.STAGES_PER_ACT = 10
 ns.STAGE_COUNT = 30
 ns.WAVES = 10
 
--- Scenery behind the battle: shape of the backdrop image and its tint.
+-- Scenery behind the battle: the colour of the zone.
 ns.THEMES = {
-	forest = { art = "scene_hills", rgb = { 0.45, 0.85, 0.50 } },
-	plains = { art = "scene_hills", rgb = { 0.85, 0.85, 0.50 } },
-	jungle = { art = "scene_hills", rgb = { 0.30, 0.75, 0.45 } },
-	swamp  = { art = "scene_hills", rgb = { 0.40, 0.75, 0.70 } },
-	desert = { art = "scene_peaks", rgb = { 0.95, 0.80, 0.50 } },
-	snow   = { art = "scene_peaks", rgb = { 0.75, 0.90, 1.00 } },
-	ice    = { art = "scene_ruins", rgb = { 0.55, 0.80, 1.00 } },
-	lava   = { art = "scene_peaks", rgb = { 1.00, 0.50, 0.30 } },
-	fel    = { art = "scene_peaks", rgb = { 0.60, 0.95, 0.35 } },
-	shadow = { art = "scene_ruins", rgb = { 0.70, 0.50, 0.95 } },
-	arcane = { art = "scene_ruins", rgb = { 0.60, 0.60, 1.00 } },
-	cave   = { art = "scene_ruins", rgb = { 0.75, 0.65, 0.55 } },
-	ruins  = { art = "scene_ruins", rgb = { 0.80, 0.80, 0.80 } },
-	sea    = { art = "scene_hills", rgb = { 0.40, 0.65, 1.00 } },
-	storm  = { art = "scene_peaks", rgb = { 0.65, 0.72, 0.85 } },
-	holy   = { art = "scene_ruins", rgb = { 1.00, 0.90, 0.60 } },
+	forest = { rgb = { 0.45, 0.85, 0.50 } },
+	plains = { rgb = { 0.85, 0.85, 0.50 } },
+	jungle = { rgb = { 0.30, 0.75, 0.45 } },
+	swamp  = { rgb = { 0.40, 0.75, 0.70 } },
+	desert = { rgb = { 0.95, 0.80, 0.50 } },
+	snow   = { rgb = { 0.75, 0.90, 1.00 } },
+	ice    = { rgb = { 0.55, 0.80, 1.00 } },
+	lava   = { rgb = { 1.00, 0.50, 0.30 } },
+	fel    = { rgb = { 0.60, 0.95, 0.35 } },
+	shadow = { rgb = { 0.70, 0.50, 0.95 } },
+	arcane = { rgb = { 0.60, 0.60, 1.00 } },
+	cave   = { rgb = { 0.75, 0.65, 0.55 } },
+	ruins  = { rgb = { 0.80, 0.80, 0.80 } },
+	sea    = { rgb = { 0.40, 0.65, 1.00 } },
+	storm  = { rgb = { 0.65, 0.72, 0.85 } },
+	holy   = { rgb = { 1.00, 0.90, 0.60 } },
 }
 
 ------------------------------------------------------------------------

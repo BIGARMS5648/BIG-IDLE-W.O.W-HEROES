@@ -978,17 +978,54 @@ local st = ns.db.stat
 print(string.format("  after the run: %d kills, %d clears, %d chests opened, forge level %d, %d heroes",
 	st.kills, st.clears, st.chests, ns.db.forge.level, H.Count()))
 
--- every texture path must be well-formed; addon textures must exist on disk
+-- the game's look: the menu window is the character sheet's frame, buttons
+-- are the red panel button, the close button is the game's red X
+do
+	Main.Toggle(true)
+	frames(2)
+	local f = BigWowIdleMain
+	local atl = {}
+	local function collect(fr)
+		for _, r in ipairs(fr.__regions or {}) do if r.__atlas then atl[r.__atlas] = (atl[r.__atlas] or 0) + 1 end end
+	end
+	collect(f.chrome)
+	for _, piece in ipairs({ "UI-Frame-PortraitMetal-CornerTopLeft", "UI-Frame-Metal-CornerTopRight", "UI-Frame-Metal-CornerBottomLeft",
+		"UI-Frame-Metal-CornerBottomRight", "_UI-Frame-Metal-EdgeTop", "_UI-Frame-Metal-EdgeBottom", "!UI-Frame-Metal-EdgeLeft", "!UI-Frame-Metal-EdgeRight" }) do
+		if not atl[piece] then fail("the menu window should have the metal frame piece " .. piece) end
+	end
+	if not (f.bg and f.bg:GetTexture() == "Interface\\FrameGeneral\\UI-Background-Rock") then fail("the menu window should stand on the game's rock background") end
+	if not (f.title:GetText() or ""):find("BIG W.O.W IDLE", 1, true) then fail("the title bar should name the game") end
+	if f.close.n.__atlas ~= "RedButton-Exit" then fail("the close button should be the game's red X") end
+	if not f.crest.__mask then fail("the crest should be round in the portrait corner") end
+	-- a panel button: up, pressed when on, greyed when off
+	local UI = ns.UI
+	local b = UI.Button(UIParent, 120, 26, "시험", nil, "primary")
+	local face = function() return b.parts[2]:GetTexture() end
+	if face() ~= "Interface\\Buttons\\UI-Panel-Button-Up" then fail("a button should start as the game's panel button: " .. tostring(face())) end
+	b:SetOn(true)
+	if face() ~= "Interface\\Buttons\\UI-Panel-Button-Down" then fail("a switched-on button should look pressed") end
+	b:SetOn(false)
+	b:SetOff(true)
+	if face() ~= "Interface\\Buttons\\UI-Panel-Button-Disabled" then fail("a button that cannot be used should be greyed out") end
+	b:Hide()
+	-- a check box is the game's check box
+	local on = false
+	local c = UI.Check(UIParent, "시험", function() return on end, function(v) on = v end)
+	if c.box:GetTexture() ~= "Interface\\Buttons\\UI-CheckBox-Up" then fail("a toggle should be the game's check box") end
+	c:Hide()
+	Main.Toggle(false)
+end
+
+-- every texture is the game's own: interface files and atlases (an unknown
+-- atlas already fails in the mock), never a file of the addon
 for path in pairs(Mock.textures) do
 	if path:find("Interface\\Icons\\") and (path:find("%s") or path:sub(-1) == "\\") then
 		fail("malformed icon path: " .. path)
 	end
-	local media = path:match("\\Media\\([%w_]+)%.tga$")
-	if media then
-		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigWowIdle/Media/" .. media .. ".tga"), "rb")
-		if f then f:close() else fail("missing texture file: Media/" .. media .. ".tga") end
-	elseif path:find("AddOns") then
-		fail("unexpected addon texture path: " .. path)
+	if path:find("AddOns") or path:find("%.tga$") then
+		fail("the addon should draw only the game's art, not its own file: " .. path)
+	elseif not (path:find("^Interface\\") or path:find("^atlas:") or path == "color") then
+		fail("unexpected texture: " .. path)
 	end
 end
 
