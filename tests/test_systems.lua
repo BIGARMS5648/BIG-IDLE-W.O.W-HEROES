@@ -136,15 +136,21 @@ for id, sk in pairs(ns.SKILLS) do
 	if sk.act == "count" then check(sk.n and sk.n > 0, id .. ": attack count missing") end
 end
 do
-	-- 4 difficulties x 30 stages in the original game's dungeons and raids
-	-- (a dungeon spans a few stages in a row), every stage a different boss
+	-- 4 difficulties x 30 stages: a route through the original game's zones,
+	-- dungeons and raids, every stage its own name and a different boss
 	local names, bosses, areas = {}, {}, {}
-	local ORIGINAL = { ["성난불길 협곡"] = 1, ["통곡의 동굴"] = 1, ["죽음의 폐광"] = 1, ["그림자송곳니 성채"] = 1, ["스톰윈드 지하감옥"] = 1,
-		["검은심연 나락"] = 1, ["놈리건"] = 1, ["가시덩굴 우리"] = 1, ["붉은십자군 수도원"] = 1, ["가시덩굴 구릉"] = 1, ["울다만"] = 1,
-		["줄파락"] = 1, ["마라우돈"] = 1, ["아탈학카르 신전"] = 1, ["검은바위 나락"] = 1, ["검은바위 첨탑 하층"] = 1, ["검은바위 첨탑 상층"] = 1,
-		["혈투의 전장"] = 1, ["스트라솔름"] = 1, ["스칼로맨스"] = 1, ["안퀴라즈 폐허"] = 1, ["줄구룹"] = 1, ["화산 심장부"] = 1,
-		["오닉시아의 둥지"] = 1, ["검은날개 둥지"] = 1, ["안퀴라즈 사원"] = 1, ["낙스라마스"] = 1 }
-	local last
+	local ORIGINAL = {}
+	for _, n in ipairs({ "엘윈 숲", "서부 몰락지대", "티리스팔 숲", "로데론의 폐허", "죽음의 폐광", "던 모로", "듀로타", "멀고어",
+		"텔드랏실", "성난불길 협곡", "불모의 땅", "은빛소나무 숲", "어둠해안", "통곡의 동굴", "모단 호수", "붉은마루 산맥",
+		"그림자송곳니 성채", "잿빛 골짜기", "그늘숲", "검은심연 나락", "돌발톱 산맥", "스톰윈드 지하감옥", "저습지",
+		"힐스브래드 구릉지", "놈리건", "버섯구름 봉우리", "가시덩굴 우리", "아라시 고원", "가시덤불 골짜기", "붉은십자군 수도원",
+		"황야의 땅", "가시덩굴 구릉", "잊혀진 땅", "먼지진흙 습지대", "슬픔의 늪", "울다만", "무법항", "페랄라스", "동부 내륙지",
+		"줄파락", "타나리스", "이글거리는 협곡", "마라우돈", "아즈샤라", "운고로 분화구", "아탈학카르 신전", "악령의 숲",
+		"저주받은 땅", "불타는 평원", "검은바위 나락", "서부 역병지대", "동부 역병지대", "검은바위 첨탑 하층", "여명의 설원",
+		"실리더스", "검은바위 첨탑 상층", "혈투의 전장", "스트라솔름", "스칼로맨스", "전쟁노래 협곡", "아라시 분지", "알터랙 계곡",
+		"안퀴라즈 폐허", "줄구룹", "화산 심장부", "오닉시아의 둥지", "검은날개 둥지", "안퀴라즈 사원", "낙스라마스" }) do
+		ORIGINAL[n] = true
+	end
 	check(#ns.STAGES == #ns.DIFFS and #ns.DIFFS == 4, "four difficulties")
 	for d = 1, #ns.DIFFS do
 		check(#ns.STAGES[d] == ns.STAGE_COUNT, "difficulty " .. d .. ": stage count " .. #ns.STAGES[d])
@@ -152,13 +158,11 @@ do
 		for i, stg in ipairs(ns.STAGES[d]) do
 			local where = d .. "-" .. i
 			local place = stg.place
-			check(place and ORIGINAL[place], where .. ": not a dungeon or raid of the original game: " .. tostring(place))
-			-- every stage its own area of the dungeon
+			check(place and ORIGINAL[place], where .. ": not a place of the original game: " .. tostring(place))
+			-- every stage its own name
 			check(type(stg.name) == "string" and stg.name ~= "" and not areas[stg.name], where .. ": area name reused: " .. tostring(stg.name))
 			areas[stg.name] = true
-			-- a dungeon comes back only right after itself
-			check(not names[place] or place == last, where .. ": " .. tostring(place) .. " again after another place")
-			names[place], last = true, place
+			names[place] = true
 			check(not bosses[stg.boss.name], where .. ": boss reused: " .. tostring(stg.boss.name))
 			bosses[stg.boss.name] = true
 			check(ns.THEMES[stg.theme], where .. ": unknown theme " .. tostring(stg.theme))
@@ -176,7 +180,7 @@ do
 			check(type(ns.StageLabel(d, i)) == "string", where .. ": label")
 		end
 	end
-	check(ns.U.count(names) == 27, "the 27 dungeons and raids of the original game: " .. ns.U.count(names))
+	check(ns.U.count(names) >= 60, "many places of the original game: " .. ns.U.count(names))
 	check(ns.U.count(areas) == 120, "120 different stage names")
 	check(ns.STAGES[4][30].place == "낙스라마스", "the last stage is in Naxxramas")
 end
