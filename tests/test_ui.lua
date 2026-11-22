@@ -878,14 +878,15 @@ do
 			if not m:IsLoaded() or f.icon:IsShown() then fail("a hero whose model is in should not show the icon too") end
 			-- a square frame with room around the model
 			if math.abs(m:GetWidth() - m:GetHeight()) > 1e-6 or m:GetHeight() < 2.5 * m.height then fail("a figure's frame should be square with room around the model") end
-			if math.abs((m.actor.__yaw or 0) - math.pi / 2) > 1e-6 then fail("hero models should face the monsters (right): " .. tostring(m.actor.__yaw)) end
+			-- right: away from the camera's "right" (seen in game), 270° in the mock
+			if math.abs((m.actor.__yaw or 0) - 3 * math.pi / 2) > 1e-6 then fail("hero models should face the monsters (right): " .. tostring(m.actor.__yaw)) end
 		end
 	end
 	for _, f in ipairs(mobs) do
 		local m = f.model
 		if f:IsShown() and m and m:IsShown() then
 			mShown = mShown + 1
-			if math.abs((m.actor.__yaw or 0) - 3 * math.pi / 2) > 1e-6 then fail("monster models should face the heroes (left)") end
+			if math.abs((m.actor.__yaw or 0) - math.pi / 2) > 1e-6 then fail("monster models should face the heroes (left)") end
 		end
 	end
 	if hShown == 0 then fail("the heroes in battle should be 3D models") end
@@ -999,7 +1000,7 @@ do
 		if math.abs(a.__pos[3] + b[3] * s) > 1e-6 then fail("NPC " .. c[1] .. " should stand on the ground line") end
 		-- its middle on the figure's middle, as it faces (right)
 		local cx, cy = (b[1] + b[4]) / 2, (b[2] + b[5]) / 2
-		local yaw = a.__yaw
+		local yaw = (Fig.yawSense or 1) * a.__yaw -- as the game turns it
 		local mx = a.__pos[1] + (math.cos(yaw) * cx - math.sin(yaw) * cy) * s
 		local my = a.__pos[2] + (math.sin(yaw) * cx + math.cos(yaw) * cy) * s
 		if math.abs(mx) > 1e-6 or math.abs(my) > 1e-6 then fail("NPC " .. c[1] .. " should stand in the middle of its figure") end
@@ -1018,6 +1019,39 @@ do
 		if not a.__scene.__camPos then fail("the camera should be set again when the window grows") end
 		m:Hide()
 	end
+	-- the camera follows the game's own projection: whatever it magnifies by,
+	-- a model's feet land on the ground line and its top one height above
+	for _, mag in ipairs({ 1.4, 0.9 }) do
+		Mock.projMag = mag
+		Fig.ResetCalibration()
+		local h = 64
+		local m = stand(MOB, h)
+		for _ = 1, 3 do Mock.now = Mock.now + 1 m:Step(0.05) end
+		local info = Fig.camInfo
+		if info.how ~= "measured" or math.abs(Fig.camFix - mag) > 1e-6 then
+			fail(string.format("the camera factor should be measured from the projection: %s %.3f (want %.2f, %s)", tostring(info.how), Fig.camFix, mag, tostring(info.why)))
+		end
+		if Fig.yawSense ~= -1 then fail("the mock draws the camera's right on the screen's right: the turn sense should be -1") end
+		local a = m.actor
+		local s = a.__scale
+		local b = Mock.boxes[D[MOB]]
+		local _, footY = m:Project3DPointTo2D(0, 0, 0)
+		local _, topY = m:Project3DPointTo2D(0, 0, (b[6] - b[3]) * s)
+		if math.abs(footY - Fig.FEET_AT * h) > 1e-6 then fail(string.format("feet should project onto the ground line: %.2f / %.2f", footY, Fig.FEET_AT * h)) end
+		if math.abs((topY - footY) - h) > 1e-6 then fail(string.format("a model should project at its figure's height: %.2f / %d", topY - footY, h)) end
+		m:Hide()
+	end
+	-- no projection: the factor seen in game stays
+	local proj = Mock.ModelScene.Project3DPointTo2D
+	Mock.ModelScene.Project3DPointTo2D = nil
+	Fig.ResetCalibration()
+	local m0 = stand(MOB, 60)
+	for _ = 1, 3 do Mock.now = Mock.now + 1 m0:Step(0.05) end
+	if Fig.camInfo.how ~= "default" or Fig.camFix ~= 1.25 or Fig.camInfo.why ~= "no projection" then fail("without a projection the camera factor should stay 1.25") end
+	m0:Hide()
+	Mock.ModelScene.Project3DPointTo2D = proj
+	Mock.projMag = 1.25
+	Fig.ResetCalibration()
 	Mock.boxes = {}
 	-- the game's own answer is kept: the display id a model came up with is
 	-- used first next time; one the game lacks is not waited for again

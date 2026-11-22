@@ -220,6 +220,7 @@ function base:Loaded()
 	self:Measure()
 	self:Look()
 	if self.anim then self:SetAnim(ANIM_ID[self.done and self.anim == "death" and "dead" or self.anim]) end
+	if self.kind == "scene" then Figure.Calibrate(self) end
 end
 
 function base:IsLoaded() return self.loaded and true or false end
@@ -264,6 +265,7 @@ function base:Step(dt)
 			end
 		end
 	end
+	if self.loaded and self.kind == "scene" then Figure.Calibrate(self) end
 	if ONESHOT[self.anim] and not self.done then
 		self.left = self.left - dt
 		if self.left <= 0 then
@@ -285,6 +287,17 @@ end
 ------------------------------------------------------------------------
 local scene = {}
 
+-- How much farther back the camera stands than a plain pinhole camera with
+-- FOV would: the game draws a scene's models larger than that (seen in game:
+-- about 1.25 times, feet below the line). It is measured once with the
+-- game's own projection (measureProjection); CAM_FIX is used until then and
+-- when the client cannot project.
+local CAM_FIX = 1.25
+Figure.camFix = CAM_FIX
+Figure.camInfo = { how = "default", fix = CAM_FIX }
+local scenes = setmetatable({}, { __mode = "k" }) -- every scene figure, to set their cameras again
+local projectTries = 0
+
 -- The camera every scene figure shares: straight from the front at the
 -- figure's middle; which way is right is read back from the game, so the
 -- models face where they should whatever the client's axes are.
@@ -296,13 +309,17 @@ local function setCamera(f)
 	local rx, ry, rz = fy, -fx, 0 -- forward x up
 	ok, a, b, c = call(f, "GetCameraRight")
 	if ok and type(a) == "number" and type(b) == "number" and type(c) == "number" then rx, ry, rz = a, b, c end
-	local d = SIDE / (2 * tan(FOV / 2))
+	local d = SIDE / (2 * tan(FOV / 2)) * Figure.camFix
 	local tz = SIDE / 2 - FEET_AT
 	call(f, "SetCameraFieldOfView", FOV)
 	call(f, "SetCameraNearClip", 0.05)
 	call(f, "SetCameraFarClip", d * 2 + 20)
 	call(f, "SetCameraPosition", -fx * d, -fy * d, tz - fz * d)
-	f.yaws = { right = atan2(ry, rx), left = atan2(ry, rx) + pi, front = atan2(-fy, -fx) }
+	-- a model faces +x at yaw 0. Seen in game: turned toward the camera's
+	-- "right" it looks to the screen's left, so right is the other way.
+	local side = atan2(ry, rx)
+	f.yaws = { right = side + pi, left = side, front = atan2(-fy, -fx) }
+	f.camRight = { rx, ry, rz }
 	-- light from in front, above and a little to the left
 	local lx, ly, lz = fx * 0.6 + rx * 0.35, fy * 0.6 + ry * 0.35, fz * 0.6 + rz * 0.35 - 0.7
 	local n = sqrt(lx * lx + ly * ly + lz * lz)
@@ -311,6 +328,103 @@ local function setCamera(f)
 	call(f, "SetLightDirection", lx / n, ly / n, lz / n)
 	call(f, "SetLightAmbientColor", 0.75, 0.75, 0.75)
 	call(f, "SetLightDiffuseColor", 0.7, 0.7, 0.7)
+end
+
+-- The game's projection of one model unit straight up from the camera's
+-- target, against what the frame should show (SIDE units over its height).
+-- The game answers in units of its own; the right ones are those that put the
+-- camera's target on the frame's middle. Returns the camera factor that makes
+-- a unit come out at its size and the units found; nil and why when it cannot
+-- tell yet (a frame not laid out or not drawn), false when the client has no
+-- projection.
+local function measureProjection(f)
+	if type(f.Project3DPointTo2D) ~= "function" then return false, "no projection" end
+	local okV, vis = call(f, "IsVisible")
+	if okV and not vis then return nil, "hidden" end
+	local okW, w = call(f, "GetWidth")
+	local okH, h = call(f, "GetHeight")
+	if not (okW and okH and type(w) == "number" and type(h) == "number" and w > 8 and h > 8) then return nil, "no size" end
+	local tz = SIDE / 2 - FEET_AT
+	local ok0, x0, y0 = call(f, "Project3DPointTo2D", 0, 0, tz)
+	local ok1, _, y1 = call(f, "Project3DPointTo2D", 0, 0, tz + 1)
+	local r = f.camRight or { 0, 1, 0 }
+	local ok2, xr = call(f, "Project3DPointTo2D", r[1], r[2], tz + r[3])
+	if not (ok0 and ok1 and ok2 and type(x0) == "number" and type(y0) == "number" and type(y1) == "number" and type(xr) == "number") then
+		return nil, "projection gave nothing"
+	end
+	local dy = abs(y1 - y0)
+	if dy <= 0 then return nil, "projection flat" end
+	local _, l = call(f, "GetLeft")
+	local _, eff = call(f, "GetEffectiveScale")
+	eff = type(eff) == "number" and eff > 0 and eff or 1
+	-- { name, units per frame unit, where the frame's middle lands }
+	local units = { { "frame", 1, w / 2 }, { "frame 0..1", 1 / w, 0.5 } }
+	if type(l) == "number" then
+		units[#units + 1] = { "screen", 1, l + w / 2 }
+		units[#units + 1] = { "screen x scale", eff, (l + w / 2) * eff }
+		local ph
+		if type(GetPhysicalScreenSize) == "function" then
+			local okP, _, v = pcall(GetPhysicalScreenSize)
+			if okP then ph = v end
+		end
+		if type(ph) == "number" and ph > 0 then
+			local k = eff * ph / 768
+			units[#units + 1] = { "pixels", k, (l + w / 2) * k }
+		end
+	end
+	local best, bestErr
+	for _, u in ipairs(units) do
+		local err = abs(x0 - u[3]) / (w * u[2]) -- in frame widths
+		if not bestErr or err < bestErr then best, bestErr = u, err end
+	end
+	if not best or bestErr > 0.1 then return nil, string.format("units unknown (x %.1f)", x0) end
+	local shown = dy / best[2]            -- one unit, in frame units
+	local fix = shown * Figure.camFix * SIDE / h
+	if fix < 0.5 or fix > 3 then return nil, string.format("factor out of range (%.2f)", fix) end
+	-- the camera's "right" drawn on the screen's right: then the right yaw
+	-- (side + pi) faces right only because the game turns the other way round
+	return fix, best[1], (xr > x0) and -1 or 1
+end
+
+-- Measures once and sets every scene's camera again with the factor found.
+-- Asked at most twice a second; a frame not shown yet does not count as a
+-- try, ten answers that make no sense end it (CAM_FIX stays).
+local function calibrate(f)
+	if Figure.camInfo.how ~= "default" or projectTries >= 10 then return end
+	local now = GetTime and GetTime() or 0
+	if Figure.nextProbe and now < Figure.nextProbe then return end
+	Figure.nextProbe = now + 0.5
+	local fix, how, sense = measureProjection(f)
+	if not fix then
+		Figure.camInfo.why = how
+		if fix == false then
+			projectTries = 10
+		elseif how ~= "hidden" and how ~= "no size" then
+			projectTries = projectTries + 1
+		end
+		return
+	end
+	Figure.camInfo = { how = "measured", fix = fix, units = how, before = Figure.camFix, sense = sense }
+	Figure.camFix = fix
+	Figure.yawSense = sense
+	for s in pairs(scenes) do
+		setCamera(s)
+		if s.loaded then s:Look() end
+	end
+end
+Figure.Calibrate = calibrate
+
+-- Forgets the measurement (the model check's reload measures again).
+function Figure.ResetCalibration()
+	Figure.camFix = CAM_FIX
+	Figure.camInfo = { how = "default", fix = CAM_FIX }
+	Figure.yawSense = nil
+	Figure.nextProbe = nil
+	projectTries = 0
+	for s in pairs(scenes) do
+		setCamera(s)
+		if s.loaded then s:Look() end
+	end
 end
 
 local function newScene(parent, height)
@@ -329,6 +443,7 @@ local function newScene(parent, height)
 	f.FrameAlpha = f.SetAlpha
 	dress(f, scene)
 	setCamera(f)
+	scenes[f] = true
 	return f
 end
 
@@ -391,7 +506,9 @@ function scene:Look()
 	local b = self.box
 	local cx, cy, z1 = 0, 0, 0
 	if b then cx, cy, z1 = (b[1] + b[4]) / 2, (b[2] + b[5]) / 2, b[3] end
-	local c, sn = cos(yaw), sin(yaw)
+	-- the box's middle turned as the game turns the model (yawSense)
+	local th = (Figure.yawSense or 1) * yaw
+	local c, sn = cos(th), sin(th)
 	call(a, "SetPosition", -(c * cx - sn * cy) * s, -(sn * cx + c * cy) * s, -z1 * s)
 end
 

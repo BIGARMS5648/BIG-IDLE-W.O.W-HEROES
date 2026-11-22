@@ -408,6 +408,25 @@ function ModelScene:SetLightType(v) strict(type(v) == "number", "SetLightType: n
 function ModelScene:SetLightDirection(x, y, z) strict(nums(3, x, y, z), "SetLightDirection: x, y, z expected") end
 function ModelScene:SetLightAmbientColor(r, g, b) strict(nums(3, r, g, b), "SetLightAmbientColor: r, g, b expected") end
 function ModelScene:SetLightDiffuseColor(r, g, b) strict(nums(3, r, g, b), "SetLightDiffuseColor: r, g, b expected") end
+-- The game's projection: a camera with the field of view it was given that
+-- draws the scene Mock.projMag times larger than a plain pinhole camera
+-- would (what the game was seen to do); answers in frame units from the
+-- frame's bottom-left corner, screen right along GetCameraRight.
+Mock.projMag = 1.25
+function ModelScene:Project3DPointTo2D(x, y, z)
+	strict(nums(3, x, y, z), "Project3DPointTo2D: x, y, z expected")
+	local c = self.__camPos
+	if not c or not self.__fov then return nil end
+	local fx, fy, fz = self:GetCameraForward()
+	local rx, ry, rz = self:GetCameraRight()
+	local vx, vy, vz = x - c[1], y - c[2], z - c[3]
+	local depth = vx * fx + vy * fy + vz * fz
+	if depth <= 0 then return nil end
+	local t = math.tan(self.__fov / 2) * depth / Mock.projMag
+	local u, v = (vx * rx + vy * ry + vz * rz) / t, vz / t
+	local w, h = self:GetWidth(), self:GetHeight()
+	return w / 2 + u * w / 2, h / 2 + v * h / 2, depth
+end
 Mock.ModelScene, Mock.Actor = ModelScene, Actor
 -- a client without ModelScene: creating one fails
 Mock.noModelScene = false

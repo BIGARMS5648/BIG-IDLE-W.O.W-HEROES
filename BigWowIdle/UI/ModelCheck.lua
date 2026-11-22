@@ -295,20 +295,56 @@ function battle.build(win)
 	t:SetWidth(W - 56)
 	t:SetWordWrap(false)
 	UI.Color(t, UI.C.sub)
+	-- the writing sits on a layer above the models
+	local over = CreateFrame("Frame", nil, f)
+	over:SetAllPoints(f)
+	over:SetFrameLevel(f:GetFrameLevel() + 30)
+	battle.over = over
+	battle.cam = UI.Text(over, 11)
+	battle.cam:SetPoint("TOPLEFT", t, "BOTTOMLEFT", 0, -4)
+	battle.cam:SetWidth(W - 56)
+	battle.cam:SetWordWrap(false)
 	battle.slots = {}
 	for i = 1, 6 do
 		local slot = {}
-		slot.name = UI.Text(f, 11)
+		slot.name = UI.Text(over, 11)
 		slot.name:SetWidth(124)
 		slot.name:SetJustifyH("CENTER")
 		slot.name:SetWordWrap(false)
-		slot.state = UI.Text(f, 10)
+		slot.state = UI.Text(over, 10)
 		slot.state:SetWidth(124)
 		slot.state:SetJustifyH("CENTER")
 		slot.state:SetWordWrap(false)
 		UI.Color(slot.state, UI.C.sub)
+		slot.size = UI.Text(over, 10)
+		slot.size:SetWidth(124)
+		slot.size:SetJustifyH("CENTER")
+		slot.size:SetWordWrap(false)
+		UI.Color(slot.size, UI.C.sub)
 		battle.slots[i] = slot
 	end
+end
+
+-- the camera factor the figures use and where it came from
+local function camText()
+	local F = ns.Figure3D
+	local info = F.camInfo or {}
+	local how
+	if info.how == "measured" then
+		how = U.col("60e070", "게임 투영으로 잼") .. " (" .. tostring(info.units) .. ", 회전 " .. (info.sense == -1 and "반대" or "기본") .. ")"
+	else
+		how = U.col("ffb84a", "기본값") .. (info.why and (" (" .. tostring(info.why) .. ")") or "")
+	end
+	return string.format("카메라 거리 보정 %.2f배 · %s", F.camFix or 1, how)
+end
+
+-- the model's measured box: height and length in its own units
+local function sizeText(fig)
+	local b = fig and fig.box
+	if not b then return "" end
+	local h = b[6] - b[3]
+	local long = math.max(math.abs(b[4] - b[1]), math.abs(b[5] - b[2]))
+	return string.format("키 %.2f · 길이 %.2f", h, long)
 end
 
 local function battleState(fig)
@@ -371,8 +407,13 @@ function battle.setup()
 			slot.state:ClearAllPoints()
 			slot.state:SetPoint("TOP", slot.name, "BOTTOM", 0, -3)
 			slot.state:SetText(battleState(slot.fig))
+			slot.size:ClearAllPoints()
+			slot.size:SetPoint("TOP", slot.state, "BOTTOM", 0, -2)
+			slot.size:SetText(sizeText(slot.fig))
 		end
+		slot.size:SetShown(e ~= nil)
 	end
+	battle.cam:SetText(camText())
 end
 
 function battle.step(dt)
@@ -380,8 +421,10 @@ function battle.step(dt)
 		if slot.fig and slot.fig:IsShown() then
 			slot.fig:Step(dt)
 			slot.state:SetText(battleState(slot.fig))
+			slot.size:SetText(sizeText(slot.fig))
 		end
 	end
+	battle.cam:SetText(camText())
 end
 
 function battle.anim(id)
@@ -676,7 +719,11 @@ local function build()
 		refresh()
 	end)
 	frame.cycle:SetPoint("TOPLEFT", frame, "TOPLEFT", 626, y2 - 2)
-	local again = UI.Button(frame, 120, 28, "다시 불러오기", function() setupAll() refresh() end, "blue")
+	local again = UI.Button(frame, 120, 28, "다시 불러오기", function()
+		ns.Figure3D.ResetCalibration()
+		setupAll()
+		refresh()
+	end, "blue")
 	again:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, 16)
 	frame.again = again
 
