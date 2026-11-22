@@ -18,6 +18,8 @@ local ONESHOT = { attack = 0.7, cast = 0.9, hit = 0.35, death = 1.2 }
 local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0 }
 -- tries: 1 = the display id, then the NPC id; seconds to wait after each
 local WAIT = { 1.0, 1.5, 2.5, 4.0 }
+-- a retail NPC: its model only, twice (the server would not know the NPC)
+local WAIT_RETAIL = { 1.5, 2.5 }
 -- the frame around a model, in model heights: room on the sides and above so
 -- wide and tall models (wings, tails, raised weapons) are not cut off; the
 -- camera stands back by as much, so the model keeps its size
@@ -31,40 +33,64 @@ function Figure.Enabled()
 	return ns.db and ns.db.opt and ns.db.opt.models ~= false
 end
 
-local function usable(id) return id and not failed[id] and id or nil end
+-- the first of the ids (one id or a list, best first) the game has not failed on
+local function usable(...)
+	for i = 1, select("#", ...) do
+		local v = select(i, ...)
+		if type(v) == "table" then
+			for _, id in ipairs(v) do if not failed[id] then return id end end
+		elseif v and not failed[v] then
+			return v
+		end
+	end
+	return nil
+end
 
 ------------------------------------------------------------------------
 -- Which model a thing uses
 ------------------------------------------------------------------------
 local FORM = { DRUID_GUARDIAN = "bear", DRUID_FERAL = "cat", DRUID_BALANCE = "moonkin", DRUID_RESTO = "tree" }
 
+-- The body of a spec: its famous NPC (a retail model) for the faction, else
+-- the classic NPC of the class's race in the hero's gender.
+function Figure.ForSpec(specId, faction, sex)
+	local sp = ns.SPECS[specId]
+	if not sp then return nil end
+	faction = faction or ns.Faction() or "ALLIANCE"
+	local famous = ns.MODEL.famous and ns.MODEL.famous[specId]
+	local byClass = ns.MODEL.hero[sp.class]
+	local byFaction = byClass and byClass[faction] or {}
+	return usable(famous and famous[faction], byFaction[sex == "F" and "F" or "M"], byFaction[sex == "F" and "M" or "F"])
+end
+
 -- A hero: druids fight in their form, the mech tinker in the mech
 -- (inCombat=false gives the hero's own body).
 function Figure.ForHero(heroId, inCombat)
 	local h = ns.db and ns.db.heroes[heroId]
 	if not h then return nil end
-	local sp = ns.SPECS[h.spec]
 	local faction = ns.Faction() or "ALLIANCE"
 	if inCombat ~= false then
 		local form = FORM[h.spec]
 		if form and usable(ns.MODEL.form[form]) then return ns.MODEL.form[form] end
 		if h.spec == "TINKER_MECH" then
-			local mech = ns.MODEL.tinker[faction == "HORDE" and "mech_horde" or "mech_alliance"]
-			if usable(mech) then return mech end
+			local mech = usable(ns.MODEL.mech and ns.MODEL.mech[faction],
+				ns.MODEL.tinker[faction == "HORDE" and "mech_horde" or "mech_alliance"])
+			if mech then return mech end
 		end
 	end
-	local byClass = ns.MODEL.hero[sp.class]
-	local byFaction = byClass and byClass[faction]
-	if not byFaction then return nil end
-	return usable(byFaction[h.sex == "F" and "F" or "M"]) or usable(byFaction[h.sex == "F" and "M" or "F"])
+	return Figure.ForSpec(h.spec, faction, h.sex)
 end
 
--- A class's body for a faction and gender (the create window's preview).
-function Figure.ForClass(classId, faction, sex)
+-- A class's body for a faction and gender (the create window's preview;
+-- specId: the spec picked there).
+function Figure.ForClass(classId, faction, sex, specId)
+	if specId and ns.SPECS[specId] and ns.SPECS[specId].class == classId then
+		return Figure.ForSpec(specId, faction, sex)
+	end
 	local byClass = ns.MODEL.hero[classId]
 	local byFaction = byClass and byClass[faction or ns.Faction() or "ALLIANCE"]
 	if not byFaction then return nil end
-	return usable(byFaction[sex == "F" and "F" or "M"]) or usable(byFaction[sex == "F" and "M" or "F"])
+	return usable(byFaction[sex == "F" and "F" or "M"], byFaction[sex == "F" and "M" or "F"])
 end
 
 -- How tall each body stands next to an ordinary hero.
@@ -81,12 +107,14 @@ end
 function Figure.ForSkill(skillId)
 	local sk = ns.SKILLS[skillId]
 	if not sk then return nil end
-	return usable(sk.summon and ns.MODEL.summon[sk.summon]) or usable(ns.MODEL.summon[skillId])
+	local retail = ns.MODEL.summon_retail or {}
+	return usable(sk.summon and retail[sk.summon], sk.summon and ns.MODEL.summon[sk.summon], retail[skillId], ns.MODEL.summon[skillId])
 end
 
 -- a ground summon by its key (the turrets of a field skill)
 function Figure.ForSummon(key)
-	return usable(key and ns.MODEL.summon[key])
+	if not key then return nil end
+	return usable((ns.MODEL.summon_retail or {})[key], ns.MODEL.summon[key])
 end
 
 function Figure.ForPet(petId)
@@ -148,13 +176,16 @@ function proto:Load()
 	self.tries = (self.tries or 0) + 1
 	call(self, "ClearModel")
 	local disp = ns.MODEL.display and ns.MODEL.display[id]
+	local retail = ns.MODEL.retail and ns.MODEL.retail[id]
 	local ok = false
-	if self.tries == 1 and disp then ok = call(self, "SetDisplayInfo", disp) end
-	if not ok then
+	if (self.tries == 1 or retail) and disp then ok = call(self, "SetDisplayInfo", disp) end
+	if not ok and not retail then
 		if self.tries == 1 and disp then self.tries = 2 end
 		ok = call(self, "SetCreature", id)
 	end
-	self.loadT = WAIT[self.tries] or WAIT[#WAIT]
+	local wait = retail and WAIT_RETAIL or WAIT
+	self.lastTry = self.tries >= #wait
+	self.loadT = wait[self.tries] or wait[#wait]
 	self:Look()
 	return ok
 end
@@ -212,7 +243,7 @@ function proto:Step(dt)
 		else
 			self.loadT = self.loadT - dt
 			if self.loadT <= 0 then
-				if (self.tries or 1) < #WAIT then
+				if not self.lastTry then
 					self:Load()
 				else
 					self.loadT = nil

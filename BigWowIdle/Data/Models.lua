@@ -443,14 +443,149 @@ ns.MODEL.display = {
 	[19399] = 18820, [21233] = 18505, [22461] = 18505,
 }
 
+-- (the retail models below)
+ns.MODEL.display_retail = {
+	[78487] = 116250,
+	[94158] = 67214,
+	[96528] = 64939,
+	[98009] = 68026,
+	[98094] = 83274,
+	[98771] = 65975,
+	[105995] = 69535,
+	[118887] = 76278,
+	[120590] = 87892,
+	[121239] = 76222,
+	[122053] = 77112,
+	[124153] = 77835,
+	[124252] = 83258,
+	[124651] = 86014,
+	[127021] = 82021,
+	[130423] = 81646,
+	[130576] = 81302,
+	[131146] = 88147,
+	[137224] = 85799,
+	[137225] = 86964,
+	[137591] = 84934,
+	[138341] = 88062,
+	[138708] = 89342,
+	[144796] = 89236,
+	[145054] = 88958,
+	[146810] = 90858,
+	[147516] = 85239,
+	[151585] = 90773,
+	[151647] = 87839,
+	[152023] = 91085,
+	[155098] = 94908,
+	[155561] = 92688,
+	[155786] = 93248,
+	[156344] = 31605,
+	[156513] = 92900,
+	[159587] = 94036,
+	[161360] = 94481,
+	[166573] = 115495,
+	[177416] = 100769,
+	[178869] = 101177,
+	[182878] = 105509,
+	[183556] = 107041,
+	[196170] = 108944,
+	[198883] = 110980,
+	[203678] = 112017,
+	[207118] = 112776,
+	[208205] = 113516,
+	[208212] = 113518,
+	[210905] = 116131,
+	[211349] = 118072,
+	[211351] = 115995,
+	[211996] = 123748,
+	[216760] = 116740,
+	[224857] = 121049,
+	[225678] = 117404,
+	[227200] = 121080,
+	[228325] = 122501,
+	[230154] = 129142,
+	[232131] = 123489,
+	[234148] = 128688,
+	[234745] = 127693,
+	[235420] = 141146,
+	[235482] = 140873,
+	[235902] = 136435,
+	[238072] = 141202,
+	[242097] = 128179,
+	[250406] = 141311,
+}
+for npc, d in pairs(ns.MODEL.display_retail) do ns.MODEL.display[npc] = d end
+ns.MODEL.display_retail = nil
+
 -- Models known only by their file (no NPC carries them):
 -- 활력제 친구 (Mister Pick-Me-Up, Liberation of Undermine): the heal-ray drone
 ns.MODEL.file = {
 	drone_pickmeup = 5872184, -- creature/healraydrone/healraydrone.m2
 }
 
--- Turret candidates from Hellfire Peninsula: the NPC and its display id
-ns.MODEL.cannon = {
-	{ npc = 19399, display = 18820, name = "지옥 대포" },       -- Fel Cannon
-	{ npc = 21233, display = 18505, name = "군단 지옥 대포" },  -- Legion Fel Cannon (also Fel Cannon MKI 22461)
+------------------------------------------------------------------------
+-- Retail models (Battle for Azeroth and later, high-resolution): used first;
+-- where the game cannot show one, the classic model above stands in.
+------------------------------------------------------------------------
+-- Every spec as one famous NPC of the class, one for each faction (also for
+-- the other gender).
+ns.MODEL.famous = {
+	WARRIOR_ARMS    = { ALLIANCE = 230154, HORDE = 155786 }, -- Danath Trollbane / Varok Saurfang
+	WARRIOR_FURY    = { ALLIANCE = 208205, HORDE = 203678 }, -- Varian Wrynn / Grommash Hellscream
+	WARRIOR_PROT    = { ALLIANCE = 127021, HORDE = 151647 }, -- Muradin Bronzebeard / Garrosh Hellscream
+	PALADIN_HOLY    = { ALLIANCE = 182878, HORDE = 228325 }, -- Uther the Lightbringer / Aponi Brightmane
+	PALADIN_PROT    = { ALLIANCE = 235420, HORDE = 238072 }, -- High Exarch Turalyon / Sunwalker Dezco
+	PALADIN_RET     = { ALLIANCE = 177416, HORDE = 235902 }, -- Tirion Fordring / Lady Liadrin
+	HUNTER_BM       = { ALLIANCE = 234745, HORDE = 155098 }, -- Hemet Nesingwary / Rexxar
+	HUNTER_MM       = { ALLIANCE = 211349, HORDE = 124651 }, -- Alleria Windrunner / Lady Sylvanas Windrunner
+	HUNTER_SV       = { ALLIANCE = 137225, HORDE = 146810 }, -- Shandris Feathermoon / Nathanos Blightcaller
+	ROGUE_ASSA      = { ALLIANCE = 210905, HORDE = 138708 }, -- Princess Tess Greymane / Garona Halforcen
+	ROGUE_OUTLAW    = { ALLIANCE = 121239, HORDE = 198883 }, -- Flynn Fairwind / Vanessa VanCleef
+	ROGUE_SUB       = { ALLIANCE =  98094, HORDE =  94158 }, -- Master Mathias Shaw / Valeera Sanguinar
+	PRIEST_DISC     = { ALLIANCE = 211351, HORDE = 156513 }, -- Anduin Wrynn / Calia Menethil
+	PRIEST_HOLY     = { ALLIANCE = 242097, HORDE = 131146 }, -- Prophet Velen / Princess Talanji
+	PRIEST_SHADOW   = { ALLIANCE = 234148, HORDE = 137224 }, -- Magister Umbric / Lilian Voss
+	SHAMAN_ELE      = { ALLIANCE =  96528, HORDE =  78487 }, -- Farseer Nobundo / Rokhan
+	SHAMAN_ENH      = { ALLIANCE = 130576, HORDE = 166573 }, -- Brother Pike / Thrall
+	SHAMAN_RESTO    = { ALLIANCE = 105995, HORDE = 124252 }, -- Muln Earthfury / Spiritwalker Ebonhorn
+	MAGE_ARCANE     = { ALLIANCE = 183556, HORDE = 211996 }, -- Archmage Khadgar / Archmage Aethas Sunreaver
+	MAGE_FIRE       = { ALLIANCE = 227200, HORDE = 161360 }, -- Archmage Modera / Kael'thas Sunstrider
+	MAGE_FROST      = { ALLIANCE = 120590, HORDE = 235482 }, -- Lady Jaina Proudmoore / Grand Magister Rommath
+	WARLOCK_AFF     = { ALLIANCE =  98771, HORDE = 178869 }, -- Ritssyn Flamescowl / Ner'zhul
+	WARLOCK_DEMO    = { ALLIANCE = 118887, HORDE = 122053 }, -- Kanrethad Ebonlocke / Gul'dan
+	WARLOCK_DESTRO  = { ALLIANCE = 124153, HORDE = 208212 }, -- Wilfred Fizzlebang / Cho'gall
+	DRUID_BALANCE   = { ALLIANCE = 145054, HORDE =  98009 }, -- Malfurion Stormrage / Naralex
+	DRUID_FERAL     = { ALLIANCE = 196170, HORDE = 250406 }, -- Fandral Staghelm / Zen'tabra
+	DRUID_GUARDIAN  = { ALLIANCE = 216760, HORDE = 130423 }, -- Broll Bearmantle / Baine Bloodhoof
+	DRUID_RESTO     = { ALLIANCE = 207118, HORDE = 156344 }, -- Keeper Remulos / Archdruid Hamuul Runetotem
+	TINKER_MECH     = { ALLIANCE = 159587, HORDE = 224857 }, -- Gelbin Mekkatorque / Monte Gazlowe
+	TINKER_TURRET   = { ALLIANCE = 159587, HORDE = 224857 }, -- Gelbin Mekkatorque / Monte Gazlowe
+	TINKER_MEDIC    = { ALLIANCE = 159587, HORDE = 224857 }, -- Gelbin Mekkatorque / Monte Gazlowe
 }
+
+-- The 기갑 tinker in battle: Mekkatorque's mech (Battle of Dazar'alor) and
+-- Chrome King Gallywix's (Liberation of Undermine)
+ns.MODEL.mech = { ALLIANCE = 144796, HORDE = 232131 }
+
+-- Summons (Data/Skills.lua keys): 녹슨나사 소형 포탑, 고물촌 포탑, 알가리 수리로봇 11O,
+-- 치유의 해일 토템
+ns.MODEL.summon_retail = {
+	turret_gun    = 155561, -- Rustbolt Pocket Turret
+	turret_rocket = 152023, -- Junker Turret
+	drone_heal    = 225678, -- Algari Repair Bot 11O
+	turret_heal   = 137591, -- Healing Tide Totem
+}
+
+-- Other turrets to look at (/bwi model, 드론·포탑)
+ns.MODEL.turrets = {
+	{ npc = 138341, name = "충격 포탑" },   -- Shock Turret
+	{ npc = 147516, name = "공성 포탑" },   -- Siege Turret (the Lion's Roar)
+	{ npc = 151585, name = "수리 로봇" },   -- Repair Bot (Mechagon)
+}
+
+-- NPCs only the retail game has: put up by their model alone (the server
+-- would not know them)
+ns.MODEL.retail = {}
+for _, f in pairs(ns.MODEL.famous) do ns.MODEL.retail[f.ALLIANCE] = true ns.MODEL.retail[f.HORDE] = true end
+for _, id in pairs(ns.MODEL.mech) do ns.MODEL.retail[id] = true end
+for _, id in pairs(ns.MODEL.summon_retail) do ns.MODEL.retail[id] = true end
+for _, t in ipairs(ns.MODEL.turrets) do ns.MODEL.retail[t.npc] = true end

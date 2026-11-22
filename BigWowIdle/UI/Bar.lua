@@ -190,6 +190,31 @@ end
 ------------------------------------------------------------------------
 -- Per-frame drawing
 ------------------------------------------------------------------------
+-- Combat moves everyone in steps (Combat.STEP, 0.1 s). Drawn as they are, the
+-- fighters would hop ten times a second; instead each one glides from where
+-- it is drawn to where it is now, over one step, so it moves evenly at any
+-- frame rate. A jump much longer than a step's walk (a new wave, a reset)
+-- is taken at once.
+local GLIDE_SNAP = 40 -- pixels
+local function glide(f, target)
+	local g = f.glide
+	if not g or math.abs(target - g.cur) > GLIDE_SNAP then
+		f.glide = { cur = target, from = target, to = target, t = 1 }
+		return target, false
+	end
+	if g.to ~= target then g.from, g.to, g.t = g.cur, target, 0 end
+	g.t = min(1, g.t + dt / (ns.Combat.STEP or 0.1))
+	g.cur = g.from + (g.to - g.from) * g.t
+	return g.cur, math.abs(g.to - g.from) > 0.05
+end
+
+-- Walking: from the last step that moved, for a little longer than a step,
+-- so the walk is not broken off between two steps.
+local WALK_HOLD = 0.25
+local function walking(f, moved)
+	if moved then f.walkT = WALK_HOLD else f.walkT = max(0, (f.walkT or 0) - dt) end
+	return f.walkT > 0
+end
 -- Screen x of every hero, pushed apart so portraits never sit on each other
 -- (two ranged heroes with similar reach would otherwise stand in one spot).
 local spread = {}
@@ -217,12 +242,13 @@ local function drawHeroes(now)
 		if u then
 			if f.shownId ~= u.id then
 				f.shownId = u.id
+				f.glide = nil
 				UI.SetClassIcon(f.icon, u.class)
 				f.ring:SetVertexColor(U.rgb(ns.ROLE[u.role].hex))
 			end
-			local px = spread[i]
-			local moving = f.prevX and math.abs(u.x - f.prevX) > 0.01
-			f.prevX = u.x
+			local px, moved = glide(f, spread[i])
+			f.drawX = px
+			local moving = walking(f, moved)
 			local fig = pickFigure(f.model, Figure.ForHero(u.id, true))
 			if fig then
 				if f.figFor ~= u.id or f.figIs ~= fig then
@@ -308,7 +334,10 @@ local function drawHeroes(now)
 			UI.SetIcon(frame.pet.icon, pet.icon)
 		end
 		local minX = laneX(backX) - UNIT / 2
-		for i = 1, #list do if spread[i] and spread[i] < minX then minX = spread[i] end end
+		for i = 1, #list do
+			local x = heroFrames[i].drawX or spread[i]
+			if x and x < minX then minX = x end
+		end
 		local pfig = pickFigure(frame.petModel, Figure.ForPet(pet.id))
 		if pfig then
 			animate(pfig, ns.Combat.state.phase == "travel" and "walk" or "idle")
@@ -341,7 +370,7 @@ local function drawHeroes(now)
 					if sp then
 						animate(sp, (pt.anim or 0) > 0 and "attack" or "idle")
 						local fly = ns.SKILLS[sid].heal and 34 or 0
-						sp:PlaceFeet(frame.scene, spread[i] + UNIT / 2 + 18, FEET + fly + (fly > 0 and sin(now * 3 + i) * 3 or 0))
+						sp:PlaceFeet(frame.scene, (heroFrames[i].drawX or spread[i]) + UNIT / 2 + 18, FEET + fly + (fly > 0 and sin(now * 3 + i) * 3 or 0))
 						sp:Show()
 					end
 				end
@@ -355,7 +384,12 @@ local function drawHeroes(now)
 			local sp = pickFigure(frame.summons[k], mid)
 			if sp then
 				animate(sp, (f.tickT or 0) > f.sk.tick - 0.25 and "attack" or "idle")
-				sp:PlaceFeet(frame.scene, laneX(f.src.x) + 34, FEET)
+				-- next to its maker as the maker is drawn
+				local cx = laneX(f.src.x)
+				for j = 1, #list do
+					if list[j] == f.src and heroFrames[j].drawX then cx = heroFrames[j].drawX + UNIT / 2 end
+				end
+				sp:PlaceFeet(frame.scene, cx + 34, FEET)
 				sp:Show()
 			end
 		end
@@ -387,7 +421,8 @@ local function drawMobs()
 					f.crown:Hide()
 				end
 			end
-			local px = laneX(m.x) - size / 2
+			if f.mobRef ~= m then f.mobRef, f.glide = m, nil end
+			local px, moved = glide(f, laneX(m.x) - size / 2)
 			local st = ns.Combat.state
 			local bossKey = m.boss and not m.summoned and st.diff and (st.diff .. "-" .. st.idx) or nil
 			local fig = pickFigure(f.model, Figure.ForMonster(m.def and m.def.id, bossKey))
@@ -395,10 +430,9 @@ local function drawMobs()
 				if f.figMob ~= m or f.figIs ~= fig then
 					f.figMob, f.figIs = m, fig
 					fig:SetHeight2(MOB_FIG * (m.boss and 1.4 or 1))
-					f.prevX = nil
+					f.walkT = 0
 				end
-				local moving = f.prevX and math.abs(m.x - f.prevX) > 0.01
-				f.prevX = m.x
+				local moving = walking(f, moved)
 				local want = "idle"
 				if m.dead then want = "death"
 				elseif m.anim > 0 then want = "attack"

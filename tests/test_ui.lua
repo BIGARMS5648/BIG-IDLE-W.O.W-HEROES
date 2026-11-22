@@ -921,6 +921,84 @@ do
 	frames(2)
 end
 
+-- every spec is one famous NPC per faction (a retail model, for both
+-- genders); the classic NPC stands in when the game cannot show it
+do
+	local Fig = ns.Figure3D
+	Fig.ResetFailed()
+	for specId in pairs(ns.SPECS) do
+		local f = ns.MODEL.famous[specId]
+		if not f then fail("no famous NPC for " .. specId) else
+			for _, fac in ipairs({ "ALLIANCE", "HORDE" }) do
+				if not ns.MODEL.display[f[fac]] then fail("no model id for the famous NPC of " .. specId .. " " .. fac) end
+				for _, sex in ipairs({ "M", "F" }) do
+					if Fig.ForSpec(specId, fac, sex) ~= f[fac] then fail("the " .. specId .. " " .. fac .. " body should be its famous NPC") end
+				end
+			end
+		end
+	end
+	local f = ns.MODEL.famous.PALADIN_HOLY.ALLIANCE
+	Fig.failed[f] = true
+	local classic = ns.MODEL.hero.PALADIN.ALLIANCE.M
+	if Fig.ForSpec("PALADIN_HOLY", "ALLIANCE", "M") ~= classic then fail("when the famous model cannot be shown, the classic NPC should stand in") end
+	Fig.ResetFailed()
+	-- a retail NPC is put up by its model only, never asked of the server
+	local m = Fig.New(UIParent, 60)
+	local getFile = Mock.Model.GetModelFileID
+	Mock.Model.GetModelFileID = function() return nil end
+	m:Show()
+	m:SetModelId(f)
+	local asked = false
+	for _ = 1, 60 do
+		m:Step(0.1)
+		if tostring(m.__model):find("^creature:") then asked = true end
+	end
+	Mock.Model.GetModelFileID = getFile
+	if asked then fail("a retail NPC should not be asked of the server") end
+	if not Fig.failed[f] then fail("a retail model that does not come should be given up (the classic one then)") end
+	m:Hide()
+	Fig.ResetFailed()
+	-- the 기갑 tinker fights in the retail mech of the faction
+	local was = ns.db.faction
+	for _, fac in ipairs({ "ALLIANCE", "HORDE" }) do
+		ns.db.faction = fac
+		local h = H.NewRecord("TINKER_MECH", "M")
+		ns.db.heroes[h.id] = h
+		if Fig.ForHero(h.id, true) ~= ns.MODEL.mech[fac] then fail("the 기갑 tinker should fight in the " .. fac .. " retail mech") end
+		if Fig.ForHero(h.id, false) ~= ns.MODEL.famous.TINKER_MECH[fac] then fail("the 기갑 tinker's body should be the famous tinker") end
+		ns.db.heroes[h.id] = nil
+	end
+	ns.db.faction = was
+end
+
+-- fighters move evenly: drawn a little further every frame, not hopping on
+-- each combat step (0.1 s); the walk is not broken off between steps
+do
+	ns.Combat.StartStage()
+	frames(2)
+	local _, mobs = ns.Bar.UnitFrames()
+	local f = mobs[1]
+	local xs, anims = {}, {}
+	for n = 1, 60 do
+		frames(1, 0.02) -- 50 frames a second
+		xs[n] = f:IsShown() and select(4, f:GetPoint(1)) or nil
+		if f.model and f.model:IsShown() then anims[#anims + 1] = f.model.__anim end
+	end
+	local moved, still, biggest, total = 0, 0, 0, 0
+	for n = 2, 60 do
+		if xs[n] and xs[n - 1] then
+			local d = math.abs(xs[n] - xs[n - 1])
+			if d > 0.01 then moved = moved + 1 total = total + d biggest = math.max(biggest, d) else still = still + 1 end
+		end
+	end
+	if moved < 10 then fail("a monster walking in should move (moved on " .. moved .. " frames)") end
+	if still > moved / 4 then fail(string.format("a walking monster should move on nearly every frame, not in steps (%d moved, %d still)", moved, still)) end
+	if moved > 0 and biggest > 3 * total / moved then fail("a walking monster should move by even amounts") end
+	local walk, other = 0, 0
+	for _, a in ipairs(anims) do if a == 4 then walk = walk + 1 else other = other + 1 end end
+	if #anims > 10 and other > walk / 4 then fail(string.format("the walk should not be broken off between steps (%d walking, %d not)", walk, other)) end
+end
+
 -- the 3D model check (/bwi model): five models, animations, facing, distance
 do
 	local MC = ns.ModelCheck
@@ -964,7 +1042,7 @@ do
 	if not (MC.panels[2].lines[5].__text or ""):find("없음", 1, true) then fail("a missing model function should read 없음: " .. tostring(MC.panels[2].lines[5].__text)) end
 	-- the tinker's candidates: mech, turret and drone models
 	click("model: tinker candidates", function(b) return label(b) == "땜장이 후보" end)
-	if MC.panels[1].model.__model ~= "display:" .. D[ns.MODEL.tinker.mech_horde] or MC.panels[4].model.__model ~= "display:" .. D[ns.MODEL.summon.drone_heal] then
+	if MC.panels[1].model.__model ~= "display:" .. D[ns.MODEL.mech.HORDE] or MC.panels[4].model.__model ~= "display:" .. D[ns.MODEL.summon_retail.drone_heal] then
 		fail("땜장이 후보 should show the mech, turret and drone models")
 	end
 	frames(20)
@@ -972,7 +1050,7 @@ do
 	-- the Hellfire cannons and the turret used now
 	click("model: drone and turrets", function(b) return label(b) == "드론·포탑" end)
 	if MC.panels[1].model.__model ~= "file:" .. ns.MODEL.file.drone_pickmeup then fail("드론·포탑 should show 활력제 친구's drone file: " .. tostring(MC.panels[1].model.__model)) end
-	if MC.panels[3].model.__model ~= "display:" .. ns.MODEL.cannon[1].display then fail("드론·포탑 should show the Fel Cannon") end
+	if MC.panels[3].model.__model ~= "display:" .. D[ns.MODEL.turrets[1].npc] then fail("드론·포탑 should show the other turrets") end
 	if not (MC.panels[2].lines[1].__text or ""):find("찾는 중", 1, true) then fail("the drone search should start") end
 	frames(120) -- the search goes through every model id
 	if MC.panels[2].scan then fail("the drone search should finish") end

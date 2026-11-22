@@ -31,22 +31,23 @@ local SAMPLES = {
 	{ key = "pet", title = "소환물: 임프", kind = "PlayerModel", creature = 416 },
 }
 -- 땜장이 후보: what the tinker's mech, turret and drone could look like
+local R = ns.MODEL.summon_retail
 local TINKER = {
-	{ key = "mech_horde", title = "기갑 (호드)", creature = ns.MODEL.tinker.mech_horde },
-	{ key = "mech_alliance", title = "기갑 (얼라이언스)", creature = ns.MODEL.tinker.mech_alliance },
-	{ key = "turret", title = "포격: 포탑", creature = ns.MODEL.summon.turret_gun },
-	{ key = "drone", title = "정비: 치유 드론", creature = ns.MODEL.summon.drone_heal },
-	{ key = "heal_turret", title = "정비: 치유 포탑", creature = ns.MODEL.summon.turret_heal },
+	{ key = "mech_horde", title = "기갑 (호드)", creature = ns.MODEL.mech.HORDE, name = "크롬왕 갤리윅스" },
+	{ key = "mech_alliance", title = "기갑 (얼라이언스)", creature = ns.MODEL.mech.ALLIANCE, name = "땜장이왕 멕카토크" },
+	{ key = "turret", title = "포격: 포탑", creature = R.turret_gun, name = "녹슨나사 소형 포탑" },
+	{ key = "drone", title = "정비: 치유 드론", creature = R.drone_heal, name = "알가리 수리로봇 11O" },
+	{ key = "heal_turret", title = "정비: 치유 포탑", creature = R.turret_heal, name = "치유의 해일 토템" },
 }
 -- 드론·포탑: 활력제 친구's heal-ray drone (known only by its file: the
--- file itself, and a search for the model that wears it), the Hellfire cannons
--- and the turret used now
+-- file itself, and a search for the model that wears it) and other turrets
+local T = ns.MODEL.turrets
 local DRONE = {
 	{ key = "pickmeup", title = "활력제 친구 (파일)", file = ns.MODEL.file.drone_pickmeup },
 	{ key = "pickmeup_find", title = "활력제 친구 (모델 찾기)", find = ns.MODEL.file.drone_pickmeup },
-	{ key = "cannon1", title = ns.MODEL.cannon[1].name, creature = ns.MODEL.cannon[1].npc, display = ns.MODEL.cannon[1].display },
-	{ key = "cannon2", title = ns.MODEL.cannon[2].name, creature = ns.MODEL.cannon[2].npc, display = ns.MODEL.cannon[2].display },
-	{ key = "turret_now", title = "지금 포탑", creature = ns.MODEL.summon.turret_gun },
+	{ key = "turret1", title = T[1].name, creature = T[1].npc, name = T[1].name },
+	{ key = "turret2", title = T[2].name, creature = T[2].npc, name = T[2].name },
+	{ key = "turret3", title = T[3].name, creature = T[3].npc, name = T[3].name },
 }
 local SETS = { basic = SAMPLES, tinker = TINKER, drone = DRONE }
 -- the model ids the drone search goes through
@@ -133,7 +134,7 @@ local function setupHero(p)
 		p.def = { key = "hero", title = p.def.title, creature = npc }
 		local disp = ns.MODEL.display and ns.MODEL.display[npc]
 		if disp then
-			setLine(p, 1, "모델 " .. disp .. " · SetDisplayInfo " .. mark(call(m, "SetDisplayInfo", disp)))
+			setLine(p, 1, "모델 " .. disp .. " · 표시 " .. mark(call(m, "SetDisplayInfo", disp)))
 		else
 			setLine(p, 1, "NPC " .. npc .. " · SetCreature " .. mark(call(m, "SetCreature", npc)))
 		end
@@ -156,12 +157,17 @@ local function setupCreature(p)
 	local disp = p.def.display or (ns.MODEL.display and ns.MODEL.display[p.def.creature])
 	p.name:SetText("NPC " .. p.def.creature .. (disp and (" · 모델 " .. disp) or ""))
 	if disp then
-		setLine(p, 1, "SetDisplayInfo " .. mark(call(p.model, "SetDisplayInfo", disp)))
+		setLine(p, 1, "모델 표시 " .. mark(call(p.model, "SetDisplayInfo", disp)))
 	else
 		setLine(p, 1, "SetCreature " .. mark(call(p.model, "SetCreature", p.def.creature)))
 	end
-	p.nameTries = 0
-	showName(p) -- the client's own name for the id, on the second line
+	if p.def.name then
+		-- a retail NPC: the server does not know it, the name is ours
+		setLine(p, 2, "이름 " .. U.col("ffffff", p.def.name))
+	else
+		p.nameTries = 0
+		showName(p) -- the client's own name for the id, on the second line
+	end
 end
 
 -- A model known only by its file
