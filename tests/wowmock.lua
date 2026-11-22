@@ -15,7 +15,7 @@ local STRATA = { BACKGROUND = 1, LOW = 1, MEDIUM = 1, HIGH = 1, DIALOG = 1, FULL
 local FRAME_TYPES = { Frame = 1, Button = 1, ScrollFrame = 1, CheckButton = 1, StatusBar = 1, EditBox = 1, PlayerModel = 1, DressUpModel = 1 }
 local SCRIPTS = {
 	OnUpdate = 1, OnEvent = 1, OnShow = 1, OnHide = 1, OnEnter = 1, OnLeave = 1, OnMouseDown = 1, OnMouseUp = 1,
-	OnMouseWheel = 1, OnDragStart = 1, OnDragStop = 1, OnSizeChanged = 1, OnClick = 1, OnDoubleClick = 1,
+	OnMouseWheel = 1, OnDragStart = 1, OnDragStop = 1, OnSizeChanged = 1, OnClick = 1, OnDoubleClick = 1, OnModelLoaded = 1,
 }
 local BUTTON_ONLY = { OnClick = 1, OnDoubleClick = 1 }
 

@@ -852,10 +852,12 @@ do
 		elseif p.model.__model ~= want[p.def.key] then fail(p.def.key .. " shows " .. tostring(p.model.__model)) end
 	end
 	local hero = MC.panels[1].model
+	if hero.__race then fail("the race should wait until the player's model has loaded") end
+	frames(20) -- the race goes on, the models report what loaded
 	if not hero.__race then fail("the hero model should be set to its race") end
 	local h = ns.db.heroes[ns.Main.SelectedHero()]
 	if h and hero.__sex ~= (h.sex == "F" and 1 or 0) then fail("the hero model should have the hero's gender") end
-	frames(20) -- the models report what loaded
+	if not (MC.panels[3].name.__text or ""):find("NPC 448", 1, true) or not (MC.panels[3].lines[2].__text or ""):find("이름", 1, true) then fail("a creature card should show its NPC id and the client name") end
 	if not (MC.panels[3].lines[3].__text or ""):find("모델 불러옴", 1, true) then fail("a loaded model should say so: " .. tostring(MC.panels[3].lines[3].__text)) end
 	click("model: attack", function(b) return b.anim == 17 and b:IsVisible() end)
 	for _, p in ipairs(MC.panels) do if p.model.__anim ~= 17 then fail("the attack button should play animation 17 on " .. p.def.key) end end
@@ -863,6 +865,10 @@ do
 	if MC.state.anim ~= 18 or MC.panels[2].model.__anim ~= 18 then fail("> should step to the next animation number") end
 	click("model: turn", function(b) return label(b) == "돌리기 >" end)
 	if math.abs((MC.panels[1].model.__facing or 0) - math.pi / 4) > 1e-6 then fail("turning should face the models 45 degrees round") end
+	click("model: battle facing", function(b) return label(b) == "전투 방향" end)
+	if math.abs((MC.panels[1].model.__facing or 0) - math.pi / 2) > 1e-6 or math.abs((MC.panels[3].model.__facing or 0) - 3 * math.pi / 2) > 1e-6 then
+		fail("전투 방향 should turn the heroes one way and the monsters the other")
+	end
 	click("model: farther", function(b) return label(b) == "멀리" end)
 	if MC.panels[4].model.__dist ~= 1.25 then fail("멀리 should move the camera back") end
 	MC.state.cycle = true
@@ -873,6 +879,7 @@ do
 	local custom = Mock.DressUpModel.SetCustomRace
 	Mock.DressUpModel.SetCustomRace = nil
 	click("model: load again", function(b) return label(b) == "다시 불러오기" end)
+	frames(10)
 	Mock.DressUpModel.SetCustomRace = custom
 	if not (MC.panels[1].lines[1].__text or ""):find("없음", 1, true) then fail("a missing model function should read 없음: " .. tostring(MC.panels[1].lines[1].__text)) end
 	hoverAll()

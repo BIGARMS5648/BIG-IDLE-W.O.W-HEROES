@@ -67,6 +67,30 @@ end
 
 local function setLine(p, i, text) p.lines[i]:SetText(text or "") end
 
+-- The name the client gives an NPC id (from its creature cache; the first ask
+-- may come back empty while the client fetches it).
+local scanTip
+local function npcName(id)
+	local link = string.format("unit:Creature-0-0-0-0-%d-0000000000", id)
+	if C_TooltipInfo and C_TooltipInfo.GetHyperlink then
+		local ok, data = pcall(C_TooltipInfo.GetHyperlink, link)
+		local line = ok and data and data.lines and data.lines[1]
+		if line and line.leftText and line.leftText ~= "" then return line.leftText end
+	end
+	if not scanTip then
+		local ok, tip = pcall(CreateFrame, "GameTooltip", "BigWowIdleScanTip", nil, "GameTooltipTemplate")
+		scanTip = ok and tip or false
+	end
+	if scanTip then
+		scanTip:SetOwner(UIParent, "ANCHOR_NONE")
+		local ok = pcall(scanTip.SetHyperlink, scanTip, link)
+		local fs = _G.BigWowIdleScanTipTextLeft1
+		local text = ok and fs and fs:GetText()
+		scanTip:Hide()
+		if text and text ~= "" then return text end
+	end
+end
+
 ------------------------------------------------------------------------
 -- Putting the models up
 ------------------------------------------------------------------------
@@ -78,12 +102,24 @@ local function setupHero(p)
 	local sex = h and h.sex or "M"
 	p.name:SetText(string.format("%s · %s %s", h and ns.Heroes.ShortName(id) or "영웅 없음",
 		ns.N(ns.RACES[race] and ns.RACES[race].name or race), ns.N(ns.SEX[sex].short)))
-	-- the race model rides on a unit, so the player goes in first
+	-- the race model rides on a unit: the player goes in first, and the race
+	-- is changed once that model has loaded (a change made before is lost)
 	local unit = call(m, "SetUnit", "player")
-	local custom = call(m, "SetCustomRace", RACE_ID[race] or 1, SEX_ID[sex] or 0)
+	p.race = { RACE_ID[race] or 1, SEX_ID[sex] or 0 }
+	p.raceDone, p.raceT = false, 0.8
+	setLine(p, 1, "SetUnit " .. mark(unit) .. " · 종족 대기")
+	setLine(p, 2, "")
+end
+
+-- After the player's model has loaded: race, then the clothes off and a sword on.
+local function applyRace(p)
+	if p.raceDone or not p.race then return end
+	p.raceDone = true
+	local m = p.model
+	local custom = call(m, "SetCustomRace", p.race[1], p.race[2])
 	local undress = call(m, "Undress")
 	local tryOn = call(m, "TryOn", "item:19019") -- a sword everyone knows, to see gear go on
-	setLine(p, 1, "SetUnit " .. mark(unit) .. " · SetCustomRace " .. mark(custom))
+	setLine(p, 1, "SetUnit " .. OK .. " · SetCustomRace " .. mark(custom))
 	setLine(p, 2, "Undress " .. mark(undress) .. " · TryOn " .. mark(tryOn))
 end
 
@@ -93,18 +129,34 @@ local function setupPlayer(p)
 	setLine(p, 2, "")
 end
 
+local function showName(p)
+	local name = npcName(p.def.creature)
+	p.nameTries = (p.nameTries or 0) + 1
+	if name then p.nameTries = nil end
+	setLine(p, 2, "이름 " .. (name and U.col("ffffff", name) or U.col("aab3c8", "받는 중")))
+end
+
 local function setupCreature(p)
 	local r = call(p.model, "SetCreature", p.def.creature)
 	p.name:SetText("NPC " .. p.def.creature)
 	setLine(p, 1, "SetCreature " .. mark(r))
-	setLine(p, 2, "")
+	p.nameTries = 0
+	showName(p) -- the client's own name for the id, on the second line
 end
 
 local SETUP = { hero = setupHero, player = setupPlayer }
 
+-- 전투 방향: heroes turned to the right (where the monsters come from),
+-- monsters to the left; the facing value used shows in the window
+local function facingOf(p)
+	if not state.battle then return state.facing end
+	local hero = p.def.key == "hero" or p.def.key == "player"
+	return hero and (pi / 2) or (3 * pi / 2)
+end
+
 local function applyLook(p)
 	local m = p.model
-	local f = call(m, "SetFacing", state.facing)
+	local f = call(m, "SetFacing", facingOf(p))
 	local d = call(m, "SetCamDistanceScale", state.dist)
 	setLine(p, 4, "SetFacing " .. mark(f) .. " · 거리 " .. mark(d))
 end
@@ -128,7 +180,19 @@ local function reportLoad(p)
 	end
 	local dOk, display = call(p.model, "GetDisplayInfo")
 	if dOk and display and display ~= 0 then text = text .. " · 모델 " .. tostring(display) end
+	p.file = file
 	setLine(p, 3, text)
+end
+
+-- whether the race change gave the hero another body than the player's
+local function reportRace()
+	local hero, player = panels[1], panels[2]
+	if not (hero and player and hero.file and player.file and hero.raceDone) then return end
+	if hero.file == player.file then
+		setLine(hero, 3, U.col("ff6a5a", "종족 그대로") .. " · 파일 " .. tostring(hero.file))
+	else
+		setLine(hero, 3, U.col("60e070", "종족 바뀜") .. " · 파일 " .. tostring(hero.file))
+	end
 end
 
 local function setupAll()
@@ -145,7 +209,7 @@ local function setupAll()
 			setLine(p, 1, p.def.kind .. " 만들기 " .. NO)
 		end
 	end
-	state.loadT = 1.2
+	state.loadT = 1.6
 end
 
 local function animLabel()
@@ -156,7 +220,12 @@ end
 local function refresh()
 	if not frame then return end
 	frame.animText:SetText(animLabel())
-	frame.lookText:SetText(string.format("방향 %d° · 거리 %s", floor(state.facing * 180 / pi + 0.5) % 360, U.num(state.dist, 2)))
+	if state.battle then
+		frame.lookText:SetText("영웅 90° · 몬스터 270°")
+	else
+		frame.lookText:SetText(string.format("방향 %d° · 거리 %s", floor(state.facing * 180 / pi + 0.5) % 360, U.num(state.dist, 2)))
+	end
+	frame.battleDir:SetStyle(state.battle and "primary" or "dark")
 	for _, b in ipairs(frame.animButtons) do b:SetStyle(b.anim == state.anim and "primary" or "dark") end
 	frame.cycle:Refresh()
 end
@@ -167,7 +236,8 @@ local function setAnim(id)
 	refresh()
 end
 
-local function setLook(facing, dist)
+local function setLook(facing, dist, battle)
+	state.battle = battle or false
 	state.facing = facing % (2 * pi)
 	state.dist = max(0.25, min(4, dist))
 	for _, p in ipairs(panels) do if p.model then applyLook(p) end end
@@ -221,6 +291,8 @@ local function build()
 		if m then
 			m:SetPoint("TOPLEFT", card, "TOPLEFT", 4, -26)
 			m:SetSize(PANEL_W - 8, MODEL_H)
+			-- the hero's race goes on when the player's model has loaded
+			pcall(m.SetScript, m, "OnModelLoaded", function() applyRace(p) end)
 		end
 		p.name = UI.Text(card, 11)
 		p.name:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -26 - MODEL_H - 4)
@@ -268,14 +340,18 @@ local function build()
 		b:SetPoint("TOPLEFT", frame, "TOPLEFT", x, y2)
 		return b
 	end
-	btn("< 돌리기", 84, 62, function() setLook(state.facing - pi / 4, state.dist) end)
-	btn("정면", 60, 152, function() setLook(0, state.dist) end)
-	btn("돌리기 >", 84, 218, function() setLook(state.facing + pi / 4, state.dist) end)
-	btn("가까이", 66, 314, function() setLook(state.facing, state.dist - 0.25) end)
-	btn("멀리", 66, 386, function() setLook(state.facing, state.dist + 0.25) end)
+	btn("< 돌리기", 76, 62, function() setLook(state.facing - pi / 4, state.dist) end)
+	btn("정면", 52, 144, function() setLook(0, state.dist) end)
+	btn("돌리기 >", 76, 202, function() setLook(state.facing + pi / 4, state.dist) end)
+	frame.battleDir = btn("전투 방향", 80, 284, function() setLook(state.facing, state.dist, true) end)
+	UI.Tip(frame.battleDir, function()
+		return UI.SimpleTip("전투 방향", "전투 창에서 쓸 방향으로 돌립니다. 영웅 둘은 오른쪽, 몬스터·우두머리·소환물은 왼쪽을 보면 맞습니다.")
+	end, "TOP")
+	btn("가까이", 60, 370, function() setLook(state.facing, state.dist - 0.25, state.battle) end)
+	btn("멀리", 52, 436, function() setLook(state.facing, state.dist + 0.25, state.battle) end)
 	frame.lookText = UI.Text(frame, 12)
-	frame.lookText:SetPoint("TOPLEFT", frame, "TOPLEFT", 462, y2 - 8)
-	frame.lookText:SetWidth(150)
+	frame.lookText:SetPoint("TOPLEFT", frame, "TOPLEFT", 498, y2 - 8)
+	frame.lookText:SetWidth(120)
 	frame.lookText:SetWordWrap(false)
 	frame.cycle = UI.Check(frame, "동작 자동 순환", function() return state.cycle end, function(v)
 		state.cycle = v
@@ -299,10 +375,23 @@ local function build()
 	frame.info:SetText(string.format("ModelScene %s · 클라이언트 빌드 %s", scene and OK or NO, tostring(buildNo or "?")))
 
 	frame:SetScript("OnUpdate", function(_, dt)
+		for _, p in ipairs(panels) do
+			-- the race goes on once the player's model is in (or after a moment)
+			if p.race and not p.raceDone then
+				p.raceT = p.raceT - dt
+				if p.raceT <= 0 then applyRace(p) end
+			end
+			-- NPC names the client did not have yet
+			if p.nameTries and p.nameTries < 8 then
+				p.nameT = (p.nameT or 0) - dt
+				if p.nameT <= 0 then p.nameT = 1 showName(p) end
+			end
+		end
 		if state.loadT > 0 then
 			state.loadT = state.loadT - dt
 			if state.loadT <= 0 then
 				for _, p in ipairs(panels) do if p.model then reportLoad(p) end end
+				reportRace()
 			end
 		end
 		if state.cycle then
