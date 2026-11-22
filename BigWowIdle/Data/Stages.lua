@@ -201,7 +201,7 @@ ns.STAGES[1] = finish({
 ns.STAGES[2] = finish({
 	-- Act 1: 줄파락
 	st("황야의 땅", "황야의 땅", "desert", { { "dustbelcher_brute", 40 }, { "ridge_huntress", 35 }, { "crag_coyote", 25 } },
-		X("철옹성", "Spell_Shadow_AbominationExplosion", "elemental", "brute", { smash(8, 2.5), enrage(0.3, 1.3) }, { school = "fire" })),
+		X("철옹성", "Spell_Shadow_AbominationExplosion", "mechanical", "brute", { smash(8, 2.5), enrage(0.3, 1.3) }, { school = "fire" })),
 	st("가시덩굴 구릉", "가시덩굴 구릉", "shadow", { { "splinterbone_warrior", 45 }, { "deaths_head_necromancer", 30 }, { "withered_battle_boar", 25 } },
 		X("혹한의 암네나르", "Spell_Frost_FrostArmor02", "undead", "lord", { smash(8, 2.2), summon(18, "skeletal_summoner", 2) })),
 	st("잊혀진 땅", "잊혀진 땅", "desert", { { "magram_wrangler", 35 }, { "burning_blade_summoner", 35 }, { "kolkar_destroyer", 30 } },
@@ -353,7 +353,7 @@ ns.STAGES[4] = finish({
 	st("화산 심장부", "게돈의 섬", "lava", { { "flamewaker_elite_3", 35 }, { "flamewaker_healer_2", 40 }, { "firelord", 25 } },
 		X("남작 게돈", "Spell_Fire_Elemental_Totem", "elemental", "caster", { aoe(7, 1.2, "nature", { "shock", 0.6 }), smash(12, 2.5, "nature"), enrage(0.3, 1.5) }, { school = "nature", res = { nature = 70 } })),
 	st("화산 심장부", "골레마그의 다리", "lava", { { "firewalker_4", 35 }, { "flameguard", 35 }, { "flamewaker_priest", 30 } },
-		X("초열의 골레마그", "Spell_Shadow_AbominationExplosion", "giant", "brute", { smash(7, 2.7, "shadow"), aoe(10, 1.2, "fire", { "ignite", 0.6 }), summon(18, "core_rager_2", 2), enrage(0.25, 1.5) }, { school = "shadow", res = { fire = 50, shadow = 50 } })),
+		X("초열의 골레마그", "Spell_Shadow_AbominationExplosion", "mechanical", "brute", { smash(7, 2.7, "shadow"), aoe(10, 1.2, "fire", { "ignite", 0.6 }), summon(18, "core_rager_2", 2), enrage(0.25, 1.5) }, { school = "shadow", res = { fire = 50, shadow = 50 } })),
 	st("화산 심장부", "청지기의 방", "lava", { { "flamewaker_elite_4", 40 }, { "molten_giant_2", 25 }, { "lava_annihilator", 35 } },
 		X("청지기 이그젝큐투스", "Spell_Fire_Elemental_Totem", "humanoid", "swift", { smash(5, 2.4, "fire", { "ignite", 1 }), aoe(11, 1.2, "fire"), enrage(0.4, 1.5) }, { school = "fire", res = { fire = 70 } })),
 	st("화산 심장부", "라그나로스의 영역", "lava", { { "firelord_3", 50 }, { "molten_destroyer_2", 50 } },
