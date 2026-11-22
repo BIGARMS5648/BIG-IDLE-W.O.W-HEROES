@@ -116,7 +116,7 @@ click("class Hunter", function(b) return b.cid == "HUNTER" end)
 click("spec Marksmanship", function(b) return b.sid == "HUNTER_MM" end)
 click("female", function(b) return b.sex == "F" end)
 click("reroll name", labelIs("다시"))
-click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 210 end)
+click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 153 end)
 if H.Count() ~= 1 then fail("creating through the dialog did not make a hero") end
 local first = H.List()[1]
 if first and ns.db.heroes[first].spec ~= "HUNTER_MM" then fail("the hero has the wrong specialization") end

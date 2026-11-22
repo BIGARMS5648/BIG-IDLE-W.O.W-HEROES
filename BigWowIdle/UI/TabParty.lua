@@ -453,9 +453,8 @@ local function buildCreate()
 
 	-- footer -------------------------------------------------------------
 	-- both buttons under the right column only (clear of the middle panel)
-	create.cancel = UI.Button(c, 96, 40, "취소", function() Main.CloseModal() end, "dark")
-	create.cancel:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 486, 0)
-	create.go = UI.Button(c, 210, 40, "", function()
+	create.cancel = UI.Button(c, 153, 40, "취소", function() Main.CloseModal() end, "dark")
+	create.go = UI.Button(c, 153, 40, "", function()
 		if not create.spec then return end
 		local ok, res = H.Create(create.spec, create.sex, create.name)
 		if UI.Try(ok, res) then
@@ -468,6 +467,7 @@ local function buildCreate()
 		end
 	end, "primary")
 	create.go:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", 0, 0)
+	create.cancel:SetPoint("RIGHT", create.go, "LEFT", -8, 0)
 end
 
 function create.refresh()
@@ -613,9 +613,9 @@ local function buildRename()
 		rename.refresh()
 	end, "blue")
 	reroll:SetPoint("RIGHT", box, "RIGHT", -7, 0)
-	local cancel = UI.Button(c, 120, K.BTN_H, "취소", function() Main.CloseModal() end, "dark")
+	local cancel = UI.Button(c, 150, K.BTN_H, "취소", function() Main.CloseModal() end, "dark")
 	cancel:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 0, 0)
-	local ok = UI.Button(c, 180, K.BTN_H, "이 이름으로", function()
+	local ok = UI.Button(c, 150, K.BTN_H, "이 이름으로", function()
 		local h = ns.db.heroes[rename.id]
 		if h and rename.name then
 			h.name = rename.name

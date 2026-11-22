@@ -32,6 +32,7 @@ K.CARD_W = 300                -- the card on the right
 K.LIST_W = K.W - K.CARD_W - 12 -- 536
 K.BODY_H = K.H - K.TOP        -- 430
 K.PAD = 12                    -- inner margin of list and card
+K.EQUIP_BODY_W = 546          -- the equipment screen's right side (bag, forge tabs)
 K.BTN_H = 34                  -- footer buttons
 K.SMALL_H = 26                -- small buttons
 K.FOOT = K.PAD + K.BTN_H + 8  -- footer zone height (54)
@@ -366,16 +367,17 @@ end
 ------------------------------------------------------------------------
 -- Tabs: equal-width segments in one row
 ------------------------------------------------------------------------
--- items: { { key, label }, ... }; onSelect(key)
--- fit: each tab as wide as its label (the row still fills w), for long names
-function UI.Tabs(parent, w, items, onSelect, fit, h)
+-- items: { { key, label }, ... }; onSelect(key); h: the row's height (the
+-- fifth argument is not used)
+function UI.Tabs(parent, w, items, onSelect, _, h)
 	h = h or K.TAB_H
 	local row = CreateFrame("Frame", nil, parent)
 	row:SetSize(w, h)
 	row.buttons = {}
 	local n = #items
 	local gap = 4
-	local bw = min(110, floor((w - (n - 1) * gap) / n))
+	-- equal widths that fill the row (up to 110 each)
+	local bw = min(110, (w - (n - 1) * gap) / n)
 	for i, it in ipairs(items) do
 		local b = UI.Chip(row, bw, h, it[2], function(self)
 			if onSelect then onSelect(self.key) end
@@ -383,33 +385,32 @@ function UI.Tabs(parent, w, items, onSelect, fit, h)
 		b:SetPoint("TOPLEFT", row, "TOPLEFT", (i - 1) * (bw + gap), 0)
 		b.key = it[1]
 		b.isItem = true -- navigation, not an action
-		b.lock = UI.Glyph(b, "lock", 12, 0.9, 0.78, 0.5)
-		b.lock:SetPoint("RIGHT", b.label, "LEFT", -6, 0)
+		-- a locked tab: a lock on the middle of its top edge
+		b.lock = CreateFrame("Frame", nil, b)
+		b.lock:SetSize(16, 16)
+		b.lock.isBadge = true -- sits on its owner's edge on purpose
+		b.lock:SetFrameLevel(b:GetFrameLevel() + 6)
+		b.lock:SetPoint("CENTER", b, "TOP", 0, 0)
+		b.lock.disc = UI.Art(b.lock, "circle", "ARTWORK", 0.10, 0.11, 0.16)
+		b.lock.disc:SetAllPoints(b.lock)
+		b.lock.ring = UI.Art(b.lock, "ring", "OVERLAY", 0.9, 0.78, 0.5)
+		b.lock.ring:SetAllPoints(b.lock)
+		b.lock.glyph = UI.Glyph(b.lock, "lock", 10, 0.95, 0.82, 0.5)
+		b.lock.glyph:SetPoint("CENTER", b.lock, "CENTER", 0, 0)
 		b.lock:Hide()
 		row.buttons[i] = b
 	end
-	-- fit: widths follow what each tab shows now: its name, the lock in front
-	-- of a locked one, the alert on its corner; the name (with its lock) sits
-	-- in the middle of what the alert leaves free
+	-- every tab the same width, its name in the middle; when a name is too
+	-- long for its tab, the whole row's names get a little smaller
+	local base = h >= 24 and 12 or 11
 	function row:Fit()
-		if not fit then return end
-		local need, total = {}, 0
-		for i, b in ipairs(self.buttons) do
-			local lock = b.lock:IsShown() and 18 or 0
-			local badge = (b.badge and b.badge:IsShown()) and b.badge:GetWidth() or 0
-			need[i] = { b.label:GetStringWidth() + 20 + lock + badge, lock, badge }
-			total = total + need[i][1]
-		end
-		local extra = (w - (n - 1) * gap - total) / n
-		local x = 0
-		for i, b in ipairs(self.buttons) do
-			local bw2 = floor(need[i][1] + extra)
-			b:SetWidth(bw2)
-			b:ClearAllPoints()
-			b:SetPoint("TOPLEFT", self, "TOPLEFT", x, 0)
-			b.label:ClearAllPoints()
-			b.label:SetPoint("CENTER", b, "CENTER", need[i][2] / 2 - need[i][3] / 2, 0)
-			x = x + bw2 + gap
+		for size = base, base - 2, -1 do
+			local fits = true
+			for _, b in ipairs(self.buttons) do
+				b.label:SetFont(ns.FONT, size, "")
+				if b.label:GetStringWidth() > bw - 10 then fits = false end
+			end
+			if fits then break end
 		end
 	end
 	row:Fit()
@@ -419,23 +420,16 @@ function UI.Tabs(parent, w, items, onSelect, fit, h)
 	function row:Get(key)
 		for _, b in ipairs(self.buttons) do if b.key == key then return b end end
 	end
-	function row:SetLabel(key, text) local b = self:Get(key) if b then b:SetLabel(text) end end
+	function row:SetLabel(key, text) local b = self:Get(key) if b then b:SetLabel(text) self:Fit() end end
 	function row:SetBadge(key, v)
 		local b = self:Get(key)
-		if b then b:SetBadge(v) self:Fit() end
+		if b then b:SetBadge(v) end
 	end
 	function row:SetLocked(key, v)
 		local b = self:Get(key)
 		if b then
 			b.lock:SetShown(v and true or false)
 			b.label:SetAlpha(v and 0.6 or 1)
-			if fit then
-				self:Fit()
-			else
-				-- the lock and the name together stay in the middle
-				b.label:ClearAllPoints()
-				b.label:SetPoint("CENTER", b, "CENTER", v and 9 or 0, 0)
-			end
 		end
 	end
 	return row
@@ -696,9 +690,9 @@ local function buildConfirm()
 	confirm.text:SetWidth(400)
 	confirm.text:SetJustifyV("TOP")
 	confirm.text:SetSpacing(3)
-	confirm.no = UI.Button(c, 150, K.BTN_H, "취소", function() ns.Main.CloseModal() end, "dark")
+	confirm.no = UI.Button(c, 175, K.BTN_H, "취소", function() ns.Main.CloseModal() end, "dark")
 	confirm.no:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 0, 0)
-	confirm.yes = UI.Button(c, 200, K.BTN_H, "", nil, "red")
+	confirm.yes = UI.Button(c, 175, K.BTN_H, "", nil, "red")
 	confirm.yes:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", 0, 0)
 	confirm.yes.onClick = function()
 		local fn = confirm.onOk

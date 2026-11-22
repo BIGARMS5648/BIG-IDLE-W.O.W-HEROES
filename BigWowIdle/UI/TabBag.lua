@@ -58,8 +58,10 @@ function Unlock.Tip(op)
 	return string.format("아직 잠겨 있습니다: 용광로 Lv %d · 해금 %s G", d.level, U.fmt(d.cost))
 end
 
-local W = 526 -- body width
-local COLS, ROWS, CELL, STEP = 10, 6, 46, 52
+local W = UI.K.EQUIP_BODY_W -- body width
+local COLS, ROWS = 10, 6
+local STEP = math.floor((W - 6) / COLS) -- cells fill the width (10 across)
+local CELL = STEP - 6
 local PER_PAGE = COLS * ROWS
 local GRID_Y = -38
 
@@ -126,14 +128,16 @@ function BagView.Build(page, f)
 	page.bagCount:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -7)
 	page.bagCount:SetWidth(120)
 	page.bagCount:SetWordWrap(false)
-	page.open = UI.Button(f, 120, 28, "", function()
+	-- [상자 열기] [보기 ▾] [정리]: three equal controls across the row
+	local TOP_W = math.floor((W - 126 - 2 * 8) / 3)
+	page.open = UI.Button(f, TOP_W, 28, "", function()
 		ns.Loot.OpenAll()
 		Main.Refresh()
 	end, "blue")
 	page.open:SetPoint("TOPLEFT", f, "TOPLEFT", 126, 0)
 	page.open.clickWhenOff = true
 	UI.Tip(page.open, function() return UI.SimpleTip("상자 모두 열기", "쌓인 상자를 모두 엽니다. 가방이 차면 남은 상자는 그대로 둡니다.") end, "TOP")
-	page.viewPick = UI.Dropdown(f, 136, 28, function()
+	page.viewPick = UI.Dropdown(f, TOP_W, 28, function()
 		local out = {}
 		for _, v in ipairs(VIEWS) do out[#out + 1] = { v[1], v[2] } end
 		if ns.SLOT[page.view] then out[#out + 1] = { page.view, ns.N(ns.SLOT[page.view].name) .. " 장비" } end
@@ -142,10 +146,10 @@ function BagView.Build(page, f)
 		page.view = v
 		page.bagPage = 1
 	end, "보기: ")
-	page.viewPick:SetPoint("TOPLEFT", f, "TOPLEFT", 254, 0)
+	page.viewPick:SetPoint("LEFT", page.open, "RIGHT", 8, 0)
 	page.viewPick.tipTitle = "보기"
 	page.viewPick.tipText = "가방의 장비를 종류별로 봅니다. 왼쪽의 장비 칸을 누르면 그 부위만 봅니다."
-	page.sort = UI.Button(f, 64, 28, "정리", function()
+	page.sort = UI.Button(f, TOP_W, 28, "정리", function()
 		ns.Items.Sort(isBank(page) and ns.db.bank or ns.db.bag)
 		Main.Refresh()
 	end, "dark")
@@ -214,7 +218,7 @@ function BagView.Build(page, f)
 	-- breaking down: the grade, now, or by itself when the bag is full
 	page.smeltLabel = UI.Text(f, 12, "분해 등급")
 	page.smeltLabel:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 10)
-	page.smeltPick = UI.Dropdown(f, 136, 32, function()
+	page.smeltPick = UI.Dropdown(f, 150, 32, function()
 		local out = {}
 		for q = 1, ns.MAX_QUALITY do out[#out + 1] = { q, U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하" } end
 		return out
@@ -376,6 +380,8 @@ local MAT_USE = {
 MatsView.KINDS_OF = MAT_KINDS_OF
 local ROW_H, ROW_STEP, LIST_Y, MAT_ROWS = 54, 58, -70, 6
 
+local MAT_BTN = 84 -- a material row's buttons (1회 · 모두 · 모두 분해)
+
 local function sealIndex(id)
 	for i, s in ipairs(ns.SEAL) do if s.mat == id then return i end end
 end
@@ -422,7 +428,7 @@ function MatsView.Build(page, f)
 		r.sub:SetWidth(190)
 		r.sub:SetWordWrap(false)
 		UI.Color(r.sub, UI.C.sub)
-		r.smelt = UI.Button(r, 92, 26, "모두 분해", function()
+		r.smelt = UI.Button(r, MAT_BTN, 26, "모두 분해", function()
 			if not ns.Forge.Unlocked("smelt") then Unlock.Ask("smelt") return end
 			local id = r.id
 			local count = ns.MatCount(id)
@@ -437,7 +443,7 @@ function MatsView.Build(page, f)
 		r.price:SetPoint("TOPRIGHT", r, "TOPRIGHT", -8, -37)
 		r.price:SetJustifyH("RIGHT")
 		UI.Color(r.price, UI.C.sub)
-		r.all = UI.Button(r, 56, 26, "모두", function()
+		r.all = UI.Button(r, MAT_BTN, 26, "모두", function()
 			local k = 0
 			while ns.MatCount(r.id) >= ns.Forge.FUSE_COUNT do
 				if not ns.Forge.FuseMat(r.id) then break end
@@ -446,9 +452,9 @@ function MatsView.Build(page, f)
 			if k > 0 then ns.Toast(string.format("%s 융합 %d번", ns.N(ns.MATS[r.id].name), k)) end
 			Main.Refresh()
 		end, "dark")
-		r.all:SetPoint("RIGHT", r.smelt, "LEFT", -10, 0)
+		r.all:SetPoint("RIGHT", r.smelt, "LEFT", -6, 0)
 		r.all.clickWhenOff = true
-		r.one = UI.Button(r, 56, 26, "1회", function()
+		r.one = UI.Button(r, MAT_BTN, 26, "1회", function()
 			local ok, res = ns.Forge.FuseMat(r.id)
 			if UI.Try(ok, res) then ns.Toast(string.format("융합 성공: %s", ns.N(ns.MATS[res].name))) end
 			Main.Refresh()
@@ -456,14 +462,14 @@ function MatsView.Build(page, f)
 		r.one:SetPoint("RIGHT", r.all, "LEFT", -6, 0)
 		r.one.clickWhenOff = true
 		-- seals: a bonus roll instead of fusing
-		r.roll = UI.Button(r, 118, 26, "", function()
+		r.roll = UI.Button(r, 2 * MAT_BTN + 6, 26, "", function()
 			if not ns.Forge.Unlocked("seal") then Unlock.Ask("seal") return end
 			local si = sealIndex(r.id)
 			local ok, it = ns.Forge.BonusRoll(si)
 			if UI.Try(ok, it) then ns.Toast("굴림 결과: " .. ns.Items.ColorName(it)) end
 			Main.Refresh()
 		end, "primary")
-		r.roll:SetPoint("RIGHT", r.smelt, "LEFT", -10, 0)
+		r.roll:SetPoint("RIGHT", r.smelt, "LEFT", -6, 0)
 		r.roll.clickWhenOff = true
 		UI.Tip(r.roll, function()
 			local s = ns.SEAL[sealIndex(r.id) or 1]

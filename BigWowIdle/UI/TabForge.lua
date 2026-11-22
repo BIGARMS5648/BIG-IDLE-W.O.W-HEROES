@@ -16,7 +16,7 @@ local K = UI.K
 local ForgeView = {}
 ns.ForgeView = ForgeView
 
-local W, H = 526, 456
+local W, H = UI.K.EQUIP_BODY_W, 456
 local CELL, STEP = 46, 52
 local OP_ICON = {
 	fuse = "Spell_Nature_WispSplode", smelt = "Spell_Fire_Fire", craft = "Trade_BlackSmithing", gem = "INV_Misc_Gem_Ruby_02",

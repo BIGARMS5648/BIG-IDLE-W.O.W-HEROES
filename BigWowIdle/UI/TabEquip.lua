@@ -16,12 +16,15 @@ local Main = ns.Main
 local H = ns.Heroes
 local K = UI.K
 
-local LEFT_W, RIGHT_X, RIGHT_W = 360, 370, 550
+local RIGHT_W = UI.K.EQUIP_BODY_W + 24
+local LEFT_W = UI.K.W - 10 - RIGHT_W
+local RIGHT_X = LEFT_W + 10
 local SLOT = 48
 local LEFT_COL = { "head", "neck", "chest", "wrist" }
 local RIGHT_COL = { "hands", "feet", "ring", "trinket" }
 local WEAPONS = { "mh", "oh" }
-local CX, CW = 70, 220 -- the summary between the slot columns
+local CX = 70
+local CW = LEFT_W - 2 * CX -- the summary between the slot columns
 local PORTRAIT, PORTRAIT_GAP = 32, 5 -- the hero picker: two rows at the top
 local SLOT_Y = -8 - 2 * PORTRAIT - PORTRAIT_GAP - 15 -- first slot row, under the picker
 local DY = 18 -- the summary starts this far under its rows' base (the name sits beside the picker)
@@ -255,12 +258,13 @@ local function buildRight(page)
 	local rp = UI.Panel(page, RIGHT_W, K.H, "inset")
 	rp:SetPoint("TOPLEFT", page, "TOPLEFT", RIGHT_X, 0)
 	page.right = rp
+	-- all tabs the same width, names in the middle
 	page.tabs = UI.Tabs(rp, RIGHT_W - 24, TABS, function(key)
 		page.tab = key
 		-- the bag always opens on everything (보기: 전체)
 		if key == "bag" then page.view = "all" page.bagPage = 1 end
 		Main.Refresh()
-	end, true, 32)
+	end, false, 32)
 	page.tabs:SetPoint("TOPLEFT", rp, "TOPLEFT", 12, -12)
 	for _, t in ipairs(TABS) do
 		if FORGE_TAB[t[1]] then

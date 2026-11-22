@@ -537,7 +537,7 @@ local function buildTree(page, f)
 				H.Name(id), U.fmt(H.ResetCost(id))),
 			onOk = function() UI.Try(H.ResetTree(id)) end })
 	end, "red"))
-	page.autoTree = page.treeHead:AddTool(UI.Button(f, 80, 22, "자동 배분", function()
+	page.autoTree = page.treeHead:AddTool(UI.Button(f, 120, 22, "자동 배분", function()
 		local id = heroOf()
 		if not id then return end
 		local n = H.AutoSpend(id)
