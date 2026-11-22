@@ -337,7 +337,8 @@ local function refresh(page)
 	d.banner:SetTexture(UI.Tex(th.art))
 	d.banner:SetTexCoord(0, 0.6, 0.1, 0.85)
 	d.banner:SetVertexColor(r * 0.9, g * 0.9, bl * 0.9)
-	d.name:SetText((stg.raid and U.col("ff9326", ns.N(stg.name))) or ns.N(stg.name))
+	local title = (stg.place and (ns.N(stg.place) .. "  ·  ") or "") .. ns.N(stg.name)
+	d.name:SetText(stg.raid and U.col("ff9326", title) or title)
 	local level = ns.StageLevel(page.diff, page.idx)
 	local waves = stg.raid and 4 or ns.WAVES
 	d.info:SetText(U.col(ns.DIFFS[page.diff].hex, ns.N(ns.DIFFS[page.diff].name)) .. "  ·  Lv " .. level .. "  ·  " ..

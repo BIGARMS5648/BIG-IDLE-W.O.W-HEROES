@@ -138,7 +138,7 @@ end
 do
 	-- 4 difficulties x 30 stages in the original game's dungeons and raids
 	-- (a dungeon spans a few stages in a row), every stage a different boss
-	local names, bosses = {}, {}
+	local names, bosses, areas = {}, {}, {}
 	local ORIGINAL = { ["성난불길 협곡"] = 1, ["통곡의 동굴"] = 1, ["죽음의 폐광"] = 1, ["그림자송곳니 성채"] = 1, ["스톰윈드 지하감옥"] = 1,
 		["검은심연 나락"] = 1, ["놈리건"] = 1, ["가시덩굴 우리"] = 1, ["붉은십자군 수도원"] = 1, ["가시덩굴 구릉"] = 1, ["울다만"] = 1,
 		["줄파락"] = 1, ["마라우돈"] = 1, ["아탈학카르 신전"] = 1, ["검은바위 나락"] = 1, ["검은바위 첨탑 하층"] = 1, ["검은바위 첨탑 상층"] = 1,
@@ -151,8 +151,11 @@ do
 		check(#ns.DIFFS[d].acts == 3, "difficulty " .. d .. ": three acts")
 		for i, stg in ipairs(ns.STAGES[d]) do
 			local where = d .. "-" .. i
-			local place = type(stg.name) == "string" and stg.name:match("^([^:]+)")
-			check(place and ORIGINAL[place], where .. ": not a dungeon or raid of the original game: " .. tostring(stg.name))
+			local place = stg.place
+			check(place and ORIGINAL[place], where .. ": not a dungeon or raid of the original game: " .. tostring(place))
+			-- every stage its own area of the dungeon
+			check(type(stg.name) == "string" and stg.name ~= "" and not areas[stg.name], where .. ": area name reused: " .. tostring(stg.name))
+			areas[stg.name] = true
 			-- a dungeon comes back only right after itself
 			check(not names[place] or place == last, where .. ": " .. tostring(place) .. " again after another place")
 			names[place], last = true, place
@@ -174,7 +177,8 @@ do
 		end
 	end
 	check(ns.U.count(names) == 27, "the 27 dungeons and raids of the original game: " .. ns.U.count(names))
-	check(ns.STAGES[4][30].name == "낙스라마스", "the last stage is Naxxramas")
+	check(ns.U.count(areas) == 120, "120 different stage names")
+	check(ns.STAGES[4][30].place == "낙스라마스", "the last stage is in Naxxramas")
 end
 do
 	local used = {}
