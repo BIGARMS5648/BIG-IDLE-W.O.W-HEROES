@@ -128,10 +128,9 @@ local function heroTip(id)
 	local s = ns.Stats.Get(id)
 	local r, g, b = U.rgb(c.hex)
 	local race = ns.RACES[H.Race(id)]
-	local look = ns.Figure3D.SpecLook(h.spec)
 	local lines = { { H.Name(id), "Lv " .. h.level, r, g, b } }
 	lines[#lines + 1] = { ns.SpecLabel(h.spec), ns.N(ns.ROLE[sp.role].name), U.rgb(ns.ROLE[sp.role].hex) }
-	lines[#lines + 1] = { (look and look.name) or (race and race.name) or "", nil, 0.7, 0.75, 0.85 }
+	lines[#lines + 1] = { (race and race.name or "") .. " " .. ns.SEX[H.Sex(id)].name, nil, 0.7, 0.75, 0.85 }
 	lines[#lines + 1] = { "초당 피해", U.fmt(ns.Stats.DPS(s)), 1, 1, 1 }
 	lines[#lines + 1] = { "생명력", U.fmt(s.hp), 1, 1, 1 }
 	if H.PointsFree(id) > 0 then
@@ -275,7 +274,7 @@ local function firstSpecFor(cid, role)
 end
 
 local function rollName()
-	create.name = H.RollName(create.spec)
+	create.name = H.RollName(create.spec, create.sex)
 end
 
 local function buildCreate()
@@ -337,7 +336,7 @@ local function buildCreate()
 		create.classes[i] = b
 	end
 
-	-- 2. preview (whose look the spec has), name -------------------------
+	-- 2. preview, gender, name --------------------------------------------
 	local mid = UI.Panel(c, 270, 404, "card")
 	mid:SetPoint("TOPLEFT", c, "TOPLEFT", 206, -50)
 	create.mid = mid
@@ -357,11 +356,27 @@ local function buildCreate()
 		end)
 	end
 	create.race = UI.Text(mid, 12)
-	create.race:SetPoint("TOP", mid, "TOP", 0, -222)
-	create.race:SetWidth(250)
+	create.race:SetPoint("TOP", mid, "TOP", 0, -196)
 	create.race:SetJustifyH("CENTER")
-	create.race:SetWordWrap(false)
 	UI.Color(create.race, UI.C.sub)
+	create.sexes = {}
+	for i, sex in ipairs(ns.SEXES) do
+		local b = UI.Button(mid, 108, 32, ns.SEX[sex].name, function()
+			create.sex = sex
+			rollName()
+			create.refresh()
+		end, "dark")
+		b:SetPoint("TOP", mid, "TOP", (i - 1.5) * 116, -222)
+		b.sex = sex
+		local art = UI.ArtIcon(sex == "M" and "icon_male" or "icon_female")
+		if art then
+			b.sym = b:CreateTexture(nil, "OVERLAY")
+			b.sym:SetSize(18, 18)
+			b.sym:SetTexture(art)
+			b.sym:SetPoint("RIGHT", b.label, "LEFT", -4, 0)
+		end
+		create.sexes[i] = b
+	end
 	local nameLabel = UI.Text(mid, 11, "이름")
 	nameLabel:SetPoint("TOPLEFT", mid, "TOPLEFT", 16, -272)
 	UI.Color(nameLabel, UI.C.sub)
@@ -442,7 +457,7 @@ local function buildCreate()
 	create.cancel:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 486, 0)
 	create.go = UI.Button(c, 210, 40, "", function()
 		if not create.spec then return end
-		local ok, res = H.Create(create.spec, nil, create.name)
+		local ok, res = H.Create(create.spec, create.sex, create.name)
 		if UI.Try(ok, res) then
 			Main.CloseModal()
 			Main.SelectHero(res)
@@ -482,9 +497,8 @@ function create.refresh()
 	-- preview
 	local race = ns.RACES[ns.ClassRace(cid)]
 	local fac = ns.FACTIONS[ns.Faction() or "ALLIANCE"]
-	local look = create.spec and ns.Figure3D.SpecLook(create.spec)
-	create.race:SetText(string.format("%s  ·  %s", ns.N(fac.name), (look and look.name) or race.name))
-	local mid = ns.Figure3D.Enabled() and ns.Figure3D.ForClass(cid, ns.Faction(), create.spec)
+	create.race:SetText(string.format("%s  ·  %s %s", ns.N(fac.name), race.name, ns.SEX[create.sex].name))
+	local mid = ns.Figure3D.Enabled() and ns.Figure3D.ForClass(cid, ns.Faction(), create.spec, create.sex)
 	UI.SetClassIcon(create.portrait.icon, cid)
 	create.portrait.icon:Show()
 	create.portrait.ringT:SetVertexColor(U.rgb(ns.CLASSES[cid].hex))
@@ -497,6 +511,10 @@ function create.refresh()
 	else
 		if create.fig then create.fig:Hide() end
 		create.portrait:Show()
+	end
+	for _, b in ipairs(create.sexes) do
+		b:SetStyle(b.sex == create.sex and "blue" or "dark")
+		b:SetOn(b.sex == create.sex)
 	end
 	UI.FitText(create.nameText, create.name, 170, { 16, 14, 12 }) -- long names step down
 	create.nameText:SetTextColor(U.rgb(ns.CLASSES[cid].hex))
@@ -544,6 +562,7 @@ end
 function create.open(classId, role)
 	if not create.frame then buildCreate() end
 	create.role = role
+	if not create.sex then create.sex = math.random() < 0.5 and "M" or "F" end
 	local cid = classId
 	if not cid and role then
 		for _, c in ipairs(ns.CLASS_ORDER) do
@@ -590,7 +609,7 @@ local function buildRename()
 	rename.new:SetWordWrap(false)
 	local reroll = UI.Button(box, 70, 32, "다시", function()
 		local h = ns.db.heroes[rename.id]
-		rename.name = H.RollName(h.spec)
+		rename.name = H.RollName(h.spec, h.sex)
 		rename.refresh()
 	end, "blue")
 	reroll:SetPoint("RIGHT", box, "RIGHT", -7, 0)
@@ -617,7 +636,7 @@ function ns.OpenRename(id)
 	if not rename.frame then buildRename() end
 	local h = ns.db.heroes[id]
 	rename.id = id
-	rename.name = H.RollName(h.spec)
+	rename.name = H.RollName(h.spec, h.sex)
 	rename.refresh()
 	Main.ShowModal(rename.frame)
 end

@@ -203,6 +203,7 @@ local function glide(f, target)
 		return target, false
 	end
 	if g.to ~= target then g.from, g.to, g.t = g.cur, target, 0 end
+	if g.t >= 1 then return g.cur, false end -- there: standing
 	g.t = min(1, g.t + dt / (ns.Combat.STEP or 0.1))
 	g.cur = g.from + (g.to - g.from) * g.t
 	return g.cur, math.abs(g.to - g.from) > 0.05

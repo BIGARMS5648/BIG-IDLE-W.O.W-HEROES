@@ -118,10 +118,9 @@ local function setupHero(p)
 	local id = ns.Main.SelectedHero()
 	local h = id and ns.db.heroes[id]
 	local race = id and ns.Heroes.Race(id) or "HUMAN"
-	local look = h and ns.Figure3D.SpecLook(h.spec)
 	local npc = id and ns.Figure3D.ForHero(id, false)
-	p.name:SetText(string.format("%s · %s", h and ns.Heroes.ShortName(id) or "영웅 없음",
-		(look and look.name) or ns.N(ns.RACES[race] and ns.RACES[race].name or race)))
+	p.name:SetText(string.format("%s · %s %s", h and ns.Heroes.ShortName(id) or "영웅 없음",
+		ns.N(ns.RACES[race] and ns.RACES[race].name or race), ns.SEX[id and ns.Heroes.Sex(id) or "M"].short))
 	if npc then
 		p.def = { key = "hero", title = p.def.title, creature = npc }
 		local disp = ns.MODEL.display and ns.MODEL.display[npc]

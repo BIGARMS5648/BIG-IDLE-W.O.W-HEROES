@@ -114,29 +114,13 @@ try("open create dialog", page.create.Click, page.create, "LeftButton")
 click("class Tinker", function(b) return b.cid == "TINKER" end)
 click("class Hunter", function(b) return b.cid == "HUNTER" end)
 click("spec Marksmanship", function(b) return b.sid == "HUNTER_MM" end)
--- one look per spec: no gender to pick; the window names whose look it is
-for _, f in ipairs(Mock.frames) do
-	if f.sex and f:IsVisible() then fail("the create window should have no gender buttons") break end
-end
-do
-	local look = ns.MODEL.famous.HUNTER_MM[ns.Faction()].name
-	local found = false
-	for _, f in ipairs(Mock.frames) do
-		if f:IsVisible() then
-			for _, r in ipairs(f.__regions or {}) do
-				if r.__type == "FontString" and r:IsVisible() and (r.__text or ""):find(look, 1, true) then found = true end
-			end
-		end
-	end
-	if not found then fail("the create window should name the spec's look: " .. look) end
-end
+click("female", function(b) return b.sex == "F" end)
 click("reroll name", labelIs("다시"))
 click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 210 end)
 if H.Count() ~= 1 then fail("creating through the dialog did not make a hero") end
 local first = H.List()[1]
 if first and ns.db.heroes[first].spec ~= "HUNTER_MM" then fail("the hero has the wrong specialization") end
--- no gender to pick: a spec has one look (Horde marksman: Sylvanas)
-if first and H.Sex(first) ~= "F" then fail("the hero's gender should be its spec's look's (Sylvanas)") end
+if first and ns.db.heroes[first].sex ~= "F" then fail("the chosen gender was not kept") end
 if first and H.Race(first) ~= "TROLL" then fail("a Horde hunter should be a troll") end
 if first and H.PartySlot(first) ~= 2 then fail("the first damage dealer should join slot 2") end
 if first and not tostring(ns.db.heroes[first].name):find("^%S+ %S+$") then fail("hero name should be given + family name") end
@@ -859,7 +843,10 @@ try("slash bar", SlashCmdList.BIGWOWIDLE, "bar")
 try("slash reset", SlashCmdList.BIGWOWIDLE, "reset")
 try("slash help", SlashCmdList.BIGWOWIDLE, "help")
 
--- the battle bar draws heroes and monsters as the game's 3D models
+-- the battle bar draws heroes and monsters as the game's 3D models: each one
+-- a small ModelScene with one actor, put up by its display id, measured and
+-- stood on the ground line at its given height
+local function animOf(fig) return fig.actor and fig.actor.__anim or fig.__anim end
 do
 	local Fig = ns.Figure3D
 	Fig.ResetFailed()
@@ -869,49 +856,49 @@ do
 	local heroes, mobs = ns.Bar.UnitFrames()
 	local hShown, mShown = 0, 0
 	for _, f in ipairs(heroes) do
-		if f:IsShown() and f.model and f.model:IsShown() then
+		local m = f.model
+		if f:IsShown() and m and m:IsShown() then
 			hShown = hShown + 1
-			-- put up by its display id: straight from the game's data
-			local want = "display:" .. tostring(ns.MODEL.display[f.model.id])
-			if f.model.__model ~= want then fail("a hero model should be put up by its display id: " .. tostring(f.model.__model) .. " / " .. want) end
-			if not f.model:IsLoaded() or f.icon:IsShown() then fail("a hero whose model is in should not show the icon too") end
-			-- room around the model so wide and tall ones are not cut off
-			local hgt = f.model.height
-			if f.model:GetWidth() < 2 * hgt or f.model:GetHeight() < 1.5 * hgt or (f.model.__dist or 1) < 1.5 then
-				fail("a model's frame should leave room around it (cut-off models)")
-			end
-			if math.abs((f.model.__facing or 0) - math.pi / 2) > 1e-6 then fail("hero models should face the monsters (right)") end
+			if m.kind ~= "scene" then fail("a battle figure should be a ModelScene") end
+			local want = Fig.DisplayFor(m.id)
+			if m.actor.__display ~= want then fail("a hero model should be put up by its display id: " .. tostring(m.actor.__display) .. " / " .. tostring(want)) end
+			if not m:IsLoaded() or f.icon:IsShown() then fail("a hero whose model is in should not show the icon too") end
+			-- a square frame with room around the model
+			if math.abs(m:GetWidth() - m:GetHeight()) > 1e-6 or m:GetHeight() < 2.5 * m.height then fail("a figure's frame should be square with room around the model") end
+			if math.abs((m.actor.__yaw or 0) - math.pi / 2) > 1e-6 then fail("hero models should face the monsters (right): " .. tostring(m.actor.__yaw)) end
 		end
 	end
 	for _, f in ipairs(mobs) do
-		if f:IsShown() and f.model and f.model:IsShown() then
+		local m = f.model
+		if f:IsShown() and m and m:IsShown() then
 			mShown = mShown + 1
-			if math.abs((f.model.__facing or 0) - 3 * math.pi / 2) > 1e-6 then fail("monster models should face the heroes (left)") end
+			if math.abs((m.actor.__yaw or 0) - 3 * math.pi / 2) > 1e-6 then fail("monster models should face the heroes (left)") end
 		end
 	end
 	if hShown == 0 then fail("the heroes in battle should be 3D models") end
 	if mShown == 0 then fail("the monsters in battle should be 3D models") end
+	if #Mock.misuse > 0 then fail("ModelScene calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end
 	-- an attack plays the attack animation
 	local anims = {}
 	for _ = 1, 400 do -- until the party has met the monsters and fought a while
 		frames(1)
-		for _, f in ipairs(heroes) do if f.model and f.model:IsShown() then anims[f.model.__anim or -1] = true end end
+		for _, f in ipairs(heroes) do if f.model and f.model:IsShown() then anims[animOf(f.model) or -1] = true end end
 		if anims[17] then break end
 	end
 	if not anims[17] then fail("heroes should play the attack animation (17) in battle") end
-	-- off in the settings: drawn figures or icons again
+	-- off in the settings: icons again
 	ns.db.opt.models = false
 	frames(2)
 	for _, f in ipairs(heroes) do if f.model and f.model:IsShown() then fail("models should hide when turned off") break end end
 	ns.db.opt.models = true
-	-- a model that does not come: the icon stays meanwhile, the NPC id is
-	-- tried after the display id, and in the end it is given up on
-	local getFile = Mock.Model.GetModelFileID
-	Mock.Model.GetModelFileID = function() return nil end
+	-- models this game does not have: the icon stays meanwhile, and in the
+	-- end every one of them is given up on
+	Mock.missingDisplays = setmetatable({}, { __index = function() return true end })
 	Fig.ResetFailed()
+	ns.db.models = nil
 	for _, f in ipairs(heroes) do if f.model then f.model.id = nil end end
 	frames(3)
-	local waiting, byNpc = 0, 0
+	local waiting = 0
 	for _, f in ipairs(heroes) do
 		if f:IsShown() and f.model and f.model:IsShown() then
 			waiting = waiting + 1
@@ -919,13 +906,8 @@ do
 		end
 	end
 	if waiting == 0 then fail("a model that is still loading should be up (waiting)") end
-	frames(12) -- past the display id's wait: the NPC id is asked for
-	for _, f in ipairs(heroes) do
-		if f.model and f.model:IsShown() and tostring(f.model.__model):find("^creature:") then byNpc = byNpc + 1 end
-	end
-	if byNpc == 0 then fail("a display id that does not load should be followed by the NPC id") end
-	frames(400) -- every try of every model (the other gender is tried too)
-	Mock.Model.GetModelFileID = getFile
+	frames(400) -- every try of every model (famous NPC, then the trainer)
+	Mock.missingDisplays = {}
 	local back = 0
 	for _, f in ipairs(heroes) do
 		if f:IsShown() then
@@ -934,6 +916,8 @@ do
 		end
 	end
 	if back == 0 then fail("a hero whose model did not load should fall back to the icon") end
+	if not next(ns.db.models.bad) then fail("display ids the game does not have should be noted") end
+	ns.db.models = nil
 	Fig.ResetFailed()
 	frames(2)
 end
@@ -949,13 +933,14 @@ do
 			local t = ns.MODEL.trainer[sp.class][fac]
 			local want = f and f.npc or t.npc
 			if not ns.MODEL.display[want] then fail("no model id for the look of " .. specId .. " " .. fac) end
-			if Fig.ForSpec(specId, fac) ~= want then fail("the " .. specId .. " " .. fac .. " body should be its look") end
-			if f and (not f.name or f.name == "") then fail("the famous NPC of " .. specId .. " needs its name") end
+			for _, sex in ipairs({ "M", "F" }) do
+				if Fig.ForSpec(specId, fac, sex) ~= want then fail("the " .. specId .. " " .. fac .. " body should be its look") end
+			end
 		end
 	end
 	local f = ns.MODEL.famous.PALADIN_HOLY.ALLIANCE.npc
 	Fig.failed[f] = true
-	if Fig.ForSpec("PALADIN_HOLY", "ALLIANCE") ~= ns.MODEL.trainer.PALADIN.ALLIANCE.npc then fail("when the famous model cannot be shown, the class trainer should stand in") end
+	if Fig.ForSpec("PALADIN_HOLY", "ALLIANCE", "M") ~= ns.MODEL.trainer.PALADIN.ALLIANCE.npc then fail("when the famous model cannot be shown, the class trainer should stand in") end
 	Fig.ResetFailed()
 	-- the 기갑 tinker fights in the mech of the faction
 	local was = ns.db.faction
@@ -968,41 +953,99 @@ do
 		ns.db.heroes[h.id] = nil
 	end
 	ns.db.faction = was
+end
+
+-- a figure measures its model: whatever the model's own size, it stands as
+-- tall as it is given, its feet on the ground line, its middle on the middle
+do
+	local Fig = ns.Figure3D
+	Fig.ResetFailed()
+	ns.db.models = nil
+	local D = ns.MODEL.display
+	Mock.boxes[D[448]] = { -1, -1, 0, 1, 1, 2 }        -- 2 tall, 2 long
+	Mock.boxes[D[11502]] = { -3, -2, -1.5, 5, 2, 14.5 } -- huge, standing in lava below its origin
+	Mock.boxes[D[416]] = { -0.2, -0.2, 0, 0.4, 0.2, 0.6 } -- small and off its middle
+	local function stand(npc, h)
+		local m = Fig.New(UIParent, h)
+		m:SetModelId(npc)
+		m:Step(0.05)
+		m:PlaceFeet(UIParent, 300, 100)
+		m:Show()
+		return m
+	end
+	for _, c in ipairs({ { 448, 70 }, { 11502, 98 }, { 416, 70 } }) do
+		local m = stand(c[1], c[2])
+		local a = m.actor
+		local b = Mock.boxes[D[c[1]]]
+		local s = a.__scale or 1
+		local tall = (b[6] - b[3]) * s
+		local long = math.max(b[4] - b[1], b[5] - b[2]) * s
+		if math.max(tall, long * 0.6) < 0.999 or math.max(tall, long * 0.6) > 1.001 then fail("NPC " .. c[1] .. " should be fitted to its figure's height") end
+		-- the bottom of the model on the ground line (z = 0)
+		if math.abs(a.__pos[3] + b[3] * s) > 1e-6 then fail("NPC " .. c[1] .. " should stand on the ground line") end
+		-- its middle on the figure's middle, as it faces (right)
+		local cx, cy = (b[1] + b[4]) / 2, (b[2] + b[5]) / 2
+		local yaw = a.__yaw
+		local mx = a.__pos[1] + (math.cos(yaw) * cx - math.sin(yaw) * cy) * s
+		local my = a.__pos[2] + (math.sin(yaw) * cx + math.cos(yaw) * cy) * s
+		if math.abs(mx) > 1e-6 or math.abs(my) > 1e-6 then fail("NPC " .. c[1] .. " should stand in the middle of its figure") end
+		-- feet: the frame reaches FEET_AT heights below them
+		local _, _, _, x, y = m:GetPoint(1)
+		if math.abs(y - (100 - Fig.FEET_AT * c[2])) > 1e-6 or x ~= 300 then fail("the feet should be where they are placed") end
+		if math.abs(m:GetHeight() - Fig.SIDE * c[2]) > 1e-6 then fail("a figure's frame should follow its height") end
+		-- the dying stay down: death once, then lying dead
+		m:Play("death")
+		for _ = 1, 20 do m:Step(0.1) m:Play("death") end
+		if a.__anim ~= 6 then fail("a dead figure should stay down (animation 6), not die again: " .. tostring(a.__anim)) end
+		-- grown with the window: the camera is set again
+		a.__scene.__camPos = nil
+		m:SetScale(1.5)
+		m:Step(0.05)
+		if not a.__scene.__camPos then fail("the camera should be set again when the window grows") end
+		m:Hide()
+	end
+	Mock.boxes = {}
 	-- the game's own answer is kept: the display id a model came up with is
 	-- used first next time; one the game lacks is not waited for again
 	local npc = 448
-	ns.db.models = nil
-	local m = Fig.New(UIParent, 60)
-	m:Show()
-	m:SetModelId(npc)
-	m:Step(0.05)
-	if ns.db.models.ok[npc] ~= ns.MODEL.display[npc] then fail("the display id a model came up with should be kept") end
+	local m = stand(npc, 60)
+	if ns.db.models.ok[npc] ~= D[npc] then fail("the display id a model came up with should be kept") end
 	ns.db.models.ok[npc] = 777
-	local m2 = Fig.New(UIParent, 60)
-	m2:Show()
-	m2:SetModelId(npc)
-	if m2.__model ~= "display:777" then fail("a kept display id should be used first: " .. tostring(m2.__model)) end
+	local m2 = stand(npc, 60)
+	if m2.actor.__display ~= 777 then fail("a kept display id should be used first: " .. tostring(m2.actor.__display)) end
+	ns.db.models.ok[npc] = nil
+	Mock.missingDisplays[D[npc]] = true
+	local m3 = Fig.New(UIParent, 60)
+	m3:Show()
+	m3:SetModelId(npc)
+	for _ = 1, 30 do m3:Step(0.1) end
+	if not ns.db.models.bad[D[npc]] then fail("a display id the game does not have should be noted") end
+	if m3:IsLoaded() or not Fig.failed[npc] then fail("a model the game does not have should be given up on") end
+	Mock.missingDisplays = {}
+	for _, x in ipairs({ m, m2, m3 }) do x:Hide() end
+	ns.db.models = nil
+	Fig.ResetFailed()
+	-- a client without ModelScene: a PlayerModel, by display id then NPC id
+	Mock.noModelScene = true
+	local p = Fig.New(UIParent, 60)
+	if not p or p.kind ~= "model" then fail("without ModelScene a figure should be a PlayerModel") end
+	p:Show()
+	p:SetModelId(npc)
+	if p.__model ~= "display:" .. D[npc] then fail("a PlayerModel figure should be put up by its display id") end
 	local getFile = Mock.Model.GetModelFileID
 	Mock.Model.GetModelFileID = function(self)
 		if (self.__model or ""):find("^display:") then return nil end -- this game lacks the display id
 		return 123456
 	end
-	ns.db.models.ok[npc] = nil
-	local m3 = Fig.New(UIParent, 60)
-	m3:Show()
-	m3:SetModelId(npc)
-	for _ = 1, 30 do m3:Step(0.1) end
-	if not ns.db.models.bad[ns.MODEL.display[npc]] then fail("a display id the game does not have should be noted") end
-	if not m3:IsLoaded() or not tostring(m3.__model):find("^creature:") then fail("after a missing display id the NPC id should bring the model") end
-	local m4 = Fig.New(UIParent, 60)
-	m4:Show()
-	m4:SetModelId(npc)
-	-- next time: the display id the game reported for it, not the missing one
-	if m4.__model ~= "display:" .. tostring(ns.db.models.ok[npc]) or ns.db.models.ok[npc] == ns.MODEL.display[npc] then
-		fail("a noted missing display id should not be tried again: " .. tostring(m4.__model))
-	end
+	local p2 = Fig.New(UIParent, 60)
+	p2:Show()
+	ns.db.models = nil
+	p2:SetModelId(npc)
+	for _ = 1, 30 do p2:Step(0.1) end
+	if not p2:IsLoaded() or not tostring(p2.__model):find("^creature:") then fail("after a missing display id the NPC id should bring the model") end
 	Mock.Model.GetModelFileID = getFile
-	for _, x in ipairs({ m, m2, m3, m4 }) do x:Hide() end
+	Mock.noModelScene = false
+	p:Hide() p2:Hide()
 	ns.db.models = nil
 	Fig.ResetFailed()
 end
@@ -1018,7 +1061,7 @@ do
 	for n = 1, 60 do
 		frames(1, 0.02) -- 50 frames a second
 		xs[n] = f:IsShown() and select(4, f:GetPoint(1)) or nil
-		if f.model and f.model:IsShown() then anims[#anims + 1] = f.model.__anim end
+		if f.model and f.model:IsShown() then anims[#anims + 1] = animOf(f.model) end
 	end
 	-- while it walks: from its first step to its last (it stops to fight)
 	local first, last

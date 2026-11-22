@@ -12,7 +12,7 @@ _G.WoWMock = Mock
 local POINTS = { TOPLEFT = 1, TOP = 1, TOPRIGHT = 1, LEFT = 1, CENTER = 1, RIGHT = 1, BOTTOMLEFT = 1, BOTTOM = 1, BOTTOMRIGHT = 1 }
 local LAYERS = { BACKGROUND = 1, BORDER = 1, ARTWORK = 1, OVERLAY = 1, HIGHLIGHT = 1 }
 local STRATA = { BACKGROUND = 1, LOW = 1, MEDIUM = 1, HIGH = 1, DIALOG = 1, FULLSCREEN = 1, FULLSCREEN_DIALOG = 1, TOOLTIP = 1 }
-local FRAME_TYPES = { Frame = 1, Button = 1, ScrollFrame = 1, CheckButton = 1, StatusBar = 1, EditBox = 1, PlayerModel = 1, DressUpModel = 1 }
+local FRAME_TYPES = { Frame = 1, Button = 1, ScrollFrame = 1, CheckButton = 1, StatusBar = 1, EditBox = 1, PlayerModel = 1, DressUpModel = 1, ModelScene = 1 }
 local SCRIPTS = {
 	OnUpdate = 1, OnEvent = 1, OnShow = 1, OnHide = 1, OnEnter = 1, OnLeave = 1, OnMouseDown = 1, OnMouseUp = 1,
 	OnMouseWheel = 1, OnDragStart = 1, OnDragStop = 1, OnSizeChanged = 1, OnClick = 1, OnDoubleClick = 1, OnModelLoaded = 1,
@@ -346,11 +346,78 @@ function DressUpModel:Undress() end
 function DressUpModel:TryOn(link) check(type(link) == "string" or type(link) == "number", "TryOn: bad item") end
 Mock.Model, Mock.DressUpModel = Model, DressUpModel
 
+-- ModelScene frames and their actors. Calls with bad arguments are noted in
+-- Mock.misuse as well as raised (the addon calls these through pcall).
+Mock.misuse = {}
+local function strict(cond, msg)
+	if not cond then
+		Mock.misuse[#Mock.misuse + 1] = msg
+		error(msg, 3)
+	end
+end
+local function nums(n, ...)
+	for i = 1, n do if type(select(i, ...)) ~= "number" then return false end end
+	return true
+end
+-- display ids this mock game lacks, and the bounding box a display stands in
+Mock.missingDisplays = {}
+Mock.boxes = {}
+local Actor = {}
+function Actor:SetModelByCreatureDisplayID(id)
+	strict(type(id) == "number" and id > 0, "SetModelByCreatureDisplayID: display id expected")
+	self.__display = id
+	return true
+end
+function Actor:ClearModel() self.__display = nil end
+function Actor:IsLoaded() return self.__display ~= nil and not Mock.missingDisplays[self.__display] end
+function Actor:GetModelFileID() return self:IsLoaded() and 123456 or 0 end
+function Actor:GetActiveBoundingBox()
+	if not self:IsLoaded() then return 0, 0, 0, 0, 0, 0 end
+	local b = Mock.boxes[self.__display] or { -0.4, -0.3, 0, 0.5, 0.3, 2.0 }
+	return b[1], b[2], b[3], b[4], b[5], b[6]
+end
+function Actor:SetScale(v) strict(type(v) == "number" and v > 0, "actor SetScale: positive number expected") self.__scale = v end
+function Actor:GetScale() return self.__scale or 1 end
+function Actor:SetYaw(v) strict(type(v) == "number", "actor SetYaw: radians expected") self.__yaw = v end
+function Actor:GetYaw() return self.__yaw or 0 end
+function Actor:SetPosition(x, y, z) strict(nums(3, x, y, z), "actor SetPosition: x, y, z expected") self.__pos = { x, y, z } end
+function Actor:GetPosition() local p = self.__pos or { 0, 0, 0 } return p[1], p[2], p[3] end
+function Actor:SetAnimation(id) strict(type(id) == "number", "actor SetAnimation: id expected") self.__anim = id end
+function Actor:SetAlpha(v) strict(type(v) == "number", "actor SetAlpha: number expected") self.__alpha = v end
+function Actor:Show() self.__shown = true end
+function Actor:Hide() self.__shown = false end
+local ModelScene = setmetatable({}, { __index = Frame })
+function ModelScene:CreateActor()
+	local a = setmetatable({ __scene = self, __shown = true }, { __index = Actor })
+	self.__actors = self.__actors or {}
+	self.__actors[#self.__actors + 1] = a
+	return a
+end
+function ModelScene:SetCameraOrientationByYawPitchRoll(y, p, r)
+	strict(nums(3, y, p, r), "SetCameraOrientationByYawPitchRoll: three numbers expected")
+	self.__camYaw = y
+end
+function ModelScene:GetCameraForward() local y = self.__camYaw or 0 return math.cos(y), math.sin(y), 0 end
+function ModelScene:GetCameraRight() local y = self.__camYaw or 0 return math.sin(y), -math.cos(y), 0 end
+function ModelScene:SetCameraPosition(x, y, z) strict(nums(3, x, y, z), "SetCameraPosition: x, y, z expected") self.__camPos = { x, y, z } end
+function ModelScene:SetCameraFieldOfView(v) strict(type(v) == "number" and v > 0 and v < math.pi, "SetCameraFieldOfView: radians expected") self.__fov = v end
+function ModelScene:SetCameraNearClip(v) strict(type(v) == "number" and v > 0, "SetCameraNearClip: number expected") end
+function ModelScene:SetCameraFarClip(v) strict(type(v) == "number" and v > 0, "SetCameraFarClip: number expected") end
+function ModelScene:SetLightVisible(v) strict(type(v) == "boolean", "SetLightVisible: boolean expected") end
+function ModelScene:SetLightType(v) strict(type(v) == "number", "SetLightType: number expected") end
+function ModelScene:SetLightDirection(x, y, z) strict(nums(3, x, y, z), "SetLightDirection: x, y, z expected") end
+function ModelScene:SetLightAmbientColor(r, g, b) strict(nums(3, r, g, b), "SetLightAmbientColor: r, g, b expected") end
+function ModelScene:SetLightDiffuseColor(r, g, b) strict(nums(3, r, g, b), "SetLightDiffuseColor: r, g, b expected") end
+Mock.ModelScene, Mock.Actor = ModelScene, Actor
+-- a client without ModelScene: creating one fails
+Mock.noModelScene = false
+
 local CLASSES = { Frame = Frame, Button = Button, CheckButton = Button, ScrollFrame = ScrollFrame, StatusBar = Frame, EditBox = Frame,
-	PlayerModel = Model, DressUpModel = DressUpModel }
+	PlayerModel = Model, DressUpModel = DressUpModel, ModelScene = ModelScene }
 
 function _G.CreateFrame(ftype, name, parent, template)
 	check(FRAME_TYPES[ftype], "CreateFrame: unknown frame type " .. tostring(ftype))
+	check(not (ftype == "ModelScene" and Mock.noModelScene), "CreateFrame: unknown frame type ModelScene")
 	check(name == nil or type(name) == "string", "CreateFrame: name must be a string or nil")
 	check(parent == nil or (type(parent) == "table" and parent.__widget), "CreateFrame: parent must be a frame or nil")
 	check(template == nil or template == "BackdropTemplate", "CreateFrame: unexpected template " .. tostring(template))

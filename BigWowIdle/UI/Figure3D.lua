@@ -1,31 +1,46 @@
--- 3D figures: the game's own models (PlayerModel with an NPC id from
--- Data/Models.lua) for the battle bar, the formation and the create window:
+-- 3D figures: the game's own models (an NPC from Data/Models.lua, put up by
+-- its display id) for the battle bar, the formation and the create window:
 -- SetModelId, SetHeight2, SetFacing, Play, Playing, Step, PlaceFeet, IsLoaded.
--- A model is put up by its display id first (straight from the game's data),
--- then by the NPC id (the server is asked about the NPC) a few more times; one
--- that never loads is remembered and the caller keeps the icon for it.
+--
+-- A figure is a small ModelScene with one actor and a camera of its own, the
+-- same for every figure: once a model is in, it is measured (its bounding
+-- box), scaled to the figure's height and stood with its feet on the figure's
+-- ground line. So every model stands on the same line at the size it is
+-- given, whatever the model's own size, and grows and shrinks exactly with
+-- the window around it. A client without ModelScene gets a PlayerModel
+-- instead (the game fits the model in it by itself).
+--
 -- What this game showed is kept in the saved data (db.models): the display id
 -- each NPC came up with, and display ids this game does not have, so the next
 -- time a model comes up at once and no wait is spent on a missing one.
 -- Settings: db.opt.models = false turns them off.
 local _, ns = ...
 
-local pi, min = math.pi, math.min
+local pi, min, max, abs = math.pi, math.min, math.max, math.abs
+local sin, cos, tan, sqrt = math.sin, math.cos, math.tan, math.sqrt
+local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
 local Figure = {}
 ns.Figure3D = Figure
 
 -- animation ids of the game's models, and how long the one-shots last
 local ANIM_ID = { idle = 0, walk = 4, attack = 17, cast = 53, hit = 9, death = 1, dead = 6 }
 local ONESHOT = { attack = 0.7, cast = 0.9, hit = 0.35, death = 1.2 }
--- right = toward the monsters (checked in game with /bwi model: 90° faces right)
+
+-- ModelScene figures: a square frame SIDE model heights across, the feet
+-- FEET_AT above its bottom; a narrow camera straight from the front, far
+-- enough back that the model is not seen from below or above
+local SIDE, FEET_AT, FOV = 3.0, 0.32, 0.3
+local SCENE_WAIT = 1.5 -- seconds a display id is given to come up
+-- a long model (a dragon, a wolf) is fitted by this much of its length, so it
+-- stays inside the frame
+local WIDE = 0.6
+
+-- PlayerModel figures (no ModelScene): right = toward the monsters (checked in
+-- game with /bwi model: 90° faces right); tries: 1 = the display id, then the
+-- NPC id; the frame leaves room around the model
 local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0 }
--- tries: 1 = the display id, then the NPC id; seconds to wait after each
 local WAIT = { 1.0, 1.5, 2.5, 4.0 }
--- the frame around a model, in model heights: room on the sides and above so
--- wide and tall models (wings, tails, raised weapons) are not cut off; the
--- camera stands back by as much, so the model keeps its size
 local FRAME_W, FRAME_H = 2.4, 1.6
--- feet: a little above the bottom of the model's own height
 local FEET_UP = 0.06
 
 local failed = {} -- [npc id] = true when the client could not load it
@@ -52,26 +67,17 @@ end
 ------------------------------------------------------------------------
 local FORM = { DRUID_GUARDIAN = "bear", DRUID_FERAL = "cat", DRUID_BALANCE = "moonkin", DRUID_RESTO = "tree" }
 
--- The look of a spec for a faction: its famous NPC, or the class trainer
--- where it has none ({ npc, sex, name }).
-function Figure.SpecLook(specId, faction)
+-- The NPC a spec is drawn as for a faction and gender (Data/Models.lua
+-- ns.MODEL.hero), else its famous NPC, else the class trainer.
+function Figure.ForSpec(specId, faction, sex)
 	local sp = ns.SPECS[specId]
 	if not sp then return nil end
 	faction = faction or ns.Faction() or "ALLIANCE"
-	local f = ns.MODEL.famous[specId] and ns.MODEL.famous[specId][faction]
-	if f then return f end
-	return ns.MODEL.trainer[sp.class] and ns.MODEL.trainer[sp.class][faction]
-end
-
--- The body of a spec: its famous NPC, else (or when the game cannot show
--- that one) the class trainer.
-function Figure.ForSpec(specId, faction)
-	local sp = ns.SPECS[specId]
-	if not sp then return nil end
-	faction = faction or ns.Faction() or "ALLIANCE"
+	local look = ns.MODEL.hero and ns.MODEL.hero[specId] and ns.MODEL.hero[specId][faction]
+	look = look and look[sex == "F" and "F" or "M"]
 	local f = ns.MODEL.famous[specId] and ns.MODEL.famous[specId][faction]
 	local t = ns.MODEL.trainer[sp.class] and ns.MODEL.trainer[sp.class][faction]
-	return usable(f and f.npc, t and t.npc)
+	return usable(look and look.npc, f and f.npc, t and t.npc)
 end
 
 -- A hero: druids fight in their form, the mech tinker in the mech
@@ -88,20 +94,20 @@ function Figure.ForHero(heroId, inCombat)
 			if mech then return mech end
 		end
 	end
-	return Figure.ForSpec(h.spec, faction)
+	return Figure.ForSpec(h.spec, faction, h.sex)
 end
 
 -- The create window's preview: the spec picked there, else the class trainer.
-function Figure.ForClass(classId, faction, specId)
+function Figure.ForClass(classId, faction, specId, sex)
 	if specId and ns.SPECS[specId] and ns.SPECS[specId].class == classId then
-		return Figure.ForSpec(specId, faction)
+		return Figure.ForSpec(specId, faction, sex)
 	end
 	local t = ns.MODEL.trainer[classId] and ns.MODEL.trainer[classId][faction or ns.Faction() or "ALLIANCE"]
 	return usable(t and t.npc)
 end
 
 -- How tall each body stands next to an ordinary hero.
-Figure.RACE_SCALE = { GNOME = 0.78, GOBLIN = 0.82, DWARF = 0.9, TAUREN = 1.12, DRAENEI = 1.05, NIGHTELF = 1.04, TROLL = 1.06 }
+Figure.RACE_SCALE = { GNOME = 0.78, GOBLIN = 0.82, DWARF = 0.9, TAUREN = 1.12, NIGHTELF = 1.04, TROLL = 1.06 }
 function Figure.HeroScale(heroId)
 	return Figure.RACE_SCALE[ns.Heroes.Race(heroId)] or 1
 end
@@ -127,55 +133,10 @@ function Figure.ForPet(petId)
 end
 
 ------------------------------------------------------------------------
--- The figure widget
+-- What this game showed (saved)
 ------------------------------------------------------------------------
-local proto = {}
-
--- nil when the client cannot make model frames
-function Figure.New(parent, height)
-	local ok, f = pcall(CreateFrame, "PlayerModel", nil, parent)
-	if not ok or not f then return nil end
-	-- the model's own turning, kept apart from the figure's SetFacing("left"|"right")
-	f.ModelFacing = f.SetFacing
-	for k, v in pairs(proto) do f[k] = v end
-	f.isOverlay = true -- fighters overlap as they move
-	f.height = height or 64
-	f:SetSize(f.height * FRAME_W, f.height * FRAME_H)
-	f.facing = "right"
-	f.anim, f.left, f.done = "idle", 0, true
-	if f.SetScript then
-		pcall(f.SetScript, f, "OnModelLoaded", function(self) self:Loaded() end)
-	end
-	f:Hide()
-	return f
-end
-
-local function call(f, name, ...)
-	local fn = f[name]
-	if type(fn) == "function" then return pcall(fn, f, ...) end
-	return false
-end
-
--- Puts NPC model `id` up (once); false when there is none to show.
-function proto:SetModelId(id)
-	if not id or failed[id] then return false end
-	if self.id ~= id then
-		self.id = id
-		self.tries = 0
-		self.loaded = false
-		self.anim, self.left, self.done = nil, 0, true
-		if not self:Load() then
-			failed[id] = true
-			self.id = nil
-			return false
-		end
-		self:Play("idle")
-	end
-	return true
-end
-
--- what this game showed before (saved): ok[npc] = display id it came up
--- with, bad[display id] = true for one the game does not have
+-- ok[npc] = display id it came up with, bad[display id] = true for one the
+-- game does not have
 local function memory()
 	local db = ns.db
 	if not db then return nil end
@@ -195,10 +156,285 @@ local function displayFor(id)
 	if disp and not (mem and mem.bad[disp]) then return disp end
 	return nil
 end
+Figure.DisplayFor = displayFor
+
+local function call(f, name, ...)
+	local fn = f and f[name]
+	if type(fn) == "function" then return pcall(fn, f, ...) end
+	return false
+end
+
+------------------------------------------------------------------------
+-- The figure widget: what both kinds share
+------------------------------------------------------------------------
+local base = {}
+
+-- gives frame f the methods of a figure kind (and those they share)
+local function dress(f, kind)
+	for k, v in pairs(base) do f[k] = v end
+	for k, v in pairs(kind) do f[k] = v end
+end
+
+-- Puts NPC model `id` up (once); false when there is none to show.
+function base:SetModelId(id)
+	if not id or failed[id] then return false end
+	if self.id ~= id then
+		self.id = id
+		self.tries = 0
+		self.loaded = false
+		self.anim, self.left, self.done = nil, 0, true
+		if not self:Load() then
+			failed[id] = true
+			self.id = nil
+			return false
+		end
+		self:Play("idle")
+	end
+	return true
+end
+
+-- A try that did not bring the model: a display id this game lacks is noted
+-- (and forgotten as the NPC's), so it is not waited for again.
+function base:TryFailed()
+	local mem = memory()
+	if mem and self.tryDisplay then
+		mem.bad[self.tryDisplay] = true
+		if mem.ok[self.id] == self.tryDisplay then mem.ok[self.id] = nil end
+	end
+end
+
+-- The model is in: remember the display id it came up with, then size it
+-- and play its animation (a model takes them only once it is there).
+function base:Loaded()
+	if self.loaded or not self.id then return end
+	self.loaded = true
+	self.loadT = nil
+	local mem = memory()
+	if mem then
+		local d = self:ShownDisplay()
+		if d then
+			mem.ok[self.id] = d
+			mem.bad[d] = nil
+		end
+	end
+	self:Measure()
+	self:Look()
+	if self.anim then self:SetAnim(ANIM_ID[self.done and self.anim == "death" and "dead" or self.anim]) end
+end
+
+function base:IsLoaded() return self.loaded and true or false end
+
+-- restart=true replays a one-shot already playing; the dying stay down
+function base:Play(anim, restart)
+	if not ANIM_ID[anim] then anim = "idle" end
+	if self.anim == anim and not restart and (anim == "death" or not ONESHOT[anim] or not self.done) then return end
+	self.anim = anim
+	self.left = ONESHOT[anim] or 0
+	self.done = not ONESHOT[anim]
+	self:SetAnim(ANIM_ID[anim])
+end
+
+function base:Playing()
+	return self.anim, self.done
+end
+
+function base:Step(dt)
+	-- the window around it grew or shrank: the camera is set again
+	local okS, eff = call(self, "GetEffectiveScale")
+	if okS and eff and eff ~= self.effScale then
+		self.effScale = eff
+		self:Rescaled()
+	end
+	-- waiting for the model: in as soon as the game has it; tried again when
+	-- it does not come, given up after the last try
+	if self.loadT and self.id then
+		if self:ModelIn() then
+			self:Loaded()
+		else
+			self.loadT = self.loadT - dt
+			if self.loadT <= 0 then
+				self:TryFailed()
+				if not self.lastTry and self:Load() then
+					-- next try under way
+				else
+					self.loadT = nil
+					failed[self.id] = true
+					self.id = nil
+				end
+			end
+		end
+	end
+	if ONESHOT[self.anim] and not self.done then
+		self.left = self.left - dt
+		if self.left <= 0 then
+			self.done = true
+			-- the dying stay down
+			if self.anim == "death" then self:SetAnim(ANIM_ID.dead) end
+		end
+	end
+end
+
+function base:SetFacing(dir)
+	if self.facing == dir then return end
+	self.facing = dir
+	self:Look()
+end
+
+------------------------------------------------------------------------
+-- ModelScene figures
+------------------------------------------------------------------------
+local scene = {}
+
+-- The camera every scene figure shares: straight from the front at the
+-- figure's middle; which way is right is read back from the game, so the
+-- models face where they should whatever the client's axes are.
+local function setCamera(f)
+	call(f, "SetCameraOrientationByYawPitchRoll", pi, 0, 0)
+	local fx, fy, fz = -1, 0, 0
+	local ok, a, b, c = call(f, "GetCameraForward")
+	if ok and type(a) == "number" and type(b) == "number" and type(c) == "number" then fx, fy, fz = a, b, c end
+	local rx, ry, rz = fy, -fx, 0 -- forward x up
+	ok, a, b, c = call(f, "GetCameraRight")
+	if ok and type(a) == "number" and type(b) == "number" and type(c) == "number" then rx, ry, rz = a, b, c end
+	local d = SIDE / (2 * tan(FOV / 2))
+	local tz = SIDE / 2 - FEET_AT
+	call(f, "SetCameraFieldOfView", FOV)
+	call(f, "SetCameraNearClip", 0.05)
+	call(f, "SetCameraFarClip", d * 2 + 20)
+	call(f, "SetCameraPosition", -fx * d, -fy * d, tz - fz * d)
+	f.yaws = { right = atan2(ry, rx), left = atan2(ry, rx) + pi, front = atan2(-fy, -fx) }
+	-- light from in front, above and a little to the left
+	local lx, ly, lz = fx * 0.6 + rx * 0.35, fy * 0.6 + ry * 0.35, fz * 0.6 + rz * 0.35 - 0.7
+	local n = sqrt(lx * lx + ly * ly + lz * lz)
+	call(f, "SetLightVisible", true)
+	if LE_MODEL_LIGHT_TYPE_DIRECTIONAL then call(f, "SetLightType", LE_MODEL_LIGHT_TYPE_DIRECTIONAL) end
+	call(f, "SetLightDirection", lx / n, ly / n, lz / n)
+	call(f, "SetLightAmbientColor", 0.75, 0.75, 0.75)
+	call(f, "SetLightDiffuseColor", 0.7, 0.7, 0.7)
+end
+
+local function newScene(parent, height)
+	local ok, f = pcall(CreateFrame, "ModelScene", nil, parent)
+	if not ok or not f or type(f.CreateActor) ~= "function" then
+		if ok and f and f.Hide then f:Hide() end
+		return nil
+	end
+	local okA, actor = pcall(f.CreateActor, f)
+	if not okA or not actor or type(actor.SetModelByCreatureDisplayID) ~= "function" then
+		f:Hide()
+		return nil
+	end
+	f.actor = actor
+	f.kind = "scene"
+	f.FrameAlpha = f.SetAlpha
+	dress(f, scene)
+	setCamera(f)
+	return f
+end
+
+-- One try: the display id (a scene actor takes no NPC id).
+function scene:Load()
+	local a = self.actor
+	self.tries = (self.tries or 0) + 1
+	self.tryDisplay = nil
+	self.box = nil
+	call(a, "ClearModel")
+	local disp = displayFor(self.id)
+	if not disp then return false end
+	-- measured as it is: no size, turn or offset yet
+	call(a, "SetScale", 1)
+	call(a, "SetYaw", 0)
+	call(a, "SetPosition", 0, 0, 0)
+	local ok, res = call(a, "SetModelByCreatureDisplayID", disp)
+	if not ok or res == false then return false end
+	self.tryDisplay = disp
+	self.lastTry = true
+	self.loadT = SCENE_WAIT
+	return true
+end
+
+function scene:ModelIn()
+	local a = self.actor
+	local ok, l = call(a, "IsLoaded")
+	if ok and not l then return false end
+	local okF, file = call(a, "GetModelFileID")
+	if okF then return file ~= nil and file ~= 0 end
+	return ok and l and true or false
+end
+
+function scene:ShownDisplay() return self.tryDisplay end
+
+-- The model's own size (its bounding box, standing): its height becomes the
+-- figure's height, a long one is fitted by part of its length.
+function scene:Measure()
+	local ok, x1, y1, z1, x2, y2, z2 = call(self.actor, "GetActiveBoundingBox")
+	if ok and type(z2) == "number" and type(z1) == "number" and z2 - z1 > 0.01 then
+		local h = z2 - z1
+		local long = max(abs((x2 or 0) - (x1 or 0)), abs((y2 or 0) - (y1 or 0)))
+		self.box = { x1 or 0, y1 or 0, z1, x2 or 0, y2 or 0, z2 }
+		self.norm = 1 / max(h, long * WIDE)
+	else
+		self.box = nil
+		self.norm = 0.5 -- about a man's height, when the game cannot tell
+	end
+end
+
+-- Size, turn and place: the feet on the ground line, the middle of the model
+-- on the figure's middle.
+function scene:Look()
+	local a = self.actor
+	local yaw = (self.yaws and self.yaws[self.facing or "right"]) or 0
+	call(a, "SetYaw", yaw)
+	if not self.loaded then return end
+	local s = self.norm or 0.5
+	call(a, "SetScale", s)
+	local b = self.box
+	local cx, cy, z1 = 0, 0, 0
+	if b then cx, cy, z1 = (b[1] + b[4]) / 2, (b[2] + b[5]) / 2, b[3] end
+	local c, sn = cos(yaw), sin(yaw)
+	call(a, "SetPosition", -(c * cx - sn * cy) * s, -(sn * cx + c * cy) * s, -z1 * s)
+end
+
+function scene:Rescaled() setCamera(self) end
+
+function scene:SetAnim(id) call(self.actor, "SetAnimation", id) end
+
+function scene:SetAlpha(v)
+	if self.alpha == v then return end
+	self.alpha = v
+	self:FrameAlpha(v)
+	call(self.actor, "SetAlpha", v)
+end
+
+function scene:SetHeight2(h)
+	self.height = h
+	self:SetSize(h * SIDE, h * SIDE)
+end
+
+-- Feet at (x, y) of the anchor's bottom-left corner.
+function scene:PlaceFeet(anchor, x, y)
+	self:ClearAllPoints()
+	self:SetPoint("BOTTOM", anchor, "BOTTOMLEFT", x, y - self.height * FEET_AT)
+end
+
+------------------------------------------------------------------------
+-- PlayerModel figures (clients without ModelScene)
+------------------------------------------------------------------------
+local model = {}
+
+local function newModel(parent, height)
+	local ok, f = pcall(CreateFrame, "PlayerModel", nil, parent)
+	if not ok or not f then return nil end
+	-- the model's own turning, kept apart from the figure's SetFacing("left"|"right")
+	f.ModelFacing = f.SetFacing
+	f.kind = "model"
+	dress(f, model)
+	return f
+end
 
 -- One try: the display id the first time (the game's own data, no waiting
 -- for the server), the NPC id after that.
-function proto:Load()
+function model:Load()
 	local id = self.id
 	self.tries = (self.tries or 0) + 1
 	call(self, "ClearModel")
@@ -219,107 +455,67 @@ function proto:Load()
 	return ok
 end
 
--- A try that did not bring the model: a display id this game lacks is noted
--- (and forgotten as the NPC's), so it is not waited for again.
-function proto:TryFailed()
-	local mem = memory()
-	if mem and self.tryDisplay then
-		mem.bad[self.tryDisplay] = true
-		if mem.ok[self.id] == self.tryDisplay then mem.ok[self.id] = nil end
-	end
+function model:ModelIn()
+	local ok, file = call(self, "GetModelFileID")
+	return ok and file and file ~= 0 and true or false
 end
 
--- camera distance and facing (set again once a model is in)
-function proto:Look()
+-- the display id it came up with (also when asked by NPC id)
+function model:ShownDisplay()
+	local ok, d = call(self, "GetDisplayInfo")
+	return (ok and type(d) == "number" and d > 0) and d or self.tryDisplay
+end
+
+function model:Measure() end
+
+-- camera distance and facing
+function model:Look()
 	call(self, "SetCamDistanceScale", FRAME_H)
-	call(self, "ModelFacing", FACE[self.facing] or FACE.right)
+	call(self, "ModelFacing", FACE[self.facing or "right"] or FACE.right)
 end
 
--- The model is in: look and animation again (a model takes them only once
--- it is there).
-function proto:Loaded()
-	if self.loaded or not self.id then return end
-	self.loaded = true
-	self.loadT = nil
-	-- remember the display id it came up with (also when asked by NPC id)
-	local mem = memory()
-	if mem then
-		local ok, d = call(self, "GetDisplayInfo")
-		d = (ok and type(d) == "number" and d > 0) and d or self.tryDisplay
-		if d then
-			mem.ok[self.id] = d
-			mem.bad[d] = nil
-		end
-	end
+-- the game fits the model to the frame when it is put up: done again for
+-- the new size
+function model:Rescaled()
+	call(self, "RefreshCamera")
 	self:Look()
-	if self.anim then call(self, "SetAnimation", ANIM_ID[self.done and self.anim == "death" and "dead" or self.anim]) end
 end
 
-function proto:IsLoaded() return self.loaded and true or false end
+function model:SetAnim(id) call(self, "SetAnimation", id) end
 
-function proto:SetHeight2(h)
+function model:SetHeight2(h)
+	if self.height == h then return end
 	self.height = h
 	self:SetSize(h * FRAME_W, h * FRAME_H)
-end
-
-function proto:SetFacing(dir)
-	if self.facing == dir then return end
-	self.facing = dir
-	call(self, "ModelFacing", FACE[dir] or FACE.right)
-end
-
--- restart=true replays a one-shot already playing
-function proto:Play(anim, restart)
-	if not ANIM_ID[anim] then anim = "idle" end
-	if self.anim == anim and not restart and (not ONESHOT[anim] or not self.done) then return end
-	self.anim = anim
-	self.left = ONESHOT[anim] or 0
-	self.done = not ONESHOT[anim]
-	call(self, "SetAnimation", ANIM_ID[anim])
-end
-
-function proto:Playing()
-	return self.anim, self.done
-end
-
-function proto:Step(dt)
-	-- waiting for the model: in as soon as the game knows its file; tried
-	-- again (by the NPC id) when it does not come, given up after the last try
-	if self.loadT and self.id then
-		local ok, file = call(self, "GetModelFileID")
-		if ok and file and file ~= 0 then
-			self:Loaded()
-		else
-			self.loadT = self.loadT - dt
-			if self.loadT <= 0 then
-				self:TryFailed()
-				if not self.lastTry then
-					self:Load()
-				else
-					self.loadT = nil
-					failed[self.id] = true
-					self.id = nil
-				end
-			end
-		end
-	end
-	if ONESHOT[self.anim] and not self.done then
-		self.left = self.left - dt
-		if self.left <= 0 then
-			self.done = true
-			-- the dying stay down
-			if self.anim == "death" then call(self, "SetAnimation", ANIM_ID.dead) end
-		end
-	end
+	self:Rescaled()
 end
 
 -- Feet at (x, y) of the anchor's bottom-left corner. The model stands in the
 -- middle of its (taller) frame, so the frame reaches below the feet.
-function proto:PlaceFeet(anchor, x, y)
+function model:PlaceFeet(anchor, x, y)
 	self:ClearAllPoints()
 	self:SetPoint("BOTTOM", anchor, "BOTTOMLEFT", x, y - self.height * (FRAME_H / 2 - 0.5 + FEET_UP))
+end
+
+------------------------------------------------------------------------
+-- nil when the client cannot make model frames
+function Figure.New(parent, height)
+	local f = Figure.useScene ~= false and newScene(parent, height) or nil
+	f = f or newModel(parent, height)
+	if not f then return nil end
+	f.isOverlay = true -- fighters overlap as they move
+	if f.EnableMouse then f:EnableMouse(false) end -- clicks go through to what is under it
+	f.facing = "right"
+	f.anim, f.left, f.done = "idle", 0, true
+	f:SetHeight2(height or 64)
+	if f.kind == "model" and f.SetScript then
+		pcall(f.SetScript, f, "OnModelLoaded", function(self) self:Loaded() end)
+	end
+	f:Hide()
+	return f
 end
 
 -- for tests: forget the models that did not load
 function Figure.ResetFailed() for k in pairs(failed) do failed[k] = nil end end
 Figure.failed = failed
+Figure.SIDE, Figure.FEET_AT = SIDE, FEET_AT
