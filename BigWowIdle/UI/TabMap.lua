@@ -53,13 +53,8 @@ local function build(page)
 		w.scene = w:CreateTexture(nil, "BACKGROUND")
 		w.scene:SetPoint("TOPLEFT", w, "TOPLEFT", 3, -3)
 		w.scene:SetPoint("BOTTOMRIGHT", w, "BOTTOMRIGHT", -3, 3)
-		local art = ns.WorldArt and ns.WorldArt(d)
-		if art then
-			-- a 4:1 picture in the card (about 3.6:1): a little off each side
-			w.scene:SetTexture(art)
-			w.scene:SetTexCoord(0.046, 0.954, 0, 1)
-			w.scene:SetVertexColor(1, 1, 1)
-		else
+		-- the loading screen of the world's place (a band of it, in the card's shape)
+		if not UI.SetLoadingScreen(w.scene, ns.WorldLoadingScreen(d), (ww - 6) / 60) then
 			local stg = ns.STAGES[d][15]
 			local th, r, g, b = themeRGB(stg.theme)
 			w.scene:SetTexture(UI.Tex(th.art))
@@ -342,13 +337,8 @@ local function refresh(page)
 	local d = page.detail
 	local stg = ns.Stage(page.diff, page.idx)
 	local th, r, g, bl = themeRGB(stg.theme)
-	local art = ns.StageArt and ns.StageArt(page.diff, page.idx)
-	if art then
-		-- a 4:1 picture in the banner (about 5:1): a little off the top and bottom
-		d.banner:SetTexture(art)
-		d.banner:SetTexCoord(0, 1, 0.104, 0.896)
-		d.banner:SetVertexColor(1, 1, 1)
-	else
+	-- the loading screen of the stage's place (a band of it, in the banner's shape)
+	if not UI.SetLoadingScreen(d.banner, ns.StageLoadingScreen(page.diff, page.idx), (Main.PAGE_W - DETAIL_X - 8) / 76) then
 		d.banner:SetTexture(UI.Tex(th.art))
 		d.banner:SetTexCoord(0, 0.6, 0.1, 0.85)
 		d.banner:SetVertexColor(r * 0.9, g * 0.9, bl * 0.9)

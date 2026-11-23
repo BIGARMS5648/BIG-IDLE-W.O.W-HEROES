@@ -736,22 +736,40 @@ do
 	if ns.db.stage.idx ~= 3 or ns.db.stage.diff ~= 1 then fail("travelling from the stage screen did not work") end
 	click("world Outland", function(b) return b.d == 2 end)
 	hoverAll()
-	-- a stage with its own picture shows it in the banner; one that shares
-	-- another's shows that one; the rest keep their theme's scenery
+	-- the banner shows the loading screen of the stage's place: Forever's for
+	-- the outdoor places (the original one when the client lacks it), the
+	-- original game's for dungeons and raids
 	local pg = Main.Page("map")
-	ns.ART_READY.s2_01, ns.ART_READY.s2_02 = true, "s2_01"
-	pg.idx = 2
+	local function bannerFor(diff, idx)
+		pg.diff, pg.idx, pg.act = diff, idx, ns.StageAct(idx)
+		Main.Refresh()
+		return tostring(pg.detail.banner:GetTexture() or "")
+	end
+	local tex = bannerFor(1, 15)
+	if not tex:find("^Interface\\Glues\\LoadingScreens\\LoadScreenDeadmines$") then fail("the Deadmines stage should show its loading screen: " .. tex) end
+	tex = bannerFor(1, 1)
+	if not tex:find("camelot160\\main\\loadscreen_camelot_easternkingdom$") then fail("Elwynn Forest should show Forever's Eastern Kingdoms loading screen: " .. tex) end
+	tex = bannerFor(1, 2)
+	if not tex:find("loadscreen_camelot_oldironforge$") then fail("Dun Morogh should show Forever's Old Ironforge loading screen: " .. tex) end
+	tex = bannerFor(1, 4)
+	if not tex:find("loadscreen_camelot_kalimdor$") then fail("Durotar should show Forever's Kalimdor loading screen: " .. tex) end
+	tex = bannerFor(4, 11)
+	if not tex:find("LoadScreenRaid$") then fail("Onyxia's Lair should show the original raid loading screen: " .. tex) end
+	local _, t, _, b = pg.detail.banner:GetTexCoord()
+	if not (t and b and b - t > 0.1 and b - t < 0.4 and t > 0.2) then fail("a loading screen should show a band of its picture, clear of the logo: " .. tostring(t) .. "-" .. tostring(b)) end
+	-- a client without Forever's file: the original screen
+	GetFileIDFromPath = function(path) return not path:find("camelot") and 1 or nil end
+	tex = bannerFor(1, 1)
+	if not tex:find("LoadScreenEasternKingdom$") then fail("without Forever's screen the original one should show: " .. tex) end
+	GetFileIDFromPath = nil
+	-- every stage and world has a loading screen
+	for d = 1, #ns.DIFFS do
+		if not ns.WorldLoadingScreen(d) then fail("every world should have a loading screen") end
+		for i = 1, ns.STAGE_COUNT do
+			if not ns.StageLoadingScreen(d, i) then fail("stage " .. d .. "-" .. i .. " should have a loading screen") end
+		end
+	end
 	Main.Refresh()
-	local tex = pg.detail.banner:GetTexture() or ""
-	if not tostring(tex):find("Stages\\s2_01%.tga$") then fail("a stage's picture should show in its banner: " .. tostring(tex)) end
-	pg.idx = 3
-	Main.Refresh()
-	tex = pg.detail.banner:GetTexture() or ""
-	if tostring(tex):find("Stages") then fail("a stage without a picture should keep its theme's scenery") end
-	ns.ART_READY.s2_01, ns.ART_READY.s2_02 = nil, nil
-	-- (made up for this check: the pictures are not on disk)
-	for path in pairs(Mock.textures) do if path:find("\\Stages\\") then Mock.textures[path] = nil end end
-	if ns.StageArt(2, 1) or ns.WorldArt(1) then fail("a picture not listed should not be used") end
 end
 
 -- companions: pick one, take it along

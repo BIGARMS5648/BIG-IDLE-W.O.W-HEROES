@@ -21,7 +21,7 @@ Data\Pets.lua
 Data\Models.lua
 Data\Effects.lua
 Data\Scenery.lua
-Data\StageArt.lua
+Data\LoadingScreens.lua
 
 Systems\State.lua
 Systems\Runes.lua

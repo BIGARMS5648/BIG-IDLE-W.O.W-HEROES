@@ -169,6 +169,82 @@ function UI.Glyph(parent, name, size, r, g, b, layer)
 	return t
 end
 
+-- A loading screen (Data/LoadingScreens.lua) in a texture of the given shape
+-- (width / height): a band across the middle of its picture, clear of the
+-- frame, logo and dark bands around it. The game draws a texture that has no
+-- size at the file's own size: each file is measured once that way, and a
+-- picture stored in a taller texture (filled up below) is cut to its part.
+local LOADSCREEN_KIND = {
+	classic = { aspect = 4 / 3, mid = 0.50, top = 0.21, bottom = 0.79 },
+	forever = { aspect = 16 / 9, mid = 0.49, top = 0.17, bottom = 0.82 },
+}
+local fileSize = {}                                   -- file -> { w, h }, false while measuring
+local shownScreens = setmetatable({}, { __mode = "k" }) -- texture -> { screen, shape }
+local probe
+
+local function screenCoords(ls, shape)
+	local k = LOADSCREEN_KIND[ls.kind] or LOADSCREEN_KIND.classic
+	local h = k.aspect / shape -- share of the picture's height at its full width
+	local l, r = 0, 1
+	local room = k.bottom - k.top
+	if h > room then -- taller than the picture's band: a narrower piece
+		local w = room / h
+		l, r, h = (1 - w) / 2, (1 + w) / 2, room
+	end
+	local t = math.max(k.top, math.min(k.bottom - h, k.mid - h / 2))
+	local v = 1
+	local size = fileSize[ls.file]
+	if size and size[2] > 0 and size[1] / size[2] < k.aspect * 0.97 then v = (size[1] / size[2]) / k.aspect end
+	return l, r, t * v, (t + h) * v
+end
+
+local function measure(file)
+	if fileSize[file] ~= nil then return end
+	fileSize[file] = false
+	if not probe then
+		probe = CreateFrame("Frame", nil, UIParent)
+		probe:SetSize(1, 1)
+		probe:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
+		probe.list = {}
+		probe:SetScript("OnUpdate", function(self, elapsed)
+			for f, t in pairs(self.list) do
+				t.left = t.left - elapsed
+				local w, h = t:GetWidth(), t:GetHeight()
+				if w and h and w > 8 and h > 8 then
+					fileSize[f] = { w, h }
+				end
+				if fileSize[f] or t.left <= 0 then
+					t:Hide()
+					self.list[f] = nil
+					if fileSize[f] then
+						for tex, d in pairs(shownScreens) do
+							if d[1].file == f then tex:SetTexCoord(screenCoords(d[1], d[2])) end
+						end
+					end
+				end
+			end
+			if not next(self.list) then self:Hide() end
+		end)
+	end
+	local t = probe:CreateTexture(nil, "BACKGROUND")
+	t:SetPoint("TOPLEFT", probe, "TOPLEFT", 0, 0) -- one point and no size: the file's own size
+	t:SetTexture(file)
+	t:SetAlpha(0)
+	t.left = 5
+	probe.list[file] = t
+	probe:Show()
+end
+
+function UI.SetLoadingScreen(tex, ls, shape)
+	if not ls then return false end
+	tex:SetTexture(ls.file)
+	tex:SetTexCoord(screenCoords(ls, shape))
+	tex:SetVertexColor(1, 1, 1)
+	shownScreens[tex] = { ls, shape }
+	measure(ls.file)
+	return true
+end
+
 -- Sets a one-line text in the largest of `sizes` (big to small) that fits
 -- `width`; the smallest when none does.
 function UI.FitText(fs, text, width, sizes, flags)

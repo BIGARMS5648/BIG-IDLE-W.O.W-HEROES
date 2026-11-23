@@ -152,6 +152,12 @@ function Texture:SetTexCoord(...)
 	for i = 1, n do check(type((select(i, ...))) == "number", "SetTexCoord: numbers expected") end
 	if n == 4 then self.__tc, self.__tc8 = { ... }, nil else self.__tc, self.__tc8 = nil, { ... } end
 end
+-- as the game: the corners, ULx, ULy, LLx, LLy, URx, URy, LRx, LRy
+function Texture:GetTexCoord()
+	if self.__tc8 then return unpack(self.__tc8) end
+	local c = self.__tc or { 0, 1, 0, 1 }
+	return c[1], c[3], c[1], c[4], c[2], c[3], c[2], c[4]
+end
 function Texture:SetVertexColor(r, g, b, a)
 	check(type(r) == "number" and type(g) == "number" and type(b) == "number", "SetVertexColor: numbers expected")
 	self.__vertex = { r, g, b, a or 1 }
