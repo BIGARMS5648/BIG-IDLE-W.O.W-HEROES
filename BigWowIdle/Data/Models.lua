@@ -562,6 +562,17 @@ ns.MODEL.form = {
 	cat     = { ALLIANCE = 892,   HORDE = 8571 },  -- 표범 변신
 	moonkin = { ALLIANCE = 15374, HORDE = 15375 }, -- 달빛야수 변신
 }
+-- The HD models (the forms remade in Legion) those display ids bring up in
+-- the current client: model file id -> path. /bwi model > 변신 shows which
+-- file each form loads.
+ns.MODEL.formHD = {
+	[1302532] = "creature/druidbear2/druidbear2.m2",
+	[1336653] = "creature/druidbear2/druidbeartauren2.m2",
+	[1273658] = "creature/druidcat2/druidcat2.m2",
+	[1363012] = "creature/druidcat2/druidcattauren2.m2",
+	[1139162] = "creature/druidowlbear2/druidowlbear2.m2",
+	[1139164] = "creature/druidowlbear2/druidowlbeartauren2.m2",
+}
 
 -- Every spec as one famous NPC of the class, one for each faction, in the
 -- version the classic-era game data has (nil: the class trainer below)

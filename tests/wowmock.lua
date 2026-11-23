@@ -419,7 +419,12 @@ function Actor:SetSpellVisualKit(kit, oneShot)
 end
 function Actor:ClearModel() self.__display = nil end
 function Actor:IsLoaded() return self.__display ~= nil and not Mock.missingDisplays[self.__display] end
-function Actor:GetModelFileID() return self:IsLoaded() and 123456 or 0 end
+-- the model file a display id brings up (Mock.displayFile; any other: 123456)
+Mock.displayFile = {}
+function Actor:GetModelFileID()
+	if not self:IsLoaded() then return 0 end
+	return Mock.displayFile[self.__display] or 123456
+end
 function Actor:GetActiveBoundingBox()
 	if not self:IsLoaded() then return 0, 0, 0, 0, 0, 0 end
 	local b = Mock.boxes[self.__display] or { -0.4, -0.3, 0, 0.5, 0.3, 2.0 }

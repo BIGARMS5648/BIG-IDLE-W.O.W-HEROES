@@ -1399,6 +1399,33 @@ do
 		fail("▶ and 여 should show the orc woman: " .. tostring(a3.__race) .. " " .. tostring(a3.__sex) .. " " .. tostring(a1.__race))
 	end
 	if not (dp.label.__text or ""):find("오크 여", 1, true) then fail("the dressing label should name the race and gender: " .. tostring(dp.label.__text)) end
+	-- 변신: the six druid forms by their display ids, with the model file
+	-- loaded and whether it is the HD one
+	do
+		local HD = { [2281] = 1302532, [2289] = 1336653, [892] = 1273658, [8571] = 1363012, [15374] = 1139162, [15375] = 1139164 }
+		Mock.displayFile = HD
+		click("model: forms", function(b) return label(b) == "변신" end)
+		local fpg = MC.pages.forms
+		if not fpg.frame:IsShown() or dp.frame:IsShown() then fail("변신 should show its own page") end
+		frames(10)
+		if #fpg.cards ~= 6 then fail("변신 should show bear, cat and moonkin for both factions") end
+		for _, c in ipairs(fpg.cards) do
+			local want = ns.MODEL.form[c.e.form][c.e.faction]
+			if not c.fig or c.fig.actor.__display ~= want then fail("a form card should load the battle's display id " .. want .. ": " .. tostring(c.fig and c.fig.actor.__display)) end
+			if c.hd ~= true or not (c.lines[2].__text or ""):find("HD 모델", 1, true) then fail("a form card should say its HD model file loaded: " .. tostring(c.lines[2].__text)) end
+		end
+		-- a client where a display brings up another file: said so
+		Mock.displayFile = {}
+		fpg.setup()
+		frames(10)
+		if fpg.cards[1].hd ~= false or not (fpg.cards[1].lines[2].__text or ""):find("HD 아님", 1, true) then fail("a form card should say when the file is not the HD one") end
+		for id, path in pairs(ns.MODEL.formHD) do
+			if not path:find("2%.m2$") then fail("the HD form files should be the remade (…2.m2) models: " .. path) end
+		end
+		-- every form's display id is listed with its HD file
+		for disp, file in pairs(HD) do if not ns.MODEL.formHD[file] then fail("missing HD file for form " .. disp) end end
+		click("model: dressing again", function(b) return label(b) == "옷 입히기" end)
+	end
 	click("model: dressing back", function(b) return b == dp.prev end)
 	click("model: dressing back again", function(b) return b == dp.prev end)
 	if dp.i ~= #dp.COMBOS then fail("◀ from the first pair should go round to the last") end
