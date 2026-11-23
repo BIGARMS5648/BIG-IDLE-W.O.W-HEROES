@@ -4,10 +4,9 @@
 --         slots under it, and [자동 장착] [파티 자동 장착] [전체 해제] at the
 --         bottom. A slot: click = the bag shows that slot's items,
 --         right-click = 해제.
---   right: tabs 가방 · 융합 · 제작 · 보석 · 마법부여 · 룬 각인 · 재료
---          (UI/TabBag.lua and UI/TabForge.lua); the forge level under all of
---          them. Forge functions used inside a tab (분해, 추출, 굴리기) are
---          unlocked on the button that uses them.
+--   right: tabs 가방 · 창고 (UI/TabBag.lua). Breaking down (분해) is
+--          unlocked on its button under the bag. The forge is a screen of its
+--          own (UI/TabForgeScreen.lua).
 local _, ns = ...
 
 local floor, max, min = math.floor, math.max, math.min
@@ -33,11 +32,7 @@ local NAME_Y, SPEC_Y = -84, -104
 local TOP_Y, STAT_HEAD_Y, STAT_Y = -124, -186, -210
 local WEAPON_HEAD_Y, WEAPON_TEXT_Y, WEAPON_SLOT_Y, HINT_Y = -330, -346, -380, -434
 
-local TABS = {
-	{ "bag", "가방" }, { "fuse", "융합" }, { "craft", "제작" }, { "gem", "보석" },
-	{ "ench", "마법부여" }, { "insc", "룬 각인" }, { "up", "강화" }, { "mats", "재료" }, { "bank", "창고" },
-}
-local FORGE_TAB = { fuse = true, craft = true, gem = true, ench = true, insc = true }
+local TABS = { { "bag", "가방" }, { "bank", "창고" } }
 
 local function heroOf() return Main.SelectedHero() end
 
@@ -276,110 +271,21 @@ local function buildRight(page)
 		Main.Refresh()
 	end, false, 32)
 	page.tabs:SetPoint("TOPLEFT", rp, "TOPLEFT", 12, -12)
-	UI.Tip(page.tabs:Get("up"), function()
-		local lines = { { "강화", nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
-			{ string.format("골드로 장비의 기본 능력치를 +%d까지 올립니다.", ns.Upgrade.MAX), nil, 1, 1, 1 } }
-		if not ns.Upgrade.Open() then
-			lines[#lines + 1] = { string.format("%s 난이도를 끝까지 깨면 열립니다.", ns.N(ns.DIFFS[#ns.DIFFS].name)), nil, 1, 0.5, 0.3 }
-		end
-		return lines
-	end, "TOP")
-	for _, t in ipairs(TABS) do
-		if FORGE_TAB[t[1]] then
-			UI.Tip(page.tabs:Get(t[1]), function()
-				local d = ns.Forge.OpDef(t[1])
-				local lines = { { ns.N(d.name), nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] }, { ns.N(d.desc), nil, 1, 1, 1 } }
-				if not ns.Forge.Unlocked(t[1]) then
-					lines[#lines + 1] = { string.format("용광로 %d레벨 · 해금 %s G", d.level, U.fmt(d.cost)), nil, 1, 0.5, 0.3 }
-				end
-				return lines
-			end, "TOP")
-		end
-	end
 	page.bodies = {}
-	local function body(key, h)
-		local f = CreateFrame("Frame", nil, rp)
-		f:SetSize(RIGHT_W - 24, h)
-		f:SetPoint("TOPLEFT", rp, "TOPLEFT", 12, -56)
-		page.bodies[key] = f
-		return f
-	end
-	-- every tab leaves room for the forge level at the bottom
-	ns.BagView.Build(page, body("bag", ns.ForgeView.H))
-	ns.MatsView.Build(page, body("mats", ns.ForgeView.H))
-	page.forge = {}
-	for key in pairs(FORGE_TAB) do
-		page.forge[key] = ns.ForgeView.Build[key](page, body(key, ns.ForgeView.H))
-	end
-	page.forge.up = ns.ForgeView.Build.up(page, body("up", ns.ForgeView.H))
-	page.lockView = ns.ForgeView.Build.locked(page, body("locked", ns.ForgeView.H))
-	-- the forge level, under every tab (breaking down and fusing raise it)
-	page.forgeBar = UI.Bar(rp, RIGHT_W - 24, 18, 0.95, 0.55, 0.15)
-	page.forgeBar:SetPoint("BOTTOMLEFT", rp, "BOTTOMLEFT", 12, 12)
-	page.forgeBar.text:SetFont(ns.FONT, 11, "OUTLINE")
-	page.forgeBar:EnableMouse(true)
-	UI.Tip(page.forgeBar, function()
-		local lines = { { "용광로 레벨", nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
-			{ "장비를 분해·융합·제작하면 경험치가 오릅니다. 레벨이 오르면 새 기능과 제작 단계가 열립니다.", nil, 1, 1, 1, true } }
-		for _, d in ipairs(ns.FORGE_OPS) do
-			local open = ns.Forge.Unlocked(d.key)
-			lines[#lines + 1] = { ns.N(d.name), open and "해금됨" or string.format("Lv %d · %s G", d.level, U.fmt(d.cost)),
-				open and 0.4 or 0.75, open and 1 or 0.75, open and 0.45 or 0.8 }
-		end
-		return lines
-	end, "TOP")
+	local f = CreateFrame("Frame", nil, rp)
+	f:SetSize(RIGHT_W - 24, K.H - 56 - 12)
+	f:SetPoint("TOPLEFT", rp, "TOPLEFT", 12, -56)
+	page.bodies.bag = f
+	ns.BagView.Build(page, f)
 end
 
 local function refreshRight(page)
 	local tab = page.tab
+	if tab ~= "bag" and tab ~= "bank" then tab = "bag" page.tab = tab end
 	page.tabs:Select(tab)
-	local f = ns.db.forge
-	for key in pairs(FORGE_TAB) do
-		local d = ns.Forge.OpDef(key)
-		local open = ns.Forge.Unlocked(key)
-		page.tabs:SetLocked(key, not open)
-		page.tabs:SetBadge(key, not open and f.level >= d.level and ns.CanAfford(d.cost))
-	end
-	page.tabs:SetLocked("up", not ns.Upgrade.Open())
-	-- a function used inside the bag, the gem tab or the materials that can be
-	-- unlocked now shows on that tab
-	local function ready(op)
-		local d = ns.Forge.OpDef(op)
-		return not ns.Forge.Unlocked(op) and f.level >= d.level and ns.CanAfford(d.cost) and ns.Guide.UnlockUseful(op)
-	end
-	page.tabs:SetBadge("bag", ns.Loot.Count() > 0 and ns.Loot.Count() or ready("smelt"))
-	if ns.Forge.Unlocked("gem") and ready("remove") then page.tabs:SetBadge("gem", true) end
-	page.tabs:SetBadge("mats", ready("seal"))
-	for _, b in pairs(page.bodies) do b:Hide() end
-	if f.level >= ns.FORGE_MAX then
-		page.forgeBar:SetValue(1)
-		page.forgeBar:SetLabel(string.format("용광로 Lv %d · 최고 레벨", f.level))
-	else
-		local need = ns.Forge.Need(f.level)
-		page.forgeBar:SetValue(f.xp / need)
-		page.forgeBar:SetLabel(string.format("용광로 Lv %d · %s / %s", f.level, U.fmt(f.xp), U.fmt(need)))
-	end
-	if tab == "bag" or tab == "bank" then
-		page.bodies.bag:Show()
-		ns.BagView.Refresh(page)
-	elseif tab == "mats" then
-		page.bodies.mats:Show()
-		ns.MatsView.Refresh(page)
-	elseif tab == "up" then
-		if ns.Upgrade.Open() then
-			page.bodies.up:Show()
-			page.forge.up.refresh()
-		else
-			page.bodies.locked:Show()
-			page.lockView.refresh("up")
-		end
-	elseif ns.Forge.Unlocked(tab) then
-		page.bodies[tab]:Show()
-		page.forge[tab].refresh()
-	else
-		page.bodies.locked:Show()
-		page.lockView.refresh(tab)
-	end
+	page.tabs:SetBadge("bag", ns.Loot.Count() > 0 and ns.Loot.Count() or (not ns.Forge.Unlocked("smelt") and ns.CanAfford(ns.Forge.OpDef("smelt").cost) and ns.Guide.UnlockUseful("smelt")))
+	page.bodies.bag:Show()
+	ns.BagView.Refresh(page)
 end
 
 ------------------------------------------------------------------------
@@ -398,14 +304,15 @@ end
 
 local function tick(page) end
 
--- opts.sub: a tab ("bag", "fuse", "mats", "bank" …; old forge names work too);
--- opts.slot / opts.view: what the bag shows; opts.tab: a materials tab
-local OLD_SUB = { smelt = "bag", remove = "gem", seal = "mats" }
-local OLD_MATS = { seal = "mat_seal" }
+-- opts.sub: "bag" or "bank" (a forge function opens the forge screen);
+-- opts.slot / opts.view: what the bag shows
+local FORGE_SUB = { fuse = true, craft = true, gem = true, ench = true, insc = true, up = true, mats = true, seal = true, remove = true }
+local function redirect(opts)
+	if opts and (FORGE_SUB[opts.sub] or opts.tab) then return "forge" end
+end
 local function open(page, opts)
 	if not opts then return end
-	local sub = OLD_SUB[opts.sub] or opts.sub
-	if opts.tab and ns.MatsView.KINDS_OF[opts.tab] then sub = "mats" end
+	local sub = opts.sub == "smelt" and "bag" or opts.sub
 	for _, t in ipairs(TABS) do if t[1] == sub then page.tab = sub end end
 	-- the bag opens on everything unless a slot or view is asked for
 	if sub == "bag" and not opts.view and not opts.slot then page.view = "all" page.bagPage = 1 end
@@ -413,13 +320,11 @@ local function open(page, opts)
 		page.tab = "bag"
 		ns.BagView.Open(page, opts)
 	end
-	ns.MatsView.Open(page, opts)
-	if OLD_MATS[opts.sub] then ns.MatsView.Open(page, { tab = OLD_MATS[opts.sub] }) end
 	if opts.hero then Main.SelectHero(opts.hero) end
 end
 
 Main.RegisterTab({
-	key = "equip", title = "장비", sub = "장비, 가방, 용광로, 재료",
-	icon = "INV_Chest_Chain_05", art = "icon_bag", build = build, refresh = refresh, open = open, tick = tick,
+	key = "equip", title = "장비", sub = "장비, 가방, 창고",
+	icon = "INV_Chest_Chain_05", art = "icon_bag", build = build, refresh = refresh, open = open, redirect = redirect, tick = tick,
 	events = { "HEROES", "PARTY", "LEVEL", "GEAR", "BAG", "MATS", "CHESTS", "STATS", "RUNES", "FORGE", "RESET" },
 })

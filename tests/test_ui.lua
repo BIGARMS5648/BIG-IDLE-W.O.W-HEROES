@@ -83,17 +83,20 @@ if type(BigIdleHeroes_OnAddonCompartmentClick) ~= "function" then fail("addon co
 local goal = ns.Guide.Current()
 if not (goal.create and goal.tab == "hero") then fail("the first goal should be to create a hero on the hero screen") end
 
-local tabs = { "hero", "equip", "party", "runes", "map", "pets", "options" }
+local tabs = { "hero", "equip", "forge", "party", "runes", "map", "pets", "options" }
 do
 	local nav = Main.Frame().nav
-	local want = { "hero", "equip", "party", "runes", "map", "pets" }
-	if #nav ~= #want then fail("the bottom bar should have six screens, got " .. #nav) end
+	local want = { "hero", "equip", "forge", "party", "runes", "map", "pets" }
+	if #nav ~= #want then fail("the bottom bar should have seven screens, got " .. #nav) end
 	for i, k in ipairs(want) do
 		if not (nav[i] and nav[i].key == k) then fail("bottom bar button " .. i .. " should open " .. k) end
 	end
 	-- old names still lead somewhere
 	Main.ShowTab("forge")
-	if Main.Current() ~= "equip" then fail("the old forge screen should open the equipment screen") end
+	if Main.Current() ~= "forge" then fail("the forge should be a screen of its own") end
+	-- a forge function asked of the equipment screen opens on the forge screen
+	Main.ShowTab("equip", { sub = "craft" })
+	if Main.Current() ~= "forge" or Main.Page("forge").func ~= "craft" then fail("a forge function asked of the equipment screen should open the forge screen") end
 	Main.ShowTab("bag")
 	if Main.Current() ~= "equip" then fail("the old bag screen should open the equipment screen") end
 end
@@ -457,8 +460,7 @@ do
 	if #ns.db.bag ~= n1 then fail("right-click must ask before breaking down") end
 	confirmYes("break down")
 	if #ns.db.bag ~= n1 - 1 then fail("confirming should break the item down") end
-	-- the forge level shows under the bag too; a locked 분해 unlocks right here
-	if not ep.forgeBar:IsVisible() then fail("the forge level should show under the bag") end
+	-- a locked 분해 unlocks right here, under the bag
 	ns.db.forge.ops.smelt = nil
 	Main.Refresh()
 	if not (label(ep.smeltGo) or ""):find("분해 해금", 1, true) then fail("a locked 분해 should offer to unlock it, got " .. tostring(label(ep.smeltGo))) end
@@ -499,11 +501,11 @@ do
 	hoverAll()
 end
 
--- equipment > 재료: one tab per kind; each row fuses or breaks down its material
+-- forge > 재료: one tab per kind; each row fuses or breaks down its material
 do
-	Main.ShowTab("equip", { sub = "mats" })
-	local ep = Main.Page("equip")
-	if ep.tab ~= "mats" then fail("the materials tab did not open") end
+	Main.ShowTab("forge", { sub = "mats" })
+	local ep = Main.Page("forge")
+	if Main.Current() ~= "forge" or ep.func ~= "mats" then fail("the materials did not open on the forge screen") end
 	local KINDS = {
 		mat_craft = { bar = true, leather = true, cloth = true }, mat_gem = { gem = true },
 		mat_ench = { dust = true }, mat_insc = { scroll = true }, mat_seal = { seal = true },
@@ -529,17 +531,17 @@ do
 	-- a click on a coin in the title bar opens its tab
 	local pill = Main.Frame().currency[1]
 	try("currency pill", pill.__scripts.OnMouseUp, pill, "LeftButton")
-	if not (Main.Current() == "equip" and ep.tab == "mats" and ep.matTab == pill.def.tab) then fail("a currency in the title bar should open its materials tab") end
+	if not (Main.Current() == "forge" and ep.func == "mats" and ep.matTab == pill.def.tab) then fail("a currency in the title bar should open its materials tab") end
 	-- auto-fuse in one tab leaves the other tabs' materials alone
 	ns.AddMat("gem1", 20)
 	ns.AddMat("bar1", 20)
-	Main.ShowTab("equip", { sub = "mats", tab = "mat_gem" })
+	Main.ShowTab("forge", { sub = "mats", tab = "mat_gem" })
 	local barsBefore = ns.MatCount("bar1")
 	press("auto fuse gems", ep.autoFuse)
 	confirmYes("auto fuse gems")
 	if ns.MatCount("gem1") >= 9 then fail("auto-fuse in the gem tab should fuse the gems") end
 	if ns.MatCount("bar1") ~= barsBefore then fail("auto-fuse in the gem tab must not touch crafting materials") end
-	Main.ShowTab("equip", { sub = "mats", tab = "mat_craft" })
+	Main.ShowTab("forge", { sub = "mats", tab = "mat_craft" })
 	local r = rowOf("bar1")
 	if not r then
 		fail("the crafting tab should list copper bars")
@@ -559,7 +561,7 @@ do
 		if ns.MatCount("bar1") ~= 0 then fail("confirming should break every bar down") end
 	end
 	-- the lucky seals roll an item (unlocked from the row itself)
-	Main.ShowTab("equip", { sub = "mats", tab = "mat_seal" })
+	Main.ShowTab("forge", { sub = "mats", tab = "mat_seal" })
 	-- only the seals in the bag have a row
 	for _, d in ipairs(ns.SEAL) do ns.AddMat(d.mat, -ns.MatCount(d.mat)) end
 	ns.AddMat("seal1", 3)
@@ -584,7 +586,7 @@ do
 	hoverAll()
 end
 
--- equipment > forge tabs: fuse, craft, gem, enchant, inscribe; a locked one
+-- the forge screen: fuse, craft, gem, enchant, inscribe, enhance; a locked one
 do
 	local F = ns.Forge
 	for _, op in ipairs(ns.FORGE_OPS) do if not F.Unlocked(op.key) then F.Unlock(op.key) end end
@@ -598,8 +600,9 @@ do
 	end
 	ns.db.bag = {}
 	for _ = 1, 27 do ns.Items.AddToBag(ns.Items.New("head", 20, 2)) end
-	Main.ShowTab("equip", { sub = "fuse" })
-	local ep = Main.Page("equip")
+	Main.ShowTab("forge", { sub = "fuse" })
+	local ep = Main.Page("forge")
+	if not ep.forgeBar:IsVisible() or not (ep.level.__text or ""):find("용광로 Lv", 1, true) then fail("the forge screen should show the forge level") end
 	local fp = ep.forge.fuse
 	if not ep.bodies.fuse:IsVisible() then fail("the fuse tab did not open") end
 	local before = #ns.db.bag
@@ -687,10 +690,11 @@ do
 	for _ = 1, 3 do press("enhance", up.go) end
 	if (epic.up or 0) ~= 3 then fail("강화하기 should raise the piece three steps: " .. tostring(epic.up)) end
 	if not (up.lastText.__text or ""):find("+3", 1, true) then fail("the 강화 tab should say how the last try went") end
-	-- the icons show the step, not the item level
-	press("bag tab", ep.tabs:Get("bag"))
+	-- the icons show the step, not the item level (the bag, on the equipment screen)
+	Main.ShowTab("equip", { sub = "bag" })
+	local eq = Main.Page("equip")
 	local cell, plain
-	for _, b in ipairs(ep.cells) do
+	for _, b in ipairs(eq.cells) do
 		if b.data == epic then cell = b elseif b.data and not b.data.up and b:IsShown() then plain = b end
 	end
 	if not cell or cell.count.__text ~= "+3" then fail("an item's icon should show its step: " .. tostring(cell and cell.count.__text)) end
@@ -698,7 +702,7 @@ do
 	-- 계승: a second chest of the same slot takes the steps for gold
 	local other = ns.Items.New("chest", 30, 6)
 	ns.Items.AddToBag(other)
-	press("enhance tab", ep.tabs:Get("up"))
+	Main.ShowTab("forge", { sub = "up" })
 	click("inherit target", function(b) return b.data == other end)
 	if up.picked ~= other then fail("the second chest should be chosen") end
 	press("inherit", up.card.move)
@@ -891,7 +895,7 @@ do
 		end
 		ns.Loot.AddChest(1, 10, 1)
 		try("chest", bar.chests[1].Click, bar.chests[1], "LeftButton")
-		if #bar.menu ~= 6 then fail("the HUD menu should have the six screens") end
+		if #bar.menu ~= 7 then fail("the HUD menu should have the seven screens") end
 		for _, mb in ipairs(bar.menu) do
 			try("menu " .. mb.key, mb.Click, mb, "LeftButton")
 			if Main.Current() ~= mb.key then fail("HUD menu button " .. mb.key .. " should open its screen") end
@@ -1035,8 +1039,10 @@ do
 		Mock.kits = {}
 		local flown = ns.Bar.fxStats.missiles
 		local sawMissile, hit = false, nil
-		local hitFiles = {}
+		local hitFiles, handFiles = {}, {}
 		for _, e in pairs(ns.SKILL_FX) do if e.hit then hitFiles["file:" .. e.hit] = true end end
+		for _, f in pairs(ns.KIT_HAND) do handFiles["file:" .. f] = true end
+		local hand
 		for _ = 1, 600 do
 			frames(1)
 			for _, ms in ipairs(ns.Bar.missiles) do
@@ -1051,13 +1057,26 @@ do
 						clip = hs.clip, clipW = hs.clip and hs.clip:GetWidth() }
 				end
 			end
-			if sawMissile and hit and #Mock.kits >= 4 then break end
+			-- the glow in a caster's hands: the kit's hand model, sized to the caster
+			for _, hs in ipairs(ns.Bar.hits) do
+				if not hand and hs.active and hs.hand and hs.fig:IsShown() and handFiles[hs.fig.actor.__display] then
+					local t, b = hs.tfig, hs.fig.box
+					local ext = b and math.max(b[4] - b[1], b[5] - b[2], b[6] - b[3]) or 0
+					local ts = t.fixedScale or (t.norm or 0.5) * (t.corrScale or 1)
+					hand = { size = (hs.fig.actor.__scale or 0) * ext, cap = 0.35 * (t.box[6] - t.box[3]) * ts, x = hs.fig.anchorX, cx = t.anchorX, facing = t.facing }
+				end
+			end
+			if sawMissile and hit and hand then break end
 		end
-		local known = {}
-		for _, e in pairs(ns.SKILL_FX) do if e.cast then known[e.cast] = true end end
-		local good = 0
-		for _, k in ipairs(Mock.kits) do if known[k] then good = good + 1 end end
-		if good == 0 then fail("skills in battle should play spell kits on the models (" .. #Mock.kits .. " kits)") end
+		-- a kit on a model is drawn at its own size whatever the model's scale:
+		-- none in battle
+		if #Mock.kits > 0 then fail("battle figures should not play spell kits (" .. #Mock.kits .. ")") end
+		if not hand then
+			fail("a cast should show the glow in the caster's hands")
+		else
+			if hand.size > hand.cap + 1e-6 then fail(string.format("the glow in the hands should be at most 0.35 of the caster's height: %.3f > %.3f", hand.size, hand.cap)) end
+			if (hand.facing == "left" and hand.x >= hand.cx) or (hand.facing ~= "left" and hand.x <= hand.cx) then fail("the glow should be at the caster's front hand") end
+		end
 		if not sawMissile then fail("a skill with a missile should fly it from the caster to the target") end
 		local known = false
 		for _, e in pairs(ns.SKILL_FX) do if e.missile and e.missile == ns.Bar.fxStats.lastMissile then known = true end end
@@ -1165,9 +1184,14 @@ do
 					if hs.active and hs.fig.actor.__display == "file:" .. sp.hit then sawHit = true end
 				end
 			end
-			local castOk
-			for _, k in ipairs(Mock.kits) do if k == sp.cast then castOk = true end end
-			if not castOk then fail("a boss ability should play its spell's cast on the boss") end
+			local castOk = ns.KIT_HAND[sp.cast] == nil
+			for _ = 1, 3 do
+				for _, hs in ipairs(ns.Bar.hits) do
+					if hs.hand and hs.fig.actor.__display == "file:" .. tostring(ns.KIT_HAND[sp.cast]) then castOk = true end
+				end
+			end
+			if not castOk then fail("a boss ability should show its spell's cast in the boss's hands") end
+			if #Mock.kits > 0 then fail("a boss's cast should not be a kit on its model") end
 			if not sawHit then fail("a boss ability should show its spell's hit on the heroes") end
 		end
 		for kind, t in pairs(ns.MOB_FX) do
@@ -1817,6 +1841,8 @@ do
 	if not dp.frame:IsShown() or bp.frame:IsShown() then fail("옷 입히기 should show its own page") end
 	frames(20)
 	if dp.COMBOS[1].class ~= "WARRIOR" or dp.COMBOS[1].race ~= "DWARF" or #dp.COMBOS ~= 18 then fail("옷 입히기 should start with the dwarf warrior and go through 18 class/faction pairs") end
+	dp.PickTier(2) -- the dungeon set: eight pieces
+	frames(20)
 	if #dp.cards ~= 3 or dp.sexBtn then fail("옷 입히기 should have three cards and no gender buttons") end
 	local c1, c2, c3 = dp.cards[1], dp.cards[2], dp.cards[3]
 	local a1, a2, m3 = c1.model.actor, c2.model.actor, c3.model

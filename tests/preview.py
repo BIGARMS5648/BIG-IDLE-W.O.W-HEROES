@@ -25,7 +25,7 @@ SCENES = [
     "hero", "hero_res_tip", "hero_skills", "hero_tree", "hero_bench", "hero_tank", "hero_reset", "hero_dismiss", "hero_scroll",
     "equip", "equip_tooltip", "equip_slot", "equip_bank", "equip_smelt_list", "equip_view_list", "equip_smelt_all", "equip_max",
     "equip_sockets_tip", "equip_mixed_tip", "equip_slot_tip",
-    "fuse", "fuse_ready", "fuse_list", "fuse_high", "craft", "craft_locked", "craft_far", "gem", "gem_stress", "ench", "insc_locked", "up", "up_locked",
+    "fuse", "fuse_ready", "fuse_list", "fuse_high", "craft", "craft_locked", "craft_far", "gem", "gem_stress", "ench", "insc_locked", "up", "up_locked", "smelt", "seal",
     "mats", "mats_gem", "mats_seal", "mats_seal_some", "mats_page2", "mats_seal_locked", "gem_remove_locked", "bag_smelt_locked",
     "party", "party_open",
     "runes", "runes_locked", "runes_full",
@@ -432,6 +432,8 @@ function lint(scene, title) {
     const A = texts[i], ab = textBox(A); if (!ab) continue;
     for (let j = i + 1; j < texts.length; j++) {
       const B = texts[j], bb = textBox(B); if (!bb) continue;
+      // two windows (the menu over the battle window) may lie on each other
+      if (tops.get(A) !== tops.get(B)) continue;
       const ir = inter(ab, bb);
       if (ir.r - ir.l > 2 && ir.t - ir.b > 2) {
         const [x, y] = A._i < B._i ? [A, B] : [B, A];

@@ -184,11 +184,16 @@ local function candidates()
 	end
 	for _, op in ipairs(ns.FORGE_OPS) do
 		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and Guide.UnlockUseful(op.key) then
-			-- the equipment tab where its button is
-			local where = ({ smelt = "가방", remove = "보석", seal = "재료", fuse = "융합", craft = "제작",
-				gem = "보석", ench = "마법부여", insc = "룬 각인" })[op.key] or ""
-			add({ text = string.format("'%s' 해금 (장비 > %s, %s G)", ns.N(op.name), where, ns.U.fmt(op.cost)), tab = "equip", sub = op.key,
-				wait = not ns.CanAfford(op.cost) })
+			-- where its button is: 분해 under the bag, the rest on the forge screen
+			if op.key == "smelt" then
+				add({ text = string.format("'%s' 해금 (장비 > 가방, %s G)", ns.N(op.name), ns.U.fmt(op.cost)), tab = "equip", sub = "bag",
+					wait = not ns.CanAfford(op.cost) })
+			else
+				local where = ({ remove = "보석", seal = "인장 굴리기", fuse = "융합", craft = "제작",
+					gem = "보석", ench = "마법부여", insc = "룬 각인" })[op.key] or ""
+				add({ text = string.format("'%s' 해금 (용광로 > %s, %s G)", ns.N(op.name), where, ns.U.fmt(op.cost)), tab = "forge",
+					sub = op.key == "remove" and "gem" or op.key, wait = not ns.CanAfford(op.cost) })
+			end
 			break
 		end
 	end
@@ -234,14 +239,15 @@ local function computeBadges()
 		if ns.Heroes.PointsFree(id) + ns.Heroes.SkillPointsFree(id) > 0 then n = n + 1 end
 	end
 	if n > 0 then b.hero = n elseif create then b.hero = true end
-	-- equipment: chests waiting, a better item for the party, a forge
-	-- function that can be unlocked now
+	-- equipment: chests waiting, a better item for the party
 	local chests = ns.Loot.Count()
 	if chests > 0 then b.equip = chests end
 	if not b.equip and next(Guide.UpgradeHeroes()) then b.equip = true end
+	-- forge: a function that can be unlocked now (분해 is unlocked under the bag)
 	for _, op in ipairs(ns.FORGE_OPS) do
-		if not b.equip and not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and ns.CanAfford(op.cost)
-			and Guide.UnlockUseful(op.key) then b.equip = true end
+		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and ns.CanAfford(op.cost) and Guide.UnlockUseful(op.key) then
+			if op.key == "smelt" then b.equip = b.equip or true else b.forge = true end
+		end
 	end
 	-- runes: something affordable
 	local _, rcost = cheapestRune()

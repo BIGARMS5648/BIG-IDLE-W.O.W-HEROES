@@ -14,7 +14,7 @@ Main.PAGE_X, Main.PAGE_Y = 10, -64
 Main.PAGE_W, Main.PAGE_H = 920, 550
 local NAV_H = 66
 -- old screen names that now live elsewhere
-local ALIAS = { bag = "equip", forge = "equip" }
+local ALIAS = { bag = "equip" }
 -- the materials shown in the title bar, by group (Data/Items.lua kinds)
 local CURRENCY = {
 	{ key = "craft", kinds = { bar = true, leather = true, cloth = true }, name = "제작 재료", icon = "INV_Ingot_05", tab = "mat_craft" },
@@ -80,6 +80,10 @@ function Main.ShowTab(key, opts)
 	key = ALIAS[key] or key
 	local def = tabByKey[key]
 	if not def or not frame then return end
+	-- a screen can hand a request on to another (the equipment screen sends
+	-- forge functions to the forge screen)
+	local to = def.redirect and def.redirect(opts)
+	if to and to ~= key and tabByKey[to] then return Main.ShowTab(to, opts) end
 	current = key
 	if def.nav ~= false then Main.lastNav = key end
 	Main.CloseModal()
@@ -311,7 +315,7 @@ function Main.Create()
 		p:SetPoint("RIGHT", right, "LEFT", -6, 0)
 		UI.Color(p.text, { 0.92, 0.94, 1 })
 		p:EnableMouse(true)
-		p:SetScript("OnMouseUp", function() Main.ShowTab("equip", { sub = "mats", tab = c.tab }) end)
+		p:SetScript("OnMouseUp", function() Main.ShowTab("forge", { sub = "mats", tab = c.tab }) end)
 		UI.Tip(p, function()
 			local lines = { { c.name, nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] } }
 			for _, id in ipairs(ns.MAT_ORDER) do

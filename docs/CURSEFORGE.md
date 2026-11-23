@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v3.22.0
+BIG IDLE HEROES v3.23.0
 ```
 
 ---
@@ -77,7 +77,7 @@ Build a party of five heroes, send them along a route through the original game'
 
 ### Loot and progression
 - **Gear in 8 quality tiers** from monsters and chests.
-- **The Forge**, all in the equipment screen: fuse, craft, add gems, enchant, engrave runes, salvage, extract and use lucky seals. Bags fill up, so auto-salvage helps keep them clear.
+- **The Forge**, a screen of its own: every function in a list on the left (fuse, craft, gems, enchant, engrave runes, enhance, salvage, lucky seals, materials), the work in the middle, and on the right the hero and item you work on plus a log of the latest results. Bags fill up, so auto-salvage helps keep them clear.
 - **Enhancement** (+1 to +20) once Mythic+ is cleared: every step raises an item's base stats; steps past +10 can fail (only the gold is lost), and enhancement can be moved to a new item of the same slot for gold. Item icons show their +N.
 - **Rune tree**: account-wide bonuses that open more party slots, skill slots and more.
 - **Companions** that join the party.
@@ -135,11 +135,12 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v3.22.0)
+## Changelog for this release (v3.23.0)
 
 ```
-- Equipment enhancement, +1 to +20 (the 강화 tab, opens once Mythic+ is cleared): each step raises the item's base stats; from +10 on a try can fail and only the gold is lost; enhancement moves to another item of the same slot for gold. Enhanced items are kept out of automatic salvage and fusion.
-- Item icons show their enhancement (+1 .. +20) instead of the item level.
-- Casters and healers cast at their target for their basic attack.
-- Red dots on tabs sit on the tab's top edge.
+- The Forge is its own screen (bottom menu, after Equipment): functions on the left, the work in the middle, the target hero and item and the latest results on the right. The Equipment screen keeps the bag and the bank.
+- Enhancement shows each base stat now and after the next step.
+- New salvage view on the Forge screen: the grade, every item it would break down and the gold.
+- Cast glows in the casters' hands are drawn at the caster's size and shrink and grow with the battle window (they were drawn at their own size).
+- The Forge has its own shortcut on the battle window.
 ```

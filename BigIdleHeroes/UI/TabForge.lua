@@ -63,6 +63,7 @@ local function addResult(f, x, y)
 	r.text:SetJustifyV("TOP")
 	function r:Set(it, text)
 		self.item, self.msg = it, text
+		if text and it then ForgeView.Log(text .. " · " .. ns.Items.Name(it)) end
 		self:Refresh()
 	end
 	function r:Refresh()
@@ -371,27 +372,36 @@ end
 ------------------------------------------------------------------------
 -- 보석 · 마법부여 · 각인
 ------------------------------------------------------------------------
-local SOCK_COLS, SOCK_ROWS = 10, 2
+-- The piece a function works on: picked on the forge screen's right side
+-- (UI/TabForgeScreen.lua) from the chosen hero's pieces and the bag.
+ForgeView.target = { it = nil, hero = nil }
+function ForgeView.SetTarget(it, heroId)
+	ForgeView.target.it, ForgeView.target.hero = it, heroId
+end
+function ForgeView.Target()
+	local t = ForgeView.target
+	if t.it and itemExists(t.it) then return t.it, t.hero end
+	return nil
+end
 
+-- The latest results of the forge, newest first (this session only).
+ForgeView.log = {}
+function ForgeView.Log(text)
+	if not text or text == "" then return end
+	table.insert(ForgeView.log, 1, text)
+	while #ForgeView.log > 30 do table.remove(ForgeView.log) end
+end
+
+------------------------------------------------------------------------
+-- 보석 · 마법부여 · 룬 각인: the chosen piece and its sockets, the
+-- material, the button
+------------------------------------------------------------------------
 local function buildSocket(kind)
 	return function(page, f)
 		local p = { kind = kind }
 		local matKind = ns.SOCKET[kind].mat
-		p.head = UI.Section(f, W)
-		p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
-		p.cells = {}
-		for i = 1, SOCK_COLS * SOCK_ROWS do
-			local b = UI.IconButton(f, CELL, function(self)
-				if self.data then p.picked, p.pickedHero = self.data, self.heroId Main.Refresh() end
-			end)
-			local col, row = (i - 1) % SOCK_COLS, floor((i - 1) / SOCK_COLS)
-			b:SetPoint("TOPLEFT", f, "TOPLEFT", col * STEP, -26 - row * STEP)
-			UI.Tip(b, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end)
-			p.cells[i] = b
-		end
-		-- the chosen item and its sockets
-		local c = UI.Panel(f, W, 176, "card")
-		c:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -136)
+		local c = UI.Panel(f, W, 196, "card")
+		c:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
 		p.card = c
 		c.isRow = true -- an [추출] button on every socket line
 		c.icon = UI.IconButton(c, 44)
@@ -408,7 +418,7 @@ local function buildSocket(kind)
 		UI.Color(c.sub, UI.C.sub)
 		c.rows = {}
 		for i = 1, 2 do
-			local y = -68 - (i - 1) * 34
+			local y = -72 - (i - 1) * 36
 			local r = {}
 			r.socket = UI.Socket(c, 26)
 			r.socket:SetPoint("TOPLEFT", c, "TOPLEFT", 12, y)
@@ -429,15 +439,21 @@ local function buildSocket(kind)
 				UI.Confirm({ title = "추출", ok = "추출", style = "red",
 					text = string.format("'%s'을(를) 추출하시겠습니까?\n홈이 비워지고 사용했던 재료는 돌아오지 않습니다. %s 골드가 듭니다.",
 						ns.Stats.ModText(e[1], e[2]), U.fmt(cost)),
-					onOk = function() UI.Try(ns.Forge.RemoveSocket(it, kind, i, p.pickedHero)) end })
+					onOk = function()
+						local text = ns.Stats.ModText(e[1], e[2])
+						if UI.Try(ns.Forge.RemoveSocket(it, kind, i, p.pickedHero)) then
+							ForgeView.Log(string.format("추출: %s · %s", text, ns.Items.Name(it)))
+						end
+					end })
 			end, "red")
 			r.remove:SetPoint("TOPRIGHT", c, "TOPRIGHT", -12, y)
 			r.remove.clickWhenOff = true
 			c.rows[i] = r
 		end
 		c.pool = UI.Text(c, 11)
-		c.pool:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 12, 10)
+		c.pool:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 12, 12)
 		c.pool:SetWidth(W - 24)
+		c.pool:SetJustifyV("BOTTOM")
 		UI.Color(c.pool, UI.C.sub)
 		p.empty = UI.Text(c, 12)
 		p.empty:SetPoint("CENTER", c, "CENTER", 0, 0)
@@ -446,18 +462,23 @@ local function buildSocket(kind)
 		UI.Color(p.empty, UI.C.sub)
 		-- the material to set
 		p.matHead = UI.Section(f, W, "쓸 재료")
-		p.matHead:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -320)
+		p.matHead:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -214)
 		p.mats = {}
 		for i = 1, ns.MAT_MAX_TIER[matKind] do
 			local b = UI.IconButton(f, CELL, function(self) p.mat = self.matId Main.Refresh() end)
 			b.matId = matKind .. i
-			b:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * STEP, -346)
+			b:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * STEP, -240)
 			UI.Tip(b, function(self) return ns.Items.MatTooltip(self.matId) end, "TOP")
 			p.mats[i] = b
 		end
+		p.matText = UI.Text(f, 11)
+		p.matText:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -296)
+		p.matText:SetWidth(W)
+		p.matText:SetWordWrap(false)
+		UI.Color(p.matText, UI.C.sub)
 		p.go = UI.Button(f, 180, 36, SOCKET_VERB[kind], function()
 			if not p.picked then
-				UI.Try(false, string.format("%s 홈이 있는 장비가 없습니다.", ns.N(ns.SOCKET[kind].short)))
+				UI.Try(false, string.format("%s 홈이 있는 장비를 오른쪽에서 고르세요.", ns.N(ns.SOCKET[kind].short)))
 				return
 			elseif not p.mat then
 				UI.Try(false, "쓸 재료가 없습니다. 상자에서 얻을 수 있습니다.")
@@ -465,7 +486,9 @@ local function buildSocket(kind)
 			end
 			local ok, entry = ns.Forge.Socket(p.picked, kind, p.mat, p.pickedHero)
 			if UI.Try(ok, entry) then
-				p.last = U.col("60e070", "부여됨: ") .. U.col("60e070", ns.Items.SocketText(p.picked, kind, entry))
+				local text = ns.Items.SocketText(p.picked, kind, entry)
+				p.last = U.col("60e070", "부여됨: ") .. U.col("60e070", text)
+				ForgeView.Log(string.format("%s: %s · %s", ns.N(ns.SOCKET[kind].short), text, ns.Items.Name(p.picked)))
 			end
 			Main.Refresh()
 		end, "primary")
@@ -480,37 +503,11 @@ local function buildSocket(kind)
 		p.lastText:SetPoint("LEFT", p.go, "RIGHT", 12, -9)
 		p.lastText:SetWidth(W - 200)
 		p.lastText:SetWordWrap(false)
+		-- which pieces this function can work on
+		p.accepts = function(it) return ns.Items.SocketCount(it, kind) > 0 end
 		p.refresh = function()
-			-- the items: the hero on the left first, then the bag
-			local id = Main.SelectedHero()
-			local list = {}
-			if id then
-				for _, slot in ipairs(ns.SLOTS) do
-					local it = ns.db.heroes[id].gear[slot]
-					if it and ns.Items.SocketCount(it, kind) > 0 then list[#list + 1] = { it, id } end
-				end
-			end
-			for _, it in ipairs(ns.db.bag) do
-				if ns.Items.SocketCount(it, kind) > 0 then list[#list + 1] = { it } end
-			end
-			local found = false
-			for _, e in ipairs(list) do if e[1] == p.picked then found = true end end
-			if not found then p.picked, p.pickedHero = list[1] and list[1][1], list[1] and list[1][2] end
-			p.head:Set("홈이 있는 장비", string.format("%d개 · E = 왼쪽 영웅이 착용 중", #list))
-			for i, b in ipairs(p.cells) do
-				local e = list[i]
-				b:Clear()
-				b.data, b.heroId = e and e[1], e and e[2]
-				if e then
-					b:SetIconName(ns.Items.Icon(e[1]))
-					b:SetQuality(e[1].q)
-					b:SetCount(ns.Upgrade.Text(e[1]))
-					b:SetMark(e[2] and "E" or "", 1, 0.82, 0)
-					b:SetSelected(e[1] == p.picked)
-					local free = ns.Items.FreeSockets(e[1], kind)
-					if free > 0 then b:SetBadge(free) end
-				end
-			end
+			local t, th = ForgeView.Target()
+			if t and p.accepts(t) then p.picked, p.pickedHero = t, th else p.picked, p.pickedHero = nil, nil end
 			-- materials: keep a usable one picked
 			if not p.mat or ns.MatCount(p.mat) <= 0 then
 				p.mat = nil
@@ -527,14 +524,14 @@ local function buildSocket(kind)
 				b:SetDim(count == 0)
 				b:SetSelected(p.mat == b.matId)
 			end
+			p.matText:SetText(p.mat and (ns.N(ns.MATS[p.mat].name) .. "  ·  " .. ns.MatCount(p.mat) .. "개") or "가진 재료가 없습니다.")
 			local it = p.picked
-			local c = p.card
 			p.empty:SetShown(it == nil)
 			for _, w in ipairs({ c.icon, c.name, c.sub, c.pool }) do w:SetShown(it ~= nil) end
 			if not it then
 				local need = (kind == "gem" and 3) or (kind == "ench" and 5) or 6
-				p.empty:SetText(string.format("%s 등급 이상의 장비에 %s 홈이 있습니다.",
-					U.col(ns.QUALITY[need].hex, ns.N(ns.QUALITY[need].name)), ns.N(ns.SOCKET[kind].short)))
+				p.empty:SetText(string.format("오른쪽에서 %s 홈이 있는 장비를 고르세요.\n%s 등급 이상의 장비에 %s 홈이 있습니다.",
+					ns.N(ns.SOCKET[kind].short), U.col(ns.QUALITY[need].hex, ns.N(ns.QUALITY[need].name)), ns.N(ns.SOCKET[kind].short)))
 				for _, r in ipairs(c.rows) do r.socket:Hide() r.text:Hide() r.remove:Hide() end
 				p.go:SetOff(true)
 				p.why:SetText("")
@@ -548,7 +545,8 @@ local function buildSocket(kind)
 			c.icon:SetQuality(it.q)
 			c.icon:SetCount(ns.Upgrade.Text(it))
 			c.name:SetText(U.col(q.hex, ns.Items.Name(it)))
-			c.sub:SetText(string.format("%s 홈 %d개 중 %d개 비어 있음", ns.N(ns.SOCKET[kind].short), ns.Items.SocketCount(it, kind), ns.Items.FreeSockets(it, kind)))
+			c.sub:SetText(string.format("%s 홈 %d개 중 %d개 비어 있음%s", ns.N(ns.SOCKET[kind].short), ns.Items.SocketCount(it, kind), ns.Items.FreeSockets(it, kind),
+				p.pickedHero and ("  ·  " .. ns.Heroes.ShortName(p.pickedHero) .. " 착용 중") or "  ·  가방"))
 			local l = ns.Items.SocketList(it, kind)
 			for i, r in ipairs(c.rows) do
 				local has = i <= ns.Items.SocketCount(it, kind)
@@ -590,27 +588,15 @@ local function buildSocket(kind)
 end
 
 ------------------------------------------------------------------------
--- 강화: the hero's worn pieces, then the bag; the chosen piece's step, what
--- the next one gives, its chance and cost; 계승 from a piece of the same slot
+-- 강화: the chosen piece's step, what the next one gives (its base stats
+-- now and after), its chance and cost; 계승 from a piece of the same slot
 -- that is further along
 ------------------------------------------------------------------------
 local function buildUpgrade(page, f)
 	local p = {}
 	local Up = ns.Upgrade
-	p.head = UI.Section(f, W)
-	p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
-	p.cells = {}
-	for i = 1, SOCK_COLS * SOCK_ROWS do
-		local b = UI.IconButton(f, CELL, function(self)
-			if self.data then p.picked, p.pickedHero = self.data, self.heroId Main.Refresh() end
-		end)
-		local col, row = (i - 1) % SOCK_COLS, floor((i - 1) / SOCK_COLS)
-		b:SetPoint("TOPLEFT", f, "TOPLEFT", col * STEP, -26 - row * STEP)
-		UI.Tip(b, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end)
-		p.cells[i] = b
-	end
-	local c = UI.Panel(f, W, 176, "card")
-	c:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -136)
+	local c = UI.Panel(f, W, 270, "card")
+	c:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
 	p.card = c
 	c.isRow = true -- the 계승 button on its line
 	c.icon = UI.IconButton(c, 44)
@@ -625,10 +611,11 @@ local function buildUpgrade(page, f)
 	c.sub:SetWidth(W - 80)
 	c.sub:SetWordWrap(false)
 	UI.Color(c.sub, UI.C.sub)
+	-- the bonus, up to four base stats now → after, the chance, the cost
 	c.lines = {}
-	for i = 1, 3 do
+	for i = 1, 7 do
 		local l = UI.Text(c, 12)
-		l:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -66 - (i - 1) * 20)
+		l:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -68 - (i - 1) * 21)
 		l:SetWidth(W - 24)
 		l:SetWordWrap(false)
 		c.lines[i] = l
@@ -651,7 +638,10 @@ local function buildUpgrade(page, f)
 				ns.Items.ColorName(from), Up.Level(from), ns.Items.ColorName(to), U.fmt(Up.MoveCost(from, to))),
 			onOk = function()
 				local ok, n = Up.Move(from, to, fromHero, p.pickedHero)
-				if UI.Try(ok, n) then p.last = U.col("60e070", string.format("계승: +%d", n)) end
+				if UI.Try(ok, n) then
+					p.last = U.col("60e070", string.format("계승: +%d", n))
+					ForgeView.Log(string.format("계승: +%d → %s", n, ns.Items.Name(to)))
+				end
 				Main.Refresh()
 			end })
 	end, "dark")
@@ -662,16 +652,17 @@ local function buildUpgrade(page, f)
 	p.empty:SetWidth(W - 40)
 	p.empty:SetJustifyH("CENTER")
 	UI.Color(p.empty, UI.C.sub)
-	p.rule = note(f, -326, string.format("장비는 +0에서 시작합니다. +0에서 +%d까지는 항상 성공하고, +%d부터는 성공 확률이 낮아집니다. 실패하면 쓴 골드만 사라지고 장비와 강화 단계는 그대로입니다. 강화는 기본 능력치를 올립니다. 강화한 장비는 자동 분해·융합에 쓰이지 않습니다.", Up.SAFE, Up.SAFE))
+	p.rule = note(f, -288, string.format("장비는 +0에서 시작합니다. +0에서 +%d까지는 항상 성공하고, +%d부터는 성공 확률이 낮아집니다. 실패하면 쓴 골드만 사라지고 장비와 강화 단계는 그대로입니다. 강화는 기본 능력치를 올립니다. 강화한 장비는 자동 분해·융합에 쓰이지 않습니다.", Up.SAFE, Up.SAFE))
 	p.go = UI.Button(f, 220, 36, "강화하기", function()
 		local it = p.picked
 		local ok, success, n = Up.Try(it, p.pickedHero)
 		if UI.Try(ok, success) then
 			if success then
 				p.last = U.col("60e070", string.format("성공! +%d", n))
-				ns.Sound("levelup")
+				ForgeView.Log(U.col("60e070", string.format("강화 성공 +%d", n)) .. " · " .. ns.Items.Name(it))
 			else
 				p.last = U.col("ff6a5a", string.format("실패 · +%d 그대로", n))
+				ForgeView.Log(U.col("ff6a5a", string.format("강화 실패 +%d", n)) .. " · " .. ns.Items.Name(it))
 			end
 		end
 		Main.Refresh()
@@ -687,47 +678,17 @@ local function buildUpgrade(page, f)
 	p.lastText:SetPoint("LEFT", p.go, "RIGHT", 12, -9)
 	p.lastText:SetWidth(W - 240)
 	p.lastText:SetWordWrap(false)
+	p.accepts = function(it) return it ~= nil end
 	p.refresh = function()
-		-- the pieces: the hero on the left first, then the bag (furthest along first)
-		local id = Main.SelectedHero()
-		local list = {}
-		if id then
-			for _, slot in ipairs(ns.SLOTS) do
-				local it = ns.db.heroes[id].gear[slot]
-				if it then list[#list + 1] = { it, id } end
-			end
-		end
-		local bag = {}
-		for _, it in ipairs(ns.db.bag) do bag[#bag + 1] = it end
-		table.sort(bag, function(a, b)
-			if Up.Level(a) ~= Up.Level(b) then return Up.Level(a) > Up.Level(b) end
-			if a.q ~= b.q then return a.q > b.q end
-			return a.l > b.l
-		end)
-		for _, it in ipairs(bag) do list[#list + 1] = { it } end
-		local found = false
-		for i, e in ipairs(list) do if i <= #p.cells and e[1] == p.picked then found = true end end
-		if not found then p.picked, p.pickedHero = list[1] and list[1][1], list[1] and list[1][2] end
-		p.head:Set("강화할 장비", string.format("%d개 · E = 왼쪽 영웅이 착용 중", #list))
-		for i, b in ipairs(p.cells) do
-			local e = list[i]
-			b:Clear()
-			b.data, b.heroId = e and e[1], e and e[2]
-			if e then
-				b:SetIconName(ns.Items.Icon(e[1]))
-				b:SetQuality(e[1].q)
-				b:SetCount(Up.Text(e[1]))
-				b:SetMark(e[2] and "E" or "", 1, 0.82, 0)
-				b:SetLocked(e[1].lock)
-				b:SetSelected(e[1] == p.picked)
-			end
-		end
+		local t, th = ForgeView.Target()
+		p.picked, p.pickedHero = t, th
 		local it = p.picked
 		p.empty:SetShown(it == nil)
-		for _, w in ipairs({ c.icon, c.name, c.sub, c.moveText, c.move, c.lines[1], c.lines[2], c.lines[3] }) do w:SetShown(it ~= nil) end
+		for _, w in ipairs({ c.icon, c.name, c.sub, c.moveText, c.move }) do w:SetShown(it ~= nil) end
+		for _, l in ipairs(c.lines) do l:SetShown(it ~= nil) end
 		p.lastText:SetText(p.last or "")
 		if not it then
-			p.empty:SetText("강화할 장비가 없습니다.")
+			p.empty:SetText("오른쪽에서 강화할 장비를 고르세요.")
 			p.go:SetLabel("강화하기")
 			p.go:SetOff(true)
 			p.why:SetText("")
@@ -741,18 +702,34 @@ local function buildUpgrade(page, f)
 		c.icon:SetQuality(it.q)
 		c.icon:SetCount(Up.Text(it))
 		c.name:SetText(U.col(q.hex, (n > 0 and ("+" .. n .. " ") or "") .. ns.Items.Name(it)))
-		c.sub:SetText(string.format("강화 +%d / +%d", n, Up.MAX))
+		c.sub:SetText(string.format("강화 +%d / +%d  ·  %s", n, Up.MAX, p.pickedHero and (ns.Heroes.ShortName(p.pickedHero) .. " 착용 중") or "가방"))
 		local function pct(k) return floor((Up.Bonus(k) - 1) * 100 + 0.5) end
-		if n >= Up.MAX then
-			c.lines[1]:SetText(string.format("기본 능력치 +%d%% (최고 단계)", pct(n)))
-			c.lines[2]:SetText("")
-			c.lines[3]:SetText("")
-		else
-			c.lines[1]:SetText(string.format("기본 능력치 +%d%%  →  %s", pct(n), U.col("60e070", "+" .. pct(n + 1) .. "%")))
+		for _, l in ipairs(c.lines) do l:SetText("") end
+		local top = n >= Up.MAX
+		c.lines[1]:SetText(top and string.format("기본 능력치 +%d%% (최고 단계)", pct(n))
+			or string.format("기본 능력치 +%d%%  →  %s", pct(n), U.col("60e070", "+" .. pct(n + 1) .. "%")))
+		-- the base stats now and after the next step
+		local now = ns.Items.BaseStats(it)
+		local after = {}
+		if not top then
+			local was = it.up
+			it.up = n + 1
+			after = ns.Items.BaseStats(it)
+			it.up = was
+		end
+		for i = 1, min(4, #now) do
+			local key, v = now[i][1], now[i][2]
+			local line = ns.Stats.ModText(key, v)
+			if after[i] then line = line .. "  →  " .. U.col("60e070", ns.Stats.ModText(key, after[i][2])) end
+			c.lines[1 + i]:SetText(line)
+		end
+		local nl = 2 + min(4, #now)
+		if not top then
 			local chance = Up.Chance(n)
-			c.lines[2]:SetText(string.format("성공 확률 %s%s", U.col(chance >= 1 and "60e070" or (chance >= 0.5 and "ffd24a" or "ff9a5a"), U.num(chance * 100, 0) .. "%"),
-				chance < 1 and U.col("9aa3b8", "  · 실패하면 골드만 사라집니다") or ""))
-			c.lines[3]:SetText(string.format("비용 %s G", U.col(ns.CanAfford(Up.Cost(it, n)) and "ffd24a" or "ff6a5a", U.fmt(Up.Cost(it, n)))))
+			c.lines[nl]:SetText(string.format("성공 확률 %s%s     비용 %s G",
+				U.col(chance >= 1 and "60e070" or (chance >= 0.5 and "ffd24a" or "ff9a5a"), U.num(chance * 100, 0) .. "%"),
+				chance < 1 and U.col("9aa3b8", " (실패하면 골드만 사라짐)") or "",
+				U.col(ns.CanAfford(Up.Cost(it, n)) and "ffd24a" or "ff6a5a", U.fmt(Up.Cost(it, n)))))
 		end
 		local from = Up.SourceFor(it)
 		if from then
@@ -763,9 +740,97 @@ local function buildUpgrade(page, f)
 			c.move:SetOff(true)
 		end
 		local why = Up.Why(it)
-		p.go:SetLabel(n >= Up.MAX and "최고 단계" or ("강화하기  " .. U.fmt(Up.Cost(it, n)) .. " G"))
+		p.go:SetLabel(top and "최고 단계" or ("강화하기  " .. U.fmt(Up.Cost(it, n)) .. " G"))
 		p.go:SetOff(why ~= nil)
 		p.why:SetText(why or "")
+	end
+	return p
+end
+
+------------------------------------------------------------------------
+-- 분해: the grade, the pieces it would break down, the gold, now or by
+-- itself when the bag is full
+------------------------------------------------------------------------
+local SMELT_COLS, SMELT_ROWS = 10, 4
+local function smeltQ() return U.clamp(ns.db.ui.smeltQ or 2, 1, ns.MAX_QUALITY) end
+local function autoSmeltOn() return (ns.db.opt.autoSmelt or 0) > 0 end
+local function buildSmelt(page, f)
+	local p = {}
+	p.gradeLabel = UI.Text(f, 12, "분해 등급")
+	p.gradeLabel:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -8)
+	p.pick = UI.Dropdown(f, 160, 30, function()
+		local out = {}
+		for q = 1, ns.MAX_QUALITY do out[#out + 1] = { q, U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하" } end
+		return out
+	end, smeltQ, function(q)
+		ns.db.ui.smeltQ = q
+		if autoSmeltOn() then ns.db.opt.autoSmelt = q end
+	end, "")
+	p.pick:SetPoint("TOPLEFT", f, "TOPLEFT", 72, 0)
+	p.pick.tipTitle = "분해 등급"
+	p.pick.tipText = "일괄 분해와 자동 분해가 이 등급 이하의 장비만 분해합니다."
+	p.auto = UI.Check(f, "자동 분해", autoSmeltOn, function(v)
+		ns.db.opt.autoSmelt = v and smeltQ() or 0
+		ns.Toast(v and "자동 분해를 켰습니다." or "자동 분해를 껐습니다.")
+	end)
+	p.auto:SetPoint("LEFT", p.pick, "RIGHT", 16, 0)
+	UI.Tip(p.auto, function()
+		local q = ns.QUALITY[smeltQ()]
+		return UI.SimpleTip("자동 분해", string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다.", U.col(q.hex, ns.N(q.name))))
+	end, "TOP")
+	p.head = UI.Section(f, W)
+	p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -44)
+	p.cells = {}
+	for i = 1, SMELT_COLS * SMELT_ROWS do
+		local b = UI.IconButton(f, CELL)
+		local col, row = (i - 1) % SMELT_COLS, floor((i - 1) / SMELT_COLS)
+		b:SetPoint("TOPLEFT", f, "TOPLEFT", col * STEP, -70 - row * STEP)
+		UI.Tip(b, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end)
+		p.cells[i] = b
+	end
+	p.note = note(f, -70 - SMELT_ROWS * STEP - 8, "보호한 장비, 강화한 장비, 보석·마법부여·각인이 붙은 장비, 파티에게 지금 장비보다 더 좋은 장비는 남깁니다. 장비 하나는 가방에서 오른쪽 클릭으로 분해합니다.")
+	p.go = UI.Button(f, 220, 36, "일괄 분해", function()
+		local picked, kept = ns.Forge.PickByQuality(smeltQ())
+		if #picked == 0 then
+			UI.Try(false, "분해 등급 이하인 장비가 없습니다. 등급을 올려 보세요.")
+			return
+		end
+		local total = 0
+		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
+		local q = ns.QUALITY[smeltQ()]
+		UI.Confirm({ title = "일괄 분해", ok = "분해", style = "red",
+			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다.", U.col(q.hex, ns.N(q.name)), #picked, U.fmt(total)),
+			onOk = function()
+				local ok, gold, n = ns.Forge.Smelt(picked)
+				if UI.Try(ok, gold) then
+					ns.Toast(string.format("%d개 분해: +%s 골드", n, U.fmt(gold)))
+					ForgeView.Log(string.format("분해: %d개 · +%s G", n, U.fmt(gold)))
+				end
+			end })
+	end, "red")
+	p.go:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
+	p.go.clickWhenOff = true
+	p.total = UI.Text(f, 12)
+	p.total:SetPoint("LEFT", p.go, "RIGHT", 12, 0)
+	p.total:SetWidth(W - 240)
+	p.total:SetWordWrap(false)
+	p.refresh = function()
+		p.pick:Refresh()
+		local picked, kept = ns.Forge.PickByQuality(smeltQ())
+		local total = 0
+		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
+		p.head:Set("분해할 장비", string.format("%d개%s", #picked, kept > 0 and string.format(" · 파티에게 더 좋은 장비 %d개는 남김", kept) or ""))
+		for i, b in ipairs(p.cells) do
+			local it = picked[i]
+			b:Clear()
+			b.data = it
+			if it then
+				b:SetIconName(ns.Items.Icon(it))
+				b:SetQuality(it.q)
+			end
+		end
+		p.total:SetText(#picked > 0 and ("받을 골드  " .. U.col("ffd24a", U.fmt(total) .. " G")) or U.col("8a90a2", "분해할 장비가 없습니다."))
+		p.go:SetOff(#picked == 0)
 	end
 	return p
 end
@@ -809,6 +874,6 @@ end
 ForgeView.Build = {
 	fuse = buildFuse, craft = buildCraft,
 	gem = buildSocket("gem"), ench = buildSocket("ench"), insc = buildSocket("insc"),
-	up = buildUpgrade, locked = buildLocked,
+	up = buildUpgrade, smelt = buildSmelt, locked = buildLocked,
 }
 ForgeView.W, ForgeView.H = W, H

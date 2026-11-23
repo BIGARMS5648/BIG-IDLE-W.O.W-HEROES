@@ -177,6 +177,13 @@ local function equip(tab, opts)
 	ns.Main.Refresh()
 	return p
 end
+-- the forge screen on one of its functions
+local function forge(func, opts)
+	local p = show("forge", opts)
+	p.func = func or "fuse"
+	ns.Main.Refresh()
+	return p
+end
 S.equip = function() ns.Main.SelectHero(db.party[2]) equip("bag") end
 S.equip_tooltip = function()
 	local p = equip("bag")
@@ -245,22 +252,24 @@ S.equip_slot_tip = function()
 	local b = p.slots.chest
 	b.__scripts.OnEnter(b)
 end
-S.fuse = function() equip("fuse") end
+S.fuse = function() forge("fuse") end
 S.fuse_ready = function()
 	for _ = 1, 10 do ns.Items.AddToBag(ns.Items.New("hands", 24, 2)) end
-	local p = equip("fuse")
+	local p = forge("fuse")
 	p.forge.fuse.q = 2
 	ns.Main.Refresh()
 end
-S.fuse_list = function() local p = equip("fuse") p.forge.fuse.q = 2 ns.Main.Refresh() p.forge.fuse.pick:Click() end
-S.fuse_high = function() local p = equip("fuse") p.forge.fuse.q = 6 p.forge.fuse.cat = "accessory" ns.Main.Refresh() end
-S.craft = function() local p = equip("craft") p.forge.craft.tier = 1 ns.Main.Refresh() end
-S.craft_locked = function() local p = equip("craft") p.forge.craft.tier = 3 p.forge.craft.group = #ns.CRAFT_GROUPS ns.Main.Refresh() end
-S.craft_far = function() local p = equip("craft") p.forge.craft.tier = 5 ns.Main.Refresh() end
-S.gem = function() mixedItem() local p = equip("gem") p.forge.gem.picked = mixed ns.Main.Refresh() end
-S.gem_stress = function() stressRing() local p = equip("gem") p.forge.gem.picked = stress ns.Main.Refresh() end
-S.ench = function() mixedItem() local p = equip("ench") p.forge.ench.picked = mixed ns.Main.Refresh() end
-S.insc_locked = function() equip("insc") end
+S.fuse_list = function() local p = forge("fuse") p.forge.fuse.q = 2 ns.Main.Refresh() p.forge.fuse.pick:Click() end
+S.fuse_high = function() local p = forge("fuse") p.forge.fuse.q = 6 p.forge.fuse.cat = "accessory" ns.Main.Refresh() end
+S.craft = function() local p = forge("craft") p.forge.craft.tier = 1 ns.Main.Refresh() end
+S.craft_locked = function() local p = forge("craft") p.forge.craft.tier = 3 p.forge.craft.group = #ns.CRAFT_GROUPS ns.Main.Refresh() end
+S.craft_far = function() local p = forge("craft") p.forge.craft.tier = 5 ns.Main.Refresh() end
+S.gem = function() mixedItem() ns.ForgeView.SetTarget(mixed) forge("gem") end
+S.gem_stress = function() stressRing() ns.ForgeView.SetTarget(stress) forge("gem") end
+S.ench = function() mixedItem() ns.ForgeView.SetTarget(mixed) forge("ench") end
+S.smelt = function() forge("smelt") end
+S.seal = function() forge("seal") end
+S.insc_locked = function() forge("insc") end
 -- 강화: locked before the last difficulty is cleared; open with a piece at +12
 local function setProg(n)
 	local prog = ns.db.prog
@@ -268,19 +277,21 @@ local function setProg(n)
 	for d = 1, #ns.DIFFS do prog[d] = n end
 	S.restore = function() prog[1], prog[2], prog[3], prog[4] = was[1], was[2], was[3], was[4] end
 end
-S.up_locked = function() setProg(0) equip("up") end
+S.up_locked = function() setProg(0) forge("up") end
 S.up = function()
 	setProg(ns.STAGE_COUNT)
 	mixedItem()
 	mixed.up = 12
-	local p = equip("up")
-	p.forge.up.picked = mixed
+	ns.ForgeView.SetTarget(mixed)
+	ns.ForgeView.Log(ns.U.col("60e070", "강화 성공 +12") .. " · " .. ns.Items.Name(mixed))
+	ns.ForgeView.Log(ns.U.col("ff6a5a", "강화 실패 +11") .. " · " .. ns.Items.Name(mixed))
+	local p = forge("up")
 	p.forge.up.last = ns.U.col("60e070", "성공! +12")
 	ns.Main.Refresh()
 end
-S.mats = function() local p = equip("mats") p.matTab = "mat_craft" ns.Main.Refresh() end
-S.mats_gem = function() local p = equip("mats") p.matTab = "mat_gem" ns.Main.Refresh() end
-S.mats_seal = function() local p = equip("mats") p.matTab = "mat_seal" ns.Main.Refresh() end
+S.mats = function() local p = forge("mats") p.matTab = "mat_craft" ns.Main.Refresh() end
+S.mats_gem = function() local p = forge("mats") p.matTab = "mat_gem" ns.Main.Refresh() end
+S.mats_seal = function() local p = forge("mats") p.matTab = "mat_seal" ns.Main.Refresh() end
 -- functions used inside other tabs, still locked: their buttons unlock them
 local function locked(op, fn)
 	return function()
@@ -294,16 +305,16 @@ end
 S.mats_seal_some = function()
 	local had = {}
 	for _, id in ipairs({ "seal2", "seal4" }) do had[id] = ns.MatCount(id) ns.AddMat(id, -had[id]) end
-	local p = equip("mats")
+	local p = forge("mats")
 	p.matTab = "mat_seal"
 	ns.Main.Refresh()
 	S.restore = function() for id, n in pairs(had) do ns.AddMat(id, n) end end
 end
-S.mats_seal_locked = locked("seal", function() local p = equip("mats") ns.MatsView.Open(p, { tab = "mat_seal" }) ns.Main.Refresh() end)
-S.gem_remove_locked = locked("remove", function() equip("gem") end)
+S.mats_seal_locked = locked("seal", function() local p = forge("mats") ns.MatsView.Open(p, { tab = "mat_seal" }) ns.Main.Refresh() end)
+S.gem_remove_locked = locked("remove", function() forge("gem") end)
 S.bag_smelt_locked = locked("smelt", function() ns.Main.SelectHero(db.party[2]) equip("bag") end)
 
-S.mats_page2 = function() local p = equip("mats") p.matTab = "mat_craft" p.matPage = 2 ns.Main.Refresh() end
+S.mats_page2 = function() local p = forge("mats") p.matTab = "mat_craft" p.matPage = 2 ns.Main.Refresh() end
 
 -- 편성
 S.party = function() local p = show("party") p.selSlot = nil ns.Main.Refresh() end

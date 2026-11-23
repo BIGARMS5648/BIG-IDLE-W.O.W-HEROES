@@ -250,3 +250,45 @@ function ns.MobFx(kind, school)
 	if t.spell then return t end
 	return t[school or "phys"] or t.phys
 end
+
+-- The glow in a caster's hands for each cast kit above: the kit's hand
+-- effect model (1.12 SpellVisualKit hand effect -> SpellVisualEffectName).
+-- The battle window draws it as a model of its own, sized to the caster,
+-- instead of the kit (a kit on a model is drawn at its own size whatever
+-- the model's scale). Kits with no hand effect only animate.
+ns.KIT_HAND = {
+	[37] = 166602, -- nature_cast_hand.m2
+	[38] = 166110, -- fire_cast_hand.m2
+	[61] = 166110, -- fire_cast_hand.m2
+	[72] = 166488, -- lightning_cast_hand.m2
+	[118] = 166807, -- shadow_precast_low_hand.m2
+	[119] = 166336, -- holy_precast_low_hand.m2
+	[181] = 166602, -- nature_cast_hand.m2
+	[183] = 166602, -- nature_cast_hand.m2
+	[189] = 166337, -- holy_precast_med_hand.m2
+	[191] = 166335, -- holy_precast_high_hand.m2
+	[202] = 166381, -- ice_precast_low_hand.m2
+	[203] = 166381, -- ice_precast_low_hand.m2
+	[207] = 166379, -- ice_precast_high_hand.m2
+	[218] = 166807, -- shadow_precast_low_hand.m2
+	[224] = 166488, -- lightning_cast_hand.m2
+	[267] = 166524, -- magic_cast_hand.m2
+	[270] = 166336, -- holy_precast_low_hand.m2
+	[321] = 166488, -- lightning_cast_hand.m2
+	[379] = 166047, -- eviscerate_cast_hands.m2
+	[394] = 165728, -- bloodlust_state_hand.m2
+	[417] = 166336, -- holy_precast_low_hand.m2
+	[425] = 166524, -- magic_cast_hand.m2
+	[730] = 166524, -- magic_cast_hand.m2
+	[733] = 166047, -- eviscerate_cast_hands.m2
+	[1027] = 165811, -- coneofcold_hand.m2
+	[2810] = 166602, -- nature_cast_hand.m2
+	[3054] = 166602, -- nature_cast_hand.m2
+	[3169] = 166336, -- holy_precast_low_hand.m2
+	[3291] = 167214, -- wrath_precast_hand.m2
+	[3375] = 166605, -- nature_precast_low_hand.m2
+	[3770] = 166379, -- ice_precast_high_hand.m2
+	[5390] = 166382, -- ice_precast_med_hand.m2
+	[5391] = 166120, -- fire_precast_hand.m2
+	[6383] = 166524, -- magic_cast_hand.m2
+}

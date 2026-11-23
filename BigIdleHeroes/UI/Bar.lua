@@ -687,6 +687,9 @@ end
 local FX_FLIGHT, FX_HIT_DELAY, MAX_MISSILES, MAX_TARGETS = 0.35, 0.12, 12, 5
 local MAX_HITS, HIT_SHOW, HIT_FADE, HIT_SIZE = 12, 0.8, 0.25, 0.5
 local HIT_CAP, HIT_CAP_LOW, HIT_CLIP = 0.7, 1.0, 1.3
+-- the glow in a caster's hands: no wider or taller than this share of the
+-- caster's height, at the front hand (HAND_X across, HAND_Y up)
+local HAND_CAP, HAND_X, HAND_Y = 0.35, 0.22, 0.5
 local missiles, hits, pendingHits = {}, {}, {}
 -- what was launched and shown (the last missile's file), for the tests
 local fxStats = { missiles = 0, hits = 0 }
@@ -747,7 +750,8 @@ local function hitScale(hs)
 	if b and tb then
 		local ext = max(b[4] - b[1], b[5] - b[2], b[6] - b[3])
 		local th = (tb[6] - tb[3]) * ts
-		if ext > 0.01 and th > 0 then s = min(s, (hs.low and HIT_CAP_LOW or HIT_CAP) * th / ext) end
+		local cap = hs.hand and HAND_CAP or (hs.low and HIT_CAP_LOW or HIT_CAP)
+		if ext > 0.01 and th > 0 then s = min(s, cap * th / ext) end
 	end
 	return s
 end
@@ -764,7 +768,7 @@ local function playHit(tfig, fx)
 	local fig = hs.fig
 	fig.id = nil
 	if not fig:SetModelFile(fx.hit) then return end
-	hs.tfig, hs.low, hs.t, hs.active = tfig, fx.low, 0, true
+	hs.tfig, hs.low, hs.hand, hs.t, hs.active = tfig, fx.low, fx.hand, 0, true
 	fig:SetHeight2(tfig.height)
 	fig:SetFixedScale(hitScale(hs))
 	fig:SetFacing(tfig.facing == "left" and "right" or "left")
@@ -777,8 +781,10 @@ end
 local function spellFx(u, fx, to)
 	local cfig = figureOf(u)
 	if cfig and not cfig:IsLoaded() then cfig = nil end
-	-- the glow in the hands (a kit on the model), what shows on the caster
-	if cfig and fx.cast then cfig:PlayKit(fx.cast) end
+	-- the glow in the hands (the cast kit's hand effect, sized to the caster),
+	-- what shows on the caster
+	local handFile = cfig and fx.cast and ns.KIT_HAND[fx.cast]
+	if handFile and cfig.anchorX then playHit(cfig, { hit = handFile, hand = true }) end
 	if cfig and cfig.anchorX and fx.self then playHit(cfig, { hit = fx.self, low = fx.selfLow }) end
 	for k, t in ipairs(to or {}) do
 		if k > MAX_TARGETS then break end
@@ -886,7 +892,13 @@ local function drawEffects()
 				if hs.fig.height ~= tf.height then hs.fig:SetHeight2(tf.height) end
 				-- sized once its own size is known (and as the window changes)
 				hs.fig:SetFixedScale(hitScale(hs))
-				hs.fig:PlaceFeet(frame.scene, tf.anchorX, tf.anchorY + tf.height * (hs.low and 0.25 or 0.55))
+				if hs.hand then
+					-- at the front hand (the way the caster faces)
+					local dir = tf.facing == "left" and -1 or 1
+					hs.fig:PlaceFeet(frame.scene, tf.anchorX + tf.height * HAND_X * dir, tf.anchorY + tf.height * HAND_Y)
+				else
+					hs.fig:PlaceFeet(frame.scene, tf.anchorX, tf.anchorY + tf.height * (hs.low and 0.25 or 0.55))
+				end
 				if hs.clip then
 					local c = tf.height * HIT_CLIP
 					hs.clip:ClearAllPoints()
@@ -1304,6 +1316,7 @@ end
 local MENU = {
 	{ "hero",  "INV_Helmet_06",          "영웅" },
 	{ "equip", "INV_Chest_Chain_05",     "장비" },
+	{ "forge", "Trade_BlackSmithing",    "용광로" },
 	{ "party", "INV_Misc_GroupNeedMore", "편성" },
 	{ "runes", "INV_Misc_Rune_01",       "룬" },
 	{ "map",   "INV_Misc_Map_01",        "스테이지" },
@@ -1459,7 +1472,7 @@ function Bar.Create()
 	frame.dock = dock
 
 	local goal = CreateFrame("Button", nil, dock)
-	goal:SetSize(262, 46)
+	goal:SetSize(218, 46)
 	goal:SetPoint("LEFT", dock, "LEFT", 0, 0)
 	goal.bg = UI.Slice(goal, "card", "BACKGROUND")
 	goal.bg:SetColor(1, 1, 1, 1)
