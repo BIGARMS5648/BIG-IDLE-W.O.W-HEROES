@@ -554,12 +554,13 @@ ns.MODEL.pet = {
 	whelp          =   7544, -- Crimson Whelpling
 }
 
--- druid forms
+-- The forms player druids take in the original game: the night elf's for
+-- the Alliance, the tauren's for the Horde, one colour each (creature
+-- display ids the classic game gives the shapeshift)
 ns.MODEL.form = {
-	bear           =   1186, -- Black Bear
-	cat            =   7431, -- Frostsaber
-	moonkin        =  10157, -- Moonkin Oracle
-	tree           =   1964, -- Treant
+	bear    = { ALLIANCE = 2281,  HORDE = 2289 },  -- 곰 변신 · 광포한 곰 변신
+	cat     = { ALLIANCE = 892,   HORDE = 8571 },  -- 표범 변신
+	moonkin = { ALLIANCE = 15374, HORDE = 15375 }, -- 달빛야수 변신
 }
 
 -- Every spec as one famous NPC of the class, one for each faction, in the

@@ -68,7 +68,19 @@ end
 ------------------------------------------------------------------------
 -- Which model a thing uses
 ------------------------------------------------------------------------
-local FORM = { DRUID_GUARDIAN = "bear", DRUID_FERAL = "cat", DRUID_BALANCE = "moonkin", DRUID_RESTO = "tree" }
+-- The druid specs that fight shapeshifted (restoration stays in caster form).
+local FORM = { DRUID_GUARDIAN = "bear", DRUID_FERAL = "cat", DRUID_BALANCE = "moonkin" }
+
+-- The form a druid hero fights in, as a model key ("disp:<display id>"), or
+-- nil: no form for the spec, druids shown as themselves (settings), or a form
+-- the game could not show.
+local function formFor(specId, faction)
+	if ns.db and ns.db.opt and ns.db.opt.druidForm == false then return nil end
+	local form = FORM[specId] and ns.MODEL.form[FORM[specId]]
+	local d = form and form[faction or ns.Faction() or "ALLIANCE"]
+	return d and usable("disp:" .. d)
+end
+Figure.FormFor = formFor
 
 -- The NPC a spec is drawn as for a faction and gender (Data/Models.lua
 -- ns.MODEL.hero), else its famous NPC, else the class trainer.
@@ -90,8 +102,8 @@ function Figure.ForHero(heroId, inCombat)
 	if not h then return nil end
 	local faction = ns.Faction() or "ALLIANCE"
 	if inCombat ~= false then
-		local form = FORM[h.spec]
-		if form and usable(ns.MODEL.form[form]) then return ns.MODEL.form[form] end
+		local form = formFor(h.spec, faction)
+		if form then return form end
 	end
 	return Figure.ForSpec(h.spec, faction, h.sex)
 end
@@ -137,10 +149,7 @@ function Figure.HeroBody(heroId, inCombat)
 	local h = ns.db and ns.db.heroes[heroId]
 	if not h then return nil end
 	local faction = ns.Faction() or "ALLIANCE"
-	if inCombat ~= false then
-		local form = FORM[h.spec]
-		if form and usable(ns.MODEL.form[form]) then return nil end
-	end
+	if inCombat ~= false and formFor(h.spec, faction) then return nil end
 	local sp = ns.SPECS[h.spec]
 	return sp and Figure.BodyFor(sp.class, faction, h.spec)
 end
@@ -183,6 +192,10 @@ end
 -- else the known one unless this game lacks it.
 local function displayFor(id)
 	local mem = memory()
+	-- a model by its display id itself (a druid's form)
+	local own = type(id) == "string" and tonumber(id:match("^disp:(%d+)$"))
+	if own then return not (mem and mem.bad[own]) and own or nil end
+	if type(id) ~= "number" then return nil end
 	local seen = mem and mem.ok[id]
 	if seen then return seen end
 	local disp = ns.MODEL.display and ns.MODEL.display[id]
@@ -824,7 +837,7 @@ function model:Load()
 		ok = call(self, "SetDisplayInfo", disp)
 		if ok then self.tryDisplay = disp end
 	end
-	if not ok then
+	if not ok and type(id) == "number" then
 		if self.tries == 1 then self.tries = 2 end
 		ok = call(self, "SetCreature", id)
 	end

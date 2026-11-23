@@ -1047,6 +1047,33 @@ do
 	Fig.failed[f] = true
 	if Fig.ForSpec("PALADIN_HOLY", "ALLIANCE", "M") ~= ns.MODEL.trainer.PALADIN.ALLIANCE.npc then fail("when the famous model cannot be shown, the class trainer should stand in") end
 	Fig.ResetFailed()
+	-- druids fight in the night elf's (Alliance) or the tauren's (Horde)
+	-- forms; restoration in caster form; the setting shows them all as
+	-- themselves, weapons in hand
+	local was = ns.db.faction
+	local FORM_OF = { DRUID_GUARDIAN = "bear", DRUID_FERAL = "cat", DRUID_BALANCE = "moonkin" }
+	for _, fac in ipairs({ "ALLIANCE", "HORDE" }) do
+		ns.db.faction = fac
+		for _, sid in ipairs({ "DRUID_GUARDIAN", "DRUID_FERAL", "DRUID_BALANCE", "DRUID_RESTO" }) do
+			local h = H.NewRecord(sid)
+			ns.db.opt.druidForm = nil
+			local want = FORM_OF[sid] and ("disp:" .. ns.MODEL.form[FORM_OF[sid]][fac])
+			if want then
+				if Fig.ForHero(h.id, true) ~= want or Fig.HeroBody(h.id, true) then fail(sid .. " (" .. fac .. ") should fight in its form " .. want .. ": " .. tostring(Fig.ForHero(h.id, true))) end
+				if Fig.DisplayFor(want) ~= ns.MODEL.form[FORM_OF[sid]][fac] then fail("a form should load by its own display id") end
+			elseif not Fig.HeroBody(h.id, true) then
+				fail("a restoration druid should fight in caster form")
+			end
+			ns.db.opt.druidForm = false
+			local body = Fig.HeroBody(h.id, true)
+			if not body or body.weapons.mh ~= ns.MODEL.weapons[sid].mh or Fig.ForHero(h.id, true) == want then
+				fail(sid .. " should fight as itself, weapon in hand, when druid forms are off")
+			end
+			ns.db.heroes[h.id] = nil
+		end
+	end
+	ns.db.opt.druidForm = nil
+	ns.db.faction = was
 end
 
 -- a figure measures its model: whatever the model's own size, it stands as
