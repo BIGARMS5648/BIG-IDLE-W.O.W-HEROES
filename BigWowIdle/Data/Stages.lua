@@ -19,10 +19,10 @@ ns.DIFFS = {
 		world = "넓어지는 세계",
 		acts = { "울다만", "아탈학카르 신전", "검은바위 첨탑 하층" } },
 	{ name = "신화",   hex = "b266ff", base = 57, step = 0.70, mobs = 4, bossHP = 2.0,
-		world = "고대의 힘",
+		world = "깨어나는 위협",
 		acts = { "검은바위 첨탑 상층", "줄구룹", "세계의 우두머리" } },
 	{ name = "신화+", hex = "ff9326", base = 79, step = 0.73, mobs = 5, bossHP = 2.6,
-		world = "공격대",
+		world = "최후의 결전",
 		acts = { "화산 심장부", "검은날개와 안퀴라즈", "낙스라마스" } },
 }
 
