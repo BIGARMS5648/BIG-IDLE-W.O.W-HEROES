@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v3.23.0
+BIG IDLE HEROES v1.0.0
 ```
 
 ---
@@ -135,12 +135,12 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v3.23.0)
+## Changelog for this release (v1.0.0)
 
 ```
-- The Forge is its own screen (bottom menu, after Equipment): functions on the left, the work in the middle, the target hero and item and the latest results on the right. The Equipment screen keeps the bag and the bank.
-- Enhancement shows each base stat now and after the next step.
-- New salvage view on the Forge screen: the grade, every item it would break down and the gold.
-- Cast glows in the casters' hands are drawn at the caster's size and shrink and grow with the battle window (they were drawn at their own size).
-- The Forge has its own shortcut on the battle window.
+First release.
+- A party of up to five heroes from all 9 classic classes and 28 specializations, fighting on their own in a small battle window.
+- 120 stages through the classic zones, dungeons and raids, Elwynn Forest to Naxxramas, over four difficulties.
+- The game's own 3D models, animations and spell effects; heroes' gear changes with your progress, from starting clothes to the Naxxramas sets.
+- Loot in 8 qualities, the Forge (fuse, craft, gems, enchant, rune engraving, enhancement +1 to +20, salvage, lucky seals), runes, companions and offline rewards.
 ```
