@@ -153,6 +153,13 @@ def main(argv):
         lua = new_runtime()
         ok = run_script(lua, "test_balance.lua", hours, starter) and ok
 
+    if what == "gold":
+        # where every gold piece comes from and goes, hour by hour (tests/gold_audit.lua)
+        hours = float(argv[2]) if len(argv) > 2 else 24
+        print("== gold audit (%g simulated hours) ==" % hours)
+        lua = new_runtime()
+        ok = run_script(lua, "gold_audit.lua", hours) and ok
+
     if what == "audit":
         # every combat formula measured in controlled fights (tests/combat_audit.lua)
         print("== combat audit ==")

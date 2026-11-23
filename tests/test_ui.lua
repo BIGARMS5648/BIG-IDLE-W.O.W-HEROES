@@ -962,7 +962,7 @@ do
 					fail("a hero should be the player's body as its race (" .. race .. "), undressed: " .. tostring(m.actor.__display) .. " " .. tostring(m.actor.__race))
 				end
 				local worn = m.actor.__worn or {}
-				local w = ns.MODEL.weapons[ns.db.heroes[u.id].spec]
+				local w = ns.MODEL.weaponTier[ns.GearTier()][ns.db.heroes[u.id].spec]
 				local nW = (w.mh and 1 or 0) + (w.oh and 1 or 0)
 				if #worn ~= #body.items + nW or #body.items == 0 then fail("a hero should wear its class's dungeon set and its weapons: " .. #worn .. " pieces") end
 				-- the spec's dungeon weapons in its hands, drawn
@@ -1025,6 +1025,42 @@ do
 		local known = false
 		for _, e in pairs(ns.SKILL_FX) do if e.missile and e.missile == ns.Bar.fxStats.lastMissile then known = true end end
 		if sawMissile and not known then fail("a flying missile should be its spell's missile model") end
+		-- a hunter shoots: its bow or crossbow animation for an attack, and an
+		-- arrow (a bullet from a gun) flies to the target a moment later
+		do
+			local hu, hf
+			for i, x in ipairs(ns.Combat.heroes) do if x.class == "HUNTER" then hu, hf = x, heroes[i] end end
+			local mob
+			for _, m in ipairs(ns.Combat.mobs) do if not m.dead then mob = m break end end
+			if hu and hf and hf.figIs and mob then
+				local shot = ns.Bar.ShotOf(hu)
+				local body = Fig.HeroBody(hu.id, true)
+				local kind = ns.MODEL.rangedKind[body.weapons.mh]
+				if not (kind and shot == ns.MODEL.SHOT[kind]) then fail("a hunter's shot should follow the weapon in its hands: " .. tostring(kind)) end
+				if hf.figIs:AnimId("attack") ~= shot.anim then fail("a hunter should attack with its bow or rifle animation: " .. tostring(hf.figIs:AnimId("attack"))) end
+				local before = ns.Bar.fxStats.missiles
+				ns.Combat.vfx[#ns.Combat.vfx + 1] = { k = "shot", u = hu, to = { mob } }
+				frames(5)
+				if ns.Bar.fxStats.missiles <= before or ns.Bar.fxStats.lastMissile ~= shot.missile then
+					fail("a hunter's basic attack should fly its arrow to the target: " .. tostring(ns.Bar.fxStats.lastMissile))
+				end
+			else
+				fail("the battle check should have a hunter and a monster on screen")
+			end
+			for i, x in ipairs(ns.Combat.heroes) do
+				if x.class ~= "HUNTER" and heroes[i].figIs and heroes[i].figIs:AnimId("attack") ~= 17 then fail("only hunters shoot: " .. x.class) end
+			end
+		end
+		-- effects are drawn straight into the scene (the game shows nothing of
+		-- an effect drawn on its own); the fighters on their own, over the scenery
+		for _, pool in ipairs({ ns.Bar.missiles, ns.Bar.hits }) do
+			for _, ms in ipairs(pool) do
+				if ms.fig.__overlap ~= false then fail("a spell effect should not be drawn on its own (overlapped)") break end
+			end
+		end
+		for _, f in ipairs(heroes) do
+			if f.model and f.model.kind == "scene" and f.model.__overlap ~= true then fail("a fighter should be drawn on its own, over the scenery") break end
+		end
 		-- a hit is the spell's impact model next to its target, half as big
 		-- as the target's own scale, in a figure as tall as the target
 		if not hit then
@@ -1401,11 +1437,30 @@ do
 		for _, ps in ipairs({ 2, 3 }) do
 			Mock.playerSex = ps
 			local me = ps == 3 and "F" or "M"
-			local b = Fig.BodyFor("WARRIOR", "ALLIANCE", "WARRIOR_ARMS")
+			local b = Fig.BodyFor("WARRIOR", "ALLIANCE", "WARRIOR_ARMS", 2)
 			if b.npc or b.rid ~= ns.MODEL.raceId.DWARF or b.sex ~= me then fail("a hero should be the player's body as a dwarf, " .. me) end
 			if #b.items ~= 8 or b.weapons.mh ~= ns.MODEL.weapons.WARRIOR_ARMS.mh then fail("every body wears the set and holds the weapons") end
 		end
 		Mock.playerSex = was
+		-- the clothes go with how far the account has come: the starting
+		-- clothes, then one look for every difficulty cleared to its end
+		local prog = ns.db.prog
+		local saved = { prog[1], prog[2], prog[3], prog[4] }
+		local seen = {}
+		for tier = 0, 4 do
+			for d = 1, 4 do prog[d] = d <= tier and ns.STAGE_COUNT or (d == tier + 1 and ns.STAGE_COUNT - 1 or 0) end
+			if ns.GearTier() ~= tier then fail("clearing " .. tier .. " difficulties should give look " .. tier .. ": " .. ns.GearTier()) end
+			local b = Fig.BodyFor("WARRIOR", "ALLIANCE", "WARRIOR_ARMS")
+			if b.tier ~= tier or b.items ~= ns.MODEL.armorTier[tier].WARRIOR or b.weapons.mh ~= ns.MODEL.weaponTier[tier].WARRIOR_ARMS.mh then
+				fail("look " .. tier .. " should wear its own armor and weapons")
+			end
+			if seen[b.key] then fail("every look should differ from the others") end
+			seen[b.key] = true
+		end
+		-- a later difficulty cleared with an earlier one not: no skipping
+		prog[1], prog[2], prog[3], prog[4] = ns.STAGE_COUNT, 0, ns.STAGE_COUNT, 0
+		if ns.GearTier() ~= 1 then fail("the look should count difficulties cleared in order") end
+		prog[1], prog[2], prog[3], prog[4] = saved[1], saved[2], saved[3], saved[4]
 		if ns.MODEL.npcBody or ns.MODEL.raceBody then fail("no stand-in bodies for the other gender") end
 	end
 	-- druids fight in the night elf's (Alliance) or the tauren's (Horde)
@@ -1433,13 +1488,13 @@ do
 			if (sid == "DRUID_GUARDIAN" or sid == "DRUID_RESTO") and math.abs(inForm - raceScale) > 1e-9 then fail(sid .. " should keep its size") end
 			-- the cat's health bar under its body, forward of its middle (its tail is long)
 			local shift = Fig.HeroBarShift(h.id, true)
-			if sid == "DRUID_FERAL" and not (shift > 0.2) then fail("the cat's health bar should sit under its body, forward of its middle") end
+			if sid == "DRUID_FERAL" and not (shift > 0.05 and shift < 0.3) then fail("the cat's health bar should sit under its body, a little forward of its middle: " .. shift) end
 			if sid ~= "DRUID_FERAL" and shift ~= 0 then fail(sid .. "'s health bar should sit under its middle") end
 			ns.db.opt.druidForm = false
 			if Fig.HeroBarShift(h.id, true) ~= 0 then fail("a druid as itself has its health bar under its middle") end
 			if math.abs(Fig.HeroScale(h.id, true) - raceScale) > 1e-9 then fail("a druid as itself keeps its race's size") end
 			local body = Fig.HeroBody(h.id, true)
-			if not body or body.weapons.mh ~= ns.MODEL.weapons[sid].mh or Fig.ForHero(h.id, true) == want then
+			if not body or body.weapons.mh ~= ns.MODEL.weaponTier[ns.GearTier()][sid].mh or Fig.ForHero(h.id, true) == want then
 				fail(sid .. " should fight as itself, weapon in hand, when druid forms are off")
 			end
 			ns.db.heroes[h.id] = nil
@@ -1728,6 +1783,19 @@ do
 	end
 	-- the player's own character in a dressing model frame, the set on it
 	if not (m3 and m3.__worn and #m3.__worn == 8) then fail("the third card should try the set on the player's own character") end
+	-- each look by its button: the starting clothes, then back to the raid set
+	if #dp.tierButtons ~= 5 then fail("옷 입히기 should have a button per look") end
+	click("model: dressing look 0", function(b) return b == dp.tierButtons[1] end)
+	frames(20)
+	local start = ns.MODEL.armorTier[0].WARRIOR
+	if dp.tier ~= 0 or not (a2.__worn and #a2.__worn == #start and a2.__worn[1] == "item:" .. start[1]) then
+		fail("the first look button should put the starting clothes on: " .. tostring(a2.__worn and #a2.__worn))
+	end
+	if not (dp.label.__text or ""):find(ns.MODEL.GEAR_TIER_NAME[0], 1, true) then fail("the dressing label should name the look: " .. tostring(dp.label.__text)) end
+	if dp.tierButtons[1].style ~= "primary" or dp.tierButtons[5].style == "primary" then fail("the look shown should be the marked button") end
+	click("model: dressing look 4", function(b) return b == dp.tierButtons[5] end)
+	frames(20)
+	if dp.tier ~= 4 or not (a2.__worn and a2.__worn[1] == "item:" .. ns.MODEL.armorTier[4].WARRIOR[1]) then fail("the last look button should put the Naxxramas set on") end
 	click("model: dressing next", function(b) return b == dp.next end)
 	frames(20)
 	if dp.i ~= 2 or a1.__race ~= ns.MODEL.raceId.ORC or a2.__race ~= ns.MODEL.raceId.ORC then

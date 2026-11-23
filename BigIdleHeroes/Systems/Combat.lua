@@ -948,7 +948,7 @@ local function stepHero(u)
 		if u.atkT < 0 then u.atkT = 0 end
 		u.anim = 0.15
 		if u.ranged then
-			vfx({ k = "shot", x1 = u.x, x2 = target.x, school = u.school, gun = u.gun })
+			vfx({ k = "shot", u = u, to = { target }, x1 = u.x, x2 = target.x, school = u.school, gun = u.gun })
 		end
 		heroHit(u, target, 1, u.school)
 		vfx({ k = "hit", x = target.x, school = u.school, mob = true })

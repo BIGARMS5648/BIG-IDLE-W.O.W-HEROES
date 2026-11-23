@@ -662,6 +662,242 @@ ns.MODEL.weapons = {
 }
 
 
+-- The looks heroes wear as the account goes on: what every hero has on
+-- (armor by class, weapons by spec) for each difficulty cleared to its
+-- last stage (ns.GearTier). Tier 2 is the dungeon set and weapons above.
+-- Item ids from the original game data (CMaNGOS classic database); the
+-- names in the comments are the English ones, the game shows its own.
+--   0  the class's starting clothes and weapon
+--   1  normal cleared: the best gear worn in the level 20s (Defias Leather
+--      and Embrace of the Viper on the leather wearers), mail for warriors
+--      and paladins, leather for hunters and shamans (as before level 40)
+--   2  heroic cleared: the dungeon set (ns.MODEL.dungeonSet / weapons)
+--   3  mythic cleared: the Ahn'Qiraj set, the best Ahn'Qiraj pieces for
+--      wrists, hands and waist, and Ahn'Qiraj weapons
+--   4  mythic+ cleared: the Naxxramas set and Naxxramas weapons
+ns.MODEL.GEAR_TIER_NAME = { [0] = "시작 옷", [1] = "20레벨대 장비", [2] = "던전 세트", [3] = "안퀴라즈 세트", [4] = "낙스라마스 세트" }
+ns.MODEL.armorTier = {
+	[0] = {
+		WARRIOR = { 38, 39, 40 },
+			-- Recruit's Shirt · Recruit's Pants · Recruit's Boots
+		PALADIN = { 45, 44, 43 },
+			-- Squire's Shirt · Squire's Pants · Squire's Boots
+		HUNTER  = { 148, 147, 129 },
+			-- Rugged Trapper's Shirt · Rugged Trapper's Pants · Rugged Trapper's Boots
+		ROGUE   = { 49, 48, 47 },
+			-- Footpad's Shirt · Footpad's Pants · Footpad's Shoes
+		PRIEST  = { 53, 6098, 52, 51 },
+			-- Neophyte's Shirt · Neophyte's Robe · Neophyte's Pants · Neophyte's Boots
+		SHAMAN  = { 154, 153 },
+			-- Primitive Mantle · Primitive Kilt
+		MAGE    = { 6096, 56, 1395, 55 },
+			-- Apprentice's Shirt · Apprentice's Robe · Apprentice's Pants · Apprentice's Boots
+		WARLOCK = { 6097, 57, 1396, 59 },
+			-- Acolyte's Shirt · Acolyte's Robe · Acolyte's Pants · Acolyte's Shoes
+		DRUID   = { 6123, 6124 },
+			-- Novice's Robe · Novice's Pants
+	},
+	[1] = {
+		WARRIOR = { 13127, 13131, 1488, 4438, 6906, 9405, 13010, 9510 },
+			-- Frostreaver Crown · Sparkleshell Mantle · Avenger's Armor · Pugilist Bracers · Algae Fists · Girdle of Golem Strength · Dreamsinger Legguards · Caverndeep Trudgers
+		PALADIN = { 13127, 13131, 1488, 4438, 6906, 9405, 13010, 9510 },
+			-- Frostreaver Crown · Sparkleshell Mantle · Avenger's Armor · Pugilist Bracers · Algae Fists · Girdle of Golem Strength · Dreamsinger Legguards · Caverndeep Trudgers
+		HUNTER  = { 3020, 2264, 10399, 9455, 10401, 10403, 10400, 10402 },
+			-- Enduring Cap · Mantle of Thieves · Blackened Defias Armor · Emissary Cuffs · Blackened Defias Gloves · Blackened Defias Belt · Blackened Defias Leggings · Blackened Defias Boots
+		ROGUE   = { 3020, 2278, 10399, 9455, 10401, 10403, 10400, 10402 },
+			-- Enduring Cap · Forest Tracker Epaulets · Blackened Defias Armor · Emissary Cuffs · Blackened Defias Gloves · Blackened Defias Belt · Blackened Defias Leggings · Blackened Defias Boots
+		PRIEST  = { 2721, 6697, 7728, 13106, 9395, 6392, 6910, 9454 },
+			-- Holy Shroud · Batwing Mantle · Beguiler Robes · Glowing Magical Bracelets · Gloves of Old · Belt of Arugal · Leech Pants · Acidic Walkers
+		SHAMAN  = { 3020, 7727, 6473, 9455, 10413, 10412, 10410, 10411 },
+			-- Enduring Cap · Watchman Pauldrons · Armor of the Fang · Emissary Cuffs · Gloves of the Fang · Belt of the Fang · Leggings of the Fang · Footpads of the Fang
+		MAGE    = { 2721, 6697, 7728, 13106, 9395, 6392, 6910, 9454 },
+			-- Holy Shroud · Batwing Mantle · Beguiler Robes · Glowing Magical Bracelets · Gloves of Old · Belt of Arugal · Leech Pants · Acidic Walkers
+		WARLOCK = { 2721, 6697, 7728, 13106, 9395, 6392, 6910, 9454 },
+			-- Holy Shroud · Batwing Mantle · Beguiler Robes · Glowing Magical Bracelets · Gloves of Old · Belt of Arugal · Leech Pants · Acidic Walkers
+		DRUID   = { 3020, 7727, 6473, 9455, 10413, 10412, 10410, 10411 },
+			-- Enduring Cap · Watchman Pauldrons · Armor of the Fang · Emissary Cuffs · Gloves of the Fang · Belt of the Fang · Leggings of the Fang · Footpads of the Fang
+	},
+	[3] = {
+		WARRIOR = { 21329, 21330, 21331, 21618, 21581, 21692, 21332, 21333 },
+			-- Conqueror's Crown · Conqueror's Spaulders · Conqueror's Breastplate · Hive Defiler Wristguards · Gauntlets of Annihilation · Triad Girdle · Conqueror's Legguards · Conqueror's Greaves
+		PALADIN = { 21387, 21391, 21389, 21618, 21581, 21606, 21390, 21388 },
+			-- Avenger's Crown · Avenger's Pauldrons · Avenger's Breastplate · Hive Defiler Wristguards · Gauntlets of Annihilation · Belt of the Fallen Emperor · Avenger's Legguards · Avenger's Greaves
+		HUNTER  = { 21366, 21367, 21370, 21602, 21599, 21607, 21368, 21365 },
+			-- Striker's Diadem · Striker's Pauldrons · Striker's Hauberk · Qiraji Execution Bracers · Vek'lor's Gloves of Devastation · Grasp of the Fallen Emperor · Striker's Leggings · Striker's Footguards
+		ROGUE   = { 21360, 21361, 21364, 21602, 21605, 21675, 21362, 21359 },
+			-- Deathdealer's Helm · Deathdealer's Spaulders · Deathdealer's Vest · Qiraji Execution Bracers · Gloves of the Hidden Temple · Thick Qirajihide Belt · Deathdealer's Leggings · Deathdealer's Boots
+		PRIEST  = { 21348, 21350, 21351, 21604, 21585, 21582, 21352, 21349 },
+			-- Tiara of the Oracle · Mantle of the Oracle · Vestments of the Oracle · Bracelets of Royal Redemption · Dark Storm Gauntlets · Grasp of the Old God · Trousers of the Oracle · Footwraps of the Oracle
+		SHAMAN  = { 21372, 21376, 21374, 21602, 21599, 21607, 21375, 21373 },
+			-- Stormcaller's Diadem · Stormcaller's Pauldrons · Stormcaller's Hauberk · Qiraji Execution Bracers · Vek'lor's Gloves of Devastation · Grasp of the Fallen Emperor · Stormcaller's Leggings · Stormcaller's Footguards
+		MAGE    = { 21347, 21345, 21343, 21604, 21585, 21582, 21346, 21344 },
+			-- Enigma Circlet · Enigma Shoulderpads · Enigma Robes · Bracelets of Royal Redemption · Dark Storm Gauntlets · Grasp of the Old God · Enigma Leggings · Enigma Boots
+		WARLOCK = { 21337, 21335, 21334, 21604, 21585, 21582, 21336, 21338 },
+			-- Doomcaller's Circlet · Doomcaller's Mantle · Doomcaller's Robes · Bracelets of Royal Redemption · Dark Storm Gauntlets · Grasp of the Old God · Doomcaller's Trousers · Doomcaller's Footwraps
+		DRUID   = { 21353, 21354, 21357, 21602, 21605, 21609, 21356, 21355 },
+			-- Genesis Helm · Genesis Shoulderpads · Genesis Vest · Qiraji Execution Bracers · Gloves of the Hidden Temple · Regenerating Belt of Vek'nilash · Genesis Trousers · Genesis Boots
+	},
+	[4] = {
+		WARRIOR = { 22418, 22419, 22416, 22423, 22421, 22422, 22417, 22420 },
+			-- Dreadnaught Helmet · Dreadnaught Pauldrons · Dreadnaught Breastplate · Dreadnaught Bracers · Dreadnaught Gauntlets · Dreadnaught Waistguard · Dreadnaught Legplates · Dreadnaught Sabatons
+		PALADIN = { 22428, 22429, 22425, 22424, 22426, 22431, 22427, 22430 },
+			-- Redemption Headpiece · Redemption Spaulders · Redemption Tunic · Redemption Wristguards · Redemption Handguards · Redemption Girdle · Redemption Legguards · Redemption Boots
+		HUNTER  = { 22438, 22439, 22436, 22443, 22441, 22442, 22437, 22440 },
+			-- Cryptstalker Headpiece · Cryptstalker Spaulders · Cryptstalker Tunic · Cryptstalker Wristguards · Cryptstalker Handguards · Cryptstalker Girdle · Cryptstalker Legguards · Cryptstalker Boots
+		ROGUE   = { 22478, 22479, 22476, 22483, 22481, 22482, 22477, 22480 },
+			-- Bonescythe Helmet · Bonescythe Pauldrons · Bonescythe Breastplate · Bonescythe Bracers · Bonescythe Gauntlets · Bonescythe Waistguard · Bonescythe Legplates · Bonescythe Sabatons
+		PRIEST  = { 22514, 22515, 22512, 22519, 22517, 22518, 22513, 22516 },
+			-- Circlet of Faith · Shoulderpads of Faith · Robe of Faith · Bindings of Faith · Gloves of Faith · Belt of Faith · Leggings of Faith · Sandals of Faith
+		SHAMAN  = { 22466, 22467, 22464, 22471, 22469, 22470, 22465, 22468 },
+			-- Earthshatter Headpiece · Earthshatter Spaulders · Earthshatter Tunic · Earthshatter Wristguards · Earthshatter Handguards · Earthshatter Girdle · Earthshatter Legguards · Earthshatter Boots
+		MAGE    = { 22498, 22499, 22496, 22503, 22501, 22502, 22497, 22500 },
+			-- Frostfire Circlet · Frostfire Shoulderpads · Frostfire Robe · Frostfire Bindings · Frostfire Gloves · Frostfire Belt · Frostfire Leggings · Frostfire Sandals
+		WARLOCK = { 22506, 22507, 22504, 22511, 22509, 22510, 22505, 22508 },
+			-- Plagueheart Circlet · Plagueheart Shoulderpads · Plagueheart Robe · Plagueheart Bindings · Plagueheart Gloves · Plagueheart Belt · Plagueheart Leggings · Plagueheart Sandals
+		DRUID   = { 22490, 22491, 22488, 22495, 22493, 22494, 22489, 22492 },
+			-- Dreamwalker Headpiece · Dreamwalker Spaulders · Dreamwalker Tunic · Dreamwalker Wristguards · Dreamwalker Handguards · Dreamwalker Girdle · Dreamwalker Legguards · Dreamwalker Boots
+	},
+}
+ns.MODEL.armorTier[2] = {}
+for cls, set in pairs(ns.MODEL.dungeonSet) do ns.MODEL.armorTier[2][cls] = set.items end
+ns.MODEL.weaponTier = {
+	[0] = {
+		WARRIOR_ARMS   = { mh = 12282 }, -- Worn Battleaxe
+		WARRIOR_FURY   = { mh = 25, oh = 37 }, -- Worn Shortsword · Worn Axe
+		WARRIOR_PROT   = { mh = 25, oh = 2362 }, -- Worn Shortsword · Worn Wooden Shield
+		PALADIN_HOLY   = { mh = 36, oh = 2362 }, -- Worn Mace · Worn Wooden Shield
+		PALADIN_PROT   = { mh = 36, oh = 2362 }, -- Worn Mace · Worn Wooden Shield
+		PALADIN_RET    = { mh = 2361 }, -- Battleworn Hammer
+		HUNTER_BM      = { mh = 2504 }, -- Worn Shortbow
+		HUNTER_MM      = { mh = 2504 }, -- Worn Shortbow
+		HUNTER_SV      = { mh = 2504 }, -- Worn Shortbow
+		ROGUE_ASSA     = { mh = 2092, oh = 2092 }, -- Worn Dagger · Worn Dagger
+		ROGUE_OUTLAW   = { mh = 25, oh = 2092 }, -- Worn Shortsword · Worn Dagger
+		ROGUE_SUB      = { mh = 2092, oh = 2092 }, -- Worn Dagger · Worn Dagger
+		PRIEST_DISC    = { mh = 36 }, -- Worn Mace
+		PRIEST_HOLY    = { mh = 36 }, -- Worn Mace
+		PRIEST_SHADOW  = { mh = 36 }, -- Worn Mace
+		SHAMAN_ELE     = { mh = 36, oh = 876 }, -- Worn Mace · Worn Wooden Buckler
+		SHAMAN_ENH     = { mh = 2361 }, -- Battleworn Hammer
+		SHAMAN_RESTO   = { mh = 36, oh = 876 }, -- Worn Mace · Worn Wooden Buckler
+		MAGE_ARCANE    = { mh = 35 }, -- Bent Staff
+		MAGE_FIRE      = { mh = 35 }, -- Bent Staff
+		MAGE_FROST     = { mh = 35 }, -- Bent Staff
+		WARLOCK_AFF    = { mh = 2092 }, -- Worn Dagger
+		WARLOCK_DEMO   = { mh = 2092 }, -- Worn Dagger
+		WARLOCK_DESTRO = { mh = 2092 }, -- Worn Dagger
+		DRUID_BALANCE  = { mh = 35 }, -- Bent Staff
+		DRUID_FERAL    = { mh = 35 }, -- Bent Staff
+		DRUID_GUARDIAN = { mh = 35 }, -- Bent Staff
+		DRUID_RESTO    = { mh = 36 }, -- Worn Mace
+	},
+	[1] = {
+		WARRIOR_ARMS   = { mh = 9449 }, -- Manual Crowd Pummeler (Gnomeregan: Crowd Pummeler 9-60)
+		WARRIOR_FURY   = { mh = 7752, oh = 7786 }, -- Dreamslayer (Scarlet Monastery: Anguished Dead) · Headsplitter (Scarlet Monastery: Anguished Dead)
+		WARRIOR_PROT   = { mh = 13048, oh = 7787 }, -- Looming Gavel (Gnomeregan: Dark Iron Agent) · Resplendent Guardian (Scarlet Monastery: Anguished Dead)
+		PALADIN_HOLY   = { mh = 2816, oh = 13031 }, -- Death Speaker Scepter (Razorfen Kraul: Death Speaker Jargba) · Orb of Mistmantle (Blackfathom Deeps: Fallenroot Hellcaller)
+		PALADIN_PROT   = { mh = 13048, oh = 7787 }, -- Looming Gavel (Gnomeregan: Dark Iron Agent) · Resplendent Guardian (Scarlet Monastery: Anguished Dead)
+		PALADIN_RET    = { mh = 9449 }, -- Manual Crowd Pummeler (Gnomeregan: Crowd Pummeler 9-60)
+		HUNTER_BM      = { mh = 6696 }, -- Nightstalker Bow (Razorfen Kraul: Blind Hunter)
+		HUNTER_MM      = { mh = 6696 }, -- Nightstalker Bow (Razorfen Kraul: Blind Hunter)
+		HUNTER_SV      = { mh = 6696 }, -- Nightstalker Bow (Razorfen Kraul: Blind Hunter)
+		ROGUE_ASSA     = { mh = 776, oh = 9453 }, -- Vendetta (Razorfen Kraul: Agam'ar) · Toxic Revenger (Gnomeregan: Viscous Fallout)
+		ROGUE_OUTLAW   = { mh = 8226, oh = 16886 }, -- The Butcher (Scarlet Monastery: Anguished Dead) · Outlaw Sabre (quest: Baron Aquanis)
+		ROGUE_SUB      = { mh = 776, oh = 9453 }, -- Vendetta (Razorfen Kraul: Agam'ar) · Toxic Revenger (Gnomeregan: Viscous Fallout)
+		PRIEST_DISC    = { mh = 2816, oh = 13031 }, -- Death Speaker Scepter (Razorfen Kraul: Death Speaker Jargba) · Orb of Mistmantle (Blackfathom Deeps: Fallenroot Hellcaller)
+		PRIEST_HOLY    = { mh = 6689 }, -- Wind Spirit Staff (Razorfen Kraul: Earthcaller Halmgar)
+		PRIEST_SHADOW  = { mh = 1155 }, -- Rod of the Sleepwalker (Blackfathom Deeps: Twilight Lord Kelris)
+		SHAMAN_ELE     = { mh = 2816, oh = 13031 }, -- Death Speaker Scepter (Razorfen Kraul: Death Speaker Jargba) · Orb of Mistmantle (Blackfathom Deeps: Fallenroot Hellcaller)
+		SHAMAN_ENH     = { mh = 9449 }, -- Manual Crowd Pummeler (Gnomeregan: Crowd Pummeler 9-60)
+		SHAMAN_RESTO   = { mh = 2816, oh = 13031 }, -- Death Speaker Scepter (Razorfen Kraul: Death Speaker Jargba) · Orb of Mistmantle (Blackfathom Deeps: Fallenroot Hellcaller)
+		MAGE_ARCANE    = { mh = 13033, oh = 13031 }, -- Zealot Blade (Gnomeregan: Dark Iron Agent) · Orb of Mistmantle (Blackfathom Deeps: Fallenroot Hellcaller)
+		MAGE_FIRE      = { mh = 13033, oh = 13031 }, -- Zealot Blade (Gnomeregan: Dark Iron Agent) · Orb of Mistmantle (Blackfathom Deeps: Fallenroot Hellcaller)
+		MAGE_FROST     = { mh = 13033, oh = 13031 }, -- Zealot Blade (Gnomeregan: Dark Iron Agent) · Orb of Mistmantle (Blackfathom Deeps: Fallenroot Hellcaller)
+		WARLOCK_AFF    = { mh = 13033, oh = 13031 }, -- Zealot Blade (Gnomeregan: Dark Iron Agent) · Orb of Mistmantle (Blackfathom Deeps: Fallenroot Hellcaller)
+		WARLOCK_DEMO   = { mh = 13033, oh = 13031 }, -- Zealot Blade (Gnomeregan: Dark Iron Agent) · Orb of Mistmantle (Blackfathom Deeps: Fallenroot Hellcaller)
+		WARLOCK_DESTRO = { mh = 13033, oh = 13031 }, -- Zealot Blade (Gnomeregan: Dark Iron Agent) · Orb of Mistmantle (Blackfathom Deeps: Fallenroot Hellcaller)
+		DRUID_BALANCE  = { mh = 1155 }, -- Rod of the Sleepwalker (Blackfathom Deeps: Twilight Lord Kelris)
+		DRUID_FERAL    = { mh = 9449 }, -- Manual Crowd Pummeler (Gnomeregan: Crowd Pummeler 9-60)
+		DRUID_GUARDIAN = { mh = 9449 }, -- Manual Crowd Pummeler (Gnomeregan: Crowd Pummeler 9-60)
+		DRUID_RESTO    = { mh = 6689 }, -- Wind Spirit Staff (Razorfen Kraul: Earthcaller Halmgar)
+	},
+	[3] = {
+		WARRIOR_ARMS   = { mh = 21134 }, -- Dark Edge of Insanity (AQ40: C'Thun)
+		WARRIOR_FURY   = { mh = 21268, oh = 21650 }, -- Blessed Qiraji War Hammer (quest: Imperial Qiraji Regalia) · Ancient Qiraji Ripper (AQ40: Fankriss the Unyielding)
+		WARRIOR_PROT   = { mh = 21268, oh = 21269 }, -- Blessed Qiraji War Hammer (quest: Imperial Qiraji Regalia) · Blessed Qiraji Bulwark (quest: Imperial Qiraji Armaments)
+		PALADIN_HOLY   = { mh = 21839, oh = 21597 }, -- Scepter of the False Prophet (AQ40: C'Thun) · Royal Scepter of Vek'lor (AQ40: Emperor Vek'lor)
+		PALADIN_PROT   = { mh = 21268, oh = 21269 }, -- Blessed Qiraji War Hammer (quest: Imperial Qiraji Regalia) · Blessed Qiraji Bulwark (quest: Imperial Qiraji Armaments)
+		PALADIN_RET    = { mh = 21134 }, -- Dark Edge of Insanity (AQ40: C'Thun)
+		HUNTER_BM      = { mh = 21616 }, -- Huhuran's Stinger (AQ40: Princess Huhuran)
+		HUNTER_MM      = { mh = 21616 }, -- Huhuran's Stinger (AQ40: Princess Huhuran)
+		HUNTER_SV      = { mh = 21616 }, -- Huhuran's Stinger (AQ40: Princess Huhuran)
+		ROGUE_ASSA     = { mh = 21126, oh = 21244 }, -- Death's Sting (AQ40: C'Thun) · Blessed Qiraji Pugio (quest: Imperial Qiraji Armaments)
+		ROGUE_OUTLAW   = { mh = 21650, oh = 21650 }, -- Ancient Qiraji Ripper (AQ40: Fankriss the Unyielding) · Ancient Qiraji Ripper (AQ40: Fankriss the Unyielding)
+		ROGUE_SUB      = { mh = 21126, oh = 21244 }, -- Death's Sting (AQ40: C'Thun) · Blessed Qiraji Pugio (quest: Imperial Qiraji Armaments)
+		PRIEST_DISC    = { mh = 21839, oh = 21597 }, -- Scepter of the False Prophet (AQ40: C'Thun) · Royal Scepter of Vek'lor (AQ40: Emperor Vek'lor)
+		PRIEST_HOLY    = { mh = 21273 }, -- Blessed Qiraji Acolyte Staff (quest: Imperial Qiraji Regalia)
+		PRIEST_SHADOW  = { mh = 21273 }, -- Blessed Qiraji Acolyte Staff (quest: Imperial Qiraji Regalia)
+		SHAMAN_ELE     = { mh = 21839, oh = 21597 }, -- Scepter of the False Prophet (AQ40: C'Thun) · Royal Scepter of Vek'lor (AQ40: Emperor Vek'lor)
+		SHAMAN_ENH     = { mh = 21134 }, -- Dark Edge of Insanity (AQ40: C'Thun)
+		SHAMAN_RESTO   = { mh = 21839, oh = 21597 }, -- Scepter of the False Prophet (AQ40: C'Thun) · Royal Scepter of Vek'lor (AQ40: Emperor Vek'lor)
+		MAGE_ARCANE    = { mh = 21622, oh = 21597 }, -- Sharpened Silithid Femur (AQ40: Viscidus) · Royal Scepter of Vek'lor (AQ40: Emperor Vek'lor)
+		MAGE_FIRE      = { mh = 21622, oh = 21597 }, -- Sharpened Silithid Femur (AQ40: Viscidus) · Royal Scepter of Vek'lor (AQ40: Emperor Vek'lor)
+		MAGE_FROST     = { mh = 21622, oh = 21597 }, -- Sharpened Silithid Femur (AQ40: Viscidus) · Royal Scepter of Vek'lor (AQ40: Emperor Vek'lor)
+		WARLOCK_AFF    = { mh = 21622, oh = 21597 }, -- Sharpened Silithid Femur (AQ40: Viscidus) · Royal Scepter of Vek'lor (AQ40: Emperor Vek'lor)
+		WARLOCK_DEMO   = { mh = 21622, oh = 21597 }, -- Sharpened Silithid Femur (AQ40: Viscidus) · Royal Scepter of Vek'lor (AQ40: Emperor Vek'lor)
+		WARLOCK_DESTRO = { mh = 21622, oh = 21597 }, -- Sharpened Silithid Femur (AQ40: Viscidus) · Royal Scepter of Vek'lor (AQ40: Emperor Vek'lor)
+		DRUID_BALANCE  = { mh = 21273 }, -- Blessed Qiraji Acolyte Staff (quest: Imperial Qiraji Regalia)
+		DRUID_FERAL    = { mh = 21703 }, -- Hammer of Ji'zhi (AQ40: The Prophet Skeram)
+		DRUID_GUARDIAN = { mh = 21703 }, -- Hammer of Ji'zhi (AQ40: The Prophet Skeram)
+		DRUID_RESTO    = { mh = 21273 }, -- Blessed Qiraji Acolyte Staff (quest: Imperial Qiraji Regalia)
+	},
+	[4] = {
+		WARRIOR_ARMS   = { mh = 22798 }, -- Might of Menethil (Naxxramas: Kel'Thuzad)
+		WARRIOR_FURY   = { mh = 23054, oh = 23577 }, -- Gressil, Dawn of Ruin (Naxxramas: Kel'Thuzad) · The Hungering Cold (Naxxramas: Kel'Thuzad)
+		WARRIOR_PROT   = { mh = 23054, oh = 22818 }, -- Gressil, Dawn of Ruin (Naxxramas: Kel'Thuzad) · The Plague Bearer (Naxxramas: Patchwerk)
+		PALADIN_HOLY   = { mh = 22988, oh = 23075 }, -- The End of Dreams (Naxxramas: Grobbulus) · Death's Bargain (Naxxramas: Gluth)
+		PALADIN_PROT   = { mh = 23054, oh = 22818 }, -- Gressil, Dawn of Ruin (Naxxramas: Kel'Thuzad) · The Plague Bearer (Naxxramas: Patchwerk)
+		PALADIN_RET    = { mh = 22798 }, -- Might of Menethil (Naxxramas: Kel'Thuzad)
+		HUNTER_BM      = { mh = 22812 }, -- Nerubian Slavemaker (Naxxramas: Kel'Thuzad)
+		HUNTER_MM      = { mh = 22812 }, -- Nerubian Slavemaker (Naxxramas: Kel'Thuzad)
+		HUNTER_SV      = { mh = 22812 }, -- Nerubian Slavemaker (Naxxramas: Kel'Thuzad)
+		ROGUE_ASSA     = { mh = 22802, oh = 23054 }, -- Kingsfall (Naxxramas: Kel'Thuzad) · Gressil, Dawn of Ruin (Naxxramas: Kel'Thuzad)
+		ROGUE_OUTLAW   = { mh = 23054, oh = 23577 }, -- Gressil, Dawn of Ruin (Naxxramas: Kel'Thuzad) · The Hungering Cold (Naxxramas: Kel'Thuzad)
+		ROGUE_SUB      = { mh = 22802, oh = 23044 }, -- Kingsfall (Naxxramas: Kel'Thuzad) · Harbinger of Doom (Naxxramas: Bile Retcher)
+		PRIEST_DISC    = { mh = 22988, oh = 23029 }, -- The End of Dreams (Naxxramas: Grobbulus) · Noth's Frigid Heart (Naxxramas: Noth the Plaguebringer)
+		PRIEST_HOLY    = { mh = 22799 }, -- Soulseeker (Naxxramas: Kel'Thuzad)
+		PRIEST_SHADOW  = { mh = 22799 }, -- Soulseeker (Naxxramas: Kel'Thuzad)
+		SHAMAN_ELE     = { mh = 22988, oh = 23075 }, -- The End of Dreams (Naxxramas: Grobbulus) · Death's Bargain (Naxxramas: Gluth)
+		SHAMAN_ENH     = { mh = 22798 }, -- Might of Menethil (Naxxramas: Kel'Thuzad)
+		SHAMAN_RESTO   = { mh = 22988, oh = 23075 }, -- The End of Dreams (Naxxramas: Grobbulus) · Death's Bargain (Naxxramas: Gluth)
+		MAGE_ARCANE    = { mh = 22807, oh = 22937 }, -- Wraith Blade (Naxxramas: Maexxna) · Gem of Nerubis (Naxxramas: Anub'Rekhan)
+		MAGE_FIRE      = { mh = 22807, oh = 22937 }, -- Wraith Blade (Naxxramas: Maexxna) · Gem of Nerubis (Naxxramas: Anub'Rekhan)
+		MAGE_FROST     = { mh = 22807, oh = 22937 }, -- Wraith Blade (Naxxramas: Maexxna) · Gem of Nerubis (Naxxramas: Anub'Rekhan)
+		WARLOCK_AFF    = { mh = 22807, oh = 22937 }, -- Wraith Blade (Naxxramas: Maexxna) · Gem of Nerubis (Naxxramas: Anub'Rekhan)
+		WARLOCK_DEMO   = { mh = 22807, oh = 22937 }, -- Wraith Blade (Naxxramas: Maexxna) · Gem of Nerubis (Naxxramas: Anub'Rekhan)
+		WARLOCK_DESTRO = { mh = 22807, oh = 22937 }, -- Wraith Blade (Naxxramas: Maexxna) · Gem of Nerubis (Naxxramas: Anub'Rekhan)
+		DRUID_BALANCE  = { mh = 22799 }, -- Soulseeker (Naxxramas: Kel'Thuzad)
+		DRUID_FERAL    = { mh = 22798 }, -- Might of Menethil (Naxxramas: Kel'Thuzad)
+		DRUID_GUARDIAN = { mh = 22798 }, -- Might of Menethil (Naxxramas: Kel'Thuzad)
+		DRUID_RESTO    = { mh = 22799 }, -- Soulseeker (Naxxramas: Kel'Thuzad)
+	},
+}
+ns.MODEL.weaponTier[2] = ns.MODEL.weapons
+
+-- A hunter's shot: the kind of its ranged weapon (item ids above), the
+-- animation it fires with (the game's AttackBow 46, AttackRifle 49: a
+-- crossbow is held like a gun) and the ammunition flying to the target (the
+-- game's arrow and bullet flight models, item/objectcomponents/ammo).
+ns.MODEL.rangedKind = {
+	[2504] = "bow", [6696] = "bow", [18680] = "bow", [21616] = "bow", -- Worn Shortbow, Nightstalker Bow, Ancient Bone Bow, Huhuran's Stinger
+	[12651] = "xbow", [22812] = "xbow", -- Blackcrow, Nerubian Slavemaker
+}
+ns.MODEL.SHOT = {
+	bow  = { anim = 46, missile = 137240 }, -- arrowflight_01.m2
+	xbow = { anim = 49, missile = 137240 },
+	gun  = { anim = 49, missile = 137245 }, -- bulletflight_01.m2
+}
+
 -- the game's race ids (SetModelByUnit's customRaceID)
 ns.MODEL.raceId = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, UNDEAD = 5, TAUREN = 6, GNOME = 7, TROLL = 8 }
 

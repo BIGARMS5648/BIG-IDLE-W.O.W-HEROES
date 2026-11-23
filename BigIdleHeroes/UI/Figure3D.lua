@@ -123,27 +123,31 @@ function Figure.PlayerSex()
 end
 
 -- A hero's own look: the player's model made the class's race (SetModelByUnit
--- with the game's race id), with nothing on, in the class's dungeon set and
--- the spec's weapons (Data/Models.lua ns.MODEL.weapons; none without a spec).
+-- with the game's race id), with nothing on, in the class's armor and the
+-- spec's weapons for how far the account has come (Data/Models.lua
+-- ns.MODEL.armorTier / weaponTier by ns.GearTier; no weapons without a spec).
 -- The body has the player's gender: a man logged in gives men, a woman women.
 local bodies = {}
-function Figure.BodyFor(classId, faction, specId)
+function Figure.BodyFor(classId, faction, specId, tier)
 	faction = faction or ns.Faction() or "ALLIANCE"
+	tier = tier or (ns.GearTier and ns.GearTier()) or 2
 	local sex = Figure.PlayerSex()
-	local key = tostring(classId) .. ":" .. faction .. ":" .. tostring(specId) .. ":" .. sex
+	local key = tostring(classId) .. ":" .. faction .. ":" .. tostring(specId) .. ":" .. sex .. ":" .. tier
 	if bodies[key] ~= nil then return bodies[key] or nil end
 	local race = ns.ClassRace(classId, faction)
 	local rid = race and ns.MODEL.raceId and ns.MODEL.raceId[race]
-	local set = ns.MODEL.dungeonSet and ns.MODEL.dungeonSet[classId]
 	if not rid then
 		bodies[key] = false
 		return nil
 	end
-	local items = set and set.items or {}
-	local w = specId and ns.MODEL.weapons and ns.MODEL.weapons[specId]
+	local M = ns.MODEL
+	local armor = M.armorTier and M.armorTier[tier] or {}
+	local items = armor[classId] or (M.dungeonSet and M.dungeonSet[classId] and M.dungeonSet[classId].items) or {}
+	local wt = M.weaponTier and M.weaponTier[tier] or M.weapons
+	local w = specId and wt and wt[specId]
 	local weapons = w and { mh = w.mh, oh = w.oh } or {}
 	local body = {
-		race = race, rid = rid, sex = sex, items = items, weapons = weapons,
+		race = race, rid = rid, sex = sex, tier = tier, items = items, weapons = weapons,
 		key = "body:" .. rid .. ":" .. table.concat(items, ",") .. ":" .. tostring(weapons.mh) .. ":" .. tostring(weapons.oh),
 	}
 	bodies[key] = body
@@ -182,7 +186,7 @@ end
 -- Where the health bar sits under a form, as a share of the figure's height
 -- forward of the model's middle: the cat's long tail puts its middle behind
 -- its body.
-Figure.FORM_BAR_X = { cat = 0.4 }
+Figure.FORM_BAR_X = { cat = 0.15 }
 function Figure.HeroBarShift(heroId, inCombat)
 	local h = inCombat and ns.db and ns.db.heroes[heroId]
 	local form = h and FORM[h.spec]
@@ -347,20 +351,32 @@ function base:Loaded()
 	if self.body and self.Dress then self:Dress() end
 	self:Measure()
 	self:Look()
-	if self.anim then self:SetAnim(ANIM_ID[self.done and self.anim == "death" and "dead" or self.anim]) end
+	if self.anim then self:SetAnim(self:AnimId(self.done and self.anim == "death" and "dead" or self.anim)) end
 	if self.kind == "scene" then Figure.Calibrate(self) end
 end
 
 function base:IsLoaded() return self.loaded and true or false end
 
 -- restart=true replays a one-shot already playing; the dying stay down
+-- The game's animation for a name, or the figure's own one for it (a hunter
+-- shoots its bow for "attack": SetAnimFor).
+function base:AnimId(anim)
+	return self.ownAnim and self.ownAnim[anim] or ANIM_ID[anim]
+end
+
+function base:SetAnimFor(anim, id)
+	if (self.ownAnim and self.ownAnim[anim]) == id then return end
+	self.ownAnim = self.ownAnim or {}
+	self.ownAnim[anim] = id
+end
+
 function base:Play(anim, restart)
 	if not ANIM_ID[anim] then anim = "idle" end
 	if self.anim == anim and not restart and (anim == "death" or not ONESHOT[anim] or not self.done) then return end
 	self.anim = anim
 	self.left = ONESHOT[anim] or 0
 	self.done = not ONESHOT[anim]
-	self:SetAnim(ANIM_ID[anim])
+	self:SetAnim(self:AnimId(anim))
 end
 
 function base:Playing()
@@ -657,7 +673,9 @@ local function newScene(parent, height)
 	-- the game shares one depth buffer between all model scenes, so a model
 	-- that is nearer its own camera would show through another scene drawn
 	-- above it; each scene clears its own area instead, and the frame level
-	-- alone says what is in front (fighters over the scenery behind them)
+	-- alone says what is in front (fighters over the scenery behind them).
+	-- Spell effects turn this off (scene:SetOverlapped): drawn that way the
+	-- game shows nothing of them.
 	call(f, "SetAllowOverlappedModels", true)
 	dress(f, scene)
 	setCamera(f)
@@ -765,6 +783,12 @@ function scene:Look()
 end
 
 function scene:Rescaled() setCamera(self) end
+
+-- Whether the scene is drawn on its own over what is under it (see newScene);
+-- off for spell effects.
+function scene:SetOverlapped(v)
+	call(self, "SetAllowOverlappedModels", v and true or false)
+end
 
 -- How grey the model is (0 = its own colours, 1 = grey): scenery far off.
 function scene:SetDesaturation(v)

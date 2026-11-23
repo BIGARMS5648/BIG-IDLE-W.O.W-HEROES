@@ -55,6 +55,31 @@ do
 		end
 		if w and DUNGEON_WEAPON[w.mh] == "ranged" then check(ns.SPECS[sid].class == "HUNTER", sid .. ": only hunters hold a bow") end
 	end
+	-- the looks: armor for every class and weapons for every spec at every
+	-- step, each piece once, a set where the original game had one
+	local SLOT_COUNT = { [0] = 2, [1] = 8, [2] = 8, [3] = 8, [4] = 8 }
+	for tier = 0, 4 do
+		check(ns.MODEL.GEAR_TIER_NAME[tier], "a name for look " .. tier)
+		for cls in pairs(ns.CLASSES) do
+			local a = ns.MODEL.armorTier[tier][cls]
+			check(a and #a >= SLOT_COUNT[tier], cls .. ": armor for look " .. tier)
+			local once = {}
+			for _, id in ipairs(a or {}) do
+				check(not once[id], cls .. ": every piece once in look " .. tier)
+				once[id] = true
+			end
+		end
+		for sid in pairs(ns.SPECS) do
+			local w = ns.MODEL.weaponTier[tier][sid]
+			check(w and w.mh, sid .. ": a weapon in look " .. tier)
+		end
+	end
+	check(ns.MODEL.armorTier[2].WARRIOR == ns.MODEL.dungeonSet.WARRIOR.items and ns.MODEL.weaponTier[2] == ns.MODEL.weapons, "look 2 is the dungeon set")
+	-- the Ahn'Qiraj and Naxxramas sets (the warrior's Conqueror's and Dreadnaught pieces)
+	local function has(list, id) for _, x in ipairs(list) do if x == id then return true end end end
+	check(has(ns.MODEL.armorTier[3].WARRIOR, 21331) and has(ns.MODEL.armorTier[4].WARRIOR, 22416), "the raid sets on the warrior")
+	check(has(ns.MODEL.armorTier[1].ROGUE, 10399) and has(ns.MODEL.armorTier[1].DRUID, 6473), "the level 20s sets on the leather wearers")
+	check(has(ns.MODEL.armorTier[0].MAGE, 56), "the mage starts in the apprentice's robe")
 	-- every NPC has a model id
 	local noDisplay = {}
 	local function needs(id)

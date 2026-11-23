@@ -845,6 +845,16 @@ function dress.build(win)
 	dress.label:SetWordWrap(false)
 	dress.next = UI.Button(f, 30, 24, ">", function() dress.Pick(dress.i + 1) end, "dark")
 	dress.next:SetPoint("LEFT", dress.prev, "RIGHT", 460, 0)
+	-- which look: the clothes for each difficulty cleared (ns.GearTier)
+	dress.tierButtons = {}
+	local SHORT = { [0] = "시작", [1] = "20대", [2] = "던전", [3] = "안퀴", [4] = "낙스" }
+	for t = 0, 4 do
+		local b = UI.Button(f, 48, 24, SHORT[t], function() dress.PickTier(t) end, "dark")
+		b:SetPoint("LEFT", dress.next, "RIGHT", 10 + t * 52, 0)
+		b.tier = t
+		UI.Tip(b, function() return UI.SimpleTip(ns.MODEL.GEAR_TIER_NAME[t], "이 단계의 방어구를 입혀 봅니다.") end, "TOP")
+		dress.tierButtons[#dress.tierButtons + 1] = b
+	end
 	dress.cards = {}
 	for i, def in ipairs(DRESS) do
 		local card = UI.Panel(f, PANEL_W, DRESS_H, "card")
@@ -874,8 +884,8 @@ end
 local function combo() return COMBOS[dress.i] end
 
 local function dressItems()
-	local set = ns.MODEL.dungeonSet[combo().class]
-	return set and set.items or {}
+	local tier = ns.MODEL.armorTier[dress.tier or ns.GearTier()]
+	return tier and tier[combo().class] or {}
 end
 
 
@@ -906,12 +916,20 @@ function dress.Pick(i)
 	dress.setup()
 end
 
+-- the look of one tier (0 .. 4)
+function dress.PickTier(t)
+	dress.tier = t
+	dress.setup()
+end
+
 function dress.setup()
 	local cb = combo()
-	local set = ns.MODEL.dungeonSet[cb.class]
+	dress.tier = dress.tier or ns.GearTier()
 	local raceName = ns.RACES[cb.race].name
+	local set = dress.tier == 2 and ns.MODEL.dungeonSet[cb.class]
 	dress.label:SetText(string.format("%s (%s) · %s · %s   %d/%d", ns.N(ns.CLASSES[cb.class].name), ns.FACTIONS[cb.faction].name,
-		raceName, set and set.name or "", dress.i, #COMBOS))
+		raceName, set and set.name or ns.MODEL.GEAR_TIER_NAME[dress.tier], dress.i, #COMBOS))
+	for _, b in ipairs(dress.tierButtons) do b:SetStyle(b.tier == dress.tier and "primary" or "dark") end
 	for _, c in ipairs(dress.cards) do
 		local def, m = c.def, dressModel(c)
 		c.name:SetText(def.unit and "내 캐릭터" or (def.asRace and (ns.RACES[cb.race].name .. " · 내 성별") or raceName))

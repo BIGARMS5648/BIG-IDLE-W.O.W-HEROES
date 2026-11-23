@@ -299,6 +299,18 @@ function ns.AddGold(n)
 	ns.Fire("GOLD")
 end
 
+-- How far the account has come: one for every difficulty cleared to its last
+-- stage, in order (0 .. #ns.DIFFS). Heroes dress by it (ns.MODEL.armorTier).
+function ns.GearTier()
+	local prog = ns.db and ns.db.prog
+	if not prog then return 0 end
+	local n = 0
+	for d = 1, #ns.DIFFS do
+		if (prog[d] or 0) >= ns.STAGE_COUNT then n = d else break end
+	end
+	return n
+end
+
 function ns.CanAfford(n)
 	return ns.db.gold >= n
 end

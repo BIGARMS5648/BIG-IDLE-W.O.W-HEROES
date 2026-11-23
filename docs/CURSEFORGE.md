@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v3.20.0
+BIG IDLE HEROES v3.21.0
 ```
 
 ---
@@ -64,7 +64,8 @@ Build a party of five heroes, send them along a route through the original game'
 
 ### A living battle window
 - Heroes, monsters, bosses, summons and companions are **the game's own 3D models**, animated: they stand, walk, attack, cast, get hit and die.
-- Heroes wear their **class's dungeon set** and carry **their spec's best-in-slot weapons from level-60 dungeons**.
+- Heroes' gear grows with your progress: they start in their class's **starting clothes**, then wear the **best gear of the level 20s** (Defias Leather and Embrace of the Viper on leather wearers), the **dungeon sets**, the **Ahn'Qiraj raid sets** and finally the **Naxxramas sets**, with matching weapons for each spec. Every difficulty you clear to its end moves every hero to the next look.
+- Hunters shoot: a real bow or crossbow shot with an arrow flying to the target.
 - Druids fight in **bear, cat or moonkin form**. You can turn forms off.
 - Skills and boss abilities play **the original spells' visual effects**: casts, missiles and impacts.
 - **Moving scenery:**
@@ -133,14 +134,13 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v3.20.0)
+## Changelog for this release (v3.21.0)
 
 ```
-- Heroes now share the gender of the character you are logged in with: a male character shows male heroes, a female character female heroes, all in their class's dungeon set. The gender choice in hero creation is gone.
-- Your companion walks back to its place smoothly after a fight.
-- Far scenery rows are faded and softened so they look further away.
-- The battle scenery stands completely still while the party fights.
-- On a fresh start the battle window waits until your first hero is made.
+- Heroes' looks follow your progress: starting clothes, then the best gear of the level 20s after Normal, the dungeon sets after Heroic, the Ahn'Qiraj sets after Mythic and the Naxxramas sets after Mythic+, with weapons to match.
+- Spell effects show again in the battle window.
+- Hunters shoot their bow or crossbow, and an arrow flies to the target.
+- Heroes, monsters, bosses, summons and companions are 15% smaller.
 - The druid cat's health bar sits under its body.
-- Forge tab locks match the other tabs.
+- The model check's dressing page can show each look.
 ```

@@ -14,7 +14,9 @@ local DOCK_H = 54
 local UNIT, BOSS = 34, 44
 local MOB = 30
 local FEET = 9        -- unit bottom above the scene's bottom edge (the health bars just fit under it)
-local BACK_FIG, PET_FIG = 34, 24 -- summons (by the front or their summoner) and the companion (at the back)
+-- how tall the fighters stand on screen: every model height below times this
+local FIG_SCALE = 0.85
+local BACK_FIG, PET_FIG = 34 * FIG_SCALE, 24 * FIG_SCALE -- summons (by the front or their summoner) and the companion (at the back)
 local SUMMON_PACE = 140 -- how fast a melee summon walks to the front and back (pixels a second)
 local MAX_MOBS = 12
 local MAX_FLOATS = 28
@@ -27,7 +29,7 @@ local newScenery -- (Scenery, below)
 local shade, drawBackdrop -- (moving layers, below)
 local infoT = 0
 local dt = 0 -- seconds since the last drawn frame
-local HERO_FIG, MOB_FIG = 74, 70 -- model heights on screen
+local HERO_FIG, MOB_FIG = 74 * FIG_SCALE, 70 * FIG_SCALE -- model heights on screen
 local Figure = ns.Figure3D -- the game's 3D models
 
 local function laneX(x)
@@ -264,6 +266,9 @@ local function drawHeroes(now)
 					f.figFor, f.figIs = u.id, fig
 					fig:SetHeight2(HERO_FIG * Figure.HeroScale(u.id, true))
 				end
+				-- a hunter's attack is a shot of its bow or gun
+				local shot = Bar.ShotOf(u)
+				fig:SetAnimFor("attack", shot and shot.anim or nil)
 				local want = "idle"
 				if u.dead then want = "death"
 				elseif (u.castT or 0) > 0.6 then want = "cast"
@@ -677,7 +682,7 @@ end
 -- ring on the ground HIT_CAP_LOW), and drawn only inside a box HIT_CLIP
 -- times the model's height around it.
 ------------------------------------------------------------------------
-local FX_FLIGHT, FX_HIT_DELAY, MAX_MISSILES, MAX_TARGETS = 0.35, 0.12, 8, 5
+local FX_FLIGHT, FX_HIT_DELAY, MAX_MISSILES, MAX_TARGETS = 0.35, 0.12, 12, 5
 local MAX_HITS, HIT_SHOW, HIT_FADE, HIT_SIZE = 12, 0.8, 0.25, 0.5
 local HIT_CAP, HIT_CAP_LOW, HIT_CLIP = 0.7, 1.0, 1.3
 local missiles, hits, pendingHits = {}, {}, {}
@@ -717,6 +722,9 @@ local function freeFig(pool, most, clipped)
 		return nil
 	end
 	fig:SetFrameLevel(frame.scene:GetFrameLevel() + 21)
+	-- drawn straight into the scene, as the effects always were (the game
+	-- shows no effect from a scene drawn on its own)
+	fig:SetOverlapped(false)
 	fig:Hide()
 	local ms = { fig = fig, clip = clip }
 	pool[#pool + 1] = ms
@@ -790,8 +798,23 @@ local function spellFx(u, fx, to)
 	end
 end
 
+-- A hunter's shot (Data/Models.lua ns.MODEL.SHOT): the animation it fires
+-- with and the arrow or bullet that flies, by the weapon in its hands; nil
+-- for every other hero.
+function Bar.ShotOf(u)
+	if not u or u.class ~= "HUNTER" then return nil end
+	local body = Figure.HeroBody(u.id, true)
+	local mh = body and body.weapons and body.weapons.mh
+	local kind = (mh and ns.MODEL.rangedKind[mh]) or (u.gun and "gun") or "bow"
+	return ns.MODEL.SHOT[kind]
+end
+-- the arrow leaves the bow this long after the shot starts (the draw)
+local SHOT_DELAY = 0.3
+local pendingShots = {}
+
 -- the combat's effect events: hero skills and boss abilities play their
--- spells (shots and hits of basic attacks are not drawn)
+-- spells; a hunter's basic attack flies its arrow or bullet to the target
+-- (other basic attacks are not drawn)
 local function drawEffects()
 	local list = ns.Combat.vfx
 	local on = Figure.Enabled()
@@ -803,10 +826,23 @@ local function drawEffects()
 				fx = ns.SkillFx(e.u.class, ns.SKILLS[e.sid])
 			elseif e.k == "mob" then
 				fx = ns.MobFx(e.kind, e.school)
+			elseif e.k == "shot" then
+				local shot = Bar.ShotOf(e.u)
+				if shot and #pendingShots < MAX_MISSILES then
+					pendingShots[#pendingShots + 1] = { t = SHOT_DELAY, u = e.u, to = e.to, fx = { missile = shot.missile } }
+				end
 			end
 			if fx then spellFx(e.u, fx, e.to) end
 		end
 		list[i] = nil
+	end
+	for i = #pendingShots, 1, -1 do
+		local p = pendingShots[i]
+		p.t = p.t - dt
+		if p.t <= 0 then
+			table.remove(pendingShots, i)
+			if not p.u.dead then spellFx(p.u, p.fx, p.to) end
+		end
 	end
 	for _, ms in ipairs(missiles) do
 		if ms.active then
@@ -863,6 +899,7 @@ local function drawEffects()
 	end
 end
 Bar.missiles, Bar.hits, Bar.fxStats = missiles, hits, fxStats
+Bar.FIG = { hero = HERO_FIG, mob = MOB_FIG, back = BACK_FIG, pet = PET_FIG, scale = FIG_SCALE }
 function Bar.Summons() return frame and frame.summons, frame and frame.petModel end
 
 ------------------------------------------------------------------------
