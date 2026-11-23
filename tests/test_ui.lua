@@ -1119,10 +1119,26 @@ do
 				back = back and math.min(back, f.drawX) or f.drawX
 			end
 		end
+		-- walking: by its summoner; fighting: up front by the monsters, walked there
+		local st = ns.Combat.state
+		local was = st.phase
 		local s1 = summons[1]
-		if not (s1 and s1:IsShown() and s1.anchorX and front and s1.anchorX > front + 17 + 10) then
-			fail("a melee summon should stand at the front, by the monsters: " .. tostring(s1 and s1.anchorX) .. " / " .. tostring(front))
+		local own = heroes[4].drawX
+		st.phase = "travel"
+		for _ = 1, 40 do ns.Bar.DrawHeroes() end
+		if not (s1 and s1:IsShown() and s1.anchorX and own and math.abs(s1.anchorX - (own + 17 + 20)) < 3) then
+			fail("a melee summon should walk beside its summoner: " .. tostring(s1 and s1.anchorX) .. " / " .. tostring(own))
 		end
+		st.phase = "fight"
+		ns.Bar.DrawHeroes()
+		local x1 = s1 and s1.anchorX
+		if s1 and s1.sx and front and s1.anchorX > front + 17 + 10 then fail("a melee summon should walk to the front, not jump there") end
+		for _ = 1, 40 do ns.Bar.DrawHeroes() end
+		if not (s1 and s1:IsShown() and s1.anchorX and front and s1.anchorX > front + 17 + 10) then
+			fail("a melee summon should stand at the front, by the monsters, while the party fights: " .. tostring(s1 and s1.anchorX) .. " / " .. tostring(front))
+		end
+		if x1 and s1.anchorX and s1.anchorX <= x1 then fail("a melee summon should go forward when the fight starts") end
+		st.phase = was
 		if petFig and petFig:IsShown() and back and not (petFig.anchorX < back) then
 			fail("the companion should stand behind the whole party: " .. tostring(petFig.anchorX) .. " / " .. tostring(back))
 		end
@@ -1185,12 +1201,29 @@ do
 			if not (moved[1] > 0 and moved[2] > moved[1] and moved[3] > moved[2]) then
 				fail(string.format("scenery rows should go by faster the nearer they are: %.1f %.1f %.1f", moved[1], moved[2], moved[3]))
 			end
-			-- standing (fighting): still
-			local off = sc.rows[3].off
-			if st.phase ~= "travel" then
-				ns.Bar.DrawScenery()
-				if sc.rows[3].off ~= off then fail("scenery should stand still while the party fights") end
-			end
+			-- the ground is the place's own texture and goes by with the walk;
+			-- the backdrop drifts slowly all the time, faster while walking
+			local ground, sky, sky2 = ns.Bar.Ground()
+			local gfile = ns.GroundFile(1, 1)
+			if not (ground and gfile) then fail("the battle should have the place's ground") end
+			local cd, ci = ns.db.stage.diff, ns.db.stage.idx
+			if st.phase ~= "idle" and st.diff then cd, ci = st.diff, st.idx end
+			if ground and ground:GetTexture() ~= ns.GroundFile(cd, ci) then fail("the ground should be the stage's own: " .. tostring(ground:GetTexture())) end
+			-- standing (fighting): the scenery and ground stand still, the backdrop drifts
+			st.phase = "fight"
+			for _ = 1, 30 do ns.Bar.DrawScenery() end -- (the walk slows to a stop)
+			local off, g0, s0 = sc.rows[3].off, ns.Bar.world.ground, ns.Bar.world.sky
+			ns.Bar.DrawScenery()
+			if sc.rows[3].off ~= off or ns.Bar.world.ground ~= g0 then fail("scenery and ground should stand still while the party fights") end
+			if not (ns.Bar.world.sky > s0) then fail("the backdrop should drift slowly even while the party fights") end
+			st.phase = "travel"
+			for _ = 1, 10 do ns.Bar.DrawScenery() end
+			if not (ns.Bar.world.ground > g0 + 20) then fail("the ground should go by while the party walks: " .. (ns.Bar.world.ground - g0)) end
+			-- the backdrop is two pieces covering the scene: the picture and its mirror image
+			local w1 = sky:IsShown() and sky:GetWidth() or 0
+			local w2 = sky2:IsShown() and sky2:GetWidth() or 0
+			if math.abs(w1 + w2 - 704) > 1 then fail("the backdrop's two pieces should cover the scene: " .. w1 .. " + " .. w2) end
+			st.phase = was
 			-- a model that leaves on the left comes back on the right
 			local it = sc.rows[3].items[1]
 			local lap = it.lap

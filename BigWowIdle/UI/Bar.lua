@@ -15,6 +15,7 @@ local UNIT, BOSS = 34, 44
 local MOB = 30
 local FEET = 9        -- unit bottom above the scene's bottom edge (the health bars just fit under it)
 local BACK_FIG, PET_FIG = 34, 24 -- summons (by the front or their summoner) and the companion (at the back)
+local SUMMON_PACE = 140 -- how fast a melee summon walks to the front and back (pixels a second)
 local MAX_MOBS = 12
 local MAX_FLOATS = 28
 local MAX_PIPS = 10
@@ -22,6 +23,7 @@ local MAX_PIPS = 10
 local frame
 local heroFrames, mobFrames, floats, pips = {}, {}, {}, {}
 local newScenery -- (Scenery, below)
+local shade, drawBackdrop -- (moving layers, below)
 local infoT = 0
 local dt = 0 -- seconds since the last drawn frame
 local HERO_FIG, MOB_FIG = 74, 70 -- model heights on screen
@@ -241,6 +243,7 @@ end
 local function drawHeroes(now)
 	local list = ns.Combat.heroes
 	local backX
+	local advancing = false -- a living hero steps forward (the world goes by)
 	heroPositions(list)
 	for i = 1, ns.PARTY_SIZE do
 		local f = heroFrames[i]
@@ -253,6 +256,7 @@ local function drawHeroes(now)
 				f.ring:SetVertexColor(U.rgb(ns.ROLE[u.role].hex))
 			end
 			local px, moved = glide(f, spread[i])
+			if moved and not u.dead and f.glide and f.glide.to > f.glide.from then advancing = true end
 			f.drawX = px
 			local moving = walking(f, moved)
 			local fig = pickHero(f.model, u.id)
@@ -322,6 +326,7 @@ local function drawHeroes(now)
 			f.shownId = nil
 		end
 	end
+	frame.advancing = advancing
 	-- the party's front and back (where the heroes are drawn)
 	local minX, maxX = backX and (laneX(backX) - UNIT / 2), nil
 	for i = 1, #list do
@@ -329,11 +334,13 @@ local function drawHeroes(now)
 		if x and (not minX or x < minX) then minX = x end
 		if x and not list[i].dead and (not maxX or x > maxX) then maxX = x end
 	end
-	-- summoned creatures (only as 3D models): one that fights up close stands
-	-- at the front by the monsters, as the melee heroes do; one that shoots
-	-- stands beside its summoner
+	-- summoned creatures (only as 3D models): one that shoots stands beside its
+	-- summoner; one that fights up close walks beside its summoner too, and
+	-- goes up to the front by the monsters (as the melee heroes do) while the
+	-- party fights, walking there and back
 	local k, front, beside = 0, 0, {}
 	local phase = ns.Combat.state.phase
+	local fighting = phase == "fight"
 	for i = 1, #list do
 		local u = list[i]
 		if not u.dead and spread[i] then
@@ -344,14 +351,26 @@ local function drawHeroes(now)
 					local sp = pickFigure(frame.summons[k], mid)
 					if sp then
 						local x
+						local own = heroFrames[i].drawX or spread[i]
 						if ns.SKILLS[sid].ranged then
 							beside[i] = (beside[i] or 0) + 1
-							x = (heroFrames[i].drawX or spread[i]) + UNIT / 2 - 18 - (beside[i] - 1) * 18
+							x = own + UNIT / 2 - 18 - (beside[i] - 1) * 18
 						else
 							front = front + 1
-							x = (maxX or spread[i]) + UNIT / 2 + 22 + (front - 1) * 16
+							local target = fighting and (maxX or own) + UNIT / 2 + 22 + (front - 1) * 16
+								or own + UNIT / 2 + 20 + (front - 1) * 14
+							-- walks from where it is to its place (a new summon starts by its summoner)
+							if sp.summonFor ~= u.id .. sid or not sp.sx then
+								sp.summonFor, sp.sx = u.id .. sid, own + UNIT / 2 + 20
+							end
+							local step = SUMMON_PACE * dt
+							if math.abs(target - sp.sx) <= step then sp.sx = target
+							else sp.sx = sp.sx + (target > sp.sx and step or -step) end
+							sp.going = sp.sx ~= target
+							x = sp.sx
 						end
-						local want = (pt.anim or 0) > 0 and "attack" or (phase == "travel" and "walk" or "idle")
+						local want = (pt.anim or 0) > 0 and "attack"
+							or ((phase == "travel" or sp.going) and "walk" or "idle")
 						animate(sp, want)
 						sp:SetFacing("right")
 						sp:PlaceFeet(frame.scene, x, FEET + 2)
@@ -536,16 +555,34 @@ local function updateInfo()
 
 	-- the backdrop: a picture of the place (else the theme's drawn hills)
 	local backdrop = ns.BackdropFile and ns.BackdropFile(diff, idx)
-	if frame.themeKey ~= (backdrop or stg.theme) then
-		frame.themeKey = backdrop or stg.theme
-		if backdrop then
-			frame.sky:SetTexture(backdrop)
-			frame.sky:SetVertexColor(0.8, 0.8, 0.8)
-		else
+	local ground = ns.GroundFile and ns.GroundFile(diff, idx)
+	local key = tostring(backdrop or stg.theme) .. "|" .. tostring(ground)
+	if frame.themeKey ~= key then
+		frame.themeKey = key
+		local art, r, g, b = backdrop, 0.8, 0.8, 0.8
+		if not backdrop then
 			local th = ns.THEMES[stg.theme] or ns.THEMES.forest
-			frame.sky:SetTexture(UI.Tex(th.art))
-			frame.sky:SetVertexColor(th.rgb[1] * 0.85, th.rgb[2] * 0.85, th.rgb[3] * 0.85)
+			art, r, g, b = UI.Tex(th.art), th.rgb[1] * 0.85, th.rgb[2] * 0.85, th.rgb[3] * 0.85
 		end
+		for _, t in ipairs({ frame.sky, frame.sky2 }) do
+			t:SetTexture(art)
+			t:SetVertexColor(r, g, b)
+		end
+		-- the ground of the place
+		frame.groundFile = ground
+		for _, t in ipairs({ frame.ground, frame.groundFade }) do
+			if ground then
+				t:SetTexture(ground, "REPEAT", "REPEAT")
+				t:Show()
+			else
+				t:Hide()
+			end
+		end
+		if ground then
+			shade(frame.ground, 0.85, 1, 1)
+			shade(frame.groundFade, 0.85, 1, 0)
+		end
+		drawBackdrop()
 	end
 
 	-- zone banner
@@ -849,6 +886,61 @@ local function rowLimits(sc, def)
 end
 local SCENERY_WIDE = 2.4 -- a model this many times as long as it is tall (a wall, a cliff) does not stand in a row
 Bar.SCENERY_ROWS = SCENERY_ROWS
+-- Moving layers. The world goes by while the party walks (between waves,
+-- and while the heroes step up to the monsters): its speed eases up and
+-- down. The backdrop also drifts slowly all the time, far off.
+local GROUND_H, GROUND_FADE = 30, 18 -- the ground band and its fading top edge (pixels)
+local TILE_W, TILE_H = 128, 48       -- one tile of the ground texture on screen (flattened: seen from the side)
+local DRIFT = 5                      -- the backdrop's own drift (pixels a second)
+local BACKDROP_SHARE = 0.18          -- share of the walk the backdrop goes by
+local world = { speed = 0, sky = 0, ground = 0 }
+Bar.world = world
+
+-- a texture's colour, from `a` at the bottom to `a2` at the top (the
+-- ground's top edge fades out)
+function shade(t, k, a, a2)
+	local ok = CreateColor and pcall(t.SetGradient, t, "VERTICAL", CreateColor(k, k, k, a), CreateColor(k, k, k, a2))
+	if not ok then
+		ok = t.SetGradientAlpha and pcall(t.SetGradientAlpha, t, "VERTICAL", k, k, k, a, k, k, k, a2)
+	end
+	if not ok then
+		t:SetVertexColor(k, k, k)
+		t:SetAlpha(a2 > 0 and 1 or 0.6)
+	end
+end
+
+local function piece(t, mirrored, ua, ub, x, w)
+	if w < 0.5 then t:Hide() return end
+	t:ClearAllPoints()
+	t:SetPoint("TOPLEFT", frame.scene, "TOPLEFT", x, 0)
+	t:SetPoint("BOTTOMLEFT", frame.scene, "BOTTOMLEFT", x, 0)
+	t:SetWidth(w)
+	if mirrored then t:SetTexCoord(1 - ua, 1 - ub, 0, 1) else t:SetTexCoord(ua, ub, 0, 1) end
+	t:Show()
+end
+
+-- the backdrop seen from `world.sky` pixels along an endless row of the
+-- picture and its mirror image (no seam where they meet)
+function drawBackdrop()
+	if not frame then return end
+	local w = SCENE_W
+	local p = (world.sky / w) % 2
+	local tile = floor(p)
+	local u = p - tile
+	local w1 = (1 - u) * w
+	piece(frame.sky, tile % 2 == 1, u, 1, 0, w1)
+	piece(frame.sky2, tile % 2 == 0, 0, u, w1, w - w1)
+end
+
+local function drawGround()
+	if not frame.groundFile then return end
+	local u0 = (world.ground / TILE_W) % 1
+	local u1 = u0 + SCENE_W / TILE_W
+	local v1 = GROUND_H / TILE_H
+	frame.ground:SetTexCoord(u0, u1, 0, v1)
+	frame.groundFade:SetTexCoord(u0, u1, -GROUND_FADE / TILE_H, 0)
+end
+
 -- the scenery's own dice (math.random is the fights' own, left alone)
 local seed = 20240611
 local function rnd(n)
@@ -965,10 +1057,18 @@ local function drawScenery()
 			end
 		end
 	end
+	-- how fast the world goes by: the walk's pace while the party walks
+	local walk = st.phase == "travel" or frame.advancing
+	local want = walk and WALK_PX or 0
+	world.speed = world.speed + (want - world.speed) * min(1, dt * 5)
+	if world.speed < 0.5 and not walk then world.speed = 0 end
+	world.sky = (world.sky + (DRIFT + world.speed * BACKDROP_SHARE) * dt) % (SCENE_W * 2000)
+	world.ground = (world.ground + world.speed * dt) % (TILE_W * 1000)
+	drawBackdrop()
+	drawGround()
 	if not set then return end
-	local walk = st.phase == "travel"
 	for _, row in ipairs(sc.rows) do
-		if walk then row.off = (row.off + WALK_PX * row.def.speed * dt) % (SPAN * 1000) end
+		row.off = (row.off + world.speed * row.def.speed * dt) % (SPAN * 1000)
 		local prev
 		for _, it in ipairs(row.items) do
 			local pos = it.x - row.off
@@ -991,6 +1091,8 @@ local function drawScenery()
 	end
 end
 Bar.DrawScenery = drawScenery
+function Bar.DrawHeroes() drawHeroes(GetTime()) end
+function Bar.Ground() return frame and frame.ground, frame and frame.sky, frame and frame.sky2 end
 function Bar.Scenery() return frame and frame.scenery, frame and frame.units end
 function Bar.Sky() return frame and frame.sky end
 
@@ -1188,9 +1290,28 @@ function Bar.Create()
 	scene:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -8)
 	if scene.SetClipsChildren then scene:SetClipsChildren(true) end
 	frame.scene = scene
-	frame.sky = scene:CreateTexture(nil, "BACKGROUND")
+	-- the backdrop: the place's picture and its mirror image side by side,
+	-- scrolled (two pieces cover the scene at any time)
+	frame.sky = scene:CreateTexture(nil, "BACKGROUND", nil, 0)
 	frame.sky:SetAllPoints(scene)
 	frame.sky:SetTexture(UI.Tex("scene_hills"))
+	frame.sky2 = scene:CreateTexture(nil, "BACKGROUND", nil, 0)
+	frame.sky2:SetTexture(UI.Tex("scene_hills"))
+	frame.sky2:Hide()
+	-- the ground: the place's terrain texture tiled along the bottom, its top
+	-- edge fading into the backdrop
+	frame.ground = scene:CreateTexture(nil, "BACKGROUND", nil, 2)
+	frame.ground:SetPoint("BOTTOMLEFT", scene, "BOTTOMLEFT", 0, 0)
+	frame.ground:SetPoint("BOTTOMRIGHT", scene, "BOTTOMRIGHT", 0, 0)
+	frame.ground:SetHeight(GROUND_H)
+	frame.ground:Hide()
+	frame.groundFade = scene:CreateTexture(nil, "BACKGROUND", nil, 2)
+	frame.groundFade:SetPoint("BOTTOMLEFT", frame.ground, "TOPLEFT", 0, 0)
+	frame.groundFade:SetPoint("BOTTOMRIGHT", frame.ground, "TOPRIGHT", 0, 0)
+	frame.groundFade:SetHeight(GROUND_FADE)
+	frame.groundFade:Hide()
+	-- (the scenery under everything, moving: the layout check leaves it out)
+	for _, t in ipairs({ frame.sky, frame.sky2, frame.ground, frame.groundFade }) do t.isOverlay = true end
 	local topShade = UI.Art(scene, "grad_v", "BORDER", 0, 0, 0, 0.6)
 	topShade:SetPoint("TOPLEFT", scene, "TOPLEFT", 0, 0)
 	topShade:SetPoint("TOPRIGHT", scene, "TOPRIGHT", 0, 0)

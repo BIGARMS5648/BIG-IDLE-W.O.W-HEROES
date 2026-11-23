@@ -414,3 +414,27 @@ function ns.BackdropFile(diff, idx)
 	key = key and (ns.BACKDROP_SAME[key] or key)
 	return key and ns.BACKDROPS[key] and ("Interface\\AddOns\\BigWowIdle\\Media\\Scenes\\" .. key .. ".tga") or nil
 end
+
+-- The ground under the fight: the place's own terrain (or floor) texture,
+-- by file id; it tiles and goes by as the party walks.
+ns.GROUND = {
+	ahnqiraj = 127796, aqtemple = 127824, arathi = 186818, ashenvale = 186832, azshara = 186864,
+	badlands = 188878, barrens = 186908, blackfathom = 126988, blackrockdepths = 127718,
+	blackrockspire = 127709, blackwing = 127712, blasted = 188906, burningsteppes = 186933, deadmines = 127336,
+	desolace = 187001, diremaul = 127803, dunmorogh = 188573, durotar = 187017, duskwood = 187084,
+	dustwallow = 187053, elwynn = 187126, felwood = 188474, feralas = 188505, gnomeregan = 127890,
+	gordok = 127806, highborne = 127804, hillsbrad = 186781, hinterlands = 186769, lochmodan = 188615,
+	maraudon = 127819, moltencore = 186959, mulgore = 188654, naxxramas = 127851, needles = 188929,
+	onyxia = 186954, plaguelands = 188736, ragefire = 186933, razorfen = 188746, redridge = 188756,
+	scarletarmory = 127923, scarletcathedral = 127924, scarletlib = 127922, scarletyard = 188954,
+	scholomance = 127762, searing = 186952, shadowfang = 127752, silithus = 188779, silverpine = 188791,
+	stonetalon = 188805, stranglethorn = 188821, stratholme = 127975, stratslaughter = 127763,
+	sunkentemple = 127831, swamp = 188840, tanaris = 188870, teldrassil = 188589, tirisfal = 188954,
+	uldaman = 127782, ungoro = 188975, wailing = 186899, westfall = 188991, wetlands = 189021,
+	winterspring = 189051, zulfarrak = 188872, zulgurub = 189066,
+}
+
+function ns.GroundFile(diff, idx)
+	local key = ns.SceneryKey(diff, idx)
+	return key and ns.GROUND[key]
+end

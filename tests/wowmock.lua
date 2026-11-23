@@ -642,6 +642,7 @@ function Mock.Export()
 			e.tc = w.__tc
 			e.tc8 = w.__tc8
 			e.desat = w.__desat
+			e.overlay = w.isOverlay or false -- moving scenery under everything
 		elseif kind == "text" then
 			e.layer = w.__layer
 			e.text = w.__text
