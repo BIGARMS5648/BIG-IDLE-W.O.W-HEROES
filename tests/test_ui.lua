@@ -116,11 +116,12 @@ click("class Hunter", function(b) return b.cid == "HUNTER" end)
 click("spec Marksmanship", function(b) return b.sid == "HUNTER_MM" end)
 click("female", function(b) return b.sex == "F" end)
 click("reroll name", labelIs("다시"))
-do -- the preview: the player's body as the class's race (a hunter: night elf or troll), in its set
+do -- the preview: the hunter's race (night elf or troll) in the gender picked
+	-- (a woman here, the player a man: the NPC body), in its set
 	local cf = ns.UI.CreatePreview()
 	if not cf then fail("the create window should have a 3D preview") end
-	if cf and (cf.actor.__display ~= "unit:player" or cf.actor.__race ~= ns.MODEL.raceId[ns.ClassRace("HUNTER")]) then
-		fail("the create preview should be the player's body as the hunter's race: " .. tostring(cf.actor.__display) .. " " .. tostring(cf.actor.__race))
+	if cf and cf.actor.__display ~= ns.MODEL.npcBody[ns.ClassRace("HUNTER")].F[1] then
+		fail("the create preview should be a woman of the hunter's race: " .. tostring(cf.actor.__display) .. " " .. tostring(cf.actor.__race))
 	end
 end
 click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 153 end)
@@ -213,7 +214,11 @@ do
 				fail("a party card's model should be a bust the size of its portrait")
 			end
 			if p.badge:IsShown() then fail("a party card should show no red dot") end
-			if m and (m.actor.__display ~= "unit:player" or not m.actor.__race) then fail("a party card should show the hero's body (the player's model as its race)") end
+			-- the hero's body: the player's model as its race, or for the other
+			-- gender the NPC body of the race and gender
+			local hid = ns.db.party[i]
+			local hb = hid and ns.Figure3D.HeroBody(hid, false)
+			if m and hb and m.actor.__display ~= (hb.npc and hb.npc[1] or "unit:player") then fail("a party card should show the hero's body: " .. tostring(m.actor.__display)) end
 			if p.ringT:IsShown() or p.role:IsShown() then fail("a party card should show no role ring or role mark behind the model") end
 		end
 	end
@@ -889,7 +894,7 @@ do
 	-- and roster): a tank, casters with missiles, a hunter and a healer, fresh
 	ns.db.heroes = {}
 	for i, sid in ipairs({ "WARRIOR_PROT", "MAGE_FIRE", "SHAMAN_ELE", "HUNTER_MM", "PRIEST_HOLY" }) do
-		ns.db.party[i] = ns.Heroes.NewRecord(sid).id
+		ns.db.party[i] = ns.Heroes.NewRecord(sid, i % 2 == 0 and "F" or "M").id
 	end
 	ns.db.stage.diff, ns.db.stage.idx = 1, 1
 	ns.Stats.Invalidate()
@@ -900,6 +905,7 @@ do
 	frames(40)
 	local heroes, mobs = ns.Bar.UnitFrames()
 	local hShown, mShown = 0, 0
+	local sexesSeen = {}
 	for _, f in ipairs(heroes) do
 		local m = f.model
 		if f:IsShown() and m and m:IsShown() then
@@ -913,9 +919,17 @@ do
 			if body then
 				local cls = ns.SPECS[ns.db.heroes[u.id].spec].class
 				local race = ns.ClassRace(cls)
-				if m.actor.__display ~= "unit:player" or m.actor.__race ~= ns.MODEL.raceId[race] or m.actor.__dressed then
-					fail("a hero should be the player's body as its race (" .. race .. "), undressed: " .. tostring(m.actor.__display) .. " " .. tostring(m.actor.__race))
+				local sex = ns.db.heroes[u.id].sex
+				if sex == Fig.PlayerSex() then
+					-- the player's gender: the player's own body as the race
+					if m.actor.__display ~= "unit:player" or m.actor.__race ~= ns.MODEL.raceId[race] or m.actor.__dressed then
+						fail("a hero should be the player's body as its race (" .. race .. "), undressed: " .. tostring(m.actor.__display) .. " " .. tostring(m.actor.__race))
+					end
+				elseif m.actor.__display ~= ns.MODEL.npcBody[race][sex][1] then
+					-- the other gender: the NPC body of the race and gender
+					fail("a hero of the other gender should be the " .. race .. " " .. sex .. " NPC body: " .. tostring(m.actor.__display))
 				end
+				sexesSeen[sex] = true
 				local worn = m.actor.__worn or {}
 				local w = ns.MODEL.weapons[ns.db.heroes[u.id].spec]
 				local nW = (w.mh and 1 or 0) + (w.oh and 1 or 0)
@@ -945,6 +959,7 @@ do
 		end
 	end
 	if hShown == 0 then fail("the heroes in battle should be 3D models") end
+	if not (sexesSeen.M and sexesSeen.F) then fail("the battle check should see heroes of both genders") end
 	if mShown == 0 then fail("the monsters in battle should be 3D models") end
 	if #Mock.misuse > 0 then fail("ModelScene calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end
 	-- skills play the game's spell effects: kits on the fighters' models and
@@ -1117,6 +1132,25 @@ do
 	Fig.failed[f] = true
 	if Fig.ForSpec("PALADIN_HOLY", "ALLIANCE", "M") ~= ns.MODEL.trainer.PALADIN.ALLIANCE.npc then fail("when the famous model cannot be shown, the class trainer should stand in") end
 	Fig.ResetFailed()
+	-- the player's own body for the player's gender, an NPC body of the race
+	-- for the other (a female player: male heroes are the NPC)
+	do
+		local was = Mock.playerSex
+		for _, ps in ipairs({ 2, 3 }) do
+			Mock.playerSex = ps
+			local me = ps == 3 and "F" or "M"
+			for _, sx in ipairs({ "M", "F" }) do
+				local b = Fig.BodyFor("WARRIOR", "ALLIANCE", "WARRIOR_ARMS", sx)
+				if sx == me and (b.npc or b.rid ~= ns.MODEL.raceId.DWARF) then fail("a hero of the player's gender should be the player's body as a dwarf") end
+				if sx ~= me and b.npc ~= ns.MODEL.npcBody.DWARF[sx] then fail("a hero of the other gender should be the dwarf " .. sx .. " NPC body") end
+				if #b.items ~= 8 or b.weapons.mh ~= ns.MODEL.weapons.WARRIOR_ARMS.mh then fail("every body wears the set and holds the weapons") end
+			end
+		end
+		Mock.playerSex = was
+		for race, t in pairs(ns.MODEL.npcBody) do
+			if not (ns.RACES[race] and #t.M > 0 and #t.F > 0) then fail("an NPC body for both genders of " .. race) end
+		end
+	end
 	-- druids fight in the night elf's (Alliance) or the tauren's (Horde)
 	-- forms; restoration in caster form; the setting shows them all as
 	-- themselves, weapons in hand
@@ -1412,7 +1446,7 @@ do
 	frames(20)
 	if dp.COMBOS[1].class ~= "WARRIOR" or dp.COMBOS[1].race ~= "DWARF" or #dp.COMBOS ~= 18 then fail("옷 입히기 should start with the dwarf warrior and go through 18 class/faction pairs") end
 	local c1, c2, c3, c4 = dp.cards[1], dp.cards[2], dp.cards[3], dp.cards[4]
-	local a1, a2, a3, a4 = c1.model.actor, c2.model.actor, c3.model, c4.model
+	local a1, a2, a3, a4 = c1.model.actor, c2.model.actor, c3.model.actor, c4.model.actor
 	-- the player's own body as the race (customRaceID), nothing worn
 	if a1.__display ~= "unit:player" or a1.__race ~= ns.MODEL.raceId.DWARF or a1.__dressed then
 		fail("the first card should be the player's body as a dwarf, undressed: " .. tostring(a1.__display) .. " " .. tostring(a1.__race))
@@ -1421,16 +1455,16 @@ do
 	if not (a2.__worn and #a2.__worn == 8) or not (c2.lines[3].__text or ""):find("TryOn 8/8", 1, true) then
 		fail("the second card should try the eight pieces on the changed body: " .. tostring(c2.lines[3].__text))
 	end
-	-- a model frame with the player made the race and the gender picked
-	if a3.__race ~= ns.MODEL.raceId.DWARF or a3.__sex ~= 0 or (a3.__worn and #a3.__worn > 0) then
-		fail("the third card should be the player made a male dwarf, undressed: " .. tostring(a3.__race) .. " " .. tostring(a3.__sex))
+	-- the NPC body of the race and the gender picked, undressed
+	if a3.__display ~= ns.MODEL.npcBody.DWARF.M[1] or (a3.__worn and #a3.__worn > 0) then
+		fail("the third card should be the male dwarf NPC body, undressed: " .. tostring(a3.__display))
 	end
 	if not (a4.__worn and #a4.__worn == 8) then fail("the fourth card should try the set on that body") end
 	click("model: dressing next", function(b) return b == dp.next end)
 	click("model: dressing female", function(b) return b == dp.sexBtn.F end)
 	frames(20)
-	if dp.i ~= 2 or dp.sex ~= "F" or a3.__race ~= ns.MODEL.raceId.ORC or a3.__sex ~= 1 or a1.__race ~= ns.MODEL.raceId.ORC then
-		fail("▶ and 여 should show the orc woman: " .. tostring(a3.__race) .. " " .. tostring(a3.__sex) .. " " .. tostring(a1.__race))
+	if dp.i ~= 2 or dp.sex ~= "F" or a3.__display ~= ns.MODEL.npcBody.ORC.F[1] or a1.__race ~= ns.MODEL.raceId.ORC then
+		fail("▶ and 여 should show the orc woman: " .. tostring(a3.__display) .. " " .. tostring(a1.__race))
 	end
 	if not (dp.label.__text or ""):find("오크 여", 1, true) then fail("the dressing label should name the race and gender: " .. tostring(dp.label.__text)) end
 	-- 변신: the six druid forms by their display ids, with the model file

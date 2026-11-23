@@ -373,6 +373,9 @@ end
 -- display ids this mock game lacks, and the bounding box a display stands in
 Mock.missingDisplays = {}
 Mock.boxes = {}
+-- the player's gender (2 = male, 3 = female)
+Mock.playerSex = 2
+function UnitSex(unit) return unit == "player" and Mock.playerSex or 2 end
 local Actor = {}
 function Actor:SetModelByCreatureDisplayID(id, useActivePlayerCustomizations)
 	strict(type(id) == "number" and id > 0, "SetModelByCreatureDisplayID: display id expected")

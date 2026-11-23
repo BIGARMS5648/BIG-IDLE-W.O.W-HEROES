@@ -672,7 +672,22 @@ ns.MODEL.weapons = {
 	DRUID_RESTO    = { mh = 11932 },                -- 지혜의 지팡이 (검은바위 나락: 타우릿산)
 }
 
--- the game's race ids (SetCustomRace)
+-- Bodies for heroes of the other gender than the player's (the player's own
+-- body cannot change gender): NPC models of each race and gender in the
+-- classic data that wear the least, and nothing the dungeon set does not
+-- cover (no shirt or tabard), best first (creature display ids)
+ns.MODEL.npcBody = {
+	HUMAN    = { M = { 2080, 10425, 1288 },   F = { 16104, 1295, 1900 } },
+	DWARF    = { M = { 8709, 12052, 3874 },   F = { 11329, 12054, 12056 } },
+	NIGHTELF = { M = { 2595, 1771, 1757 },    F = { 1700, 2057, 11907 } },
+	GNOME    = { M = { 11136, 13552, 14093 }, F = { 10575, 13553, 16447 } },
+	ORC      = { M = { 4545, 1876, 1884 },    F = { 1879, 3953, 15002 } },
+	UNDEAD   = { M = { 1027, 1605, 1606 },    F = { 1029, 1828, 2050 } },
+	TAUREN   = { M = { 10577, 16432, 10049 }, F = { 15876, 15877, 16442 } },
+	TROLL    = { M = { 2588, 4609, 11054 },   F = { 11750, 12038, 15894 } },
+}
+
+-- the game's race ids (SetModelByUnit's customRaceID)
 ns.MODEL.raceId = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, UNDEAD = 5, TAUREN = 6, GNOME = 7, TROLL = 8 }
 -- Each race's own body with nothing on (the game's base display of the race,
 -- ChrRaces Male/FemaleDisplayID)
