@@ -669,6 +669,43 @@ do
 	confirmYes("unlock")
 	if not F.Unlocked("insc") then fail("해금하기 should unlock the function") end
 	hoverAll()
+	-- 강화: locked until the last difficulty is cleared, then +0 .. +20
+	local prog = ns.db.prog
+	local savedProg = { prog[1], prog[2], prog[3], prog[4] }
+	prog[4] = 0
+	press("enhance tab (locked)", ep.tabs:Get("up"))
+	if not ep.bodies.locked:IsVisible() or ep.bodies.up:IsVisible() then fail("a locked 강화 tab should say what opens it") end
+	if not (ep.lockView.text.__text or ""):find(ns.N(ns.DIFFS[#ns.DIFFS].name), 1, true) then fail("the locked 강화 tab should name the difficulty that opens it") end
+	if ep.lockView.go:IsVisible() then fail("강화 opens by itself, not with a button") end
+	for d = 1, #ns.DIFFS do prog[d] = ns.STAGE_COUNT end
+	ns.db.gold = 1e15
+	Main.Refresh()
+	if not ep.bodies.up:IsVisible() then fail("the 강화 tab should open once the last difficulty is cleared") end
+	local up = ep.forge.up
+	click("enhance target", function(b) return b.data == epic end)
+	if up.picked ~= epic then fail("clicking an item in the 강화 tab should choose it") end
+	for _ = 1, 3 do press("enhance", up.go) end
+	if (epic.up or 0) ~= 3 then fail("강화하기 should raise the piece three steps: " .. tostring(epic.up)) end
+	if not (up.lastText.__text or ""):find("+3", 1, true) then fail("the 강화 tab should say how the last try went") end
+	-- the icons show the step, not the item level
+	press("bag tab", ep.tabs:Get("bag"))
+	local cell, plain
+	for _, b in ipairs(ep.cells) do
+		if b.data == epic then cell = b elseif b.data and not b.data.up and b:IsShown() then plain = b end
+	end
+	if not cell or cell.count.__text ~= "+3" then fail("an item's icon should show its step: " .. tostring(cell and cell.count.__text)) end
+	if plain and (plain.count.__text or "") ~= "" then fail("a piece at +0 shows nothing, not its level: " .. tostring(plain.count.__text)) end
+	-- 계승: a second chest of the same slot takes the steps for gold
+	local other = ns.Items.New("chest", 30, 6)
+	ns.Items.AddToBag(other)
+	press("enhance tab", ep.tabs:Get("up"))
+	click("inherit target", function(b) return b.data == other end)
+	if up.picked ~= other then fail("the second chest should be chosen") end
+	press("inherit", up.card.move)
+	confirmYes("inherit")
+	if (other.up or 0) ~= 3 or epic.up then fail("계승 should move the steps to the new piece: " .. tostring(other.up) .. " " .. tostring(epic.up)) end
+	prog[1], prog[2], prog[3], prog[4] = savedProg[1], savedProg[2], savedProg[3], savedProg[4]
+	hoverAll()
 end
 
 -- runes: the tree; pick a rune, learn it from the bar
@@ -1031,7 +1068,11 @@ do
 			local hu, hf
 			for i, x in ipairs(ns.Combat.heroes) do if x.class == "HUNTER" then hu, hf = x, heroes[i] end end
 			local mob
-			for _, m in ipairs(ns.Combat.mobs) do if not m.dead then mob = m break end end
+			for _ = 1, 300 do -- (between waves: until the next one is in)
+				for _, m in ipairs(ns.Combat.mobs) do if not m.dead then mob = m break end end
+				if mob then break end
+				frames(1)
+			end
 			if hu and hf and hf.figIs and mob then
 				local shot = ns.Bar.ShotOf(hu)
 				local body = Fig.HeroBody(hu.id, true)
@@ -1047,8 +1088,12 @@ do
 			else
 				fail("the battle check should have a hunter and a monster on screen")
 			end
+			-- the others: casters and healers cast at the target, the rest swing
 			for i, x in ipairs(ns.Combat.heroes) do
-				if x.class ~= "HUNTER" and heroes[i].figIs and heroes[i].figIs:AnimId("attack") ~= 17 then fail("only hunters shoot: " .. x.class) end
+				local want = x.class == "HUNTER" and ns.Bar.ShotOf(x).anim or (x.ranged and 53 or 17)
+				if heroes[i].figIs and heroes[i].figIs:AnimId("attack") ~= want then
+					fail("a " .. x.spec .. "'s attack should be animation " .. want .. ": " .. tostring(heroes[i].figIs:AnimId("attack")))
+				end
 			end
 		end
 		-- effects are drawn straight into the scene (the game shows nothing of
@@ -1365,14 +1410,17 @@ do
 		local hf = heroes[1].model
 		if hf and hf.GetAllowOverlappedModels and not hf:GetAllowOverlappedModels() then fail("hero scenes should clear their own depth") end
 	end
-	-- an attack plays the attack animation
-	local anims = {}
+	-- an attack plays the hero's attack animation (a swing, a cast, a shot)
+	local attacked = false
 	for _ = 1, 400 do -- until the party has met the monsters and fought a while
 		frames(1)
-		for _, f in ipairs(heroes) do if f.model and f.model:IsShown() then anims[animOf(f.model) or -1] = true end end
-		if anims[17] then break end
+		for _, f in ipairs(heroes) do
+			local m = f.model
+			if m and m:IsShown() and m.AnimId and animOf(m) == m:AnimId("attack") and m:Playing() == "attack" then attacked = true end
+		end
+		if attacked then break end
 	end
-	if not anims[17] then fail("heroes should play the attack animation (17) in battle") end
+	if not attacked then fail("heroes should play their attack animation in battle") end
 	ns.PartyLimit = partyLimit
 	-- off in the settings: icons again
 	ns.db.opt.models = false

@@ -783,6 +783,67 @@ check(okb and rolled and #db.bag == 1, "bonus roll gives one item")
 check(not F.BonusRoll(1), "no seal, no roll")
 
 ------------------------------------------------------------------------
+section("equipment enhancement")
+do
+	local Up = ns.Upgrade
+	local savedProg = { db.prog[1], db.prog[2], db.prog[3], db.prog[4] }
+	local savedGold, savedBag = db.gold, db.bag
+	db.bag = {}
+	local it = ns.Items.New("chest", 100, 5)
+	ns.Items.AddToBag(it)
+	check(Up.Level(it) == 0 and Up.Text(it) == "", "a piece starts at +0, which its icon does not show")
+	-- locked until the last difficulty is cleared (the endless tower)
+	db.prog[4] = ns.STAGE_COUNT - 1
+	db.gold = 1e15
+	check(not Up.Open() and not Up.Try(it), "enhancement is locked before the last difficulty is cleared")
+	db.prog[1], db.prog[2], db.prog[3], db.prog[4] = ns.STAGE_COUNT, ns.STAGE_COUNT, ns.STAGE_COUNT, ns.STAGE_COUNT
+	check(Up.Open(), "enhancement opens once the last difficulty is cleared")
+	-- +0 .. +10: every try succeeds, each costs more, gold is spent
+	local base0 = ns.Items.BaseStats(it)[1][2]
+	local lastCost = 0
+	for n = 0, Up.SAFE - 1 do
+		local cost = Up.Cost(it, n)
+		check(cost > lastCost, "each step costs more than the one before")
+		lastCost = cost
+		local g = db.gold
+		local ok, success, now = Up.Try(it)
+		check(ok and success and now == n + 1 and db.gold == g - cost, "a try from +" .. n .. " always succeeds and costs its gold")
+	end
+	check(Up.Text(it) == "+10", "the icon shows +10")
+	local base10 = ns.Items.BaseStats(it)[1][2]
+	check(math.abs(base10 / base0 - Up.Bonus(10)) < 0.05, "+10 raises the base stats by its bonus: " .. base10 / base0)
+	check(Up.Bonus(0) == 1 and Up.Bonus(10) > 1 and Up.Bonus(20) > Up.Bonus(10), "each step gives more")
+	-- from +10 a try can fail: the gold is gone, the step stays
+	local wins, fails = 0, 0
+	for _ = 1, 400 do
+		if Up.Level(it) >= Up.MAX then break end
+		local n = Up.Level(it)
+		check(Up.Chance(n) < 1, "a try from +" .. n .. " can fail")
+		local g = db.gold
+		local ok, success, now = Up.Try(it)
+		check(ok and db.gold < g, "every try costs gold")
+		if success then wins = wins + 1 check(now == n + 1, "a success adds one step") else fails = fails + 1 check(now == n, "a failure keeps the step") end
+	end
+	check(Up.Level(it) == Up.MAX and wins == Up.MAX - Up.SAFE and fails > 0, "the steps past +10 can fail and the top is +" .. Up.MAX)
+	local ok, why = Up.Try(it)
+	check(not ok and why, "no step past the top")
+	-- an enhanced piece is kept out of auto salvage and fusion
+	local picks = ns.Forge.PickByQuality(ns.MAX_QUALITY)
+	for _, x in ipairs(picks) do check(x ~= it, "an enhanced piece is not salvaged automatically") end
+	-- 계승: the steps move onto a piece of the same slot for gold
+	local other = ns.Items.New("chest", 100, 6)
+	ns.Items.AddToBag(other)
+	local from = Up.SourceFor(other)
+	check(from == it, "the piece further along is the one to move from")
+	local cost = Up.MoveCost(it, other)
+	local g = db.gold
+	check(cost > 0 and Up.Move(it, other) and Up.Level(other) == Up.MAX and Up.Level(it) == 0 and db.gold == g - cost, "moving the steps costs gold and leaves the old piece at +0")
+	local ring = ns.Items.New("ring", 100, 5)
+	check(not Up.CanMove(other, ring), "steps move only between pieces of the same slot")
+	db.prog[1], db.prog[2], db.prog[3], db.prog[4] = savedProg[1], savedProg[2], savedProg[3], savedProg[4]
+	db.gold, db.bag = savedGold, savedBag
+end
+
 section("combat: every specialization and every skill")
 db.bag = {}
 db.chests = {}

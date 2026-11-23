@@ -266,9 +266,11 @@ local function drawHeroes(now)
 					f.figFor, f.figIs = u.id, fig
 					fig:SetHeight2(HERO_FIG * Figure.HeroScale(u.id, true))
 				end
-				-- a hunter's attack is a shot of its bow or gun
+				-- a hunter's attack is a shot of its bow or gun; other heroes that
+				-- fight from afar (casters, healers) cast at the target instead of
+				-- swinging their weapon
 				local shot = Bar.ShotOf(u)
-				fig:SetAnimFor("attack", shot and shot.anim or nil)
+				fig:SetAnimFor("attack", shot and shot.anim or (u.ranged and Bar.CAST_ANIM) or nil)
 				local want = "idle"
 				if u.dead then want = "death"
 				elseif (u.castT or 0) > 0.6 then want = "cast"
@@ -801,6 +803,7 @@ end
 -- A hunter's shot (Data/Models.lua ns.MODEL.SHOT): the animation it fires
 -- with and the arrow or bullet that flies, by the weapon in its hands; nil
 -- for every other hero.
+Bar.CAST_ANIM = 53 -- the game's SpellCastDirected
 function Bar.ShotOf(u)
 	if not u or u.class ~= "HUNTER" then return nil end
 	local body = Figure.HeroBody(u.id, true)

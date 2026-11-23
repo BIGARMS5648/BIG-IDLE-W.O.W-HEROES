@@ -419,7 +419,15 @@ function UI.Tabs(parent, w, items, onSelect, _, h)
 	function row:SetLabel(key, text) local b = self:Get(key) if b then b:SetLabel(text) self:Fit() end end
 	function row:SetBadge(key, v)
 		local b = self:Get(key)
-		if b then b:SetBadge(v) end
+		if not b then return end
+		b:SetBadge(v)
+		-- on the tab's top edge, inside its right corner: tabs stand close
+		-- together, so the dot never reaches the next one or its name
+		if b.badge and not b.badge.onTab then
+			b.badge.onTab = true
+			b.badge:ClearAllPoints()
+			b.badge:SetPoint("CENTER", b, "TOPRIGHT", -8, 1)
+		end
 	end
 	function row:SetLocked(key, v)
 		local b = self:Get(key)

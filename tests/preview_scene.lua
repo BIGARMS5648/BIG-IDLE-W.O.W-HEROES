@@ -261,6 +261,23 @@ S.gem = function() mixedItem() local p = equip("gem") p.forge.gem.picked = mixed
 S.gem_stress = function() stressRing() local p = equip("gem") p.forge.gem.picked = stress ns.Main.Refresh() end
 S.ench = function() mixedItem() local p = equip("ench") p.forge.ench.picked = mixed ns.Main.Refresh() end
 S.insc_locked = function() equip("insc") end
+-- 강화: locked before the last difficulty is cleared; open with a piece at +12
+local function setProg(n)
+	local prog = ns.db.prog
+	local was = { prog[1], prog[2], prog[3], prog[4] }
+	for d = 1, #ns.DIFFS do prog[d] = n end
+	S.restore = function() prog[1], prog[2], prog[3], prog[4] = was[1], was[2], was[3], was[4] end
+end
+S.up_locked = function() setProg(0) equip("up") end
+S.up = function()
+	setProg(ns.STAGE_COUNT)
+	mixedItem()
+	mixed.up = 12
+	local p = equip("up")
+	p.forge.up.picked = mixed
+	p.forge.up.last = ns.U.col("60e070", "성공! +12")
+	ns.Main.Refresh()
+end
 S.mats = function() local p = equip("mats") p.matTab = "mat_craft" ns.Main.Refresh() end
 S.mats_gem = function() local p = equip("mats") p.matTab = "mat_gem" ns.Main.Refresh() end
 S.mats_seal = function() local p = equip("mats") p.matTab = "mat_seal" ns.Main.Refresh() end

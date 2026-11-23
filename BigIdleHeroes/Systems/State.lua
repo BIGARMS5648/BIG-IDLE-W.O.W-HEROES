@@ -299,6 +299,12 @@ function ns.AddGold(n)
 	ns.Fire("GOLD")
 end
 
+-- The endless tower opens once the last difficulty is cleared to its end.
+function ns.TowerOpen()
+	local prog = ns.db and ns.db.prog
+	return prog ~= nil and (prog[#ns.DIFFS] or 0) >= ns.STAGE_COUNT
+end
+
 -- How far the account has come: one for every difficulty cleared to its last
 -- stage, in order (0 .. #ns.DIFFS). Heroes dress by it (ns.MODEL.armorTier).
 function ns.GearTier()

@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v3.21.0
+BIG IDLE HEROES v3.22.0
 ```
 
 ---
@@ -65,7 +65,7 @@ Build a party of five heroes, send them along a route through the original game'
 ### A living battle window
 - Heroes, monsters, bosses, summons and companions are **the game's own 3D models**, animated: they stand, walk, attack, cast, get hit and die.
 - Heroes' gear grows with your progress: they start in their class's **starting clothes**, then wear the **best gear of the level 20s** (Defias Leather and Embrace of the Viper on leather wearers), the **dungeon sets**, the **Ahn'Qiraj raid sets** and finally the **Naxxramas sets**, with matching weapons for each spec. Every difficulty you clear to its end moves every hero to the next look.
-- Hunters shoot: a real bow or crossbow shot with an arrow flying to the target.
+- Hunters shoot: a real bow or crossbow shot with an arrow flying to the target. Casters and healers cast at their target instead of swinging.
 - Druids fight in **bear, cat or moonkin form**. You can turn forms off.
 - Skills and boss abilities play **the original spells' visual effects**: casts, missiles and impacts.
 - **Moving scenery:**
@@ -78,6 +78,7 @@ Build a party of five heroes, send them along a route through the original game'
 ### Loot and progression
 - **Gear in 8 quality tiers** from monsters and chests.
 - **The Forge**, all in the equipment screen: fuse, craft, add gems, enchant, engrave runes, salvage, extract and use lucky seals. Bags fill up, so auto-salvage helps keep them clear.
+- **Enhancement** (+1 to +20) once Mythic+ is cleared: every step raises an item's base stats; steps past +10 can fail (only the gold is lost), and enhancement can be moved to a new item of the same slot for gold. Item icons show their +N.
 - **Rune tree**: account-wide bonuses that open more party slots, skill slots and more.
 - **Companions** that join the party.
 - **Offline rewards** for the time you were away.
@@ -134,13 +135,11 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v3.21.0)
+## Changelog for this release (v3.22.0)
 
 ```
-- Heroes' looks follow your progress: starting clothes, then the best gear of the level 20s after Normal, the dungeon sets after Heroic, the Ahn'Qiraj sets after Mythic and the Naxxramas sets after Mythic+, with weapons to match.
-- Spell effects show again in the battle window.
-- Hunters shoot their bow or crossbow, and an arrow flies to the target.
-- Heroes, monsters, bosses, summons and companions are 15% smaller.
-- The druid cat's health bar sits under its body.
-- The model check's dressing page can show each look.
+- Equipment enhancement, +1 to +20 (the 강화 tab, opens once Mythic+ is cleared): each step raises the item's base stats; from +10 on a try can fail and only the gold is lost; enhancement moves to another item of the same slot for gold. Enhanced items are kept out of automatic salvage and fusion.
+- Item icons show their enhancement (+1 .. +20) instead of the item level.
+- Casters and healers cast at their target for their basic attack.
+- Red dots on tabs sit on the tab's top edge.
 ```

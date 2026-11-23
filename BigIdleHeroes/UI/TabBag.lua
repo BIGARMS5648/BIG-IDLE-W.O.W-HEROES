@@ -111,6 +111,9 @@ local function smeltOne(it)
 	if ns.Items.PartyUpgrade(it) then
 		text = text .. "\n" .. U.col("ff9a7a", "파티에게 지금 장비보다 더 좋은 장비입니다.")
 	end
+	if it.up then
+		text = text .. "\n" .. U.col("ff9a7a", string.format("+%d 강화가 함께 사라집니다.", it.up))
+	end
 	UI.Confirm({ title = "분해", ok = "분해", style = "red", text = text, onOk = function()
 		local ok, g = ns.Forge.Smelt({ it })
 		if UI.Try(ok, g) then ns.Toast(string.format("분해: +%s 골드", U.fmt(g))) end
@@ -307,7 +310,7 @@ function BagView.Refresh(page)
 			b.data = it
 			b:SetIconName(ns.Items.Icon(it))
 			b:SetQuality(it.q)
-			b:SetCount(tostring(it.l))
+			b:SetCount(ns.Upgrade.Text(it))
 			b:SetLocked(it.lock)
 			if not bank and sel then
 				local usable = ns.Items.CanEquip(sel, it)

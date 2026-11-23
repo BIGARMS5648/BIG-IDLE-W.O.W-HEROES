@@ -63,10 +63,12 @@ function Items.ReqLevel(it)
 	return max(1, it.l - Items.REQ_GAP)
 end
 
--- Base stats are derived from type, level and quality (never stored).
+-- Base stats are derived from type, level, quality and enhancement (never
+-- stored).
 function Items.BaseStats(it)
 	local def = Items.Def(it)
 	local q = ns.QUALITY[it.q]
+	local up = ns.Upgrade and ns.Upgrade.Bonus(it.up) or 1
 	local out = {}
 	for i = 1, #BASE_ORDER do
 		local key = BASE_ORDER[i]
@@ -75,9 +77,9 @@ function Items.BaseStats(it)
 			local a = ns.AFFIX[key]
 			local v
 			if a.s then
-				v = b * ns.Scale[a.s](it.l) * q.mult
+				v = b * ns.Scale[a.s](it.l) * q.mult * up
 			else
-				v = b * (0.8 + 0.1 * it.q)
+				v = b * (0.8 + 0.1 * it.q) * up
 			end
 			out[#out + 1] = { key, roundValue(v) }
 		end
@@ -532,8 +534,12 @@ function Items.Tooltip(it, heroId)
 		lines[#lines + 1] = { left, right, r or 1, g or 1, b or 1 }
 	end
 	local qr, qg, qb = U.rgb(q.hex)
-	add(Items.Name(it), nil, qr, qg, qb)
+	local up = it.up or 0
+	add((up > 0 and ("+" .. up .. " ") or "") .. Items.Name(it), nil, qr, qg, qb)
 	add(ns.N(q.name) .. " " .. ns.N(ns.SLOT[it.s].name), "아이템 레벨 " .. it.l, 0.7, 0.7, 0.7)
+	if up > 0 then
+		add(string.format("강화 +%d · 기본 능력치 +%d%%", up, floor((ns.Upgrade.Bonus(up) - 1) * 100 + 0.5)), nil, 1, 0.82, 0.3)
+	end
 	for _, b in ipairs(Items.BaseStats(it)) do
 		add(ns.Stats.ModText(b[1], b[2]), nil, 1, 1, 1)
 	end
@@ -578,6 +584,8 @@ function Items.Tooltip(it, heroId)
 	add("분해 가치", U.fmt(Items.SmeltGold(it)) .. " G", 1, 0.82, 0)
 	if it.lock then
 		add("보호됨 - 분해·융합에 쓰이지 않습니다", nil, 1, 0.5, 0.2)
+	elseif up > 0 then
+		add("강화한 장비 - 자동 분해·융합에 쓰이지 않습니다", nil, 1, 0.5, 0.2)
 	end
 	if h and it ~= h.gear[it.s] then
 		local r = Items.Compare(heroId, it)

@@ -21,6 +21,7 @@ local CELL, STEP = 46, 52
 local OP_ICON = {
 	fuse = "Spell_Nature_WispSplode", smelt = "Spell_Fire_Fire", craft = "Trade_BlackSmithing", gem = "INV_Misc_Gem_Ruby_02",
 	remove = "INV_Hammer_20", ench = "Trade_Engraving", seal = "INV_Misc_Coin_02", insc = "INV_Scroll_03",
+	up = "INV_Hammer_09",
 }
 ForgeView.OP_ICON = OP_ICON
 local SOCKET_VERB = { gem = "세공하기", ench = "부여하기", insc = "각인하기" }
@@ -71,7 +72,7 @@ local function addResult(f, x, y)
 			self.icon.data = it
 			self.icon:SetIconName(ns.Items.Icon(it))
 			self.icon:SetQuality(it.q)
-			self.icon:SetCount(tostring(it.l))
+			self.icon:SetCount(ns.Upgrade.Text(it))
 			self.text:SetText((self.msg and (self.msg .. "\n") or "") .. ns.Items.ColorName(it))
 		else
 			self.icon.data = nil
@@ -110,7 +111,7 @@ local function buildFuse(page, f)
 	local function usableCount(q)
 		local n = 0
 		for _, it in ipairs(ns.db.bag) do
-			if it.q == q and ns.Items.FuseCat(it) == p.cat and not it.lock and not ns.Items.HasSockets(it)
+			if it.q == q and ns.Items.FuseCat(it) == p.cat and not it.lock and not it.up and not ns.Items.HasSockets(it)
 				and not ns.Items.PartyUpgrade(it) then n = n + 1 end
 		end
 		return n
@@ -202,7 +203,7 @@ local function buildFuse(page, f)
 		for _, it in ipairs(ns.db.bag) do
 			if it.q == p.q and ns.Items.FuseCat(it) == p.cat then
 				list[#list + 1] = it
-				if not it.lock and not ns.Items.HasSockets(it) and not ns.Items.PartyUpgrade(it) then usable = usable + 1 end
+				if not it.lock and not it.up and not ns.Items.HasSockets(it) and not ns.Items.PartyUpgrade(it) then usable = usable + 1 end
 			end
 		end
 		local kindName = p.cat == "gear" and "무기·방어구" or "액세서리"
@@ -215,10 +216,11 @@ local function buildFuse(page, f)
 			if it then
 				b:SetIconName(ns.Items.Icon(it))
 				b:SetQuality(it.q)
-				b:SetCount(tostring(it.l))
+				b:SetCount(ns.Upgrade.Text(it))
 				b:SetLocked(it.lock)
 				b:SetSelected(used[it] == true)
 				if it.lock then b.why = "보호한 장비는 쓰지 않습니다."
+				elseif it.up then b.why = "강화한 장비는 쓰지 않습니다."
 				elseif ns.Items.HasSockets(it) then b.why = "보석·마법부여·각인이 붙은 장비는 쓰지 않습니다."
 				elseif ns.Items.PartyUpgrade(it) then b.why = "파티에게 더 좋은 장비라 쓰지 않습니다." end
 				b:SetDim(b.why ~= nil)
@@ -502,7 +504,7 @@ local function buildSocket(kind)
 				if e then
 					b:SetIconName(ns.Items.Icon(e[1]))
 					b:SetQuality(e[1].q)
-					b:SetCount(tostring(e[1].l))
+					b:SetCount(ns.Upgrade.Text(e[1]))
 					b:SetMark(e[2] and "E" or "", 1, 0.82, 0)
 					b:SetSelected(e[1] == p.picked)
 					local free = ns.Items.FreeSockets(e[1], kind)
@@ -544,7 +546,7 @@ local function buildSocket(kind)
 			c.icon.data = it
 			c.icon:SetIconName(ns.Items.Icon(it))
 			c.icon:SetQuality(it.q)
-			c.icon:SetCount(tostring(it.l))
+			c.icon:SetCount(ns.Upgrade.Text(it))
 			c.name:SetText(U.col(q.hex, ns.Items.Name(it)))
 			c.sub:SetText(string.format("%s 홈 %d개 중 %d개 비어 있음", ns.N(ns.SOCKET[kind].short), ns.Items.SocketCount(it, kind), ns.Items.FreeSockets(it, kind)))
 			local l = ns.Items.SocketList(it, kind)
@@ -588,6 +590,187 @@ local function buildSocket(kind)
 end
 
 ------------------------------------------------------------------------
+-- 강화: the hero's worn pieces, then the bag; the chosen piece's step, what
+-- the next one gives, its chance and cost; 계승 from a piece of the same slot
+-- that is further along
+------------------------------------------------------------------------
+local function buildUpgrade(page, f)
+	local p = {}
+	local Up = ns.Upgrade
+	p.head = UI.Section(f, W)
+	p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+	p.cells = {}
+	for i = 1, SOCK_COLS * SOCK_ROWS do
+		local b = UI.IconButton(f, CELL, function(self)
+			if self.data then p.picked, p.pickedHero = self.data, self.heroId Main.Refresh() end
+		end)
+		local col, row = (i - 1) % SOCK_COLS, floor((i - 1) / SOCK_COLS)
+		b:SetPoint("TOPLEFT", f, "TOPLEFT", col * STEP, -26 - row * STEP)
+		UI.Tip(b, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end)
+		p.cells[i] = b
+	end
+	local c = UI.Panel(f, W, 176, "card")
+	c:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -136)
+	p.card = c
+	c.isRow = true -- the 계승 button on its line
+	c.icon = UI.IconButton(c, 44)
+	c.icon:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -12)
+	UI.Tip(c.icon, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end)
+	c.name = UI.Text(c, 14)
+	c.name:SetPoint("TOPLEFT", c, "TOPLEFT", 66, -14)
+	c.name:SetWidth(W - 80)
+	c.name:SetWordWrap(false)
+	c.sub = UI.Text(c, 11)
+	c.sub:SetPoint("TOPLEFT", c, "TOPLEFT", 66, -36)
+	c.sub:SetWidth(W - 80)
+	c.sub:SetWordWrap(false)
+	UI.Color(c.sub, UI.C.sub)
+	c.lines = {}
+	for i = 1, 3 do
+		local l = UI.Text(c, 12)
+		l:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -66 - (i - 1) * 20)
+		l:SetWidth(W - 24)
+		l:SetWordWrap(false)
+		c.lines[i] = l
+	end
+	-- 계승: from the piece of the same slot that is further along
+	c.moveText = UI.Text(c, 11)
+	c.moveText:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 12, 16)
+	c.moveText:SetWidth(W - 24 - 150)
+	c.moveText:SetWordWrap(false)
+	UI.Color(c.moveText, UI.C.sub)
+	c.move = UI.Button(c, 136, 26, "계승하기", function()
+		local to = p.picked
+		local from, fromHero = Up.SourceFor(to)
+		if not from then
+			UI.Try(false, "이 장비보다 강화 단계가 높은 같은 부위 장비가 없습니다.")
+			return
+		end
+		UI.Confirm({ title = "계승", ok = "계승",
+			text = string.format("%s의 +%d 강화를 %s(으)로 옮기시겠습니까?\n원래 장비는 +0이 됩니다. %s 골드가 듭니다.",
+				ns.Items.ColorName(from), Up.Level(from), ns.Items.ColorName(to), U.fmt(Up.MoveCost(from, to))),
+			onOk = function()
+				local ok, n = Up.Move(from, to, fromHero, p.pickedHero)
+				if UI.Try(ok, n) then p.last = U.col("60e070", string.format("계승: +%d", n)) end
+				Main.Refresh()
+			end })
+	end, "dark")
+	c.move:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", -12, 10)
+	c.move.clickWhenOff = true
+	p.empty = UI.Text(c, 12)
+	p.empty:SetPoint("CENTER", c, "CENTER", 0, 0)
+	p.empty:SetWidth(W - 40)
+	p.empty:SetJustifyH("CENTER")
+	UI.Color(p.empty, UI.C.sub)
+	p.rule = note(f, -326, string.format("장비는 +0에서 시작합니다. +0에서 +%d까지는 항상 성공하고, +%d부터는 성공 확률이 낮아집니다. 실패하면 쓴 골드만 사라지고 장비와 강화 단계는 그대로입니다. 강화는 기본 능력치를 올립니다. 강화한 장비는 자동 분해·융합에 쓰이지 않습니다.", Up.SAFE, Up.SAFE))
+	p.go = UI.Button(f, 220, 36, "강화하기", function()
+		local it = p.picked
+		local ok, success, n = Up.Try(it, p.pickedHero)
+		if UI.Try(ok, success) then
+			if success then
+				p.last = U.col("60e070", string.format("성공! +%d", n))
+				ns.Sound("levelup")
+			else
+				p.last = U.col("ff6a5a", string.format("실패 · +%d 그대로", n))
+			end
+		end
+		Main.Refresh()
+	end, "primary")
+	p.go:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
+	p.go.clickWhenOff = true
+	p.why = UI.Text(f, 11)
+	p.why:SetPoint("LEFT", p.go, "RIGHT", 12, 6)
+	p.why:SetWidth(W - 240)
+	p.why:SetWordWrap(false)
+	p.why:SetTextColor(1, 0.55, 0.45)
+	p.lastText = UI.Text(f, 12)
+	p.lastText:SetPoint("LEFT", p.go, "RIGHT", 12, -9)
+	p.lastText:SetWidth(W - 240)
+	p.lastText:SetWordWrap(false)
+	p.refresh = function()
+		-- the pieces: the hero on the left first, then the bag (furthest along first)
+		local id = Main.SelectedHero()
+		local list = {}
+		if id then
+			for _, slot in ipairs(ns.SLOTS) do
+				local it = ns.db.heroes[id].gear[slot]
+				if it then list[#list + 1] = { it, id } end
+			end
+		end
+		local bag = {}
+		for _, it in ipairs(ns.db.bag) do bag[#bag + 1] = it end
+		table.sort(bag, function(a, b)
+			if Up.Level(a) ~= Up.Level(b) then return Up.Level(a) > Up.Level(b) end
+			if a.q ~= b.q then return a.q > b.q end
+			return a.l > b.l
+		end)
+		for _, it in ipairs(bag) do list[#list + 1] = { it } end
+		local found = false
+		for i, e in ipairs(list) do if i <= #p.cells and e[1] == p.picked then found = true end end
+		if not found then p.picked, p.pickedHero = list[1] and list[1][1], list[1] and list[1][2] end
+		p.head:Set("강화할 장비", string.format("%d개 · E = 왼쪽 영웅이 착용 중", #list))
+		for i, b in ipairs(p.cells) do
+			local e = list[i]
+			b:Clear()
+			b.data, b.heroId = e and e[1], e and e[2]
+			if e then
+				b:SetIconName(ns.Items.Icon(e[1]))
+				b:SetQuality(e[1].q)
+				b:SetCount(Up.Text(e[1]))
+				b:SetMark(e[2] and "E" or "", 1, 0.82, 0)
+				b:SetLocked(e[1].lock)
+				b:SetSelected(e[1] == p.picked)
+			end
+		end
+		local it = p.picked
+		p.empty:SetShown(it == nil)
+		for _, w in ipairs({ c.icon, c.name, c.sub, c.moveText, c.move, c.lines[1], c.lines[2], c.lines[3] }) do w:SetShown(it ~= nil) end
+		p.lastText:SetText(p.last or "")
+		if not it then
+			p.empty:SetText("강화할 장비가 없습니다.")
+			p.go:SetLabel("강화하기")
+			p.go:SetOff(true)
+			p.why:SetText("")
+			return
+		end
+		local n = Up.Level(it)
+		local q = ns.QUALITY[it.q]
+		c.icon:Clear()
+		c.icon.data = it
+		c.icon:SetIconName(ns.Items.Icon(it))
+		c.icon:SetQuality(it.q)
+		c.icon:SetCount(Up.Text(it))
+		c.name:SetText(U.col(q.hex, (n > 0 and ("+" .. n .. " ") or "") .. ns.Items.Name(it)))
+		c.sub:SetText(string.format("강화 +%d / +%d", n, Up.MAX))
+		local function pct(k) return floor((Up.Bonus(k) - 1) * 100 + 0.5) end
+		if n >= Up.MAX then
+			c.lines[1]:SetText(string.format("기본 능력치 +%d%% (최고 단계)", pct(n)))
+			c.lines[2]:SetText("")
+			c.lines[3]:SetText("")
+		else
+			c.lines[1]:SetText(string.format("기본 능력치 +%d%%  →  %s", pct(n), U.col("60e070", "+" .. pct(n + 1) .. "%")))
+			local chance = Up.Chance(n)
+			c.lines[2]:SetText(string.format("성공 확률 %s%s", U.col(chance >= 1 and "60e070" or (chance >= 0.5 and "ffd24a" or "ff9a5a"), U.num(chance * 100, 0) .. "%"),
+				chance < 1 and U.col("9aa3b8", "  · 실패하면 골드만 사라집니다") or ""))
+			c.lines[3]:SetText(string.format("비용 %s G", U.col(ns.CanAfford(Up.Cost(it, n)) and "ffd24a" or "ff6a5a", U.fmt(Up.Cost(it, n)))))
+		end
+		local from = Up.SourceFor(it)
+		if from then
+			c.moveText:SetText(string.format("계승: %s +%d → 이 장비 · %s G", ns.Items.Name(from), Up.Level(from), U.fmt(Up.MoveCost(from, it))))
+			c.move:SetOff(not Up.CanMove(from, it))
+		else
+			c.moveText:SetText("계승: 같은 부위에 더 강화된 장비가 없습니다.")
+			c.move:SetOff(true)
+		end
+		local why = Up.Why(it)
+		p.go:SetLabel(n >= Up.MAX and "최고 단계" or ("강화하기  " .. U.fmt(Up.Cost(it, n)) .. " G"))
+		p.go:SetOff(why ~= nil)
+		p.why:SetText(why or "")
+	end
+	return p
+end
+
+------------------------------------------------------------------------
 -- A function not unlocked yet
 ------------------------------------------------------------------------
 local function buildLocked(page, f)
@@ -603,6 +786,14 @@ local function buildLocked(page, f)
 	p.go.clickWhenOff = true
 	p.refresh = function(op)
 		p.op = op
+		if op == "up" then
+			-- 강화 opens with the endless tower, not with the forge
+			p.text:SetText(string.format("'강화'는 아직 잠겨 있습니다.\n장비의 기본 능력치를 +%d까지 올립니다.\n\n%s 난이도를 끝까지(%d 스테이지) 깨면 열립니다.",
+				ns.Upgrade.MAX, ns.N(ns.DIFFS[#ns.DIFFS].name), ns.STAGE_COUNT))
+			p.go:Hide()
+			return
+		end
+		p.go:Show()
 		local d = ns.Forge.OpDef(op)
 		local lvl = ns.db.forge.level
 		local okLevel = lvl >= d.level
@@ -618,6 +809,6 @@ end
 ForgeView.Build = {
 	fuse = buildFuse, craft = buildCraft,
 	gem = buildSocket("gem"), ench = buildSocket("ench"), insc = buildSocket("insc"),
-	locked = buildLocked,
+	up = buildUpgrade, locked = buildLocked,
 }
 ForgeView.W, ForgeView.H = W, H

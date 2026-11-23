@@ -35,7 +35,7 @@ local WEAPON_HEAD_Y, WEAPON_TEXT_Y, WEAPON_SLOT_Y, HINT_Y = -330, -346, -380, -4
 
 local TABS = {
 	{ "bag", "가방" }, { "fuse", "융합" }, { "craft", "제작" }, { "gem", "보석" },
-	{ "ench", "마법부여" }, { "insc", "룬 각인" }, { "mats", "재료" }, { "bank", "창고" },
+	{ "ench", "마법부여" }, { "insc", "룬 각인" }, { "up", "강화" }, { "mats", "재료" }, { "bank", "창고" },
 }
 local FORGE_TAB = { fuse = true, craft = true, gem = true, ench = true, insc = true }
 
@@ -231,6 +231,7 @@ local function refreshLeft(page)
 			worn = worn + 1
 			b:SetIconName(ns.Items.Icon(it))
 			b:SetQuality(it.q)
+			b:SetCount(ns.Upgrade.Text(it))
 			b:SetLocked(it.lock)
 			b.empty:Hide()
 		else
@@ -275,6 +276,14 @@ local function buildRight(page)
 		Main.Refresh()
 	end, false, 32)
 	page.tabs:SetPoint("TOPLEFT", rp, "TOPLEFT", 12, -12)
+	UI.Tip(page.tabs:Get("up"), function()
+		local lines = { { "강화", nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
+			{ string.format("골드로 장비의 기본 능력치를 +%d까지 올립니다.", ns.Upgrade.MAX), nil, 1, 1, 1 } }
+		if not ns.Upgrade.Open() then
+			lines[#lines + 1] = { string.format("%s 난이도를 끝까지 깨면 열립니다.", ns.N(ns.DIFFS[#ns.DIFFS].name)), nil, 1, 0.5, 0.3 }
+		end
+		return lines
+	end, "TOP")
 	for _, t in ipairs(TABS) do
 		if FORGE_TAB[t[1]] then
 			UI.Tip(page.tabs:Get(t[1]), function()
@@ -302,6 +311,7 @@ local function buildRight(page)
 	for key in pairs(FORGE_TAB) do
 		page.forge[key] = ns.ForgeView.Build[key](page, body(key, ns.ForgeView.H))
 	end
+	page.forge.up = ns.ForgeView.Build.up(page, body("up", ns.ForgeView.H))
 	page.lockView = ns.ForgeView.Build.locked(page, body("locked", ns.ForgeView.H))
 	-- the forge level, under every tab (breaking down and fusing raise it)
 	page.forgeBar = UI.Bar(rp, RIGHT_W - 24, 18, 0.95, 0.55, 0.15)
@@ -330,6 +340,7 @@ local function refreshRight(page)
 		page.tabs:SetLocked(key, not open)
 		page.tabs:SetBadge(key, not open and f.level >= d.level and ns.CanAfford(d.cost))
 	end
+	page.tabs:SetLocked("up", not ns.Upgrade.Open())
 	-- a function used inside the bag, the gem tab or the materials that can be
 	-- unlocked now shows on that tab
 	local function ready(op)
@@ -354,6 +365,14 @@ local function refreshRight(page)
 	elseif tab == "mats" then
 		page.bodies.mats:Show()
 		ns.MatsView.Refresh(page)
+	elseif tab == "up" then
+		if ns.Upgrade.Open() then
+			page.bodies.up:Show()
+			page.forge.up.refresh()
+		else
+			page.bodies.locked:Show()
+			page.lockView.refresh("up")
+		end
 	elseif ns.Forge.Unlocked(tab) then
 		page.bodies[tab]:Show()
 		page.forge[tab].refresh()

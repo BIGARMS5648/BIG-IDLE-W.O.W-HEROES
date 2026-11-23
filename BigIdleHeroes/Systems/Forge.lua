@@ -116,7 +116,7 @@ end
 function Forge.PickByQuality(maxQuality)
 	local out, kept = {}, 0
 	for _, it in ipairs(ns.db.bag) do
-		if not it.lock and it.q <= maxQuality and not ns.Items.HasSockets(it) then
+		if not it.lock and not it.up and it.q <= maxQuality and not ns.Items.HasSockets(it) then
 			if ns.Items.PartyUpgrade(it) then
 				kept = kept + 1
 			else
@@ -211,7 +211,7 @@ end
 function Forge.PickForFusion(quality, cat)
 	local pool = {}
 	for _, it in ipairs(ns.db.bag) do
-		if not it.lock and it.q == quality and ns.Items.FuseCat(it) == cat and not ns.Items.HasSockets(it)
+		if not it.lock and not it.up and it.q == quality and ns.Items.FuseCat(it) == cat and not ns.Items.HasSockets(it)
 			and not ns.Items.PartyUpgrade(it) then
 			pool[#pool + 1] = it
 		end
