@@ -1,6 +1,6 @@
 # 전투 배경 그림 출처
 
-`BigWowIdle/Media/Scenes/<place>.tga`는 Warcraft Wiki(warcraft.wiki.gg)에 올라온 게임 화면 이미지를 전투 창 모양(704×112, 약 6.3:1)의 띠로 잘라 512×128 TGA(32비트, 이 애드온의 다른 그림과 같은 형식)로 만든 것입니다. 원본 그림의 저작권은 Blizzard Entertainment에 있습니다.
+`BigIdleHeroes/Media/Scenes/<place>.tga`는 Warcraft Wiki(warcraft.wiki.gg)에 올라온 게임 화면 이미지를 전투 창 모양(704×112, 약 6.3:1)의 띠로 잘라 512×128 TGA(32비트, 이 애드온의 다른 그림과 같은 형식)로 만든 것입니다. 원본 그림의 저작권은 Blizzard Entertainment에 있습니다.
 
 | 곳 (Scenery 키) | 원본 파일 |
 | --- | --- |

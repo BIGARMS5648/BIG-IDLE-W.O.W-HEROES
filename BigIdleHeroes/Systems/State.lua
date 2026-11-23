@@ -180,7 +180,7 @@ end
 function ns.InitDB()
 	if type(BigWowIdleDB) ~= "table" then
 		-- a save from before the add-on was renamed (BigWowHeroes, before that
-		-- BigIdleWoWHeroes): its file copied to SavedVariables/BigWowIdle.lua
+		-- BigIdleWoWHeroes): its file copied to SavedVariables/BigIdleHeroes.lua
 		-- still loads under the old variable name
 		if type(BigWowHeroesDB) == "table" then
 			BigWowIdleDB = BigWowHeroesDB

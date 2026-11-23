@@ -39,7 +39,7 @@ local SCENE_WAIT = 1.5 -- seconds a display id is given to come up
 local WIDE = 0.6
 
 -- PlayerModel figures (no ModelScene): right = toward the monsters (checked in
--- game with /bwi model: 90° faces right); tries: 1 = the display id, then the
+-- game with /bih model: 90° faces right); tries: 1 = the display id, then the
 -- NPC id; the frame leaves room around the model
 local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0 }
 local WAIT = { 1.0, 1.5, 2.5, 4.0 }

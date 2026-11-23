@@ -208,7 +208,7 @@ local function refresh(page)
 		}
 		for i, r in ipairs(inf.rows) do r:Set(rows[i][1], rows[i][2]) end
 		inf.help:SetText(string.format(
-			"• /bwi : 메뉴 열기·닫기   • /bwi bar : 전투 창 보이기·숨기기\n" ..
+			"• /bih : 메뉴 열기·닫기   • /bih bar : 전투 창 보이기·숨기기\n" ..
 			"• '추천'을 누르면 지금 할 일을 바로 하거나 그 화면을 엽니다.\n" ..
 			"• 빨간 점은 지금 할 수 있는 일이 있다는 표시입니다.\n" ..
 			"• 레벨마다 특성 점수(능력치), 4레벨마다 기술 점수(기술)가 생깁니다.\n" ..

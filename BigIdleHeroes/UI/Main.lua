@@ -219,7 +219,7 @@ end
 ------------------------------------------------------------------------
 function Main.Create()
 	if frame then return frame end
-	frame = CreateFrame("Frame", "BigWowIdleMain", UIParent)
+	frame = CreateFrame("Frame", "BigIdleHeroesMain", UIParent)
 	frame:SetSize(Main.W, Main.H)
 	frame:SetFrameStrata("HIGH")
 	frame:SetClampedToScreen(true)
@@ -249,7 +249,9 @@ function Main.Create()
 	head:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
 	head:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -3)
 	head:SetHeight(56)
-	local hbg = UI.Art(head, "grad_v", "BORDER", 0.10, 0.13, 0.22, 0.9)
+	-- (the shading belongs to the window itself, under the title and crest:
+	-- on the header frame it would be drawn over them and dim them)
+	local hbg = UI.Art(frame, "grad_v", "BORDER", 0.10, 0.13, 0.22, 0.9)
 	hbg:SetAllPoints(head)
 	if UI.ArtUI("ui_header") then UI.Slice(head, "card", "BACKGROUND"):SetArt(UI.ArtUI("ui_header")) end
 	local line = UI.Line(frame, Main.W - 24, 0.55, 0.60, 0.75, 0.35)
@@ -257,7 +259,7 @@ function Main.Create()
 	frame.crest = frame:CreateTexture(nil, "ARTWORK")
 	frame.crest:SetSize(34, 34)
 	frame.crest:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -13)
-	frame.brand = UI.Title(frame, "BIG W.O.W IDLE", 16)
+	frame.brand = UI.Title(frame, "BIG IDLE HEROES", 16)
 	frame.brand:SetPoint("TOPLEFT", frame, "TOPLEFT", 58, -12)
 	UI.Color(frame.brand, { 0.92, 0.94, 1 })
 	frame.faction = UI.Text(frame, 14)
@@ -402,7 +404,7 @@ function Main.Create()
 		Main.CloseModal()
 	end)
 	if UISpecialFrames then
-		UISpecialFrames[#UISpecialFrames + 1] = "BigWowIdleMain" -- close with Escape
+		UISpecialFrames[#UISpecialFrames + 1] = "BigIdleHeroesMain" -- close with Escape
 	end
 	frame:Hide()
 	return frame

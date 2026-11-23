@@ -5,7 +5,7 @@ local UI, U = ns.UI, ns.U
 local ready = false
 local stampT = 0
 
-_G.BigWowIdle = ns -- handy for /run and for other addons
+_G.BigIdleHeroes = ns -- handy for /run and for other addons
 
 ------------------------------------------------------------------------
 -- Offline report (a small dialog shown once after logging in)
@@ -94,13 +94,13 @@ local function onLogin()
 		ns.Main.Toggle(true)
 		ns.Main.ShowTab("hero")
 		ns.PickFaction(afterFaction)
-		ns.Print("환영합니다! 먼저 진영을 고르고, 첫 영웅을 무료로 만드세요. (/bwi 로 메뉴를 엽니다)")
+		ns.Print("환영합니다! 먼저 진영을 고르고, 첫 영웅을 무료로 만드세요. (/bih 로 메뉴를 엽니다)")
 	elseif ns.Heroes.Count() == 0 then
 		ns.Main.Toggle(true)
 		afterFaction()
-		ns.Print("환영합니다! 첫 영웅은 무료입니다. 직업과 전문화를 골라 만들어 보세요. (/bwi 로 메뉴를 엽니다)")
+		ns.Print("환영합니다! 첫 영웅은 무료입니다. 직업과 전문화를 골라 만들어 보세요. (/bih 로 메뉴를 엽니다)")
 	else
-		ns.Print("불러왔습니다. /bwi 로 메뉴를 엽니다.")
+		ns.Print("불러왔습니다. /bih 로 메뉴를 엽니다.")
 	end
 end
 
@@ -145,16 +145,13 @@ local function slash(msg)
 	elseif msg == "model" or msg == "모델" then
 		ns.ModelCheck.Toggle()
 	else
-		ns.Print("/bwi (메뉴) · /bwi bar (전투 창 표시/숨김) · /bwi reset (전투 창 위치 초기화) · /bwi model (3D 모델 확인)")
+		ns.Print("/bih (메뉴) · /bih bar (전투 창 표시/숨김) · /bih reset (전투 창 위치 초기화) · /bih model (3D 모델 확인)")
 	end
 end
 
-SLASH_BIGWOWIDLE1 = "/bwi"
-SLASH_BIGWOWIDLE2 = "/bwh"  -- BIG W.O.W HEROES, the name before BIG W.O.W IDLE
-SLASH_BIGWOWIDLE3 = "/biwh" -- Big Idle W.O.W Heroes, the first name
-SLASH_BIGWOWIDLE4 = "/방치영웅"
-SlashCmdList["BIGWOWIDLE"] = slash
+SLASH_BIGIDLEHEROES1 = "/bih"
+SlashCmdList["BIGIDLEHEROES"] = slash
 
-function BigWowIdle_OnAddonCompartmentClick()
+function BigIdleHeroes_OnAddonCompartmentClick()
 	if ready then ns.Main.Toggle() end
 end

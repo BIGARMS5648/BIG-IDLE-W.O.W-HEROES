@@ -1,8 +1,8 @@
--- BIG W.O.W IDLE - core namespace, language, event bus and utilities.
+-- BIG IDLE HEROES - core namespace, language, event bus and utilities.
 local ADDON, ns = ...
 ns = ns or {}
-ns.ADDON = ADDON or "BigWowIdle"
-ns.VERSION = "3.18.2"
+ns.ADDON = ADDON or "BigIdleHeroes"
+ns.VERSION = "3.19.0"
 
 local floor, max, min, random = math.floor, math.max, math.min, math.random
 local format = string.format
@@ -209,7 +209,7 @@ end
 
 function ns.Print(msg)
 	if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
-		DEFAULT_CHAT_FRAME:AddMessage("|cffffd100[B.W.I]|r " .. tostring(msg))
+		DEFAULT_CHAT_FRAME:AddMessage("|cffffd100[B.I.H]|r " .. tostring(msg))
 	end
 end
 

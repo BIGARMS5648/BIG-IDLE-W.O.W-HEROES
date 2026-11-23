@@ -881,7 +881,7 @@ check(db.pets.cat and ns.Bonus("exp") == e0 + 15, "enough beast kills unlock the
 
 ------------------------------------------------------------------------
 section("save repair and migration")
--- saves from before the renames (the old file copied to BigWowIdle.lua)
+-- saves from before the renames (the old file copied to BigIdleHeroes.lua)
 BigWowIdleDB, BigWowHeroesDB = nil, nil
 BigIdleWoWHeroesDB = { v = 2, gold = 4321, heroes = {}, party = { false, false, false, false, false } }
 ns.InitDB()

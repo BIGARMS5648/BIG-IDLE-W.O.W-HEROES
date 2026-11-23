@@ -412,7 +412,7 @@ ns.BACKDROP_SAME = {
 function ns.BackdropFile(diff, idx)
 	local key = ns.SceneryKey(diff, idx)
 	key = key and (ns.BACKDROP_SAME[key] or key)
-	return key and ns.BACKDROPS[key] and ("Interface\\AddOns\\BigWowIdle\\Media\\Scenes\\" .. key .. ".tga") or nil
+	return key and ns.BACKDROPS[key] and ("Interface\\AddOns\\BigIdleHeroes\\Media\\Scenes\\" .. key .. ".tga") or nil
 end
 
 -- The ground under the fight: the place's own terrain (or floor) texture,

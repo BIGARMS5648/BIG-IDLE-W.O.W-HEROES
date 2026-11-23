@@ -43,7 +43,7 @@ PAGE = r"""<!doctype html>
   h2 { font-size:14px; margin:18px 0 6px; }
   canvas { background:#3b4a40; display:block; }
 </style></head><body>
-<h1 style="font-size:16px">BIG W.O.W IDLE - 화면 미리보기</h1>
+<h1 style="font-size:16px">BIG IDLE HEROES - 화면 미리보기</h1>
 <div id="root"></div>
 <script>
 const SCENES = __DATA__;

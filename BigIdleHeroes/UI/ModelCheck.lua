@@ -1,4 +1,4 @@
--- 3D model check (/bwi model): a window that shows the game's own 3D models
+-- 3D model check (/bih model): a window that shows the game's own 3D models
 -- the way the battle bar uses them - the selected hero (an NPC of its class,
 -- race and gender), the player's own character, a monster, a boss and a
 -- summon - and plays animations on all of them. Every model function is
@@ -76,13 +76,13 @@ local function npcName(id)
 		if line and line.leftText and line.leftText ~= "" then return line.leftText end
 	end
 	if not scanTip then
-		local ok, tip = pcall(CreateFrame, "GameTooltip", "BigWowIdleScanTip", nil, "GameTooltipTemplate")
+		local ok, tip = pcall(CreateFrame, "GameTooltip", "BigIdleHeroesScanTip", nil, "GameTooltipTemplate")
 		scanTip = ok and tip or false
 	end
 	if scanTip then
 		scanTip:SetOwner(UIParent, "ANCHOR_NONE")
 		local ok = pcall(scanTip.SetHyperlink, scanTip, link)
-		local fs = _G.BigWowIdleScanTipTextLeft1
+		local fs = _G.BigIdleHeroesScanTipTextLeft1
 		local text = ok and fs and fs:GetText()
 		scanTip:Hide()
 		if text and text ~= "" then return text end
@@ -1021,7 +1021,7 @@ end
 -- The window
 ------------------------------------------------------------------------
 local function build()
-	frame = CreateFrame("Frame", "BigWowIdleModelCheck", UIParent)
+	frame = CreateFrame("Frame", "BigIdleHeroesModelCheck", UIParent)
 	frame:SetSize(W, H)
 	frame.isPopup = true -- sits over the menu on purpose
 	frame:SetFrameStrata("DIALOG")
@@ -1035,7 +1035,7 @@ local function build()
 	frame:RegisterForDrag("LeftButton")
 	frame:SetScript("OnDragStart", function(self) self:StartMoving() end)
 	frame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
-	if UISpecialFrames then table.insert(UISpecialFrames, "BigWowIdleModelCheck") end
+	if UISpecialFrames then table.insert(UISpecialFrames, "BigIdleHeroesModelCheck") end
 
 	local title = UI.Title(frame, "3D 모델 확인", 16)
 	title:SetPoint("TOPLEFT", frame, "TOPLEFT", 18, -16)

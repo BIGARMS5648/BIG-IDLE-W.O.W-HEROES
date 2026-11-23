@@ -63,7 +63,7 @@ BigWowIdleDB = nil
 -- start-up
 ------------------------------------------------------------------------
 try("ADDON_LOADED", Mock.FireEvent, "ADDON_LOADED", "SomeOtherAddon")
-try("ADDON_LOADED", Mock.FireEvent, "ADDON_LOADED", "BigWowIdle")
+try("ADDON_LOADED", Mock.FireEvent, "ADDON_LOADED", "BigIdleHeroes")
 try("PLAYER_LOGIN", Mock.FireEvent, "PLAYER_LOGIN")
 if not ns.db then
 	fail("saved variables were not initialised")
@@ -75,8 +75,8 @@ if ns.db.faction then fail("a new player has no faction yet") end
 click("choose Horde", labelIs("호드로 시작"))
 if ns.db.faction ~= "HORDE" then fail("the faction choice was not saved") end
 if not find(function(b) return b.cid == "WARRIOR" end) then fail("the hero creation dialog should open after the faction choice") end
-if not SlashCmdList.BIGWOWIDLE then fail("slash command missing") end
-if type(BigWowIdle_OnAddonCompartmentClick) ~= "function" then fail("addon compartment function missing") end
+if not SlashCmdList.BIGIDLEHEROES then fail("slash command missing") end
+if type(BigIdleHeroes_OnAddonCompartmentClick) ~= "function" then fail("addon compartment function missing") end
 local goal = ns.Guide.Current()
 if not (goal.create and goal.tab == "hero") then fail("the first goal should be to create a hero on the hero screen") end
 
@@ -825,7 +825,7 @@ end
 
 -- HUD: goal, auto toggle, chests, menu shortcuts
 do
-	local bar = BigWowIdleBar
+	local bar = BigIdleHeroesBar
 	if not bar then
 		fail("HUD frame missing")
 	else
@@ -909,12 +909,12 @@ end
 print("  clicked " .. clicks .. " buttons")
 
 -- slash commands, compartment
-try("slash", SlashCmdList.BIGWOWIDLE, "")
-try("slash bar", SlashCmdList.BIGWOWIDLE, "bar")
+try("slash", SlashCmdList.BIGIDLEHEROES, "")
+try("slash bar", SlashCmdList.BIGIDLEHEROES, "bar")
 frames(20)
-try("slash bar", SlashCmdList.BIGWOWIDLE, "bar")
-try("slash reset", SlashCmdList.BIGWOWIDLE, "reset")
-try("slash help", SlashCmdList.BIGWOWIDLE, "help")
+try("slash bar", SlashCmdList.BIGIDLEHEROES, "bar")
+try("slash reset", SlashCmdList.BIGIDLEHEROES, "reset")
+try("slash help", SlashCmdList.BIGIDLEHEROES, "help")
 
 -- the battle bar draws heroes and monsters as the game's 3D models: each one
 -- a small ModelScene with one actor, put up by its display id, measured and
@@ -1619,12 +1619,12 @@ do
 	if walk + other > 10 and other > walk / 4 then fail(string.format("the walk should not be broken off between steps (%d walking, %d not)", walk, other)) end
 end
 
--- the 3D model check (/bwi model): five models, animations, facing, distance
+-- the 3D model check (/bih model): five models, animations, facing, distance
 do
 	local MC = ns.ModelCheck
-	try("slash model", SlashCmdList.BIGWOWIDLE, "model")
+	try("slash model", SlashCmdList.BIGIDLEHEROES, "model")
 	local mf = MC.Frame()
-	if not (mf and mf:IsShown()) then fail("/bwi model should open the model check") end
+	if not (mf and mf:IsShown()) then fail("/bih model should open the model check") end
 	-- the hero as the battle bar draws it: the NPC of its class, race and gender
 	local heroNpc = ns.Figure3D.ForHero(ns.Main.SelectedHero(), false)
 	-- every NPC by its model (display id), as the battle bar puts it up
@@ -1747,10 +1747,10 @@ do
 	if dp.frame:IsShown() or not MC.panels[1].card:IsShown() then fail("기본 확인 should bring the cards back") end
 	if MC.panels[3].model.__model ~= "display:" .. D[MOB] then fail("기본 확인 should bring the basic models back") end
 	hoverAll()
-	try("slash model again", SlashCmdList.BIGWOWIDLE, "모델")
-	if mf:IsShown() then fail("/bwi model again should close the model check") end
+	try("slash model again", SlashCmdList.BIGIDLEHEROES, "모델")
+	if mf:IsShown() then fail("/bih model again should close the model check") end
 end
-try("compartment", BigWowIdle_OnAddonCompartmentClick)
+try("compartment", BigIdleHeroes_OnAddonCompartmentClick)
 
 -- a long stretch with a full party fighting, then lag spikes
 enrich(1)
@@ -1787,7 +1787,7 @@ for path in pairs(Mock.textures) do
 	local media, ext = path:match("\\Media\\([%w_\\]+)%.(%a+)$")
 	if media and (ext == "tga" or ext == "blp") then
 		media = media:gsub("\\", "/") .. "." .. ext
-		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigWowIdle/Media/" .. media), "rb")
+		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigIdleHeroes/Media/" .. media), "rb")
 		if f then f:close() else fail("missing texture file: Media/" .. media) end
 	elseif path:find("AddOns") then
 		fail("unexpected addon texture path: " .. path)

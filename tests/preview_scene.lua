@@ -7,7 +7,7 @@ local Mock = WoWMock
 
 math.randomseed(4242)
 BigWowIdleDB = nil
-Mock.FireEvent("ADDON_LOADED", "BigWowIdle")
+Mock.FireEvent("ADDON_LOADED", "BigIdleHeroes")
 Mock.FireEvent("PLAYER_LOGIN")
 ns.Main.CloseModal()
 
@@ -307,7 +307,7 @@ S.runes = function() show("runes", { rune = "c5" }) end
 S.runes_locked = function() show("runes", { rune = "w9" }) end
 
 -- 스테이지
--- the 3D model check (/bwi model); the models themselves are empty boxes here
+-- the 3D model check (/bih model); the models themselves are empty boxes here
 S.model_check = function()
 	ns.ModelCheck.Toggle(true)
 	S.restore = function() ns.ModelCheck.Toggle(false) end

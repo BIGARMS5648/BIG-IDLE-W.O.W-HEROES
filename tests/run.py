@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover
     sys.exit("lupa with a bundled Lua 5.1 is required:  pip install lupa")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ADDON_NAME = "BigWowIdle"
+ADDON_NAME = "BigIdleHeroes"
 ADDON_DIR = os.path.join(HERE, "..", ADDON_NAME)
 
 
