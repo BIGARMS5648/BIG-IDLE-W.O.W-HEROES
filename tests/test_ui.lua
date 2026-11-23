@@ -1054,16 +1054,15 @@ do
 				if not hit and hs.active and hs.fig:IsShown() and hs.fig:IsLoaded() and hitFiles[hs.fig.actor.__display] then
 					local t = hs.tfig
 					hit = { scale = hs.fig.actor.__scale or 0, height = hs.fig.height, want = 0.5 * (t.norm or 0.5) * (t.corrScale or 1), tall = t.height,
-						clip = hs.clip, clipW = hs.clip and hs.clip:GetWidth() }
+						parent = hs.fig:GetParent() }
 				end
 			end
 			-- the glow in a caster's hands: the kit's hand model, sized to the caster
 			for _, hs in ipairs(ns.Bar.hits) do
 				if not hand and hs.active and hs.hand and hs.fig:IsShown() and hs.fig:IsLoaded() and handFiles[hs.fig.actor.__display] then
-					local t, b = hs.tfig, hs.fig.box
-					local ext = b and math.max(b[4] - b[1], b[5] - b[2], b[6] - b[3]) or 0
+					local t = hs.tfig
 					local ts = t.fixedScale or (t.norm or 0.5) * (t.corrScale or 1)
-					hand = { size = (hs.fig.actor.__scale or 0) * ext, cap = 0.35 * (t.box[6] - t.box[3]) * ts, x = hs.fig.anchorX, cx = t.anchorX, facing = t.facing }
+					hand = { scale = hs.fig.actor.__scale or 0, want = 0.35 * ts, x = hs.fig.anchorX, cx = t.anchorX, facing = t.facing }
 				end
 			end
 			if sawMissile and hit and hand then break end
@@ -1074,7 +1073,7 @@ do
 		if not hand then
 			fail("a cast should show the glow in the caster's hands")
 		else
-			if hand.size > hand.cap + 1e-6 then fail(string.format("the glow in the hands should be at most 0.35 of the caster's height: %.3f > %.3f", hand.size, hand.cap)) end
+			if math.abs(hand.scale - hand.want) > 1e-6 then fail(string.format("the glow in the hands should be 0.35 of the caster's scale: %.3f, want %.3f", hand.scale, hand.want)) end
 			if (hand.facing == "left" and hand.x >= hand.cx) or (hand.facing ~= "left" and hand.x <= hand.cx) then fail("the glow should be at the caster's front hand") end
 		end
 		if not sawMissile then fail("a skill with a missile should fly it from the caster to the target") end
@@ -1119,7 +1118,7 @@ do
 		-- an effect drawn on its own); the fighters on their own, over the scenery
 		for _, pool in ipairs({ ns.Bar.missiles, ns.Bar.hits }) do
 			for _, ms in ipairs(pool) do
-				if ms.fig.__overlap ~= false then fail("a spell effect should not be drawn on its own (overlapped)") break end
+				if ms.fig.__overlap ~= true then fail("a spell effect should be drawn as the fighters are (as the model check shows it)") break end
 			end
 		end
 		for _, f in ipairs(heroes) do
@@ -1130,18 +1129,16 @@ do
 		if not hit then
 			fail("a skill's hit should show the spell's impact model on the target")
 		else
-			if hit.scale > hit.want + 1e-6 or hit.scale <= 0 then
-				fail(string.format("a hit should be at most half the target's scale (%.3f, at most %.3f)", hit.scale, hit.want))
+			if math.abs(hit.scale - hit.want) > 1e-6 then
+				fail(string.format("a hit should be half the target's scale, as the model check shows it (%.3f, want %.3f)", hit.scale, hit.want))
 			end
 			if math.abs(hit.height - hit.tall) > 1e-6 then fail("a hit's figure should be as tall as its target's") end
-			-- drawn only inside a box about the target's size
-			if not (hit.clip and hit.clip.__clips) or math.abs(hit.clipW - 1.3 * hit.tall) > 1e-6 then
-				fail("a hit should be clipped to a box around its target: " .. tostring(hit.clipW))
-			end
+			-- straight in the battle scene, as the model check shows it (no clipping box)
+			if hit.parent ~= ns.Bar.Scene() then fail("a hit should be drawn straight in the battle scene") end
 		end
 		if #Mock.misuse > 0 then fail("effect calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end
-		-- a wide effect (a ring many times the target's size) is made no
-		-- wider than the target is tall
+		-- an effect model's bounding box (most are far bigger than their glow)
+		-- does not shrink it: a fire nova with a huge box is as big as any hit
 		do
 			local wide = ns.MobFx("aoe", "fire")
 			Mock.boxes["file:" .. wide.hit] = { -6, -6, 0, 6, 6, 1 }
@@ -1154,15 +1151,13 @@ do
 				for _ = 1, 30 do
 					frames(1)
 					for _, hs in ipairs(ns.Bar.hits) do
-						if hs.active and hs.fig:IsShown() and hs.fig.actor.__display == "file:" .. wide.hit and hs.tfig ~= nil then big = big or hs end
+						if hs.active and hs.fig:IsLoaded() and hs.fig.actor.__display == "file:" .. wide.hit and hs.tfig ~= nil then big = big or hs end
 					end
 				end
 				if big then
 					local tf = big.tfig
 					local ts = tf.fixedScale or (tf.norm or 0.5) * (tf.corrScale or 1)
-					local across = 12 * (big.fig.actor.__scale or 0)
-					local tall = (tf.box[6] - tf.box[3]) * ts
-					if across > tall * 1.0 + 1e-6 then fail(string.format("a wide effect should be no wider than its model is tall (%.2f > %.2f)", across, tall)) end
+					if math.abs((big.fig.actor.__scale or 0) - 0.5 * ts) > 1e-6 then fail("an effect's own bounding box should not shrink it") end
 				else
 					fail("a boss's fire nova should show its ring")
 				end

@@ -673,24 +673,24 @@ end
 
 ------------------------------------------------------------------------
 -- Skill effects: the visuals of the classic spells the skills and boss
--- abilities are (Data/Effects.lua) on the fighters' models - the glow in the
--- caster's hands, what shows on the caster itself (a nova, a shout), the
--- missile flying to each target (spells that have one), the hit on each one
--- reached; heals and buffs land on whom they reach. All but the hand glow
--- are the spell's own effect models in figures of their own, sized like the
--- models they fly from and land on, so they grow and shrink with the window
--- as the fighters do. An effect is never bigger than its model: at most
--- HIT_SIZE of the model's scale, at most HIT_CAP of its height across (a
--- ring on the ground HIT_CAP_LOW), and drawn only inside a box HIT_CLIP
--- times the model's height around it.
+-- abilities are (Data/Effects.lua) - the glow in the caster's hands (the
+-- cast kit's hand effect), what shows on the caster itself (a nova, a
+-- shout), the missile flying to each target (spells that have one), the hit
+-- on each one reached; heals and buffs land on whom they reach. Each is the
+-- spell's own effect model in a figure of its own, put up as the model check
+-- (/bih model, 효과) shows them: at a fixed share of the scale of the model
+-- it flies from or lands on (a hit HIT_SIZE, the hand glow HAND_SIZE, a
+-- missile as big as it is next to its caster), so they grow and shrink with
+-- the window as the fighters do. (An effect model's bounding box says little
+-- about what it draws - most are far bigger than their glow - so it is not
+-- used to size them.)
 ------------------------------------------------------------------------
 local FX_FLIGHT, FX_HIT_DELAY, MAX_MISSILES, MAX_TARGETS = 0.35, 0.12, 12, 5
 local MAX_HITS, HIT_SHOW, HIT_FADE, HIT_SIZE = 12, 0.8, 0.25, 0.5
 local HIT_WAIT = 1.5 -- an effect whose model is not in by then is dropped
-local HIT_CAP, HIT_CAP_LOW, HIT_CLIP = 0.7, 1.0, 1.3
--- the glow in a caster's hands: no wider or taller than this share of the
--- caster's height, at the front hand (HAND_X across, HAND_Y up)
-local HAND_CAP, HAND_X, HAND_Y = 0.35, 0.22, 0.5
+-- the glow in a caster's hands: this share of the caster's scale, at the
+-- front hand (HAND_X across, HAND_Y up)
+local HAND_SIZE, HAND_X, HAND_Y = 0.35, 0.22, 0.5
 local missiles, hits, pendingHits = {}, {}, {}
 -- what was launched and shown (the last missile's file), for the tests
 local fxStats = { missiles = 0, hits = 0 }
@@ -708,31 +708,19 @@ end
 
 -- a figure of the pool that is free (a new one while there are fewer than
 -- most); nil when the client has no scene figures
-local function freeFig(pool, most, clipped)
+local function freeFig(pool, most)
 	for _, ms in ipairs(pool) do
 		if not ms.active then return ms end
 	end
 	if #pool >= most then return nil end
-	-- a hit is drawn inside a clipping box of its own (around its model)
-	local clip
-	if clipped then
-		clip = CreateFrame("Frame", nil, frame.scene)
-		clip:SetFrameLevel(frame.scene:GetFrameLevel() + 20)
-		if clip.SetClipsChildren then clip:SetClipsChildren(true) end
-		clip:Hide()
-	end
-	local fig = Figure.New(clip or frame.scene, HERO_FIG)
+	local fig = Figure.New(frame.scene, HERO_FIG)
 	if not fig or fig.kind ~= "scene" then
 		if fig then fig:Hide() end
-		if clip then clip:Hide() end
 		return nil
 	end
 	fig:SetFrameLevel(frame.scene:GetFrameLevel() + 21)
-	-- drawn straight into the scene, as the effects always were (the game
-	-- shows no effect from a scene drawn on its own)
-	fig:SetOverlapped(false)
 	fig:Hide()
-	local ms = { fig = fig, clip = clip }
+	local ms = { fig = fig }
 	pool[#pool + 1] = ms
 	return ms
 end
@@ -740,21 +728,9 @@ end
 -- a figure's own scale (its model fitted to its height, or fixed)
 local function scaleOf(fig) return fig.fixedScale or (fig.norm or 0.5) * (fig.corrScale or 1) end
 
--- how big a hit may be on its model: HIT_SIZE of the model's scale, and once
--- the effect's own size is known, no wider or taller than HIT_CAP of the
--- model's height (a ring on the ground HIT_CAP_LOW)
+-- how big a hit is: a share of the scale of the model it lands on
 local function hitScale(hs)
-	local tf, b = hs.tfig, hs.fig.box
-	local ts = scaleOf(tf)
-	local s = HIT_SIZE * ts
-	local tb = tf.box
-	if b and tb then
-		local ext = max(b[4] - b[1], b[5] - b[2], b[6] - b[3])
-		local th = (tb[6] - tb[3]) * ts
-		local cap = hs.hand and HAND_CAP or (hs.low and HIT_CAP_LOW or HIT_CAP)
-		if ext > 0.01 and th > 0 then s = min(s, cap * th / ext) end
-	end
-	return s
+	return (hs.hand and HAND_SIZE or HIT_SIZE) * scaleOf(hs.tfig)
 end
 
 -- where a figure's hands and chest are, in the scene
@@ -764,7 +740,7 @@ local function chest(fig) return fig.anchorX, fig.anchorY + fig.height * 0.55 en
 -- the spell's hit on a figure: its impact model, put up afresh so it plays
 -- from the start (nothing where the client has no scene figures)
 local function playHit(tfig, fx)
-	local hs = fx.hit and freeFig(hits, MAX_HITS, true)
+	local hs = fx.hit and freeFig(hits, MAX_HITS)
 	if not hs then return end
 	local fig = hs.fig
 	fig.id = nil
@@ -892,10 +868,9 @@ local function drawEffects()
 			if hs.t >= HIT_SHOW or (hs.wait or 0) > HIT_WAIT or not tf:IsShown() or not tf.anchorX then
 				hs.active = false
 				hs.fig:Hide()
-				if hs.clip then hs.clip:Hide() end
 			else
 				if hs.fig.height ~= tf.height then hs.fig:SetHeight2(tf.height) end
-				-- sized once its own size is known (and as the window changes)
+				-- sized to its model (and as the window changes)
 				hs.fig:SetFixedScale(hitScale(hs))
 				if hs.hand then
 					-- at the front hand (the way the caster faces)
@@ -903,13 +878,6 @@ local function drawEffects()
 					hs.fig:PlaceFeet(frame.scene, tf.anchorX + tf.height * HAND_X * dir, tf.anchorY + tf.height * HAND_Y)
 				else
 					hs.fig:PlaceFeet(frame.scene, tf.anchorX, tf.anchorY + tf.height * (hs.low and 0.25 or 0.55))
-				end
-				if hs.clip then
-					local c = tf.height * HIT_CLIP
-					hs.clip:ClearAllPoints()
-					hs.clip:SetSize(c, c)
-					hs.clip:SetPoint("CENTER", frame.scene, "BOTTOMLEFT", tf.anchorX, tf.anchorY + tf.height * 0.5)
-					hs.clip:Show()
 				end
 				local left = HIT_SHOW - hs.t
 				-- shown (see-through) while its model comes in: the game loads a
@@ -921,6 +889,7 @@ local function drawEffects()
 	end
 end
 Bar.missiles, Bar.hits, Bar.fxStats = missiles, hits, fxStats
+function Bar.Scene() return frame and frame.scene end
 Bar.FIG = { hero = HERO_FIG, mob = MOB_FIG, back = BACK_FIG, pet = PET_FIG, scale = FIG_SCALE }
 function Bar.Summons() return frame and frame.summons, frame and frame.petModel end
 

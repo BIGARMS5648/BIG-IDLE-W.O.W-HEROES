@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.0.1
+BIG IDLE HEROES v1.0.2
 ```
 
 ---
@@ -135,9 +135,8 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.0.1)
+## Changelog for this release (v1.0.2)
 
 ```
-- Spell effects show in the battle window: the glow in the casters' hands, missiles (and hunters' arrows) and impacts.
-- The battle scenery's far rows are solid again (no fading with distance).
+- Spell effects show in the battle window: cast glows, impacts and missiles are drawn the way the model check's effect page draws them, at a fixed share of the size of the model they belong to.
 ```
