@@ -932,13 +932,18 @@ do
 	-- missiles (model files) flying from caster to target
 	do
 		Mock.kits = {}
-		local sawMissile = false
-		for _ = 1, 400 do
+		local sawMissile, hit = false, nil
+		local hitFiles = {}
+		for _, e in ipairs(ns.SPELL_FX) do if e.hit then hitFiles["file:" .. e.hit] = true end end
+		for _ = 1, 600 do
 			frames(1)
 			for _, ms in ipairs(ns.Bar.missiles) do
 				if ms.active and type(ms.fig.actor.__display) == "string" and ms.fig.actor.__display:find("^file:") then sawMissile = true end
 			end
-			if sawMissile and #Mock.kits >= 4 then break end
+			for _, hs in ipairs(ns.Bar.hits) do
+				if hs.active and hs.fig:IsShown() and hitFiles[hs.fig.actor.__display] then hit = hit or hs end
+			end
+			if sawMissile and hit and #Mock.kits >= 4 then break end
 		end
 		local known = {}
 		for _, e in ipairs(ns.SPELL_FX) do
@@ -948,6 +953,18 @@ do
 		for _, k in ipairs(Mock.kits) do if known[k] then good = good + 1 end end
 		if good == 0 then fail("skills in battle should play spell kits on the models (" .. #Mock.kits .. " kits)") end
 		if not sawMissile then fail("a skill with a missile should fly it from the caster to the target") end
+		-- a hit is the spell's impact model next to its target, half as big
+		-- as the target's own scale, in a figure as tall as the target
+		if not hit then
+			fail("a skill's hit should show the spell's impact model on the target")
+		else
+			local t = hit.tfig
+			local want = 0.5 * (t.norm or 0.5) * (t.corrScale or 1)
+			if math.abs((hit.fig.actor.__scale or 0) - want) > 1e-6 then
+				fail(string.format("a hit should be at half the target's scale (%.3f, want %.3f)", hit.fig.actor.__scale or 0, want))
+			end
+			if math.abs(hit.fig.height - t.height) > 1e-6 then fail("a hit's figure should be as tall as its target's") end
+		end
 		if #Mock.misuse > 0 then fail("effect calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end
 	end
 	-- an attack plays the attack animation

@@ -675,7 +675,7 @@ function fx.setup()
 				local m = c[k]
 				if m then
 					m.id = nil
-					m:SetHeight2(k == "missile" and FX_FIG or (k == "hand" and 34 or 60))
+					m:SetHeight2(k == "hand" and 34 or FX_FIG)
 					m:SetFacing(k == "missile" and "right" or "front")
 					if not (sp[k] and m:SetModelFile(sp[k])) then m.loaded = false end
 					m:Hide()
@@ -761,6 +761,10 @@ local function fxHit()
 		if not sp.self then fxAnim(c, c.target, 9) end
 		if c.way.key == "file" then
 			if c.hit and sp.hit then
+				-- as in battle: half as big as the model it lands on
+				if who and who.loaded then
+					c.hit:SetFixedScale(0.5 * (who.norm or 0.5) * (who.corrScale or 1))
+				end
 				local x = sp.self and fxX(c, "caster") or fxX(c, "target")
 				fxPlace(c, c.hit, x, FX_GROUND + FX_FIG * (sp.self and 0.25 or 0.55))
 				c.hit:Show()
