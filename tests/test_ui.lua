@@ -1227,6 +1227,22 @@ do
 		ns.SceneryFor = sceneryFor
 		frames(1)
 	end
+	-- the battle's backdrop is a picture of the stage's place
+	do
+		local st = ns.Combat.state
+		local diff, idx = ns.db.stage.diff, ns.db.stage.idx
+		if st.phase ~= "idle" and st.diff then diff, idx = st.diff, st.idx end
+		local want = ns.BackdropFile(diff, idx)
+		frames(3)
+		local sky = ns.Bar.Sky and ns.Bar.Sky()
+		if not want then fail("every stage should have a backdrop picture") end
+		if sky and want and sky:GetTexture() ~= want then fail("the battle backdrop should be the place's picture: " .. tostring(sky:GetTexture())) end
+		for d = 1, #ns.DIFFS do
+			for i = 1, ns.STAGE_COUNT do
+				if not ns.BackdropFile(d, i) then fail("stage " .. d .. "-" .. i .. " should have a backdrop picture") end
+			end
+		end
+	end
 	-- every model scene clears its own depth, so the fighters (on the layer
 	-- above) are always drawn over the scenery
 	do
@@ -1716,11 +1732,11 @@ for path in pairs(Mock.textures) do
 	if path:find("Interface\\Icons\\") and (path:find("%s") or path:sub(-1) == "\\") then
 		fail("malformed icon path: " .. path)
 	end
-	local media = path:match("\\Media\\([%w_\\]+)%.tga$")
-	if media then
-		media = media:gsub("\\", "/")
-		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigWowIdle/Media/" .. media .. ".tga"), "rb")
-		if f then f:close() else fail("missing texture file: Media/" .. media .. ".tga") end
+	local media, ext = path:match("\\Media\\([%w_\\]+)%.(%a+)$")
+	if media and (ext == "tga" or ext == "blp") then
+		media = media:gsub("\\", "/") .. "." .. ext
+		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigWowIdle/Media/" .. media), "rb")
+		if f then f:close() else fail("missing texture file: Media/" .. media) end
 	elseif path:find("AddOns") then
 		fail("unexpected addon texture path: " .. path)
 	end

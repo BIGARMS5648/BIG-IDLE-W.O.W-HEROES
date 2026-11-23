@@ -534,12 +534,18 @@ local function updateInfo()
 	local d = ns.DIFFS[diff]
 	local stg = ns.Stage(diff, idx)
 
-	-- scenery
-	if frame.themeKey ~= stg.theme then
-		frame.themeKey = stg.theme
-		local th = ns.THEMES[stg.theme] or ns.THEMES.forest
-		frame.sky:SetTexture(UI.Tex(th.art))
-		frame.sky:SetVertexColor(th.rgb[1] * 0.85, th.rgb[2] * 0.85, th.rgb[3] * 0.85)
+	-- the backdrop: a picture of the place (else the theme's drawn hills)
+	local backdrop = ns.BackdropFile and ns.BackdropFile(diff, idx)
+	if frame.themeKey ~= (backdrop or stg.theme) then
+		frame.themeKey = backdrop or stg.theme
+		if backdrop then
+			frame.sky:SetTexture(backdrop)
+			frame.sky:SetVertexColor(0.8, 0.8, 0.8)
+		else
+			local th = ns.THEMES[stg.theme] or ns.THEMES.forest
+			frame.sky:SetTexture(UI.Tex(th.art))
+			frame.sky:SetVertexColor(th.rgb[1] * 0.85, th.rgb[2] * 0.85, th.rgb[3] * 0.85)
+		end
 	end
 
 	-- zone banner
@@ -970,6 +976,7 @@ local function drawScenery()
 end
 Bar.DrawScenery = drawScenery
 function Bar.Scenery() return frame and frame.scenery, frame and frame.units end
+function Bar.Sky() return frame and frame.sky end
 
 local function onUpdate(self, elapsed)
 	local now = GetTime()

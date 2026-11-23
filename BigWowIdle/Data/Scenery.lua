@@ -275,3 +275,28 @@ end
 function ns.SceneryFor(diff, idx)
 	return ns.SCENERY[ns.SceneryKey(diff, idx) or ""]
 end
+
+-- Behind the scenery: a picture of the place (Media/Scenes/<place>.blp), a
+-- strip cut from a screenshot of it in the game.
+ns.BACKDROPS = {
+	ahnqiraj = true, aqtemple = true, arathi = true, ashenvale = true, azshara = true, badlands = true,
+	barrens = true, blackfathom = true, blackrockdepths = true, blackrockspire = true, blackwing = true,
+	blasted = true, burningsteppes = true, deadmines = true, desolace = true, diremaul = true, dunmorogh = true,
+	durotar = true, duskwood = true, dustwallow = true, elwynn = true, felwood = true, feralas = true,
+	gnomeregan = true, hillsbrad = true, hinterlands = true, lochmodan = true, maraudon = true,
+	moltencore = true, mulgore = true, naxxramas = true, needles = true, onyxia = true, plaguelands = true,
+	ragefire = true, razorfen = true, redridge = true, scarlet = true, scholomance = true,
+	searing = true, shadowfang = true, silithus = true, silverpine = true, stonetalon = true,
+	stranglethorn = true, stratholme = true, sunkentemple = true, swamp = true, tanaris = true,
+	teldrassil = true, tirisfal = true, uldaman = true, ungoro = true, wailing = true, westfall = true,
+	wetlands = true, winterspring = true, zulfarrak = true, zulgurub = true,
+}
+
+-- places shown with another's picture (the same place seen elsewhere)
+ns.BACKDROP_SAME = { scarletyard = "tirisfal", gordok = "diremaul", highborne = "diremaul" }
+
+function ns.BackdropFile(diff, idx)
+	local key = ns.SceneryKey(diff, idx)
+	key = key and (ns.BACKDROP_SAME[key] or key)
+	return key and ns.BACKDROPS[key] and ("Interface\\AddOns\\BigWowIdle\\Media\\Scenes\\" .. key .. ".blp") or nil
+end
