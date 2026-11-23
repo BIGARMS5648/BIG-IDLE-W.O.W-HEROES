@@ -188,6 +188,16 @@ end
 -- forward of the model's middle: the cat's long tail puts its middle behind
 -- its body.
 Figure.FORM_BAR_X = { cat = 0.15 }
+-- the forms that go on four legs, long and low
+Figure.BEAST = { cat = true, bear = true }
+-- the form a hero fights in (cat, bear, moonkin ...), nil when it stands as
+-- itself
+function Figure.HeroForm(heroId, inCombat)
+	local h = inCombat and ns.db and ns.db.heroes[heroId]
+	local form = h and FORM[h.spec]
+	if form and formFor(h.spec) then return form end
+	return nil
+end
 function Figure.HeroBarShift(heroId, inCombat)
 	local h = inCombat and ns.db and ns.db.heroes[heroId]
 	local form = h and FORM[h.spec]
@@ -464,7 +474,8 @@ local function setCamera(f)
 	local rx, ry, rz = fy, -fx, 0 -- forward x up
 	ok, a, b, c = call(f, "GetCameraRight")
 	if ok and type(a) == "number" and type(b) == "number" and type(c) == "number" then rx, ry, rz = a, b, c end
-	local side, tz = SIDE, SIDE / 2 - FEET_AT
+	local side = f.side or SIDE
+	local tz = side / 2 - (f.feetAt or FEET_AT)
 	if f.bust then side, tz = BUST_SIDE, BUST_TZ end
 	f.viewSide, f.viewTz = side, tz
 	local d = side / (2 * tan(FOV / 2)) * Figure.camFix
@@ -816,7 +827,18 @@ end
 
 function scene:SetHeight2(h)
 	self.height = h
-	self:SetSize(h * SIDE, h * SIDE)
+	local side = self.side or SIDE
+	self:SetSize(h * side, h * side)
+end
+
+-- The frame side figure heights across with the ground point feetAt above
+-- its bottom, instead of SIDE and FEET_AT: room around a spell effect, which
+-- reaches out every way from its origin and is cut where its frame ends.
+function scene:SetRoom(side, feetAt)
+	self.side, self.feetAt = side, feetAt
+	setCamera(self)
+	if self.height then self:SetHeight2(self.height) end
+	if self.loaded then self:Look() end
 end
 
 -- Only the head and chest, in a square of px (the caller places the frame,
@@ -834,7 +856,7 @@ function scene:PlaceFeet(anchor, x, y)
 	self.anchorTo, self.anchorX, self.anchorY = anchor, x, y
 	local h = self.height or 0
 	self:ClearAllPoints()
-	self:SetPoint("BOTTOM", anchor, "BOTTOMLEFT", x + (self.corrXf or 0) * h, y - h * FEET_AT + (self.corrYf or 0) * h)
+	self:SetPoint("BOTTOM", anchor, "BOTTOMLEFT", x + (self.corrXf or 0) * h, y - h * (self.feetAt or FEET_AT) + (self.corrYf or 0) * h)
 end
 
 -- Where the game really draws the model: its feet (the world's origin) and
@@ -872,9 +894,10 @@ function scene:Correct()
 	if got > 1 then self.corrScale = max(0.4, min(2.5, (self.corrScale or 1) * want / got)) end
 	-- feet: from the frame's bottom-left they should be at (middle, FEET_AT)
 	local w = self:GetWidth()
+	local feet = self.feetAt or FEET_AT
 	self.corrXf = (w / 2 - lx) / h
-	self.corrYf = (h * FEET_AT - ly) / h
-	self.fixInfo = { scale = self.corrScale or 1, dx = w / 2 - lx, dy = h * FEET_AT - ly, size = got / want }
+	self.corrYf = (h * feet - ly) / h
+	self.fixInfo = { scale = self.corrScale or 1, dx = w / 2 - lx, dy = h * feet - ly, size = got / want }
 	self:Look()
 	if self.anchorTo then self:PlaceFeet(self.anchorTo, self.anchorX, self.anchorY) end
 end

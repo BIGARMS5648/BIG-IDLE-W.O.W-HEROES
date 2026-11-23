@@ -2,7 +2,7 @@
 -- dock underneath for the next goal, chests and menu shortcuts.
 local _, ns = ...
 
-local floor, max, min, sin = math.floor, math.max, math.min, math.sin
+local floor, max, min, sin, abs = math.floor, math.max, math.min, math.sin, math.abs
 local UI, U = ns.UI, ns.U
 
 local Bar = {}
@@ -266,6 +266,8 @@ local function drawHeroes(now)
 					f.figFor, f.figIs = u.id, fig
 					fig:SetHeight2(HERO_FIG * Figure.HeroScale(u.id, true))
 				end
+				-- a cat or a bear: its effects at its front (spellFx)
+				fig.beast = Figure.BEAST[Figure.HeroForm(u.id, true) or ""]
 				-- a hunter's attack is a shot of its bow or gun; other heroes that
 				-- fight from afar (casters, healers) cast at the target instead of
 				-- swinging their weapon
@@ -683,9 +685,12 @@ end
 -- missile MISSILE_SIZE; 1 = as big as next to a character in the game), so
 -- they grow and shrink with the window as the fighters do. An effect on its
 -- caster (a slash, a shout, the glow in its hands) faces the way the caster
--- does; a hit on another faces the way it flies, from the one who sent it. (An effect model's bounding box says little
--- about what it draws - most are far bigger than their glow - so it is not
--- used to size them.)
+-- does; a hit on another faces the way it flies, from the one who sent it.
+-- Each effect's frame is wide all around its origin (FX_ROOM), so only the
+-- battle scene's edge cuts it; a beast's (cat, bear) own blows come out at
+-- its front. (An effect model's bounding box says little about what it
+-- draws - most are far bigger than their glow - so it is not used to size
+-- them.)
 ------------------------------------------------------------------------
 local FX_FLIGHT, FX_HIT_DELAY, MAX_MISSILES, MAX_TARGETS = 0.35, 0.12, 12, 5
 local MAX_HITS, HIT_SHOW, HIT_FADE, HIT_SIZE = 12, 0.8, 0.25, 1.0
@@ -694,6 +699,14 @@ local HIT_WAIT = 1.5 -- an effect whose model is not in by then is dropped
 -- the glow in a caster's hands: this share of the caster's scale, at the
 -- front hand (HAND_X across, HAND_Y up)
 local HAND_SIZE, HAND_X, HAND_Y = 0.8, 0.22, 0.5
+-- each effect's frame: FX_ROOM figure heights across with the effect's
+-- origin in its middle, so nothing of it is cut off (the battle scene's own
+-- edge is the only one that cuts)
+local FX_ROOM = 8
+-- a beast (a druid's cat or bear) is long, its middle well behind its head:
+-- what it does itself comes out at its front (FRONT_OWN of the way from its
+-- middle to its nose), what reaches it lands on its chest (FRONT_HIT)
+local FRONT_OWN, FRONT_HIT = 0.7, 0.4
 local missiles, hits, pendingHits = {}, {}, {}
 -- what was launched and shown (the last missile's file), for the tests
 local fxStats = { missiles = 0, hits = 0 }
@@ -722,6 +735,7 @@ local function freeFig(pool, most)
 		return nil
 	end
 	fig:SetFrameLevel(frame.scene:GetFrameLevel() + 21)
+	fig:SetRoom(FX_ROOM, FX_ROOM / 2)
 	fig:Hide()
 	local ms = { fig = fig }
 	pool[#pool + 1] = ms
@@ -736,9 +750,25 @@ local function hitScale(hs)
 	return (hs.hand and HAND_SIZE or HIT_SIZE) * scaleOf(hs.tfig)
 end
 
--- where a figure's hands and chest are, in the scene
-local function hand(fig, dir) return fig.anchorX + fig.height * 0.2 * dir, fig.anchorY + fig.height * 0.6 end
-local function chest(fig) return fig.anchorX, fig.anchorY + fig.height * 0.55 end
+-- how far in front of a figure's middle a beast's front is (k of the way
+-- from its middle to its nose, the model's measured length); 0 for one that
+-- stands upright
+local function front(fig, k)
+	local b = fig.beast and fig.box
+	if not b then return 0 end
+	return k * abs(b[4] - b[1]) / 2 * scaleOf(fig) * (fig.height or 0)
+end
+
+-- where a figure's hands and chest are, in the scene (a beast's paws and
+-- chest are at its front)
+local function hand(fig, dir)
+	local x = fig.beast and front(fig, FRONT_OWN) or fig.height * 0.2
+	return fig.anchorX + x * dir, fig.anchorY + fig.height * 0.6
+end
+local function chest(fig)
+	local dir = fig.facing == "left" and -1 or 1
+	return fig.anchorX + front(fig, FRONT_HIT) * dir, fig.anchorY + fig.height * 0.55
+end
 
 -- the spell's hit on a figure: its impact model, put up afresh so it plays
 -- from the start (nothing where the client has no scene figures)
@@ -748,7 +778,7 @@ local function playHit(tfig, fx)
 	local fig = hs.fig
 	fig.id = nil
 	if not fig:SetModelFile(fx.hit) then return end
-	hs.tfig, hs.low, hs.hand, hs.t, hs.wait, hs.active = tfig, fx.low, fx.hand, 0, 0, true
+	hs.tfig, hs.low, hs.hand, hs.own, hs.t, hs.wait, hs.active = tfig, fx.low, fx.hand, fx.own, 0, 0, true
 	fig:SetHeight2(tfig.height)
 	fig:SetFixedScale(hitScale(hs))
 	-- on its caster: the way the caster faces; on another: the way it flies
@@ -882,12 +912,15 @@ local function drawEffects()
 				if hs.fig.height ~= tf.height then hs.fig:SetHeight2(tf.height) end
 				-- sized to its model (and as the window changes)
 				hs.fig:SetFixedScale(hitScale(hs))
+				local dir = tf.facing == "left" and -1 or 1
 				if hs.hand then
-					-- at the front hand (the way the caster faces)
-					local dir = tf.facing == "left" and -1 or 1
-					hs.fig:PlaceFeet(frame.scene, tf.anchorX + tf.height * HAND_X * dir, tf.anchorY + tf.height * HAND_Y)
+					-- at the front hand (the way the caster faces; a beast's paws)
+					local x = tf.beast and front(tf, FRONT_OWN) or tf.height * HAND_X
+					hs.fig:PlaceFeet(frame.scene, tf.anchorX + x * dir, tf.anchorY + tf.height * HAND_Y)
 				else
-					hs.fig:PlaceFeet(frame.scene, tf.anchorX, tf.anchorY + tf.height * (hs.low and 0.25 or 0.55))
+					-- a beast's own blow at its front, a hit on it at its chest
+					local x = front(tf, hs.own and FRONT_OWN or FRONT_HIT)
+					hs.fig:PlaceFeet(frame.scene, tf.anchorX + x * dir, tf.anchorY + tf.height * (hs.low and 0.25 or 0.55))
 				end
 				local left = HIT_SHOW - hs.t
 				-- shown (see-through) while its model comes in: the game loads a
@@ -898,7 +931,7 @@ local function drawEffects()
 		end
 	end
 end
-Bar.missiles, Bar.hits, Bar.fxStats = missiles, hits, fxStats
+Bar.missiles, Bar.hits, Bar.fxStats, Bar.FX_ROOM = missiles, hits, fxStats, FX_ROOM
 function Bar.Scene() return frame and frame.scene end
 Bar.FIG = { hero = HERO_FIG, mob = MOB_FIG, back = BACK_FIG, pet = PET_FIG, scale = FIG_SCALE }
 function Bar.Summons() return frame and frame.summons, frame and frame.petModel end

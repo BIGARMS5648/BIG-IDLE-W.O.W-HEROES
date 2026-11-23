@@ -1192,6 +1192,51 @@ do
 			else
 				fail("the battle check should have a warrior and a monster for the effect facing")
 			end
+			-- every effect's frame leaves room all around its origin (nothing
+			-- of it is cut off where the frame ends): FX_ROOM figure heights
+			-- across, the origin in its middle
+			local room = ns.Bar.FX_ROOM
+			for _, pool in ipairs({ ns.Bar.missiles, ns.Bar.hits }) do
+				for _, ms in ipairs(pool) do
+					local f = ms.fig
+					if f.side ~= room or f.feetAt ~= room / 2 then fail("an effect's frame should be " .. tostring(room) .. " heights across with its origin in the middle") break end
+					if f.height and math.abs(f:GetWidth() - f.height * room) > 1e-6 then fail("an effect's frame should be as wide as its room") break end
+				end
+			end
+			-- a beast (a druid's cat or bear) does its blows at its front, not
+			-- at the middle of its long body; a hit on it lands on its chest
+			if war and wf and wf.figIs and mob and fx then
+				local wfig = wf.figIs
+				local was = Fig.HeroForm
+				Fig.HeroForm = function(id, c) if id == war.id then return "bear" end return was(id, c) end
+				frames(1)
+				local smash = ns.MobFx("smash", "fire")
+				ns.Combat.VFX({ k = "skill", u = war, sid = "cleave", to = { mob } })
+				ns.Combat.VFX({ k = "mob", u = mob, kind = "smash", school = "fire", to = { war } })
+				local ownX, onX
+				for _ = 1, 6 do
+					frames(1)
+					for _, hs in ipairs(ns.Bar.hits) do
+						if hs.active and hs.tfig == wfig and not hs.hand and hs.fig:IsShown() then
+							if hs.fig.actor.__display == "file:" .. fx.self then ownX = hs.fig.anchorX end
+							if hs.fig.actor.__display == "file:" .. smash.hit then onX = hs.fig.anchorX end
+						end
+					end
+				end
+				local b = wfig.box
+				local half = b and math.abs(b[4] - b[1]) / 2 * (wfig.fixedScale or (wfig.norm or 0.5) * (wfig.corrScale or 1)) * wfig.height or 0
+				local dir = wfig.facing == "left" and -1 or 1
+				Fig.HeroForm = was
+				frames(1)
+				if half <= 0 then fail("the beast check needs a measured body") end
+				if not ownX or math.abs(ownX - (wfig.anchorX + 0.7 * half * dir)) > 1e-6 then
+					fail(string.format("a beast's own blow should come out at its front: %s, want %.2f", tostring(ownX), wfig.anchorX + 0.7 * half * dir))
+				end
+				if not onX or math.abs(onX - (wfig.anchorX + 0.4 * half * dir)) > 1e-6 then
+					fail(string.format("a hit on a beast should land on its chest: %s, want %.2f", tostring(onX), wfig.anchorX + 0.4 * half * dir))
+				end
+				if wfig.beast then fail("a hero out of its form should not be a beast") end
+			end
 		end
 		-- a boss ability is a classic spell: its name shows, its cast plays
 		-- on the boss and its hit on whom it reaches
