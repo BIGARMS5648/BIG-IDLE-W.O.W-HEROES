@@ -1701,25 +1701,29 @@ do
 	frames(20)
 	if dp.COMBOS[1].class ~= "WARRIOR" or dp.COMBOS[1].race ~= "DWARF" or #dp.COMBOS ~= 18 then fail("옷 입히기 should start with the dwarf warrior and go through 18 class/faction pairs") end
 	local c1, c2, c3, c4 = dp.cards[1], dp.cards[2], dp.cards[3], dp.cards[4]
-	local a1, a2, a3, a4 = c1.model.actor, c2.model.actor, c3.model.actor, c4.model.actor
-	-- the player's own body as the race (customRaceID), nothing worn
+	local a1, a2, a3, m4 = c1.model.actor, c2.model.actor, c3.model.actor, c4.model
+	-- the player's own body as the race (customRaceID), the set on it
 	if a1.__display ~= "unit:player" or a1.__race ~= ns.MODEL.raceId.DWARF or a1.__dressed then
-		fail("the first card should be the player's body as a dwarf, undressed: " .. tostring(a1.__display) .. " " .. tostring(a1.__race))
+		fail("the first card should be the player's body as a dwarf: " .. tostring(a1.__display) .. " " .. tostring(a1.__race))
 	end
-	if a1.__worn and #a1.__worn > 0 then fail("the bare card should put nothing on") end
-	if not (a2.__worn and #a2.__worn == 8) or not (c2.lines[3].__text or ""):find("TryOn 8/8", 1, true) then
-		fail("the second card should try the eight pieces on the changed body: " .. tostring(c2.lines[3].__text))
+	if not (a1.__worn and #a1.__worn == 8) or not (c1.lines[3].__text or ""):find("TryOn 8/8", 1, true) then
+		fail("the first card should try the eight pieces on the changed body: " .. tostring(c1.lines[3].__text))
 	end
-	-- the NPC body of the race and the gender picked, undressed
-	if a3.__display ~= ns.MODEL.npcBody.DWARF.M[1] or (a3.__worn and #a3.__worn > 0) then
-		fail("the third card should be the male dwarf NPC body, undressed: " .. tostring(a3.__display))
+	-- the NPC body of the race and the gender picked, the set on it
+	if a2.__display ~= ns.MODEL.npcBody.DWARF.M[1] or not (a2.__worn and #a2.__worn == 8) then
+		fail("the second card should be the male dwarf NPC body with the set: " .. tostring(a2.__display))
 	end
-	if not (a4.__worn and #a4.__worn == 8) then fail("the fourth card should try the set on that body") end
+	-- the race's own base body of the gender picked, the set on it: in a model
+	-- scene and in a dressing model frame
+	if a3.__display ~= ns.MODEL.raceBody.DWARF.M or not (a3.__worn and #a3.__worn == 8) then
+		fail("the third card should be the dwarf man's base body with the set: " .. tostring(a3.__display))
+	end
+	if not (m4 and m4.__worn and #m4.__worn == 8) then fail("the fourth card should try the set on the base body in a model frame") end
 	click("model: dressing next", function(b) return b == dp.next end)
 	click("model: dressing female", function(b) return b == dp.sexBtn.F end)
 	frames(20)
-	if dp.i ~= 2 or dp.sex ~= "F" or a3.__display ~= ns.MODEL.npcBody.ORC.F[1] or a1.__race ~= ns.MODEL.raceId.ORC then
-		fail("▶ and 여 should show the orc woman: " .. tostring(a3.__display) .. " " .. tostring(a1.__race))
+	if dp.i ~= 2 or dp.sex ~= "F" or a2.__display ~= ns.MODEL.npcBody.ORC.F[1] or a3.__display ~= ns.MODEL.raceBody.ORC.F or a1.__race ~= ns.MODEL.raceId.ORC then
+		fail("▶ and 여 should show the orc woman: " .. tostring(a2.__display) .. " " .. tostring(a3.__display) .. " " .. tostring(a1.__race))
 	end
 	if not (dp.label.__text or ""):find("오크 여", 1, true) then fail("the dressing label should name the race and gender: " .. tostring(dp.label.__text)) end
 	click("model: dressing back", function(b) return b == dp.prev end)

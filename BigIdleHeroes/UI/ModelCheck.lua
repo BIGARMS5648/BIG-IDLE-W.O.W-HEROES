@@ -811,14 +811,16 @@ local DRESS_TOP, DRESS_MODEL_H = 32, 180
 local DRESS_H = PANEL_H - DRESS_TOP
 
 -- asRace: the player's own body made that race (SetModelByUnit's
--- customRaceID; the player's gender), nothing worn; npc: the NPC body of the
--- race and the gender picked that heroes of the other gender use
--- (ns.MODEL.npcBody), undressed
+-- customRaceID; the player's gender); npc: the NPC body of the race and the
+-- gender picked that heroes of the other gender use (ns.MODEL.npcBody); the
+-- cards with neither: the race's own base body of the gender picked (its
+-- creature display, nothing baked on), in a model scene and in a dressing
+-- model frame - two more ways to dress the other gender
 local DRESS = {
-	{ title = "종족으로 바꾼 내 몸", kind = "scene", asRace = true, bare = true },
 	{ title = "바꾼 몸에 입히기", kind = "scene", asRace = true },
-	{ title = "종족·성별 NPC 몸", kind = "scene", npc = true, bare = true },
 	{ title = "NPC 몸에 입히기", kind = "scene", npc = true },
+	{ title = "기본 몸에 입히기 · 장면", kind = "scene" },
+	{ title = "기본 몸에 입히기 · 틀", kind = "DressUpModel" },
 	{ title = "내 캐릭터에 입히기", kind = "DressUpModel", unit = true },
 }
 
