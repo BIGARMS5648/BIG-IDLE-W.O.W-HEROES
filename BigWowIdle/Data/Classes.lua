@@ -136,7 +136,7 @@ spec("WARRIOR_ARMS", "WARRIOR", "무기", {
 	base = { atk = 13, aspd = 0.75, crit = 5, critdmg = 165, hp = 175, armor = 28 },
 	mh = { "sword", "axe", "mace" }, oh = { "whetstone" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_phys",
-	skills = { "mortal_strike", "cleave", "rend", "battle_shout", "execute", "sweeping_strikes" },
+	skills = { "battle_shout", "rend", "cleave", "execute", "sweeping_strikes", "mortal_strike" },
 })
 spec("WARRIOR_FURY", "WARRIOR", "분노", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Spell_Nature_BloodLust",
@@ -144,7 +144,7 @@ spec("WARRIOR_FURY", "WARRIOR", "분노", {
 	base = { atk = 9, aspd = 1.20, crit = 6, critdmg = 160, hp = 170, armor = 24 },
 	mh = { "sword", "axe", "mace" }, oh = { "offblade" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_phys",
-	skills = { "bloodthirst", "whirlwind", "heroic_strike", "battle_shout", "recklessness", "overpower" },
+	skills = { "heroic_strike", "battle_shout", "overpower", "whirlwind", "bloodthirst", "recklessness" },
 })
 spec("WARRIOR_PROT", "WARRIOR", "방어", {
 	role = "TANK", school = "phys", range = MELEE, icon = "Ability_Warrior_ShieldWall",
@@ -152,7 +152,7 @@ spec("WARRIOR_PROT", "WARRIOR", "방어", {
 	base = { atk = 8, aspd = 0.90, crit = 3, critdmg = 150, hp = 240, armor = 40 },
 	mh = { "sword", "axe", "mace" }, oh = { "shield" },
 	arch = "TANK", a = "dmg_phys", g = "block",
-	skills = { "shield_slam", "thunder_clap", "revenge", "defensive_stance", "shield_wall", "last_stand" },
+	skills = { "thunder_clap", "defensive_stance", "revenge", "last_stand", "shield_wall", "shield_slam" },
 })
 
 -- Paladin ---------------------------------------------------------------
@@ -162,7 +162,7 @@ spec("PALADIN_HOLY", "PALADIN", "신성", {
 	base = { atk = 7, aspd = 0.85, crit = 3, critdmg = 150, hp = 170, armor = 26, move = -10 },
 	mh = { "mace", "sword" }, oh = { "shield", "relic" },
 	arch = "HEALER", a = "dmg_holy", g = "block",
-	skills = { "holy_light", "devotion_aura", "judgement", "blessing_of_might", "lay_on_hands", "divine_protection" },
+	skills = { "holy_light", "devotion_aura", "judgement", "blessing_of_might", "divine_protection", "lay_on_hands" },
 })
 spec("PALADIN_PROT", "PALADIN", "보호", {
 	role = "TANK", school = "phys", range = MELEE, icon = "Spell_Holy_BlessingOfProtection",
@@ -170,7 +170,7 @@ spec("PALADIN_PROT", "PALADIN", "보호", {
 	base = { atk = 8, aspd = 0.85, crit = 3, critdmg = 150, hp = 235, armor = 38, block = 4 },
 	mh = { "sword", "mace", "axe" }, oh = { "shield" },
 	arch = "TANK", a = "dmg_holy", g = "block",
-	skills = { "holy_shield", "exorcism", "consecration", "devotion_aura", "blessing_of_sanctuary", "flash_of_light" },
+	skills = { "devotion_aura", "exorcism", "consecration", "flash_of_light", "blessing_of_sanctuary", "holy_shield" },
 })
 spec("PALADIN_RET", "PALADIN", "징벌", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Spell_Holy_SealOfMight",
@@ -178,7 +178,7 @@ spec("PALADIN_RET", "PALADIN", "징벌", {
 	base = { atk = 12, aspd = 0.80, crit = 5, critdmg = 160, hp = 175, armor = 30 },
 	mh = { "sword", "mace", "axe" }, oh = { "whetstone", "relic" },
 	arch = "MELEE", a = "dmg_holy", b = "dmg_phys",
-	skills = { "seal_of_command", "holy_wrath", "judgement", "blessing_of_might", "hammer_of_wrath", "seal_of_the_crusader" },
+	skills = { "judgement", "blessing_of_might", "seal_of_the_crusader", "seal_of_command", "hammer_of_wrath", "holy_wrath" },
 })
 
 -- Hunter ----------------------------------------------------------------
@@ -188,7 +188,7 @@ spec("HUNTER_BM", "HUNTER", "야수", {
 	base = { atk = 8.5, aspd = 1.05, crit = 5, critdmg = 155, hp = 145, armor = 18 },
 	mh = { "bow" }, oh = { "quiver" },
 	arch = "RANGED", a = "dmg_phys", b = "dmg_nature",
-	skills = { "intimidation", "call_pet", "multi_shot", "aspect_of_the_wild", "bestial_wrath", "screech" },
+	skills = { "call_pet", "screech", "multi_shot", "intimidation", "bestial_wrath", "aspect_of_the_wild" },
 })
 spec("HUNTER_MM", "HUNTER", "사격", {
 	role = "DPS", school = "phys", range = 720, ranged = true, icon = "Ability_Marksmanship",
@@ -196,7 +196,7 @@ spec("HUNTER_MM", "HUNTER", "사격", {
 	base = { atk = 9, aspd = 1.10, crit = 6, critdmg = 160, hp = 140, armor = 18 },
 	mh = { "bow" }, oh = { "quiver" },
 	arch = "RANGED", a = "dmg_phys", b = "dmg_arcane",
-	skills = { "aimed_shot", "multi_shot", "arcane_shot", "trueshot_aura", "rapid_fire", "volley" },
+	skills = { "arcane_shot", "multi_shot", "aimed_shot", "rapid_fire", "trueshot_aura", "volley" },
 })
 spec("HUNTER_SV", "HUNTER", "생존", {
 	role = "DPS", school = "phys", range = 700, ranged = true, icon = "Spell_Fire_SelfDestruct",
@@ -204,7 +204,7 @@ spec("HUNTER_SV", "HUNTER", "생존", {
 	base = { atk = 9, aspd = 1.00, crit = 6, critdmg = 160, hp = 145, armor = 18 },
 	mh = { "bow" }, oh = { "quiver" },
 	arch = "RANGED", a = "dmg_phys", b = "dmg_fire",
-	skills = { "immolation_trap", "serpent_sting", "explosive_trap", "freezing_trap", "wyvern_sting", "aspect_of_the_hawk" },
+	skills = { "serpent_sting", "aspect_of_the_hawk", "immolation_trap", "freezing_trap", "explosive_trap", "wyvern_sting" },
 })
 
 -- Rogue -----------------------------------------------------------------
@@ -214,7 +214,7 @@ spec("ROGUE_ASSA", "ROGUE", "암살", {
 	base = { atk = 9, aspd = 1.30, crit = 7, critdmg = 170, hp = 150, armor = 20, move = 10, dodge = 5 },
 	mh = { "dagger", "sword", "mace" }, oh = { "offblade" },
 	arch = "MELEE", a = "dmg_nature", b = "dmg_phys",
-	skills = { "ghostly_strike", "deadly_poison", "instant_poison", "rupture", "expose_armor", "cold_blood" },
+	skills = { "expose_armor", "ghostly_strike", "instant_poison", "rupture", "deadly_poison", "cold_blood" },
 })
 spec("ROGUE_OUTLAW", "ROGUE", "무법", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Ability_Warrior_PunishingBlow",
@@ -222,7 +222,7 @@ spec("ROGUE_OUTLAW", "ROGUE", "무법", {
 	base = { atk = 10, aspd = 1.30, crit = 8, critdmg = 175, hp = 150, armor = 20, move = 10, dodge = 6 },
 	mh = { "dagger", "sword", "mace" }, oh = { "offblade" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_phys",
-	skills = { "sinister_strike", "blade_flurry", "eviscerate", "evasion", "riposte", "adrenaline_rush" },
+	skills = { "sinister_strike", "eviscerate", "evasion", "riposte", "blade_flurry", "adrenaline_rush" },
 })
 spec("ROGUE_SUB", "ROGUE", "잠행", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Ability_Stealth",
@@ -230,7 +230,7 @@ spec("ROGUE_SUB", "ROGUE", "잠행", {
 	base = { atk = 10, aspd = 1.15, crit = 10, critdmg = 185, hp = 145, armor = 20, move = 10, dodge = 7 },
 	mh = { "dagger", "sword", "mace" }, oh = { "offblade" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_shadow",
-	skills = { "backstab", "hemorrhage", "ambush", "evasion", "vanish", "slice_and_dice" },
+	skills = { "backstab", "evasion", "slice_and_dice", "ambush", "vanish", "hemorrhage" },
 })
 
 -- Priest ----------------------------------------------------------------
@@ -240,7 +240,7 @@ spec("PRIEST_DISC", "PRIEST", "수양", {
 	base = { atk = 6.5, aspd = 0.80, crit = 3, critdmg = 150, hp = 140, armor = 12, move = -10 },
 	mh = { "mace", "staff", "dagger" }, oh = { "orb" },
 	arch = "HEALER", a = "dmg_holy",
-	skills = { "flash_heal", "pw_shield", "smite", "fortitude", "power_infusion", "prayer_of_fortitude" },
+	skills = { "smite", "fortitude", "pw_shield", "flash_heal", "power_infusion", "prayer_of_fortitude" },
 })
 spec("PRIEST_HOLY", "PRIEST", "신성", {
 	role = "HEALER", school = "holy", range = 700, ranged = true, icon = "Spell_Holy_Heal",
@@ -248,7 +248,7 @@ spec("PRIEST_HOLY", "PRIEST", "신성", {
 	base = { atk = 6, aspd = 0.80, crit = 3, critdmg = 150, hp = 140, armor = 12, move = -10 },
 	mh = { "mace", "staff", "dagger" }, oh = { "orb" },
 	arch = "HEALER", a = "dmg_holy",
-	skills = { "heal", "renew", "holy_nova", "fortitude", "prayer_of_healing", "resurrection" },
+	skills = { "fortitude", "renew", "resurrection", "heal", "holy_nova", "prayer_of_healing" },
 })
 spec("PRIEST_SHADOW", "PRIEST", "암흑", {
 	role = "DPS", school = "shadow", range = CAST, ranged = true, icon = "Spell_Shadow_ShadowWordPain",
@@ -256,7 +256,7 @@ spec("PRIEST_SHADOW", "PRIEST", "암흑", {
 	base = { atk = 10, aspd = 0.68, crit = 5, critdmg = 160, hp = 125, armor = 10, move = -5 },
 	mh = { "mace", "staff", "dagger" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_shadow", b = "dmg_shadow",
-	skills = { "mind_blast", "sw_pain", "mind_flay", "vampiric_embrace", "devouring_plague", "shadowguard" },
+	skills = { "sw_pain", "mind_blast", "mind_flay", "devouring_plague", "shadowguard", "vampiric_embrace" },
 })
 
 -- Shaman ----------------------------------------------------------------
@@ -266,7 +266,7 @@ spec("SHAMAN_ELE", "SHAMAN", "정기", {
 	base = { atk = 10, aspd = 0.75, crit = 5, critdmg = 160, hp = 160, armor = 24 },
 	mh = { "mace", "staff", "dagger" }, oh = { "shield", "relic" },
 	arch = "CASTER", a = "dmg_nature", b = "dmg_fire",
-	skills = { "lightning_bolt", "chain_lightning", "earth_shock", "flametongue_totem", "flame_shock", "strength_of_earth" },
+	skills = { "lightning_bolt", "earth_shock", "flame_shock", "strength_of_earth", "flametongue_totem", "chain_lightning" },
 })
 spec("SHAMAN_ENH", "SHAMAN", "고양", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Spell_Nature_Windfury",
@@ -274,7 +274,7 @@ spec("SHAMAN_ENH", "SHAMAN", "고양", {
 	base = { atk = 10, aspd = 1.10, crit = 6, critdmg = 160, hp = 165, armor = 26 },
 	mh = { "mace", "axe" }, oh = { "offblade" },
 	arch = "MELEE", a = "dmg_nature", b = "dmg_fire",
-	skills = { "stormstrike", "flametongue_weapon", "windfury_totem", "searing_totem", "fire_nova", "strength_of_earth" },
+	skills = { "flametongue_weapon", "searing_totem", "strength_of_earth", "fire_nova", "windfury_totem", "stormstrike" },
 })
 spec("SHAMAN_RESTO", "SHAMAN", "복원", {
 	role = "HEALER", school = "nature", range = 640, ranged = true, icon = "Spell_Nature_HealingWaveGreater",
@@ -282,7 +282,7 @@ spec("SHAMAN_RESTO", "SHAMAN", "복원", {
 	base = { atk = 6.5, aspd = 0.80, crit = 3, critdmg = 150, hp = 160, armor = 22, move = -10 },
 	mh = { "mace", "staff" }, oh = { "shield", "relic" },
 	arch = "HEALER", a = "dmg_nature", g = "block",
-	skills = { "healing_wave", "chain_heal", "stoneskin_totem", "healing_stream", "lesser_healing_wave", "ancestral_spirit" },
+	skills = { "healing_wave", "stoneskin_totem", "ancestral_spirit", "healing_stream", "lesser_healing_wave", "chain_heal" },
 })
 
 -- Mage ------------------------------------------------------------------
@@ -292,7 +292,7 @@ spec("MAGE_ARCANE", "MAGE", "비전", {
 	base = { atk = 11, aspd = 0.65, crit = 6, critdmg = 165, hp = 110, armor = 8, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_arcane", b = "dmg_arcane",
-	skills = { "presence_of_mind", "arcane_missiles", "arcane_explosion", "arcane_intellect", "arcane_power", "blast_wave" },
+	skills = { "arcane_intellect", "arcane_missiles", "arcane_explosion", "blast_wave", "presence_of_mind", "arcane_power" },
 })
 spec("MAGE_FIRE", "MAGE", "화염", {
 	role = "DPS", school = "fire", range = CAST, ranged = true, icon = "Spell_Fire_FlameBolt",
@@ -300,7 +300,7 @@ spec("MAGE_FIRE", "MAGE", "화염", {
 	base = { atk = 11, aspd = 0.60, crit = 6, critdmg = 170, hp = 110, armor = 8, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_fire", b = "dmg_fire",
-	skills = { "fireball", "scorch", "fire_blast", "flamestrike", "combustion", "pyroblast" },
+	skills = { "fireball", "fire_blast", "flamestrike", "pyroblast", "scorch", "combustion" },
 })
 spec("MAGE_FROST", "MAGE", "냉기", {
 	role = "DPS", school = "frost", range = CAST, ranged = true, icon = "Spell_Frost_FrostBolt02",
@@ -308,7 +308,7 @@ spec("MAGE_FROST", "MAGE", "냉기", {
 	base = { atk = 10.5, aspd = 0.62, crit = 6, critdmg = 165, hp = 115, armor = 8, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_frost", b = "dmg_frost",
-	skills = { "frostbolt", "frost_nova", "cone_of_cold", "ice_barrier", "blizzard", "ice_armor" },
+	skills = { "frostbolt", "frost_nova", "blizzard", "cone_of_cold", "ice_armor", "ice_barrier" },
 })
 
 -- Warlock ---------------------------------------------------------------
@@ -318,7 +318,7 @@ spec("WARLOCK_AFF", "WARLOCK", "고통", {
 	base = { atk = 10, aspd = 0.65, crit = 5, critdmg = 160, hp = 130, armor = 8, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_shadow", b = "dmg_shadow",
-	skills = { "corruption", "curse_of_agony", "drain_life", "curse_of_elements", "siphon_life", "hellfire" },
+	skills = { "corruption", "curse_of_agony", "drain_life", "siphon_life", "hellfire", "curse_of_elements" },
 })
 spec("WARLOCK_DEMO", "WARLOCK", "악마", {
 	role = "DPS", school = "shadow", range = CAST, ranged = true, icon = "Spell_Shadow_SummonFelHunter",
@@ -326,7 +326,7 @@ spec("WARLOCK_DEMO", "WARLOCK", "악마", {
 	base = { atk = 9.5, aspd = 0.65, crit = 5, critdmg = 160, hp = 140, armor = 10, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_shadow", b = "dmg_fire",
-	skills = { "shadow_bolt", "summon_felhunter", "soul_link", "death_coil", "demonic_sacrifice", "inferno" },
+	skills = { "shadow_bolt", "summon_felhunter", "demonic_sacrifice", "soul_link", "death_coil", "inferno" },
 })
 spec("WARLOCK_DESTRO", "WARLOCK", "파괴", {
 	role = "DPS", school = "fire", range = CAST, ranged = true, icon = "Spell_Fire_Immolation",
@@ -334,7 +334,7 @@ spec("WARLOCK_DESTRO", "WARLOCK", "파괴", {
 	base = { atk = 10.5, aspd = 0.62, crit = 6, critdmg = 165, hp = 125, armor = 8, move = -5 },
 	mh = { "staff", "dagger", "sword" }, oh = { "orb" },
 	arch = "CASTER", a = "dmg_fire", b = "dmg_shadow",
-	skills = { "immolate", "searing_pain", "rain_of_fire", "conflagrate", "shadowburn", "soul_fire" },
+	skills = { "immolate", "searing_pain", "rain_of_fire", "shadowburn", "conflagrate", "soul_fire" },
 })
 
 -- Druid -----------------------------------------------------------------
@@ -344,7 +344,7 @@ spec("DRUID_BALANCE", "DRUID", "조화", {
 	base = { atk = 10, aspd = 0.70, crit = 5, critdmg = 160, hp = 140, armor = 14, move = -5 },
 	mh = { "staff", "mace", "dagger" }, oh = { "relic", "orb" },
 	arch = "CASTER", a = "dmg_nature", b = "dmg_arcane",
-	skills = { "wrath", "moonfire", "starfire", "moonkin_form", "hurricane", "insect_swarm" },
+	skills = { "wrath", "moonfire", "starfire", "insect_swarm", "moonkin_form", "hurricane" },
 })
 spec("DRUID_FERAL", "DRUID", "야성", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Ability_Druid_FerociousBite",
@@ -352,7 +352,7 @@ spec("DRUID_FERAL", "DRUID", "야성", {
 	base = { atk = 10, aspd = 1.20, crit = 8, critdmg = 170, hp = 160, armor = 22, move = 10, dodge = 5 },
 	mh = { "staff", "mace", "dagger" }, oh = { "relic", "whetstone" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_phys",
-	skills = { "shred", "rake", "ferocious_bite", "leader_of_pack", "tigers_fury", "enrage" },
+	skills = { "enrage", "shred", "rake", "tigers_fury", "ferocious_bite", "leader_of_pack" },
 })
 spec("DRUID_GUARDIAN", "DRUID", "수호", {
 	role = "TANK", school = "phys", range = MELEE, icon = "Ability_Druid_Maul",
@@ -360,7 +360,7 @@ spec("DRUID_GUARDIAN", "DRUID", "수호", {
 	base = { atk = 9, aspd = 0.80, crit = 4, critdmg = 150, hp = 270, armor = 30, dodge = 5 },
 	mh = { "mace", "staff" }, oh = { "relic" },
 	arch = "TANK", a = "dmg_phys", g = "dodge",
-	skills = { "maul", "swipe", "demo_roar", "thorns", "frenzied_regen", "barkskin" },
+	skills = { "thorns", "maul", "demo_roar", "swipe", "frenzied_regen", "barkskin" },
 })
 spec("DRUID_RESTO", "DRUID", "회복", {
 	role = "HEALER", school = "nature", range = CAST, ranged = true, icon = "Spell_Nature_Rejuvenation",
@@ -368,7 +368,7 @@ spec("DRUID_RESTO", "DRUID", "회복", {
 	base = { atk = 6, aspd = 0.80, crit = 3, critdmg = 150, hp = 150, armor = 14, move = -10 },
 	mh = { "staff", "mace" }, oh = { "relic", "orb" },
 	arch = "HEALER", a = "dmg_nature",
-	skills = { "rejuvenation", "healing_touch", "regrowth", "mark_of_wild", "tranquility", "rebirth" },
+	skills = { "healing_touch", "mark_of_wild", "rejuvenation", "regrowth", "rebirth", "tranquility" },
 })
 
 ------------------------------------------------------------------------

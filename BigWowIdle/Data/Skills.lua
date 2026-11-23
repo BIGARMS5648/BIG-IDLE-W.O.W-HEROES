@@ -425,6 +425,41 @@ S("tranquility", "평온", "Spell_Nature_Tranquility",
 S("rebirth", "환생", "Spell_Nature_Reincarnation",
 	cd(50, { kind = "revive", v = { 30, 5 } }))
 
+-- The level a character learns each spell at in the original game (a
+-- talent: the level its talent row opens, 10 + 5 per row). Every spec's six
+-- skills open in this order (Data/Classes.lua, ns.SKILL_UNLOCK).
+ns.SKILL_LEARN = {
+	arcane_intellect = 1, battle_shout = 1, devotion_aura = 1, eviscerate = 1, fireball = 1, fortitude = 1,
+	healing_touch = 1, healing_wave = 1, heroic_strike = 1, holy_light = 1, immolate = 1, lightning_bolt = 1,
+	mark_of_wild = 1, shadow_bolt = 1, sinister_strike = 1, smite = 1, wrath = 1, backstab = 4,
+	blessing_of_might = 4, corruption = 4, earth_shock = 4, frostbolt = 4, judgement = 4, moonfire = 4,
+	rejuvenation = 4, rend = 4, serpent_sting = 4, stoneskin_totem = 4, sw_pain = 4, arcane_shot = 6,
+	divine_protection = 6, fire_blast = 6, pw_shield = 6, seal_of_the_crusader = 6, thorns = 6,
+	thunder_clap = 6, arcane_missiles = 8, curse_of_agony = 8, evasion = 8, renew = 8, aspect_of_the_hawk = 10,
+	call_pet = 10, defensive_stance = 10, demo_roar = 10, flame_shock = 10, flametongue_weapon = 10,
+	frost_nova = 10, lay_on_hands = 10, maul = 10, mind_blast = 10, resurrection = 10, screech = 10,
+	searing_totem = 10, slice_and_dice = 10, strength_of_earth = 10, ancestral_spirit = 12, enrage = 12,
+	fire_nova = 12, overpower = 12, regrowth = 12, arcane_explosion = 14, drain_life = 14, expose_armor = 14,
+	revenge = 14, flamestrike = 16, heal = 16, immolation_trap = 16, swipe = 16, ambush = 18, multi_shot = 18,
+	searing_pain = 18, aimed_shot = 20, blizzard = 20, cleave = 20, consecration = 20, devouring_plague = 20,
+	exorcism = 20, flash_heal = 20, flash_of_light = 20, freezing_trap = 20, ghostly_strike = 20,
+	healing_stream = 20, holy_nova = 20, insect_swarm = 20, instant_poison = 20, last_stand = 20,
+	lesser_healing_wave = 20, mind_flay = 20, pyroblast = 20, rain_of_fire = 20, rebirth = 20, riposte = 20,
+	rupture = 20, seal_of_command = 20, shadowburn = 20, shadowguard = 20, starfire = 20, scorch = 22,
+	shred = 22, vanish = 22, execute = 24, rake = 24, tigers_fury = 24, cone_of_cold = 26, rapid_fire = 26,
+	flametongue_totem = 28, shield_wall = 28, blade_flurry = 30, blast_wave = 30, blessing_of_sanctuary = 30,
+	cold_blood = 30, deadly_poison = 30, demonic_sacrifice = 30, hellfire = 30, hemorrhage = 30, ice_armor = 30,
+	intimidation = 30, prayer_of_healing = 30, siphon_life = 30, summon_felhunter = 30, sweeping_strikes = 30,
+	tranquility = 30, vampiric_embrace = 30, chain_lightning = 32, curse_of_elements = 32, ferocious_bite = 32,
+	windfury_totem = 32, explosive_trap = 34, presence_of_mind = 35, frenzied_regen = 36, whirlwind = 36,
+	adrenaline_rush = 40, arcane_power = 40, bestial_wrath = 40, bloodthirst = 40, chain_heal = 40,
+	combustion = 40, conflagrate = 40, holy_shield = 40, hurricane = 40, ice_barrier = 40, leader_of_pack = 40,
+	moonkin_form = 40, mortal_strike = 40, power_infusion = 40, shield_slam = 40, soul_link = 40,
+	stormstrike = 40, trueshot_aura = 40, volley = 40, wyvern_sting = 40, death_coil = 42, barkskin = 44,
+	hammer_of_wrath = 44, aspect_of_the_wild = 46, prayer_of_fortitude = 48, soul_fire = 48, holy_wrath = 50,
+	inferno = 50, recklessness = 50,
+}
+
 ------------------------------------------------------------------------
 -- Values and generated text
 ------------------------------------------------------------------------

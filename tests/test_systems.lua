@@ -123,6 +123,14 @@ do
 	for _, sid in ipairs({ "DRUID_FERAL", "DRUID_GUARDIAN", "DRUID_RESTO", "SHAMAN_ENH", "SHAMAN_ELE", "SHAMAN_RESTO" }) do
 		check(ns.SPECS[sid], "missing specialization " .. sid)
 	end
+	-- every spec's skills open in the order the original game teaches them
+	for sid, sp in pairs(ns.SPECS) do
+		for i = 2, #sp.skills do
+			local a, b = ns.SKILL_LEARN[sp.skills[i - 1]], ns.SKILL_LEARN[sp.skills[i]]
+			check(a and b and a <= b, sid .. ": " .. sp.skills[i - 1] .. " (" .. tostring(a) .. ") should open before " .. sp.skills[i] .. " (" .. tostring(b) .. ")")
+		end
+	end
+	check(ns.SKILL_LEARN.insect_swarm < ns.SKILL_LEARN.hurricane, "Hurricane is learned after Insect Swarm")
 	-- every skill is a classic spell; all but always-on auras and pets show
 	-- an effect when used
 	for id, sk in pairs(ns.SKILLS) do
