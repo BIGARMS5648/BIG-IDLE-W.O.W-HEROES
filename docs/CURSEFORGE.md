@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.0.2
+BIG IDLE HEROES v1.0.3
 ```
 
 ---
@@ -135,8 +135,10 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.0.2)
+## Changelog for this release (v1.0.3)
 
 ```
-- Spell effects show in the battle window: cast glows, impacts and missiles are drawn the way the model check's effect page draws them, at a fixed share of the size of the model they belong to.
+- Spell effects at their natural size next to the fighters: impacts as big as on a character in the game, hand glows a little smaller, missiles a little bigger.
+- Effects on the caster itself (slashes, shouts, hand glows) face the way the caster faces: the bear's and cat's attacks, cleave, whirlwind, backstab and the like no longer point backwards.
+- The druid's cat form is back to its earlier size.
 ```

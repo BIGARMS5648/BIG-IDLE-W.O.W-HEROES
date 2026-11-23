@@ -1053,7 +1053,7 @@ do
 			for _, hs in ipairs(ns.Bar.hits) do
 				if not hit and hs.active and hs.fig:IsShown() and hs.fig:IsLoaded() and hitFiles[hs.fig.actor.__display] then
 					local t = hs.tfig
-					hit = { scale = hs.fig.actor.__scale or 0, height = hs.fig.height, want = 0.5 * (t.norm or 0.5) * (t.corrScale or 1), tall = t.height,
+					hit = { scale = hs.fig.actor.__scale or 0, height = hs.fig.height, want = (t.fixedScale or (t.norm or 0.5) * (t.corrScale or 1)), tall = t.height,
 						parent = hs.fig:GetParent() }
 				end
 			end
@@ -1062,7 +1062,7 @@ do
 				if not hand and hs.active and hs.hand and hs.fig:IsShown() and hs.fig:IsLoaded() and handFiles[hs.fig.actor.__display] then
 					local t = hs.tfig
 					local ts = t.fixedScale or (t.norm or 0.5) * (t.corrScale or 1)
-					hand = { scale = hs.fig.actor.__scale or 0, want = 0.35 * ts, x = hs.fig.anchorX, cx = t.anchorX, facing = t.facing }
+					hand = { scale = hs.fig.actor.__scale or 0, want = 0.8 * ts, x = hs.fig.anchorX, cx = t.anchorX, facing = t.facing, figFacing = hs.fig.facing }
 				end
 			end
 			if sawMissile and hit and hand then break end
@@ -1073,8 +1073,9 @@ do
 		if not hand then
 			fail("a cast should show the glow in the caster's hands")
 		else
-			if math.abs(hand.scale - hand.want) > 1e-6 then fail(string.format("the glow in the hands should be 0.35 of the caster's scale: %.3f, want %.3f", hand.scale, hand.want)) end
+			if math.abs(hand.scale - hand.want) > 1e-6 then fail(string.format("the glow in the hands should be 0.8 of the caster's scale: %.3f, want %.3f", hand.scale, hand.want)) end
 			if (hand.facing == "left" and hand.x >= hand.cx) or (hand.facing ~= "left" and hand.x <= hand.cx) then fail("the glow should be at the caster's front hand") end
+			if hand.figFacing ~= hand.facing then fail("the glow in the hands should face the way its caster does") end
 		end
 		if not sawMissile then fail("a skill with a missile should fly it from the caster to the target") end
 		local known = false
@@ -1130,7 +1131,7 @@ do
 			fail("a skill's hit should show the spell's impact model on the target")
 		else
 			if math.abs(hit.scale - hit.want) > 1e-6 then
-				fail(string.format("a hit should be half the target's scale, as the model check shows it (%.3f, want %.3f)", hit.scale, hit.want))
+				fail(string.format("a hit should be as big as next to a character in the game (the target's scale) (%.3f, want %.3f)", hit.scale, hit.want))
 			end
 			if math.abs(hit.height - hit.tall) > 1e-6 then fail("a hit's figure should be as tall as its target's") end
 			-- straight in the battle scene, as the model check shows it (no clipping box)
@@ -1157,12 +1158,40 @@ do
 				if big then
 					local tf = big.tfig
 					local ts = tf.fixedScale or (tf.norm or 0.5) * (tf.corrScale or 1)
-					if math.abs((big.fig.actor.__scale or 0) - 0.5 * ts) > 1e-6 then fail("an effect's own bounding box should not shrink it") end
+					if math.abs((big.fig.actor.__scale or 0) - ts) > 1e-6 then fail("an effect's own bounding box should not shrink it") end
 				else
 					fail("a boss's fire nova should show its ring")
 				end
 			end
 			Mock.boxes["file:" .. wide.hit] = nil
+		end
+		-- an effect on its caster (a slash, a shout) faces the way the caster
+		-- does; its hit on a monster faces the way it flies (toward the monster)
+		do
+			local war, wf
+			for i, x in ipairs(ns.Combat.heroes) do if x.class == "WARRIOR" then war, wf = x, heroes[i] end end
+			local mob
+			for _ = 1, 300 do
+				for _, m in ipairs(ns.Combat.mobs) do if not m.dead then mob = m break end end
+				if mob then break end
+				frames(1)
+			end
+			local fx = ns.SKILL_FX.cleave
+			if war and wf and wf.figIs and mob and fx then
+				ns.Combat.VFX({ k = "skill", u = war, sid = "cleave", to = { mob } })
+				local own, onMob
+				for _ = 1, 4 do
+					frames(1)
+					for _, hs in ipairs(ns.Bar.hits) do
+						if hs.active and hs.fig.actor.__display == "file:" .. fx.self then own = hs.fig.facing end
+						if hs.active and hs.fig.actor.__display == "file:" .. fx.hit and hs.tfig ~= wf.figIs then onMob = hs.fig.facing end
+					end
+				end
+				if own ~= wf.figIs.facing then fail("an effect on its caster should face the way the caster does: " .. tostring(own) .. " / " .. tostring(wf.figIs.facing)) end
+				if onMob ~= "right" then fail("a hit on a monster should face the way it flies (toward the monster): " .. tostring(onMob)) end
+			else
+				fail("the battle check should have a warrior and a monster for the effect facing")
+			end
 		end
 		-- a boss ability is a classic spell: its name shows, its cast plays
 		-- on the boss and its hit on whom it reaches
@@ -1547,7 +1576,7 @@ do
 			-- the cat a little smaller than the others in battle
 			local raceScale = Fig.RACE_SCALE[ns.Heroes.Race(h.id)] or 1
 			local inForm = Fig.HeroScale(h.id, true)
-			if sid == "DRUID_FERAL" and math.abs(inForm - raceScale * 0.92) > 1e-9 then fail("the cat should be drawn at 92%: " .. inForm) end
+			if sid == "DRUID_FERAL" and math.abs(inForm - raceScale * 0.92 / 0.85) > 1e-9 then fail("the cat should stand as tall as before the fighters were made smaller: " .. inForm) end
 			if sid == "DRUID_BALANCE" and math.abs(inForm - Fig.RACE_SCALE.TAUREN) > 1e-9 then fail("the moonkin of both factions should be as tall as the tauren's: " .. inForm) end
 			if (sid == "DRUID_GUARDIAN" or sid == "DRUID_RESTO") and math.abs(inForm - raceScale) > 1e-9 then fail(sid .. " should keep its size") end
 			-- the cat's health bar under its body, forward of its middle (its tail is long)

@@ -680,17 +680,20 @@ end
 -- spell's own effect model in a figure of its own, put up as the model check
 -- (/bih model, 효과) shows them: at a fixed share of the scale of the model
 -- it flies from or lands on (a hit HIT_SIZE, the hand glow HAND_SIZE, a
--- missile as big as it is next to its caster), so they grow and shrink with
--- the window as the fighters do. (An effect model's bounding box says little
+-- missile MISSILE_SIZE; 1 = as big as next to a character in the game), so
+-- they grow and shrink with the window as the fighters do. An effect on its
+-- caster (a slash, a shout, the glow in its hands) faces the way the caster
+-- does; a hit on another faces the way it flies, from the one who sent it. (An effect model's bounding box says little
 -- about what it draws - most are far bigger than their glow - so it is not
 -- used to size them.)
 ------------------------------------------------------------------------
 local FX_FLIGHT, FX_HIT_DELAY, MAX_MISSILES, MAX_TARGETS = 0.35, 0.12, 12, 5
-local MAX_HITS, HIT_SHOW, HIT_FADE, HIT_SIZE = 12, 0.8, 0.25, 0.5
+local MAX_HITS, HIT_SHOW, HIT_FADE, HIT_SIZE = 12, 0.8, 0.25, 1.0
+local MISSILE_SIZE = 1.25
 local HIT_WAIT = 1.5 -- an effect whose model is not in by then is dropped
 -- the glow in a caster's hands: this share of the caster's scale, at the
 -- front hand (HAND_X across, HAND_Y up)
-local HAND_SIZE, HAND_X, HAND_Y = 0.35, 0.22, 0.5
+local HAND_SIZE, HAND_X, HAND_Y = 0.8, 0.22, 0.5
 local missiles, hits, pendingHits = {}, {}, {}
 -- what was launched and shown (the last missile's file), for the tests
 local fxStats = { missiles = 0, hits = 0 }
@@ -748,7 +751,13 @@ local function playHit(tfig, fx)
 	hs.tfig, hs.low, hs.hand, hs.t, hs.wait, hs.active = tfig, fx.low, fx.hand, 0, 0, true
 	fig:SetHeight2(tfig.height)
 	fig:SetFixedScale(hitScale(hs))
-	fig:SetFacing(tfig.facing == "left" and "right" or "left")
+	-- on its caster: the way the caster faces; on another: the way it flies
+	-- (away from the one who sent it, so toward the model it lands on)
+	if fx.own then
+		fig:SetFacing(tfig.facing or "right")
+	else
+		fig:SetFacing(tfig.facing == "left" and "right" or "left")
+	end
 	fig:SetAlpha(1)
 	fxStats.hits = fxStats.hits + 1
 end
@@ -761,8 +770,8 @@ local function spellFx(u, fx, to)
 	-- the glow in the hands (the cast kit's hand effect, sized to the caster),
 	-- what shows on the caster
 	local handFile = cfig and fx.cast and ns.KIT_HAND[fx.cast]
-	if handFile and cfig.anchorX then playHit(cfig, { hit = handFile, hand = true }) end
-	if cfig and cfig.anchorX and fx.self then playHit(cfig, { hit = fx.self, low = fx.selfLow }) end
+	if handFile and cfig.anchorX then playHit(cfig, { hit = handFile, hand = true, own = true }) end
+	if cfig and cfig.anchorX and fx.self then playHit(cfig, { hit = fx.self, low = fx.selfLow, own = true }) end
 	for k, t in ipairs(to or {}) do
 		if k > MAX_TARGETS then break end
 		local tfig = figureOf(t)
@@ -771,13 +780,14 @@ local function spellFx(u, fx, to)
 			if ms and ms.fig:SetModelFile(fx.missile) then
 				local dir = tfig.anchorX >= cfig.anchorX and 1 or -1
 				ms.fig:SetHeight2(cfig.height)
-				ms.fig:SetFixedScale((cfig.norm or 0.5) * (cfig.corrScale or 1))
+				ms.fig:SetFixedScale(MISSILE_SIZE * scaleOf(cfig))
 				ms.fig:SetFacing(dir > 0 and "right" or "left")
 				ms.x0, ms.y0 = hand(cfig, dir)
 				ms.tfig, ms.fx, ms.t, ms.active = tfig, fx, 0, true
 				fxStats.missiles, fxStats.lastMissile = fxStats.missiles + 1, fx.missile
 			else
-				pendingHits[#pendingHits + 1] = { t = FX_HIT_DELAY, fig = tfig, fx = fx }
+				-- straight on the target (on the caster itself: its own way)
+				pendingHits[#pendingHits + 1] = { t = FX_HIT_DELAY, fig = tfig, fx = t == u and { hit = fx.hit, low = fx.low, own = true } or fx }
 			end
 		end
 	end
