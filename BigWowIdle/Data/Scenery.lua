@@ -1,9 +1,10 @@
 -- Scenery behind the battle: each outdoor place's own trees, rocks and
 -- plants (the game's world models, by file id), picked by hand from the
 -- place's folders, in three rows: far (its trees, dim), mid (smaller trees
--- and rocks) and near (bushes, plants, stumps along the ground). No graves,
--- fences, buildings or props. Inside places (a mine, a castle, a crypt, a
--- necropolis) have none: only their backdrop.
+-- and rocks) and near (bushes, plants, stumps along the ground); no graves,
+-- fences or buildings. Inside places (a mine, a castle, a crypt, a
+-- necropolis) have the dungeon's own props instead: statues, shelves,
+-- braziers, tables, pots, eggs (inside = true: smaller, man-sized rows).
 local _, ns = ...
 
 ns.SCENERY = {
@@ -68,9 +69,9 @@ ns.SCENERY = {
 		near = { 202641, 202642, 202643, 202644, 202633 }, -- stonetreestump01, stonetreestump02, stonetreestump03, stonetreestump04, stonetreelog01
 	},
 	wailing = {
-		far = {  }, -- none
-		mid = { 202176, 202177, 202178 }, -- maraudonshroom01, maraudonshroom02, maraudonshroom03
-		near = { 202164, 202165, 202166, 202167, 202186, 202187, 202188, 201370, 201371, 201372 }, -- maraudondetail01, maraudondetail02, maraudondetail03, maraudondetail04, maraudonroot01, maraudonroot02, maraudonroot03, barrensbush01, barrensbush02, barrensbush03
+		far = { 199217, 199218 }, -- wailingplant01, wailingplant02
+		mid = { 199226, 199227, 199351, 202176, 202177, 202178 }, -- wailingcavernsraptornest01, wailingcavernsraptornest02, wailingstonebrazier, maraudonshroom01, maraudonshroom02, maraudonshroom03
+		near = { 199222, 199223, 199224, 199215, 199220, 202164, 202165, 202166, 202167, 202186, 202187, 202188, 201370, 201371, 201372 }, -- wailingcavernsraptoreggs01, wailingcavernsraptoreggs02, wailingcavernsraptoreggs03, wailingfern06, wailingplantpurple01, maraudondetail01, maraudondetail02, maraudondetail03, maraudondetail04, maraudonroot01, maraudonroot02, maraudonroot03, barrensbush01, barrensbush02, barrensbush03
 	},
 	ashenvale = {
 		far = { 201223, 201224, 201226, 201228, 201230 }, -- ashenvaletree01, ashenvaletree02, ashenvaletree03, ashenvaletree04, ashenvaletree05
@@ -224,38 +225,149 @@ ns.SCENERY = {
 	},
 	ragefire = {
 		far = {  }, -- none
-		mid = { 189218, 189219, 189220, 189221, 189222, 189223 }, -- lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
-		near = { 189218, 189219, 189220, 189221, 189222, 189223 }, -- lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
+		mid = { 199129, 199155, 203091, 203092, 189218, 189219, 189220, 189221, 189222, 189223 }, -- mediumbrazier01, largefirepit01, dragonkinnest01, dragonkinnest02, lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
+		near = { 199179, 199401, 203089, 203090, 189218, 189219, 189220, 189221, 189222, 189223 }, -- jarorc01, skullcandle01, dragonkinegg, dragonkineggbroken, lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
 	},
 	moltencore = {
 		far = {  }, -- none
-		mid = { 189218, 189219, 189220, 189221, 189222, 189223 }, -- lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
-		near = { 189218, 189219, 189220, 189221, 189222, 189223 }, -- lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
+		mid = { 199129, 199155, 203091, 203092, 189218, 189219, 189220, 189221, 189222, 189223 }, -- mediumbrazier01, largefirepit01, dragonkinnest01, dragonkinnest02, lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
+		near = { 199179, 199401, 203089, 203090, 189218, 189219, 189220, 189221, 189222, 189223 }, -- jarorc01, skullcandle01, dragonkinegg, dragonkineggbroken, lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
 	},
 	onyxia = {
 		far = {  }, -- none
-		mid = { 189218, 189219, 189220, 189221, 189222, 189223 }, -- lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
-		near = { 189218, 189219, 189220, 189221, 189222, 189223 }, -- lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
+		mid = { 199129, 199155, 203091, 203092, 189218, 189219, 189220, 189221, 189222, 189223 }, -- mediumbrazier01, largefirepit01, dragonkinnest01, dragonkinnest02, lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
+		near = { 199179, 199401, 203089, 203090, 189218, 189219, 189220, 189221, 189222, 189223 }, -- jarorc01, skullcandle01, dragonkinegg, dragonkineggbroken, lavarock01, lavarock02, lavarock03, lavarock04, lavarock05, lavarock06
+	},
+	deadmines = {
+		inside = true,
+		far = { 197789, 197790, 197767 }, -- goblinshreddersuit01, goblinshreddersuit02, goblinmachinery
+		mid = { 189282, 197779, 197780, 197760 }, -- goblinmeltingpot, goblinrocketcart01, goblinrocketcart02, goblincontrolpanel
+		near = { 198173, 198004, 198158, 198163 }, -- deadminepowderkeg, beerkeg01, crategrain01, graincrate01
+	},
+	shadowfang = {
+		inside = true,
+		far = { 198052, 198053, 198054, 198073, 198074 }, -- duskwoodbookshelf01, duskwoodbookshelf02, duskwoodbookshelf03, candelabratall01, candelabratall02
+		mid = { 198608, 198609, 198013, 198014 }, -- shadowfangtable01, shadowfangtable02, shadowfangbench01, shadowfangbench02
+		near = { 198055, 198016, 198017, 198076 }, -- generalbookstackshort01, booklarge01, booklarge02, generalcandelabra01
+	},
+	blackfathom = {
+		inside = true,
+		far = { 201452, 201422 }, -- bfd_statuenagapriestess, bfd_nagabrazier
+		mid = { 201424, 201425, 201426, 201422 }, -- bfd_stonechair01, bfd_stonechair02, bfd_stonechair03, bfd_nagabrazier
+		near = { 201447, 201448, 201449, 201450, 201445, 201446 }, -- blackfathom_pot01, blackfathom_pot02, blackfathom_pot03, blackfathom_pot04, bfd_brokenpottery01, bfd_brokenpottery02
+	},
+	scarletlib = {
+		inside = true,
+		far = { 198047, 198049, 198052, 198053, 198054 }, -- abbeyshelf01, abbeyshelf02, duskwoodbookshelf01, duskwoodbookshelf02, duskwoodbookshelf03
+		mid = { 198073, 198074, 198175, 198254, 198407 }, -- candelabratall01, candelabratall02, fancydesk01, globe01, duskwoodpodium01
+		near = { 198055, 198056, 198016, 198019, 198076 }, -- generalbookstackshort01, generalbookstacktall01, booklarge01, booklargeopen01, generalcandelabra01
+	},
+	scarletarmory = {
+		inside = true,
+		far = { 190924, 190926, 190922, 190918 }, -- statuehmcrusader, statuehmcrusadersoldier, statuehmcaptain, statuehfspear
+		mid = { 198636, 198665, 198666, 198612 }, -- generalweaponrack01, generalwoodendummy02, stormwindwoodendummy01, generalrack01
+		near = { 198004, 198158, 198643 }, -- beerkeg01, crategrain01, humanarrows
+	},
+	scarletcathedral = {
+		inside = true,
+		far = { 190928, 190929, 190925, 190923 }, -- statuehmpaladin, statuehmpriest, statuehmcrusaderclean, statuehmcaptainclean
+		mid = { 198390, 197831, 197832, 198073, 198074 }, -- generalchurchpew01, altar01, altar02, candelabratall01, candelabratall02
+		near = { 198076, 198019, 198055 }, -- generalcandelabra01, booklargeopen01, generalbookstackshort01
+	},
+	gnomeregan = {
+		inside = true,
+		far = { 197678, 197679, 197680, 197681, 197682, 197683 }, -- gnomemachine01, gnomemachine02, gnomemachine03, gnomemachine04, gnomemachine05, gnomemachine06
+		mid = { 197671, 197704, 411841, 346124, 197701 }, -- gnomebiggear, gnomeroboarm, gnome_tesla, gnome_engine, gnomehutmachinery
+		near = { 197754, 197755, 197756, 197757, 197758, 197759, 197640, 197641, 197642, 197675 }, -- gnometool01, gnometool02, gnometool03, gnometool04, gnometool05, gnometool06, gnomebucket01, gnomebucket02, gnomebucket03, gnomesmallgear
+	},
+	uldaman = {
+		inside = true,
+		far = { 203439, 203442, 203440, 203469, 203392, 203393 }, -- uldamandwarfstatue, uldamanstonegiantstatue, uldamanmountaingiantstatue, titanfemalestatue, uldamanbookshelf, uldamanbookshelf01
+		mid = { 203397, 203452, 203454, 203404, 203376 }, -- uldamanbrazier01, uldamantable01, uldamantablenew, uldamanlampandpost, uldamanbench01
+		near = { 203422, 203423, 203424, 203385, 203386, 203387, 203429, 203425 }, -- uldamanpot01, uldamanpot02, uldamanpot03, uldamanbook01, uldamanbook02, uldamanbook03, uldamanscroll01, uldamanpotbroken01
+	},
+	sunkentemple = {
+		inside = true,
+		far = { 200625, 200621, 200623 }, -- snakegargoyle, mummytroll01, skulltiki
+		mid = { 190363, 200629, 200638, 200640 }, -- serpentaltar, cobrathrone01, trollskullpile, trolltablet
+		near = { 200638, 200633, 200634, 200635, 522970 }, -- trollskullpile, troll_tikimask01, troll_tikimask02, troll_tikimask03, mallskull
+	},
+	blackrockdepths = {
+		inside = true,
+		far = { 203024, 203025, 203012, 197210 }, -- statuedarkironthaurissan, statuedarkironthaurissanhammer, darkironforge, darkironthrone
+		mid = { 203018, 203010, 197224, 197225, 197155, 197165 }, -- darkironbrazier, darkironanvil, darkironworkbench01, darkironworkbench02, darkirongrindingwheel, darkironkegstand01
+		near = { 197162, 197150, 197152, 197137, 197138, 197214 }, -- darkironkeg01, darkironcrate01, darkironcrate02, darkironchair01, darkironchair02, darkironwoodpile01
+	},
+	blackrockspire = {
+		inside = true,
+		far = { 199387, 199389, 353154, 353155, 199141 }, -- orctent01, orctent02, orctent03, orctent04, tallbrazier01
+		mid = { 199129, 199203, 199357, 199356, 199155 }, -- mediumbrazier01, rawmeatrack01, orctable01, orcbench01, largefirepit01
+		near = { 199094, 199095, 199090, 199091, 199179, 199180, 199401 }, -- orccrate01, orccrate02, orcbarrel01, orcbarrel03, jarorc01, jarorc02, skullcandle01
+	},
+	blackwing = {
+		inside = true,
+		far = { 203057, 203058, 203059, 203060 }, -- blackrockbloodmachine01, blackrockbloodmachine02, blackrockbloodmachine03, blackrockbloodmachine04
+		mid = { 203091, 203092, 203093, 203061 }, -- dragonkinnest01, dragonkinnest02, dragonkinnest03, blackrockbloodvile
+		near = { 203089, 203090, 203094 }, -- dragonkinegg, dragonkineggbroken, dragonkinnestclump01
+	},
+	gordok = {
+		inside = true,
+		far = { 199025, 201696, 201705, 201706, 201707, 201708 }, -- ogrethrone, diremaulogrescaffolding01, diremaulstonestatue01, diremaulstonestatue02, diremaulstonestatue03, diremaulstonestatue04
+		mid = { 201688, 201691, 201692, 201693, 201694, 198989, 198990 }, -- ogrecampfire01, diremaulogrepost01, diremaulogrepost02, diremaulogrepost03, diremaulogrepost04, ogrebackpack01, ogrebackpack02
+		near = { 201699, 201700, 201701, 201702, 201703, 201704 }, -- diremaulfloorrubble01, diremaulfloorrubble02, diremaulfloorrubble03, diremaulgroundrubble01, diremaulgroundrubble02, diremaulgroundrubble03
+	},
+	highborne = {
+		inside = true,
+		far = { 201679, 201680, 201681, 201705, 201706, 201707, 201708, 201638 }, -- goldenhighelfstatue01, goldenhighelfstatue02, goldenhighelfstatue03, diremaulstonestatue01, diremaulstonestatue02, diremaulstonestatue03, diremaulstonestatue04, diremaulcrystalgenerator
+		mid = { 201617, 201618, 201643, 201641 }, -- corruptedcrystalshard, corruptedcrystalshard_blue, nightmarestone, nightmarebell
+		near = { 201699, 201700, 201701, 201642 }, -- diremaulfloorrubble01, diremaulfloorrubble02, diremaulfloorrubble03, nightmarecandle
+	},
+	scholomance = {
+		inside = true,
+		far = { 203836, 203837, 203861, 203862, 203864 }, -- scholme_bookshelf, scholme_bookshelflarge, scholme_candelabra, scholme_candelabra02, scholme_greencandelabra
+		mid = { 203881, 203883, 203886, 203895, 203841, 203845 }, -- greenbubblingcauldron, redbubblingcauldron, yellowbubblingcauldron, creepyoperationtable01, scholomancebrazier01green, scholomancebrazier01purple
+		near = { 203912, 203913, 203911, 203892, 203838, 203848 }, -- ghoul_in_a_jar, skeleton_in_a_jar, empty_testing_jar, scholomancecrystalball01, scholme_bookshelfsmall, floorcandlescorner01green
+	},
+	stratholme = {
+		inside = true,
+		far = { 198319, 198320, 200754, 200755, 200756 }, -- westernplaguelandslampost01, westernplaguelandslampost02, lordaeron_statue_01, lordaeron_statue_02, lordaeron_statue_03
+		mid = { 200666, 204011, 200655, 200652 }, -- meatwagonwrecked01, stratholmepostboxruined, lordaeronbrazier01, lordaeron_bench_01
+		near = { 198321, 326458, 200672 }, -- westernplaguelandslampostbroken01, undeadzigguratskulls, meatwagonwheel
+	},
+	stratslaughter = {
+		inside = true,
+		far = { 200664, 200784, 204006 }, -- meatwagon, undead_teslacoil, furnace_skull01
+		mid = { 200782, 200786, 200767, 200772, 200778 }, -- undead_operation_table, undead_tools_table, undead_alchemy_table, undead_crankwheel, undeadhookbody01
+		near = { 326458, 200670, 200781 }, -- undeadzigguratskulls, meatwagongrill, undead_meter
+	},
+	aqtemple = {
+		inside = true,
+		far = { 202553, 202533, 202442, 202429 }, -- quirajpillar, obsidianstatue, ahn_qirajobelisk, ahnqirajalter
+		mid = { 202508, 202509, 202554, 202413 }, -- silithidgong, silithidgongpodium, quirajpillarbroken, ahnqirajegglayer
+		near = { 202490, 202555, 202556, 202582, 202589 }, -- silithidegg, quirajruinblock01, quirajruinblock02, silithidtankhuskhead, silithidwasphuskhead
+	},
+	naxxramas = {
+		inside = true,
+		far = { 204019, 200784, 204065, 204006 }, -- nox_tesla, undead_teslacoil, kelthuzad_throne, furnace_skull01
+		mid = { 200782, 200767, 204013, 204024 }, -- undead_operation_table, undead_alchemy_table, plaguewingsporetrap, nox_anvil
+		near = { 326458, 203913, 203912, 203911 }, -- undeadzigguratskulls, skeleton_in_a_jar, ghoul_in_a_jar, empty_testing_jar
 	},
 }
-
--- places seen from inside: no scenery
-ns.SCENERY_INSIDE = { deadmines = true, shadowfang = true, blackfathom = true, scarlet = true, gnomeregan = true, uldaman = true, sunkentemple = true, blackrockdepths = true, blackrockspire = true, gordok = true, highborne = true, scholomance = true, stratholme = true, blackwing = true, aqtemple = true, naxxramas = true }
 
 -- the place of each stage, by difficulty and stage (1..30)
 ns.STAGE_SCENERY = {
 	{ -- 일반
 		"elwynn", "dunmorogh", "teldrassil", "durotar", "mulgore", "tirisfal", "westfall", "lochmodan", "silverpine", "barrens",
 		"ragefire", "redridge", "stonetalon", "wailing", "deadmines", "ashenvale", "duskwood", "hillsbrad", "wetlands", "shadowfang",
-		"blackfathom", "needles", "scarletyard", "gnomeregan", "razorfen", "scarlet", "arathi", "desolace", "stranglethorn", "scarlet",
+		"blackfathom", "needles", "scarletyard", "gnomeregan", "razorfen", "scarletlib", "arathi", "desolace", "stranglethorn", "scarletarmory",
 	},
 	{ -- 영웅
-		"badlands", "dustwallow", "swamp", "scarlet", "razorfen", "feralas", "hinterlands", "tanaris", "uldaman", "uldaman",
+		"badlands", "dustwallow", "swamp", "scarletcathedral", "razorfen", "feralas", "hinterlands", "tanaris", "uldaman", "uldaman",
 		"searing", "zulfarrak", "azshara", "blasted", "maraudon", "maraudon", "ungoro", "felwood", "burningsteppes", "sunkentemple",
 		"plaguelands", "blackrockdepths", "blackrockdepths", "blackrockdepths", "winterspring", "plaguelands", "diremaul", "silithus", "blackrockspire", "blackrockspire",
 	},
 	{ -- 신화
-		"gordok", "highborne", "scholomance", "stratholme", "blackrockspire", "scholomance", "scholomance", "stratholme", "blackrockspire", "blackrockspire",
+		"gordok", "highborne", "scholomance", "stratholme", "blackrockspire", "scholomance", "scholomance", "stratslaughter", "blackrockspire", "blackrockspire",
 		"zulgurub", "zulgurub", "zulgurub", "zulgurub", "zulgurub", "zulgurub", "zulgurub", "zulgurub", "zulgurub", "zulgurub",
 		"silithus", "silithus", "ahnqiraj", "ahnqiraj", "ahnqiraj", "ahnqiraj", "ahnqiraj", "ahnqiraj", "azshara", "blasted",
 	},
@@ -271,7 +383,6 @@ function ns.SceneryKey(diff, idx)
 	return row and row[idx]
 end
 
--- nil for a place seen from inside
 function ns.SceneryFor(diff, idx)
 	return ns.SCENERY[ns.SceneryKey(diff, idx) or ""]
 end
@@ -293,7 +404,10 @@ ns.BACKDROPS = {
 }
 
 -- places shown with another's picture (the same place seen elsewhere)
-ns.BACKDROP_SAME = { scarletyard = "tirisfal", gordok = "diremaul", highborne = "diremaul" }
+ns.BACKDROP_SAME = {
+	scarletyard = "tirisfal", gordok = "diremaul", highborne = "diremaul",
+	scarletlib = "scarlet", scarletarmory = "scarlet", scarletcathedral = "scarlet", stratslaughter = "stratholme",
+}
 
 function ns.BackdropFile(diff, idx)
 	local key = ns.SceneryKey(diff, idx)

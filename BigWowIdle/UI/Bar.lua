@@ -835,12 +835,27 @@ local SCENERY_ROWS = {
 	-- lo..hi; minH/maxH: the heights (yards) a model of the row may have;
 	-- shade: its light; speed: share of the walk; phase: where its first
 	-- model stands (in steps), so the rows' models do not stand in line
-	{ key = "far",  n = 4, y = 42, k = 5, lo = 36, hi = 62, minH = 4,   maxH = 80, shade = 0.55, speed = 0.3, phase = 0.15, level = 1 },
-	{ key = "mid",  n = 3, y = 27, k = 6, lo = 20, hi = 40, minH = 1.2, maxH = 25, shade = 0.75, speed = 0.6, phase = 0.55, level = 2 },
-	{ key = "near", n = 4, y = 12, k = 9, lo = 8,  hi = 20, minH = 0.2, maxH = 5,  shade = 0.9,  speed = 1.0, phase = 0.85, level = 3 },
+	{ key = "far",  n = 4, y = 42, k = 5, lo = 36, hi = 62, minH = 4,   maxH = 80, shade = 0.55, speed = 0.3, phase = 0.15, level = 1,
+		inside = { k = 11, lo = 30, hi = 54, minH = 1.2, maxH = 30 } },
+	{ key = "mid",  n = 3, y = 27, k = 6, lo = 20, hi = 40, minH = 1.2, maxH = 25, shade = 0.75, speed = 0.6, phase = 0.55, level = 2,
+		inside = { k = 13, lo = 16, hi = 34, minH = 0.5, maxH = 10 } },
+	{ key = "near", n = 4, y = 12, k = 9, lo = 8,  hi = 20, minH = 0.2, maxH = 5,  shade = 0.9,  speed = 1.0, phase = 0.85, level = 3,
+		inside = { k = 16, lo = 7, hi = 18, minH = 0.1, maxH = 3 } },
 }
+-- the limits of a row for the set shown (an inside place's props are smaller,
+-- man-sized things)
+local function rowLimits(sc, def)
+	return sc.set and sc.set.inside and def.inside or def
+end
 local SCENERY_WIDE = 2.4 -- a model this many times as long as it is tall (a wall, a cliff) does not stand in a row
 Bar.SCENERY_ROWS = SCENERY_ROWS
+-- the scenery's own dice (math.random is the fights' own, left alone)
+local seed = 20240611
+local function rnd(n)
+	seed = (seed * 1103515245 + 12345) % 2147483648
+	if n then return seed % n + 1 end
+	return seed / 2147483648
+end
 local WALK_PX = 90             -- how fast the ground goes by while the party walks (pixels a second)
 local SPAN_PAD = 90            -- room past each side of the scene where a model turns round
 local SPAN = SCENE_W + 2 * SPAN_PAD
@@ -870,7 +885,7 @@ local function sceneryFile(sc, row, it, prev)
 	local list = sc.set and sc.set[row.def.key]
 	if not list or #list == 0 then return nil end
 	local bad = sc.bad[row.def.key]
-	local start = math.random(#list)
+	local start = rnd(#list)
 	local fallback
 	for k = 0, #list - 1 do
 		local f = list[(start + k - 1) % #list + 1]
@@ -891,8 +906,8 @@ local function setSceneryModel(sc, row, it, prev)
 		if not f then break end
 		it.file = f
 		if fig:SetModelFile(f) then
-			fig:SetFacing(math.random(2) == 1 and "left" or "right")
-			it.scale = 0.85 + math.random() * 0.3
+			fig:SetFacing(rnd(2) == 1 and "left" or "right")
+			it.scale = 0.85 + rnd() * 0.3
 			fig:Show()
 			return
 		end
@@ -905,16 +920,17 @@ end
 -- does not fit the row
 local function sizeScenery(sc, row, it)
 	local fig, def = it.fig, row.def
+	local lim = rowLimits(sc, def)
 	local b = fig.box
 	local H = b and (b[6] - b[3]) or nil
 	local long = b and max(math.abs(b[4] - b[1]), math.abs(b[5] - b[2])) or 0
-	if H and (H < def.minH or H > def.maxH or long > H * SCENERY_WIDE) then
+	if H and (H < lim.minH or H > lim.maxH or long > H * SCENERY_WIDE) then
 		sc.bad[def.key] = sc.bad[def.key] or {}
 		sc.bad[def.key][it.file] = true
 		setSceneryModel(sc, row, it, it.file)
 		return
 	end
-	local px = H and max(def.lo, min(def.hi, H * def.k)) or (def.lo + def.hi) / 2
+	local px = H and max(lim.lo, min(lim.hi, H * lim.k)) or (lim.lo + lim.hi) / 2
 	px = px * (it.scale or 1)
 	-- drawn height = figure height x the model's height x its fitting
 	local fit = (H and fig.norm) and H * fig.norm or 1

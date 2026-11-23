@@ -54,10 +54,11 @@ ns.LOADSCREENS = {
 local BY_PLACE = {
 	dunmorogh = "oldironforge", wetlands = "excavation", tirisfal = "ruinsoflordaeron",
 	ragefire = "ragefire", wailing = "wailing", deadmines = "deadmines", shadowfang = "shadowfang",
-	blackfathom = "blackfathom", scarletyard = "monastery", scarlet = "monastery", gnomeregan = "gnomeregan",
+	blackfathom = "blackfathom", scarletyard = "monastery", scarletlib = "monastery", scarletarmory = "monastery",
+	scarletcathedral = "monastery", gnomeregan = "gnomeregan",
 	razorfen = "razorfenkraul", uldaman = "uldaman", zulfarrak = "zulfarrak", maraudon = "maraudon",
 	sunkentemple = "sunkentemple", blackrockdepths = "blackrockdepths", diremaul = "diremaul", gordok = "diremaul",
-	highborne = "diremaul", blackrockspire = "blackrockspire", scholomance = "scholomance", stratholme = "stratholme",
+	highborne = "diremaul", blackrockspire = "blackrockspire", scholomance = "scholomance", stratholme = "stratholme", stratslaughter = "stratholme",
 	zulgurub = "zulgurub", ahnqiraj = "ahnqiraj20", moltencore = "moltencore", onyxia = "onyxia",
 	blackwing = "blackwing", aqtemple = "ahnqiraj40", naxxramas = "naxxramas",
 }

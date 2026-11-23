@@ -1213,11 +1213,30 @@ do
 			local wideUp = false
 			for _, it in ipairs(sc.rows[2].items) do if it.fig:IsShown() and it.sized then wideUp = true end end
 			if wideUp or not (sc.bad.mid and next(sc.bad.mid)) then fail("a model much longer than tall should not stand in the scenery") end
-			-- a place seen from inside: no scenery at all
+			-- an inside place: its own props, in man-sized rows
+			ns.SceneryFor = function() return ns.SCENERY.scholomance end
+			for _, f in ipairs(ns.SCENERY.scholomance.far) do Mock.boxes["file:" .. f] = { -0.5, -0.5, 0, 0.5, 0.5, 3 } end
+			sc.set, sc.bad = nil, {}
+			for _, row in ipairs(sc.rows) do for _, it in ipairs(row.items) do it.fig.id = nil end end
+			frames(4)
+			local props = 0
+			for _, row in ipairs(sc.rows) do
+				for _, i2 in ipairs(row.items) do
+					if i2.fig:IsShown() and i2.sized then
+						props = props + 1
+						local ok = false
+						for _, f in ipairs(ns.SCENERY.scholomance[row.def.key]) do if f == i2.file then ok = true end end
+						if not ok then fail("an inside place should show its own props") end
+					end
+				end
+			end
+			if props < 6 then fail("an inside place should be filled with its props (a 3 yd bookshelf far off, cauldrons, jars): " .. props) end
+			for _, f in ipairs(ns.SCENERY.scholomance.far) do Mock.boxes["file:" .. f] = nil end
+			-- no scenery at all (nothing known for the place): nothing shown
 			ns.SceneryFor = function() return nil end
 			frames(2)
 			for _, row in ipairs(sc.rows) do
-				for _, i2 in ipairs(row.items) do if i2.fig:IsShown() then fail("an inside place should show no scenery") break end end
+				for _, i2 in ipairs(row.items) do if i2.fig:IsShown() then fail("a place without scenery should show none") break end end
 			end
 			for _, f in ipairs(set.far) do Mock.boxes["file:" .. f] = nil end
 			for _, f in ipairs(set.near) do Mock.boxes["file:" .. f] = nil end

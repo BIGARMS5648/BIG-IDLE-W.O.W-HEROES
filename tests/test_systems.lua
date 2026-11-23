@@ -123,13 +123,13 @@ do
 	for _, sid in ipairs({ "DRUID_FERAL", "DRUID_GUARDIAN", "DRUID_RESTO", "SHAMAN_ENH", "SHAMAN_ELE", "SHAMAN_RESTO" }) do
 		check(ns.SPECS[sid], "missing specialization " .. sid)
 	end
-	-- every stage is a place with scenery (rows of its own terrain models) or
-	-- one seen from inside (none)
+	-- every stage's place has scenery: its own terrain models outside, the
+	-- dungeon's own props inside
 	for d = 1, #ns.DIFFS do
 		for i = 1, ns.STAGE_COUNT do
 			local key = ns.SceneryKey(d, i)
 			local set = ns.SceneryFor(d, i)
-			check(key and (set or ns.SCENERY_INSIDE[key]), "stage " .. d .. "-" .. i .. " should have a known place for its scenery: " .. tostring(key))
+			check(key and set, "stage " .. d .. "-" .. i .. " should have scenery: " .. tostring(key))
 			if set then
 				local n = 0
 				for _, row in ipairs({ "far", "mid", "near" }) do
@@ -140,7 +140,9 @@ do
 			end
 		end
 	end
-	check(ns.SceneryFor(1, 6) and not ns.SceneryFor(1, 15), "Tirisfal should have scenery, the Deadmines none")
+	check(ns.SceneryFor(1, 6) and not ns.SceneryFor(1, 6).inside, "Tirisfal should have outdoor scenery")
+	check(ns.SceneryFor(1, 15) and ns.SceneryFor(1, 15).inside, "the Deadmines should have its own props")
+	check(ns.SceneryKey(1, 26) ~= ns.SceneryKey(1, 30) and ns.SceneryKey(3, 4) ~= ns.SceneryKey(3, 8), "the monastery's library and armory, Stratholme's square and slaughterhouse should differ")
 	-- every spec's skills open in the order the original game teaches them
 	for sid, sp in pairs(ns.SPECS) do
 		for i = 2, #sp.skills do
