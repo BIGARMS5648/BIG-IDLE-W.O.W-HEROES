@@ -244,7 +244,6 @@ end
 local function drawHeroes(now)
 	local list = ns.Combat.heroes
 	local backX
-	local advancing = false -- a living hero steps forward (the world goes by)
 	heroPositions(list)
 	for i = 1, ns.PARTY_SIZE do
 		local f = heroFrames[i]
@@ -257,7 +256,6 @@ local function drawHeroes(now)
 				f.ring:SetVertexColor(U.rgb(ns.ROLE[u.role].hex))
 			end
 			local px, moved = glide(f, spread[i])
-			if moved and not u.dead and f.glide and f.glide.to > f.glide.from then advancing = true end
 			f.drawX = px
 			local moving = walking(f, moved)
 			local fig = pickHero(f.model, u.id)
@@ -327,7 +325,6 @@ local function drawHeroes(now)
 			f.shownId = nil
 		end
 	end
-	frame.advancing = advancing
 	-- the party's front and back (where the heroes are drawn)
 	local minX, maxX = backX and (laneX(backX) - UNIT / 2), nil
 	for i = 1, #list do
@@ -887,12 +884,11 @@ local function rowLimits(sc, def)
 end
 local SCENERY_WIDE = 2.4 -- a model this many times as long as it is tall (a wall, a cliff) does not stand in a row
 Bar.SCENERY_ROWS = SCENERY_ROWS
--- Moving layers. The world goes by while the party walks (between waves,
--- and while the heroes step up to the monsters): its speed eases up and
--- down. The backdrop also drifts slowly all the time, far off.
+-- Moving layers. The world goes by while the party walks on between waves:
+-- its speed eases up and down; while the party fights everything stands
+-- still.
 local GROUND_H, GROUND_FADE = 30, 18 -- the ground band and its fading top edge (pixels)
 local TILE_W, TILE_H = 128, 48       -- one tile of the ground texture on screen (flattened: seen from the side)
-local DRIFT = 5                      -- the backdrop's own drift (pixels a second)
 local BACKDROP_SHARE = 0.18          -- share of the walk the backdrop goes by
 local world = { speed = 0, sky = 0, ground = 0 }
 Bar.world = world
@@ -1058,12 +1054,13 @@ local function drawScenery()
 			end
 		end
 	end
-	-- how fast the world goes by: the walk's pace while the party walks
-	local walk = st.phase == "travel" or frame.advancing
+	-- how fast the world goes by: the walk's pace while the party walks on
+	-- between waves; still while it fights (heroes stepping about included)
+	local walk = st.phase == "travel"
 	local want = walk and WALK_PX or 0
 	world.speed = world.speed + (want - world.speed) * min(1, dt * 5)
 	if world.speed < 0.5 and not walk then world.speed = 0 end
-	world.sky = (world.sky + (DRIFT + world.speed * BACKDROP_SHARE) * dt) % (SCENE_W * 2000)
+	world.sky = (world.sky + world.speed * BACKDROP_SHARE * dt) % (SCENE_W * 2000)
 	world.ground = (world.ground + world.speed * dt) % (TILE_W * 1000)
 	drawBackdrop()
 	drawGround()

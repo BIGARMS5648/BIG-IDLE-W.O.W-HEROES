@@ -68,7 +68,7 @@ Build a party of five heroes, send them along a route through the original game'
 - Druids fight in **bear, cat or moonkin form**. You can turn forms off.
 - Skills and boss abilities play **the original spells' visual effects**: casts, missiles and impacts.
 - **Moving scenery:**
-  - Each place has its own backdrop picture that drifts slowly and scrolls faster while the party walks.
+  - Each place has its own backdrop picture that scrolls by while the party walks between waves.
   - The ground is the zone's real terrain texture (Elwynn grass, Durotar red dirt, Dun Morogh snow, or a dungeon's own floor) and rolls by under the heroes' feet.
   - Outdoors, the zone's own trees, bushes and rocks pass in three parallax rows. Inside dungeons you see the dungeon's own props instead: Scholomance bookshelves and cauldrons, Blackrock Depths statues and anvils, Blackwing Lair dragon eggs.
 - Melee summons walk beside their summoner and charge in with the melee heroes when a fight starts. Ranged summons stay beside their summoner. Your companion follows at the back.
@@ -138,7 +138,7 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 ```
 - Renamed to BIG IDLE HEROES (folder BigIdleHeroes). The command is now /bih, and chat messages start with [B.I.H].
 - The menu window's title is crisp again (the header shading no longer covers it).
-- Moving battle scenery: the backdrop picture scrolls endlessly, and the zone's own ground texture rolls by under the heroes while they walk.
+- Moving battle scenery: while the party walks between waves, the backdrop picture scrolls and the zone's own ground texture rolls by under the heroes; during fights it all stands still.
 - Melee summons walk beside their summoner and join the melee heroes at the front when a fight starts.
 - Dungeon interiors are filled with the dungeon's own props (shelves, statues, braziers, eggs and more).
 - Battle backdrops are real in-game scenery of each place.

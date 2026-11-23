@@ -391,11 +391,7 @@ function UI.Tabs(parent, w, items, onSelect, _, h)
 		b.lock.isBadge = true -- sits on its owner's edge on purpose
 		b.lock:SetFrameLevel(b:GetFrameLevel() + 6)
 		b.lock:SetPoint("CENTER", b, "TOP", 0, 0)
-		b.lock.disc = UI.Art(b.lock, "circle", "ARTWORK", 0.10, 0.11, 0.16)
-		b.lock.disc:SetAllPoints(b.lock)
-		b.lock.ring = UI.Art(b.lock, "ring", "OVERLAY", 0.9, 0.78, 0.5)
-		b.lock.ring:SetAllPoints(b.lock)
-		b.lock.glyph = UI.Glyph(b.lock, "lock", 10, 0.95, 0.82, 0.5)
+		b.lock.glyph = UI.Glyph(b.lock, "lock", 14, 0.95, 0.82, 0.5)
 		b.lock.glyph:SetPoint("CENTER", b.lock, "CENTER", 0, 0)
 		b.lock:Hide()
 		row.buttons[i] = b

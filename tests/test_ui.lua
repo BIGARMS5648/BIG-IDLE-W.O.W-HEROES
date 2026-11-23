@@ -1214,16 +1214,17 @@ do
 			local cd, ci = ns.db.stage.diff, ns.db.stage.idx
 			if st.phase ~= "idle" and st.diff then cd, ci = st.diff, st.idx end
 			if ground and ground:GetTexture() ~= ns.GroundFile(cd, ci) then fail("the ground should be the stage's own: " .. tostring(ground:GetTexture())) end
-			-- standing (fighting): the scenery and ground stand still, the backdrop drifts
+			-- fighting: everything stands still, the backdrop too
 			st.phase = "fight"
 			for _ = 1, 30 do ns.Bar.DrawScenery() end -- (the walk slows to a stop)
 			local off, g0, s0 = sc.rows[3].off, ns.Bar.world.ground, ns.Bar.world.sky
 			ns.Bar.DrawScenery()
 			if sc.rows[3].off ~= off or ns.Bar.world.ground ~= g0 then fail("scenery and ground should stand still while the party fights") end
-			if not (ns.Bar.world.sky > s0) then fail("the backdrop should drift slowly even while the party fights") end
+			if ns.Bar.world.sky ~= s0 then fail("the backdrop should stand still while the party fights") end
 			st.phase = "travel"
 			for _ = 1, 10 do ns.Bar.DrawScenery() end
 			if not (ns.Bar.world.ground > g0 + 20) then fail("the ground should go by while the party walks: " .. (ns.Bar.world.ground - g0)) end
+			if not (ns.Bar.world.sky > s0) then fail("the backdrop should go by while the party walks") end
 			-- the backdrop is two pieces covering the scene: the picture and its mirror image
 			local w1 = sky:IsShown() and sky:GetWidth() or 0
 			local w2 = sky2:IsShown() and sky2:GetWidth() or 0
