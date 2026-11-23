@@ -965,7 +965,8 @@ do
 			for _, hs in ipairs(ns.Bar.hits) do
 				if not hit and hs.active and hs.fig:IsShown() and hitFiles[hs.fig.actor.__display] then
 					local t = hs.tfig
-					hit = { scale = hs.fig.actor.__scale or 0, height = hs.fig.height, want = 0.5 * (t.norm or 0.5) * (t.corrScale or 1), tall = t.height }
+					hit = { scale = hs.fig.actor.__scale or 0, height = hs.fig.height, want = 0.5 * (t.norm or 0.5) * (t.corrScale or 1), tall = t.height,
+						clip = hs.clip, clipW = hs.clip and hs.clip:GetWidth() }
 				end
 			end
 			if sawMissile and hit and #Mock.kits >= 4 then break end
@@ -984,12 +985,45 @@ do
 		if not hit then
 			fail("a skill's hit should show the spell's impact model on the target")
 		else
-			if math.abs(hit.scale - hit.want) > 1e-6 then
-				fail(string.format("a hit should be at half the target's scale (%.3f, want %.3f)", hit.scale, hit.want))
+			if hit.scale > hit.want + 1e-6 or hit.scale <= 0 then
+				fail(string.format("a hit should be at most half the target's scale (%.3f, at most %.3f)", hit.scale, hit.want))
 			end
 			if math.abs(hit.height - hit.tall) > 1e-6 then fail("a hit's figure should be as tall as its target's") end
+			-- drawn only inside a box about the target's size
+			if not (hit.clip and hit.clip.__clips) or math.abs(hit.clipW - 1.3 * hit.tall) > 1e-6 then
+				fail("a hit should be clipped to a box around its target: " .. tostring(hit.clipW))
+			end
 		end
 		if #Mock.misuse > 0 then fail("effect calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end
+		-- a wide effect (a ring many times the target's size) is made no
+		-- wider than the target is tall
+		do
+			local wide = ns.MobFx("aoe", "fire")
+			Mock.boxes["file:" .. wide.hit] = { -6, -6, 0, 6, 6, 1 }
+			local target = ns.Combat.heroes[1]
+			local boss0
+			for _, m in ipairs(ns.Combat.mobs) do if not m.dead then boss0 = m break end end
+			if boss0 and target then
+				ns.Combat.VFX({ k = "mob", u = boss0, kind = "aoe", school = "fire", to = { target } })
+				local big
+				for _ = 1, 30 do
+					frames(1)
+					for _, hs in ipairs(ns.Bar.hits) do
+						if hs.active and hs.fig:IsShown() and hs.fig.actor.__display == "file:" .. wide.hit and hs.tfig ~= nil then big = big or hs end
+					end
+				end
+				if big then
+					local tf = big.tfig
+					local ts = tf.fixedScale or (tf.norm or 0.5) * (tf.corrScale or 1)
+					local across = 12 * (big.fig.actor.__scale or 0)
+					local tall = (tf.box[6] - tf.box[3]) * ts
+					if across > tall * 1.0 + 1e-6 then fail(string.format("a wide effect should be no wider than its model is tall (%.2f > %.2f)", across, tall)) end
+				else
+					fail("a boss's fire nova should show its ring")
+				end
+			end
+			Mock.boxes["file:" .. wide.hit] = nil
+		end
 		-- a boss ability is a classic spell: its name shows, its cast plays
 		-- on the boss and its hit on whom it reaches
 		local boss
