@@ -11,6 +11,11 @@ ns.Bar = Bar
 local W = 720
 local SCENE_W, SCENE_H = 704, 112
 local DOCK_H = 54
+-- the 추천 box: its width, where its text starts (after the star) and how
+-- wide the text runs (clear of the » on its right); a longer one takes two
+-- lines
+local GOAL_W, GOAL_TEXT_X = 218, 40
+local GOAL_TEXT_W = GOAL_W - GOAL_TEXT_X - 26
 local UNIT, BOSS = 34, 44
 local MOB = 30
 local FEET = 9        -- unit bottom above the scene's bottom edge (the health bars just fit under it)
@@ -936,6 +941,7 @@ end
 Bar.missiles, Bar.hits, Bar.fxStats, Bar.FX_ROOM = missiles, hits, fxStats, FX_ROOM
 function Bar.Scene() return frame and frame.scene end
 Bar.FIG = { hero = HERO_FIG, mob = MOB_FIG, back = BACK_FIG, pet = PET_FIG, scale = FIG_SCALE }
+Bar.GOAL = { w = GOAL_W, textX = GOAL_TEXT_X, textW = GOAL_TEXT_W }
 function Bar.Summons() return frame and frame.summons, frame and frame.petModel end
 
 ------------------------------------------------------------------------
@@ -1490,7 +1496,7 @@ function Bar.Create()
 	frame.dock = dock
 
 	local goal = CreateFrame("Button", nil, dock)
-	goal:SetSize(218, 46)
+	goal:SetSize(GOAL_W, 46)
 	goal:SetPoint("LEFT", dock, "LEFT", 0, 0)
 	goal.bg = UI.Slice(goal, "card", "BACKGROUND")
 	goal.bg:SetColor(1, 1, 1, 1)
@@ -1504,16 +1510,16 @@ function Bar.Create()
 	UI.Color(goal.head, UI.C.gold)
 	goal.text = UI.Text(goal, 11)
 	goal.text:SetPoint("TOPLEFT", goal.head, "BOTTOMLEFT", 0, -2)
-	goal.text:SetWidth(200)
+	goal.text:SetWidth(GOAL_TEXT_W)
 	goal.text:SetJustifyV("TOP")
 	if goal.text.SetMaxLines then goal.text:SetMaxLines(2) end
 	-- the heading and the goal (one or two lines) sit in the middle of the box
 	function goal:Center()
-		local lines = (self.text:GetStringWidth() > 198) and 2 or 1
+		local lines = (self.text:GetStringWidth() > GOAL_TEXT_W - 2) and 2 or 1
 		self.text:SetHeight(lines * 13 + 1)
 		local h = 12 + 2 + lines * 13 + 1
 		self.head:ClearAllPoints()
-		self.head:SetPoint("TOPLEFT", self, "TOPLEFT", 40, -math.floor((46 - h) / 2))
+		self.head:SetPoint("TOPLEFT", self, "TOPLEFT", GOAL_TEXT_X, -math.floor((46 - h) / 2))
 	end
 	goal.arrow = UI.Glyph(goal, "arrow", 14, 0.7, 0.75, 0.9)
 	goal.arrow:SetPoint("RIGHT", goal, "RIGHT", -8, 0)

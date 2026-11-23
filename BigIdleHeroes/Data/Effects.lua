@@ -184,7 +184,7 @@ ns.SKILL_FX = {
 	hurricane              = { spell = 17402, cast = 5669, hit = 165768, low = true }, -- 허리케인 · calllightning_impact.m2
 	insect_swarm           = { spell = 24977, cast = 37, hit = 166602, low = true }, -- 곤충 떼 · nature_cast_hand.m2
 	shred                  = { spell = 9830, self = 166550, hit = 165737 }, -- 칼날 발톱 · bloodyexplosion.m2
-	rake                   = { spell = 9904, self = 166679, hit = 165737 }, -- 갈퀴 발톱 · bloodyexplosion.m2
+	rake                   = { spell = 9904, self = 166679, selfLow = true, hit = 165737 }, -- 갈퀴 발톱 · bloodyexplosion.m2
 	ferocious_bite         = { spell = 31018, cast = 5891, self = 166068, hit = 165737 }, -- 흉포한 이빨 · feint_impact_chest.m2 (the bite, at the cat's head) · bloodyexplosion.m2
 	leader_of_pack         = { spell = 24932 }, -- 무리의 우두머리
 	tigers_fury            = { spell = 9846, self = 165672, hit = 165673 }, -- 맹공격 · beastragestate.m2

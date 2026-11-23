@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.0.5
+BIG IDLE HEROES v1.0.6
 ```
 
 ---
@@ -135,10 +135,10 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.0.5)
+## Changelog for this release (v1.0.6)
 
 ```
-- The cat's attacks and its own buffs (shred, rake, ferocious bite, tiger's fury) show in front of its head.
-- The rune suggestion shows only the rune's name, so it fits its button.
-- The Scarlet Monastery armory has the monastery's plain stone floor.
+- The suggestion box keeps its text inside: a long suggestion wraps to a second line instead of running under the arrow and past the edge.
+- Every rune suggestion shows only "룬 배우기: <rune>", without the gold amount.
+- The cat's rake is low again, by its paws, in front of its head.
 ```

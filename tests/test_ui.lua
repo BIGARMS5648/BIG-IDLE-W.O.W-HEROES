@@ -907,6 +907,47 @@ do
 		Main.Toggle(false)
 		try("goal", bar.goal.Click, bar.goal, "LeftButton")
 		if not (Main.IsShown() and Main.Current() == "hero") then fail("the goal button should open the hero screen for talent points") end
+		-- every goal fits its box: the text stops clear of the » on the right
+		-- and runs to two lines at most (no gold amount after a rune's name)
+		do
+			local G = ns.Bar.GOAL
+			local gt = bar.goal.text
+			if G.textX + G.textW > G.w - 8 - 14 then fail("the goal's text should stop before the » on the right of its box") end
+			if math.abs((gt.__w or 0) - G.textW) > 1e-6 then fail("the goal's text should be as wide as the box leaves it: " .. tostring(gt.__w)) end
+			local texts = {}
+			for _, g in ipairs(ns.Guide.Candidates()) do texts[#texts + 1] = g.text end
+			-- each forge unlock (as the guide words it), with the others done
+			local unlocked, useful, lv = ns.Forge.Unlocked, ns.Guide.UnlockUseful, ns.db.forge.level
+			ns.db.forge.level = 99
+			ns.Guide.UnlockUseful = function() return true end
+			for _, op in ipairs(ns.FORGE_OPS) do
+				ns.Forge.Unlocked = function(k) return k ~= op.key end
+				for _, g in ipairs(ns.Guide.Candidates()) do texts[#texts + 1] = g.text end
+			end
+			ns.Forge.Unlocked, ns.Guide.UnlockUseful, ns.db.forge.level = unlocked, useful, lv
+			-- the rune goals, with every rune's name; the place goals, with every
+			-- stage's and raid boss's
+			for id, r in pairs(ns.Runes.byId) do texts[#texts + 1] = "룬 배우기: " .. ns.N(r.name) end
+			for d = 1, #ns.STAGE_SCENERY do
+				for i = 1, 30 do
+					local stg = ns.Stage(d, i)
+					if stg then
+						texts[#texts + 1] = "지금 지역 공략 중: " .. ns.N(stg.name)
+						if stg.boss then texts[#texts + 1] = "공격대 우두머리 처치: " .. ns.N(stg.boss.name) end
+					end
+				end
+			end
+			local was = gt:GetText()
+			local worst, worstW = nil, 0
+			for _, t in ipairs(texts) do
+				if t:find("룬 배우기") and t:find(" G") then fail("a rune goal should name the rune only: " .. t) end
+				gt:SetText(t)
+				local w = gt:GetStringWidth()
+				if w > worstW then worst, worstW = t, w end
+			end
+			if worstW > 2 * G.textW then fail(string.format("every goal should fit two lines of its box: '%s' (%.0f > %.0f)", worst, worstW, 2 * G.textW)) end
+			gt:SetText(was)
+		end
 		ns.db.ui.locked = false
 		try("grip down", bar.grip.__scripts.OnMouseDown, bar.grip, "LeftButton")
 		try("grip move", bar.grip.__scripts.OnUpdate, bar.grip, 0.1)
@@ -1261,11 +1302,11 @@ do
 				fail("the beast check should have a warrior, another hero and a monster")
 			end
 			-- every attack the cat makes shows on the cat itself (in front of
-			-- its head), at its head's height
+			-- its head): at its head's height, rake low by its paws
 			for _, sid in ipairs({ "shred", "rake", "ferocious_bite", "tigers_fury" }) do
 				local e = ns.SKILL_FX[sid]
 				if not (e and e.self) then fail("the cat's " .. sid .. " should show on the cat") end
-				if e and e.selfLow then fail("the cat's " .. sid .. " should be at its head's height") end
+				if e and (e.selfLow and true or false) ~= (sid == "rake") then fail("the cat's " .. sid .. " is at the wrong height") end
 			end
 		end
 		-- a boss ability is a classic spell: its name shows, its cast plays

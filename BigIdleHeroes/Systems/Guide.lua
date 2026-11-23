@@ -169,17 +169,10 @@ local function candidates()
 	end
 	local cmd = nextCommandRune()
 	if cmd and limit < ns.PARTY_SIZE then
-		local step, total = ns.Runes.NextStepTo(cmd.id)
+		local step = ns.Runes.NextStepTo(cmd.id)
 		if step then
 			local cost = ns.Runes.NextCost(step)
-			local text
-			if step == cmd.id then
-				text = string.format("%s: 파티 %d명으로 (%s G)", ns.N(cmd.name), limit + 1, ns.U.fmt(cost))
-			else
-				text = string.format("파티 %d명까지: 먼저 %s (%s G, 모두 %s G)", limit + 1,
-					ns.N(ns.Runes.byId[step].name), ns.U.fmt(cost), ns.U.fmt(total))
-			end
-			add({ text = text, tab = "runes", rune = step, wait = not ns.CanAfford(cost) })
+			add({ text = "룬 배우기: " .. ns.N(ns.Runes.byId[step].name), tab = "runes", rune = step, wait = not ns.CanAfford(cost) })
 		end
 	end
 	for _, op in ipairs(ns.FORGE_OPS) do
@@ -209,6 +202,7 @@ local function candidates()
 	end
 	return out
 end
+Guide.Candidates = candidates -- every goal there is now, best first (the checks read their texts)
 
 local function compute()
 	local list = candidates()
