@@ -14,7 +14,7 @@ local DOCK_H = 54
 local UNIT, BOSS = 34, 44
 local MOB = 30
 local FEET = 9        -- unit bottom above the scene's bottom edge (the health bars just fit under it)
-local BACK_FIG, PET_FIG = 34, 24 -- summons and the companion, behind the party
+local BACK_FIG, PET_FIG = 34, 24 -- summons (by the front or their summoner) and the companion (at the back)
 local MAX_MOBS = 12
 local MAX_FLOATS = 28
 local MAX_PIPS = 10
@@ -321,20 +321,18 @@ local function drawHeroes(now)
 			f.shownId = nil
 		end
 	end
-	-- behind the party: the heroes' summons, then the companion, small and
-	-- in a row from the hindmost hero back, so none stands on a hero
-	local minX = backX and (laneX(backX) - UNIT / 2)
+	-- the party's front and back (where the heroes are drawn)
+	local minX, maxX = backX and (laneX(backX) - UNIT / 2), nil
 	for i = 1, #list do
 		local x = heroFrames[i].drawX or spread[i]
 		if x and (not minX or x < minX) then minX = x end
+		if x and not list[i].dead and (not maxX or x > maxX) then maxX = x end
 	end
-	local backSlot = 0
-	local function behind(w)
-		backSlot = backSlot + 1
-		return max(w / 2 + 2, (minX or 0) + UNIT / 2 - 26 - (backSlot - 1) * 24)
-	end
-	-- summoned creatures (only as 3D models)
-	local k = 0
+	-- summoned creatures (only as 3D models): one that fights up close stands
+	-- at the front by the monsters, as the melee heroes do; one that shoots
+	-- stands beside its summoner
+	local k, front, beside = 0, 0, {}
+	local phase = ns.Combat.state.phase
 	for i = 1, #list do
 		local u = list[i]
 		if not u.dead and spread[i] then
@@ -344,8 +342,18 @@ local function drawHeroes(now)
 					k = k + 1
 					local sp = pickFigure(frame.summons[k], mid)
 					if sp then
-						animate(sp, (pt.anim or 0) > 0 and "attack" or "idle")
-						sp:PlaceFeet(frame.scene, behind(BACK_FIG), FEET + 2)
+						local x
+						if ns.SKILLS[sid].ranged then
+							beside[i] = (beside[i] or 0) + 1
+							x = (heroFrames[i].drawX or spread[i]) + UNIT / 2 - 18 - (beside[i] - 1) * 18
+						else
+							front = front + 1
+							x = (maxX or spread[i]) + UNIT / 2 + 22 + (front - 1) * 16
+						end
+						local want = (pt.anim or 0) > 0 and "attack" or (phase == "travel" and "walk" or "idle")
+						animate(sp, want)
+						sp:SetFacing("right")
+						sp:PlaceFeet(frame.scene, x, FEET + 2)
 						sp:Show()
 					end
 				end
@@ -354,6 +362,10 @@ local function drawHeroes(now)
 	end
 	for i = k + 1, #frame.summons do
 		if frame.summons[i] then frame.summons[i]:Hide() end
+	end
+	-- the companion: the very back, behind the whole party
+	local function behind(w)
+		return max(w / 2 + 2, (minX or 0) + UNIT / 2 - 44)
 	end
 	-- the companion, last
 	local pet = ns.db.pet and ns.PET_BY_ID[ns.db.pet]
@@ -800,6 +812,7 @@ local function drawEffects()
 	end
 end
 Bar.missiles, Bar.hits, Bar.fxStats = missiles, hits, fxStats
+function Bar.Summons() return frame and frame.summons, frame and frame.petModel end
 
 local function onUpdate(self, elapsed)
 	local now = GetTime()

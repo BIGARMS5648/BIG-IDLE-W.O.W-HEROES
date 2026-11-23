@@ -1067,6 +1067,34 @@ do
 			end
 		end
 	end
+	-- a melee summon (the hunter's pet) fights at the front, by the monsters;
+	-- the companion stands behind the whole party
+	do
+		local u = ns.Combat.heroes[4]
+		local petId = ns.PETS[1] and ns.PETS[1].id
+		ns.db.pets[petId] = ns.db.pets[petId] or true
+		local wasPet = ns.db.pet
+		ns.db.pet = petId
+		u.pets = { call_pet = { sk = ns.SKILLS.call_pet, mult = 0.5, t = 1, anim = 0 } }
+		frames(3)
+		local summons, petFig = ns.Bar.Summons()
+		local front, back
+		for i, f in ipairs(heroes) do
+			if f:IsShown() and f.drawX then
+				front = front and math.max(front, f.drawX) or f.drawX
+				back = back and math.min(back, f.drawX) or f.drawX
+			end
+		end
+		local s1 = summons[1]
+		if not (s1 and s1:IsShown() and s1.anchorX and front and s1.anchorX > front + 17 + 10) then
+			fail("a melee summon should stand at the front, by the monsters: " .. tostring(s1 and s1.anchorX) .. " / " .. tostring(front))
+		end
+		if petFig and petFig:IsShown() and back and not (petFig.anchorX < back) then
+			fail("the companion should stand behind the whole party: " .. tostring(petFig.anchorX) .. " / " .. tostring(back))
+		end
+		u.pets = {}
+		ns.db.pet = wasPet
+	end
 	-- an attack plays the attack animation
 	local anims = {}
 	for _ = 1, 400 do -- until the party has met the monsters and fought a while
