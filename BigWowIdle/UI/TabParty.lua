@@ -316,16 +316,6 @@ local function buildCreate()
 		b.label = UI.Text(b, 13, ns.N(cls.name))
 		b.label:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
 		b.label:SetTextColor(U.rgb(cls.hex))
-		b.roles = {}
-		local roles = classRoles(cid)
-		local x = -6
-		for _, role in ipairs({ "HEALER", "DPS", "TANK" }) do
-			if roles[role] then
-				local g = UI.Glyph(b, ns.ROLE[role].art, 14, U.rgb(ns.ROLE[role].hex))
-				g:SetPoint("RIGHT", b, "RIGHT", x, 0)
-				x = x - 16
-			end
-		end
 		-- "추천" goes under the name (beside it, a long name would run into it)
 		b.rec = UI.Text(b, 10, "추천")
 		b.rec:SetPoint("TOPLEFT", b, "TOPLEFT", 43, -21)
@@ -810,8 +800,6 @@ local function buildBench(page, i)
 	c.power:SetPoint("TOPLEFT", c, "TOPLEFT", 62, -41)
 	c.power:SetWidth(BENCH_W - 72)
 	c.power:SetWordWrap(false)
-	c.role = UI.Glyph(c, "role_tank", 16)
-	c.role:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, -8)
 	c:RegisterForClicks("LeftButtonUp")
 	c:SetScript("OnClick", function(self)
 		if not self.heroId then return end
@@ -930,7 +918,6 @@ local function refresh(page)
 			c.name:SetText(U.col("ffd27a", H.ShortName(id)))
 			c.info:SetText(string.format("Lv %d %s", h.level, ns.SpecLabel(h.spec)))
 			c.power:SetText("전투력 " .. U.col("ffd24a", U.fmt(H.PowerScore(id))))
-			UI.SetGlyph(c.role, ns.ROLE[sp.role].art, U.rgb(ns.ROLE[sp.role].hex))
 			c:Show()
 		else
 			c:Hide()

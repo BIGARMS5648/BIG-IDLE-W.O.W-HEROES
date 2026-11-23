@@ -1116,14 +1116,17 @@ do
 	do
 		local sc, units = ns.Bar.Scenery()
 		local st = ns.Combat.state
-		local diff, idx = ns.db.stage.diff, ns.db.stage.idx
-		if st.phase ~= "idle" and st.diff then diff, idx = st.diff, st.idx end
-		local set = ns.SceneryFor(diff, idx)
+		-- (the stage the run is on may be seen from inside: an outdoor one)
+		local sceneryFor = ns.SceneryFor
+		ns.SceneryFor = function() return ns.SCENERY.elwynn end
+		ns.db.opt.scenery = true -- (the settings check may have been clicked off)
+		local set = ns.SCENERY.elwynn
 		if not (sc and set and units) then fail("the battle should have the stage's scenery") else
 			for _, f in ipairs(set.far) do Mock.boxes["file:" .. f] = { -3, -3, 0, 3, 3, 10 } end
-			local tooBig = set.near[1]
-			Mock.boxes["file:" .. tooBig] = { -1, -1, 0, 1, 1, 20 }
-			sc.set = nil -- put up again with the boxes above
+			-- every near model made too big for the near row: none of them stands there
+			for _, f in ipairs(set.near) do Mock.boxes["file:" .. f] = { -1, -1, 0, 1, 1, 20 } end
+			sc.set, sc.bad = nil, {} -- put up again with the boxes above (loaded again, measured again)
+			for _, row in ipairs(sc.rows) do for _, it in ipairs(row.items) do it.fig.id = nil end end
 			frames(4)
 			if heroes[1]:GetParent() ~= units then fail("the fighters should be on the layer above the scenery") end
 			local shown = 0
@@ -1137,7 +1140,7 @@ do
 						local ok = false
 						for _, f in ipairs(set[def.key]) do if f == it.file then ok = true end end
 						if not ok then fail("a scenery model should be one of its place's: " .. tostring(it.file)) end
-						if def.key == "near" and it.file == tooBig and it.sized then fail("a model too big for its row should be swapped") end
+						if def.key == "near" and it.sized then fail("a model too big for its row should be swapped") end
 						if it.sized then
 							local b = fig.box
 							local drawn = fig.height * (b[6] - b[3]) * fig.norm
@@ -1148,8 +1151,10 @@ do
 					end
 				end
 			end
-			if shown < 8 then fail("most scenery spots should hold a model: " .. shown) end
-			if not (sc.bad.near and sc.bad.near[tooBig]) then fail("a model too big for its row should be noted") end
+			if shown < 6 then
+				fail("most scenery spots should hold a model: " .. shown)
+			end
+			if not (sc.bad.near and next(sc.bad.near)) then fail("a model too big for its row should be noted") end
 			-- walking on: the near row goes by fastest, the far one slowest
 			local was = st.phase
 			local x0 = {}
@@ -1182,9 +1187,36 @@ do
 			end
 			ns.db.opt.scenery = true
 			frames(1)
+			-- a wall or a cliff (much longer than tall) does not stand in a row
+			for _, f in ipairs(set.mid) do Mock.boxes["file:" .. f] = { -6, -1, 0, 6, 1, 2 } end
+			sc.set = nil
+			for _, row in ipairs(sc.rows) do for _, it in ipairs(row.items) do it.fig.id = nil end end
+			frames(6)
+			local wideUp = false
+			for _, it in ipairs(sc.rows[2].items) do if it.fig:IsShown() and it.sized then wideUp = true end end
+			if wideUp or not (sc.bad.mid and next(sc.bad.mid)) then fail("a model much longer than tall should not stand in the scenery") end
+			-- a place seen from inside: no scenery at all
+			ns.SceneryFor = function() return nil end
+			frames(2)
+			for _, row in ipairs(sc.rows) do
+				for _, i2 in ipairs(row.items) do if i2.fig:IsShown() then fail("an inside place should show no scenery") break end end
+			end
 			for _, f in ipairs(set.far) do Mock.boxes["file:" .. f] = nil end
-			Mock.boxes["file:" .. tooBig] = nil
+			for _, f in ipairs(set.near) do Mock.boxes["file:" .. f] = nil end
+			for _, f in ipairs(set.mid) do Mock.boxes["file:" .. f] = nil end
+			sc.bad = {}
 		end
+		ns.SceneryFor = sceneryFor
+		frames(1)
+	end
+	-- every model scene clears its own depth, so the fighters (on the layer
+	-- above) are always drawn over the scenery
+	do
+		local sc = ns.Bar.Scenery()
+		local fig = sc and sc.rows[1].items[1].fig
+		if fig and fig.GetAllowOverlappedModels and not fig:GetAllowOverlappedModels() then fail("scenery scenes should clear their own depth") end
+		local hf = heroes[1].model
+		if hf and hf.GetAllowOverlappedModels and not hf:GetAllowOverlappedModels() then fail("hero scenes should clear their own depth") end
 	end
 	-- an attack plays the attack animation
 	local anims = {}

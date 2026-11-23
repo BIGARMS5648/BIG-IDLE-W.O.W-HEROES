@@ -463,6 +463,8 @@ function ModelScene:SetCameraFarClip(v) strict(type(v) == "number" and v > 0, "S
 function ModelScene:SetLightVisible(v) strict(type(v) == "boolean", "SetLightVisible: boolean expected") end
 function ModelScene:SetLightType(v) strict(type(v) == "number", "SetLightType: number expected") end
 function ModelScene:SetLightDirection(x, y, z) strict(nums(3, x, y, z), "SetLightDirection: x, y, z expected") end
+function ModelScene:SetAllowOverlappedModels(v) strict(type(v) == "boolean", "SetAllowOverlappedModels: boolean expected") self.__overlap = v end
+function ModelScene:GetAllowOverlappedModels() return self.__overlap or false end
 function ModelScene:SetLightAmbientColor(r, g, b) strict(nums(3, r, g, b), "SetLightAmbientColor: r, g, b expected") end
 function ModelScene:SetLightDiffuseColor(r, g, b) strict(nums(3, r, g, b), "SetLightDiffuseColor: r, g, b expected") end
 -- The game's projection: a camera with the field of view it was given that

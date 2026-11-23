@@ -827,11 +827,13 @@ function Bar.Summons() return frame and frame.summons, frame and frame.petModel 
 local SCENERY_ROWS = {
 	-- y: ground of the row; k: pixels per yard of the model's height, within
 	-- lo..hi; minH/maxH: the heights (yards) a model of the row may have;
-	-- shade: its light; speed: share of the walk
-	{ key = "far",  n = 4, y = 34, k = 7,  lo = 48, hi = 92, minH = 3,   maxH = 80, shade = 0.5,  speed = 0.3, level = 1 },
-	{ key = "mid",  n = 4, y = 22, k = 9,  lo = 26, hi = 68, minH = 1.2, maxH = 60, shade = 0.72, speed = 0.6, level = 2 },
-	{ key = "near", n = 5, y = 10, k = 14, lo = 10, hi = 30, minH = 0.2, maxH = 6,  shade = 0.9,  speed = 1.0, level = 3 },
+	-- shade: its light; speed: share of the walk; phase: where its first
+	-- model stands (in steps), so the rows' models do not stand in line
+	{ key = "far",  n = 4, y = 42, k = 5, lo = 36, hi = 62, minH = 4,   maxH = 80, shade = 0.55, speed = 0.3, phase = 0.15, level = 1 },
+	{ key = "mid",  n = 3, y = 27, k = 6, lo = 20, hi = 40, minH = 1.2, maxH = 25, shade = 0.75, speed = 0.6, phase = 0.55, level = 2 },
+	{ key = "near", n = 4, y = 12, k = 9, lo = 8,  hi = 20, minH = 0.2, maxH = 5,  shade = 0.9,  speed = 1.0, phase = 0.85, level = 3 },
 }
+local SCENERY_WIDE = 2.4 -- a model this many times as long as it is tall (a wall, a cliff) does not stand in a row
 Bar.SCENERY_ROWS = SCENERY_ROWS
 local WALK_PX = 90             -- how fast the ground goes by while the party walks (pixels a second)
 local SPAN_PAD = 90            -- room past each side of the scene where a model turns round
@@ -846,9 +848,9 @@ function newScenery(scene)
 			local fig = Figure.New(scene, def.hi)
 			if fig then
 				fig:SetFrameLevel(lv + def.level)
-				-- spread evenly, a little off the even step, each row shifted
+				-- evenly spread, each row shifted by its phase, a little off the step
 				local step = SPAN / def.n
-				row.items[i] = { fig = fig, x = (i - 1) * step + step * (0.15 + 0.5 * ((i * 7 + r * 3) % 5) / 5), lap = nil }
+				row.items[i] = { fig = fig, x = (i - 1 + def.phase) * step + step * 0.08 * (((i * 7 + r * 3) % 5) - 2) / 2, lap = nil }
 			end
 		end
 		sc.rows[r] = row
@@ -899,7 +901,8 @@ local function sizeScenery(sc, row, it)
 	local fig, def = it.fig, row.def
 	local b = fig.box
 	local H = b and (b[6] - b[3]) or nil
-	if H and (H < def.minH or H > def.maxH) then
+	local long = b and max(math.abs(b[4] - b[1]), math.abs(b[5] - b[2])) or 0
+	if H and (H < def.minH or H > def.maxH or long > H * SCENERY_WIDE) then
 		sc.bad[def.key] = sc.bad[def.key] or {}
 		sc.bad[def.key][it.file] = true
 		setSceneryModel(sc, row, it, it.file)

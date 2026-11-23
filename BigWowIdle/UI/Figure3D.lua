@@ -645,6 +645,11 @@ local function newScene(parent, height)
 	f.actor = actor
 	f.kind = "scene"
 	f.FrameAlpha = f.SetAlpha
+	-- the game shares one depth buffer between all model scenes, so a model
+	-- that is nearer its own camera would show through another scene drawn
+	-- above it; each scene clears its own area instead, and the frame level
+	-- alone says what is in front (fighters over the scenery behind them)
+	call(f, "SetAllowOverlappedModels", true)
 	dress(f, scene)
 	setCamera(f)
 	scenes[f] = true
