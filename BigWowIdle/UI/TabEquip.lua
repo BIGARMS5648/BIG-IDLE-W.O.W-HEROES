@@ -4,7 +4,7 @@
 --         slots under it, and [자동 장착] [파티 자동 장착] [전체 해제] at the
 --         bottom. A slot: click = the bag shows that slot's items,
 --         right-click = 해제.
---   right: tabs 가방 · 융합 · 제작 · 보석 · 마법부여 · 각인 · 재료
+--   right: tabs 가방 · 융합 · 제작 · 보석 · 마법부여 · 룬 각인 · 재료
 --          (UI/TabBag.lua and UI/TabForge.lua); the forge level under all of
 --          them. Forge functions used inside a tab (분해, 추출, 굴리기) are
 --          unlocked on the button that uses them.
@@ -27,11 +27,15 @@ local CX = 70
 local CW = LEFT_W - 2 * CX -- the summary between the slot columns
 local PORTRAIT, PORTRAIT_GAP = 30, 4 -- the hero picker: two rows at the top
 local SLOT_Y = -8 - 2 * PORTRAIT - PORTRAIT_GAP - 15 -- first slot row, under the picker
-local DY = 18 -- the summary starts this far under its rows' base (the name sits beside the picker)
+-- the summary between the slot columns, top to bottom: the hero's name and
+-- level over the numbers, the numbers, the usable weapons and their slots
+local NAME_Y, SPEC_Y = -84, -104
+local TOP_Y, STAT_HEAD_Y, STAT_Y = -124, -186, -210
+local WEAPON_HEAD_Y, WEAPON_TEXT_Y, WEAPON_SLOT_Y, HINT_Y = -330, -346, -380, -434
 
 local TABS = {
 	{ "bag", "가방" }, { "fuse", "융합" }, { "craft", "제작" }, { "gem", "보석" },
-	{ "ench", "마법부여" }, { "insc", "각인" }, { "mats", "재료" }, { "bank", "창고" },
+	{ "ench", "마법부여" }, { "insc", "룬 각인" }, { "mats", "재료" }, { "bank", "창고" },
 }
 local FORGE_TAB = { fuse = true, craft = true, gem = true, ench = true, insc = true }
 
@@ -65,8 +69,7 @@ local function buildLeft(page)
 	local lp = UI.Panel(page, LEFT_W, K.H, "inset")
 	lp:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
 	page.left = lp
-	-- every hero in two rows; the chosen one wears a gold ring and its name
-	-- stands to the right
+	-- every hero in two rows; the chosen one wears a gold ring
 	page.strip = UI.HeroStrip(lp, ns.ROSTER_MAX, PORTRAIT, PORTRAIT_GAP, function(id)
 		Main.SelectHero(id)
 		Main.Refresh()
@@ -112,21 +115,17 @@ local function buildLeft(page)
 	for i, slot in ipairs(LEFT_COL) do slotButton(slot, 12, SLOT_Y - (i - 1) * 60) end
 	for i, slot in ipairs(RIGHT_COL) do slotButton(slot, LEFT_W - 12 - SLOT, SLOT_Y - (i - 1) * 60) end
 	-- the weapons right under "착용 가능 무기"
-	for i, slot in ipairs(WEAPONS) do slotButton(slot, LEFT_W / 2 - SLOT - 6 + (i - 1) * (SLOT + 12), -340 - DY) end
+	for i, slot in ipairs(WEAPONS) do slotButton(slot, LEFT_W / 2 - SLOT - 6 + (i - 1) * (SLOT + 12), WEAPON_SLOT_Y) end
 
-	-- the summary
-	local nameX = 12 + page.strip:GetWidth() + 10
-	local nameW = LEFT_W - 12 - nameX
-	-- the full name: the given name over the surname
+	-- the summary: the full name on one line and the level over the numbers
 	page.name = UI.Text(lp, 14)
-	page.name:SetPoint("TOPLEFT", lp, "TOPLEFT", nameX, -12)
-	page.name:SetWidth(nameW)
-	page.name:SetWordWrap(true)
-	if page.name.SetMaxLines then page.name:SetMaxLines(2) end
-	page.nameW = nameW
+	page.name:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, NAME_Y)
+	page.name:SetWidth(CW)
+	page.name:SetWordWrap(false)
+	page.nameW = CW
 	page.spec = UI.Text(lp, 11)
-	page.spec:SetPoint("TOPLEFT", page.name, "BOTTOMLEFT", 0, -4)
-	page.spec:SetWidth(nameW)
+	page.spec:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, SPEC_Y)
+	page.spec:SetWidth(CW)
 	page.spec:SetWordWrap(false)
 	UI.Color(page.spec, UI.C.sub)
 	local function rows(n, y)
@@ -141,15 +140,15 @@ local function buildLeft(page)
 		end
 		return out
 	end
-	page.top = rows(3, -72 - DY)
+	page.top = rows(3, TOP_Y)
 	page.statHead = UI.Section(lp, CW, "능력치")
-	page.statHead:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -136 - DY)
-	page.stats = rows(6, -160 - DY)
+	page.statHead:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, STAT_HEAD_Y)
+	page.stats = rows(6, STAT_Y)
 	page.weaponHead = UI.Text(lp, 11, "착용 가능 무기")
-	page.weaponHead:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -282 - DY)
+	page.weaponHead:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, WEAPON_HEAD_Y)
 	UI.Color(page.weaponHead, UI.C.gold)
 	page.weapons = UI.Text(lp, 11)
-	page.weapons:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, -298 - DY)
+	page.weapons:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, WEAPON_TEXT_Y)
 	page.weapons:SetWidth(CW)
 	page.weapons:SetJustifyV("TOP")
 	UI.Color(page.weapons, UI.C.sub)
@@ -188,7 +187,7 @@ local function buildLeft(page)
 	page.unequip:SetPoint("BOTTOMRIGHT", lp, "BOTTOMLEFT", CX + CW, 14)
 	page.unequip.clickWhenOff = true
 	page.slotHint = UI.Text(lp, 11, "칸 클릭: 가방에서 그 부위 보기\n오른쪽 클릭: 해제")
-	page.slotHint:SetPoint("TOP", lp, "TOPLEFT", CX + CW / 2, -400 - DY)
+	page.slotHint:SetPoint("TOP", lp, "TOPLEFT", CX + CW / 2, HINT_Y)
 	page.slotHint:SetWidth(CW)
 	page.slotHint:SetJustifyH("CENTER")
 	UI.Color(page.slotHint, UI.C.dim)
@@ -214,24 +213,14 @@ local function refreshLeft(page)
 	local h = ns.db.heroes[id]
 	local sp = ns.SPECS[h.spec]
 	local s = ns.Stats.Get(id)
-	-- the given name over the surname, in the largest size where each fits
+	-- the full name on one line, in the largest size where it fits
 	local full = H.Name(id)
-	local first, last = full:match("^(%S+)%s+(.+)$")
-	local lines = first and { first, last } or { full }
-	local size = 14
 	for _, sz in ipairs({ 14, 13, 12, 11, 10 }) do
-		size = sz
-		local fits = true
 		page.name:SetFont(ns.FONT, sz, "")
-		for _, l in ipairs(lines) do
-			page.name:SetText(l)
-			if page.name:GetStringWidth() > page.nameW then fits = false end
-		end
-		if fits then break end
+		page.name:SetText(full)
+		if page.name:GetStringWidth() <= page.nameW then break end
 	end
-	page.name:SetFont(ns.FONT, size, "")
 	page.name:SetTextColor(1, 0.72, 0.29)
-	page.name:SetText(table.concat(lines, "\n"))
 	page.spec:SetText(string.format("Lv %d %s", h.level, ns.N(sp.name)))
 	local worn, ups = 0, 0
 	for slot, b in pairs(page.slots) do

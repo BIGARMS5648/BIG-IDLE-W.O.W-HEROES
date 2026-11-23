@@ -613,7 +613,7 @@ function Items.MatTooltip(id)
 	elseif m.kind == "dust" then
 		use = "장비 > 마법부여 탭에서 마법 홈에 능력치를 부여합니다."
 	elseif m.kind == "scroll" then
-		use = "장비 > 각인 탭에서 룬 홈에 능력치를 부여합니다."
+		use = "장비 > 룬 각인 탭에서 룬 홈에 능력치를 부여합니다."
 	else
 		use = "장비 > 재료 > 행운의 인장 재료에서 [굴리기]로 무작위 장비를 얻습니다."
 	end

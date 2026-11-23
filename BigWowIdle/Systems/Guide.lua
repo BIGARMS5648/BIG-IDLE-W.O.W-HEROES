@@ -186,7 +186,7 @@ local function candidates()
 		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and Guide.UnlockUseful(op.key) then
 			-- the equipment tab where its button is
 			local where = ({ smelt = "가방", remove = "보석", seal = "재료", fuse = "융합", craft = "제작",
-				gem = "보석", ench = "마법부여", insc = "각인" })[op.key] or ""
+				gem = "보석", ench = "마법부여", insc = "룬 각인" })[op.key] or ""
 			add({ text = string.format("'%s' 해금 (장비 > %s, %s G)", ns.N(op.name), where, ns.U.fmt(op.cost)), tab = "equip", sub = op.key,
 				wait = not ns.CanAfford(op.cost) })
 			break

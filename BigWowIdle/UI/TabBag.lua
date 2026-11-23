@@ -375,7 +375,7 @@ local MAT_KINDS_OF = {
 }
 local MAT_USE = {
 	mat_craft = "장비 '제작'에 씁니다", mat_gem = "장비 '보석'에 씁니다", mat_ench = "장비 '마법부여'에 씁니다",
-	mat_insc = "장비 '각인'에 씁니다", mat_seal = "[굴리기]로 장비 1개",
+	mat_insc = "장비 '룬 각인'에 씁니다", mat_seal = "[굴리기]로 장비 1개",
 }
 MatsView.KINDS_OF = MAT_KINDS_OF
 local ROW_H, ROW_STEP, LIST_Y, MAT_ROWS = 54, 58, -70, 6
