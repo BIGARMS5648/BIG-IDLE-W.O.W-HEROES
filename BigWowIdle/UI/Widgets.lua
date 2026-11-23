@@ -113,12 +113,37 @@ end
 UI.GLYPH_ART = {
 	lock = { "icon_lock" }, check = { "icon_check" }, plus = { "icon_plus" }, close = { "icon_close" },
 	arrow = { "icon_arrow" }, star = { "icon_star" }, crown = { "icon_crown" }, skull = { "icon_skull" },
-	auto = { "icon_auto" }, role_tank = { "icon_tank" }, role_dps = { "icon_dps" }, role_heal = { "icon_heal" },
+	auto = { "icon_auto" },
 	ring = { "ui_portrait_ring", tint = true }, bar = { "ui_bar_fill", tint = true }, slot = { "ui_slot", tint = true },
 }
 
+-- The role icons are the game's own (the group finder's): one texture, a
+-- square per role (the client's GetTexCoordsForRole when it has it).
+local ROLE_TEX = "Interface\\LFGFrame\\UI-LFG-ICON-ROLES"
+local ROLE_KEY = { role_tank = "TANK", role_heal = "HEALER", role_dps = "DAMAGER" }
+local ROLE_TC = {
+	TANK = { 0, 67 / 256, 67 / 256, 134 / 256 },
+	HEALER = { 67 / 256, 134 / 256, 0, 67 / 256 },
+	DAMAGER = { 67 / 256, 134 / 256, 67 / 256, 134 / 256 },
+}
+function UI.RoleTexCoord(role)
+	if type(GetTexCoordsForRole) == "function" then
+		local ok, l, r, t, b = pcall(GetTexCoordsForRole, role)
+		if ok and type(b) == "number" then return l, r, t, b end
+	end
+	local c = ROLE_TC[role] or ROLE_TC.DAMAGER
+	return c[1], c[2], c[3], c[4]
+end
+
 -- Sets a glyph texture (imported picture if there is one), optionally tinted.
 function UI.SetGlyph(t, name, r, g, b, a)
+	if ROLE_KEY[name] then
+		t:SetTexture(ROLE_TEX)
+		t:SetTexCoord(UI.RoleTexCoord(ROLE_KEY[name]))
+		t.painted = true
+		t:SetVertexColor(1, 1, 1, a or 1)
+		return
+	end
 	local m = UI.GLYPH_ART[name]
 	local path = m and UI.ArtPath(m[1])
 	if path then
@@ -776,7 +801,9 @@ function UI.Portrait(parent, size, onClick)
 	b.lvl = UI.Pill(b, max(22, floor(size * 0.55)), max(13, floor(size * 0.28)), 0.05, 0.06, 0.10, 0.92)
 	b.lvl:SetPoint("BOTTOM", b, "BOTTOM", 0, -floor(size * 0.10))
 	b.lvl:SetFrameLevel(b:GetFrameLevel() + 3)
+	-- (no role mark on the portrait; kept hidden for callers that touch it)
 	b.role = UI.Glyph(b, "role_tank", max(10, floor(size * 0.30)))
+	b.role:Hide()
 	b.role:SetPoint("TOPLEFT", b, "TOPLEFT", -2, 2)
 	b.badge = UI.Badge(b, max(12, floor(size * 0.28)))
 	b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -805,8 +832,7 @@ function UI.Portrait(parent, size, onClick)
 		self.icon:Show()
 		local r, g, bl = ns.U.rgb(ns.ROLE[sp.role].hex)
 		self.ringT:SetVertexColor(r, g, bl)
-		UI.SetGlyph(self.role, ns.ROLE[sp.role].art, r, g, bl)
-		self.role:Show()
+		self.role:Hide()
 		self.lvl:SetLabel(tostring(h.level))
 		self.lvl:Show()
 	end

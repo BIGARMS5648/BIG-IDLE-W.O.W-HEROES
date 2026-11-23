@@ -13,7 +13,8 @@ local SCENE_W, SCENE_H = 704, 112
 local DOCK_H = 54
 local UNIT, BOSS = 34, 44
 local MOB = 30
-local FEET = 16       -- unit bottom above the scene's bottom edge
+local FEET = 9        -- unit bottom above the scene's bottom edge (the health bars just fit under it)
+local BACK_FIG, PET_FIG = 34, 24 -- summons and the companion, behind the party
 local MAX_MOBS = 12
 local MAX_FLOATS = 28
 local MAX_PIPS = 10
@@ -79,10 +80,6 @@ local function newHero(parent)
 	u.shield:SetHeight(2)
 	u.shield:SetPoint("BOTTOMLEFT", u.hp, "TOPLEFT", 0, 0)
 	u.shield:Hide()
-	u.cast = u:CreateTexture(nil, "OVERLAY")
-	u.cast:SetSize(16, 16)
-	u.cast:SetPoint("BOTTOM", u, "TOP", 0, 3)
-	u.cast:Hide()
 	u.model = Figure.New(parent, HERO_FIG)
 	u:Hide()
 	return u
@@ -109,9 +106,6 @@ local function newMob(parent)
 	u.flash:Hide()
 	u.edge = UI.Art(u, "frame", "OVERLAY", 0.85, 0.2, 0.15)
 	u.edge:SetAllPoints(u)
-	u.crown = UI.Glyph(u, "crown", 16, 1, 0.8, 0.25)
-	u.crown:SetPoint("BOTTOM", u, "TOP", 0, 1)
-	u.crown:Hide()
 	u.hp = UI.Bar(u, MOB, 4, 0.9, 0.2, 0.15)
 	u.hp:SetPoint("TOP", u, "BOTTOM", 0, -2)
 	u.model = Figure.New(parent, MOB_FIG)
@@ -320,16 +314,6 @@ local function drawHeroes(now)
 			end
 			if u.flash > 0 and not fig then f.flash:Show() else f.flash:Hide() end
 			if fig then f.tint:Hide() end -- no round overlay on a 3D model
-			if (u.castT or 0) > 0 and u.castIcon then
-				if f.castIcon ~= u.castIcon then
-					f.castIcon = u.castIcon
-					UI.SetIcon(f.cast, u.castIcon)
-				end
-				f.cast:SetAlpha(min(1, u.castT / 0.3))
-				f.cast:Show()
-			else
-				f.cast:Hide()
-			end
 			f:Show()
 		else
 			f:Hide()
@@ -337,38 +321,19 @@ local function drawHeroes(now)
 			f.shownId = nil
 		end
 	end
-	-- the summoned companion trots behind the party
-	local pet = ns.db.pet and ns.PET_BY_ID[ns.db.pet]
-	if pet and backX and ns.db.pets[pet.id] then
-		if frame.pet.shownId ~= pet.id then
-			frame.pet.shownId = pet.id
-			UI.SetIcon(frame.pet.icon, pet.icon)
-		end
-		local minX = laneX(backX) - UNIT / 2
-		for i = 1, #list do
-			local x = heroFrames[i].drawX or spread[i]
-			if x and x < minX then minX = x end
-		end
-		local pfig = pickFigure(frame.petModel, Figure.ForPet(pet.id))
-		if pfig then
-			animate(pfig, ns.Combat.state.phase == "travel" and "walk" or "idle")
-			pfig:PlaceFeet(frame.scene, max(14, minX - 14), FEET + 2)
-			pfig:Show()
-			if pfig:IsLoaded() then
-				frame.pet:Hide()
-			else
-				place(frame.pet, max(2, minX - 26), FEET + 2 + sin(now * 5) * 2)
-				frame.pet:Show()
-			end
-		else
-			place(frame.pet, max(2, minX - 26), FEET + 2 + sin(now * 5) * 2)
-			frame.pet:Show()
-		end
-	else
-		frame.pet:Hide()
-		if frame.petModel then frame.petModel:Hide() end
+	-- behind the party: the heroes' summons, then the companion, small and
+	-- in a row from the hindmost hero back, so none stands on a hero
+	local minX = backX and (laneX(backX) - UNIT / 2)
+	for i = 1, #list do
+		local x = heroFrames[i].drawX or spread[i]
+		if x and (not minX or x < minX) then minX = x end
 	end
-	-- summoned creatures, turrets and drones (only as 3D models)
+	local backSlot = 0
+	local function behind(w)
+		backSlot = backSlot + 1
+		return max(w / 2 + 2, (minX or 0) + UNIT / 2 - 26 - (backSlot - 1) * 24)
+	end
+	-- summoned creatures (only as 3D models)
 	local k = 0
 	for i = 1, #list do
 		local u = list[i]
@@ -380,8 +345,8 @@ local function drawHeroes(now)
 					local sp = pickFigure(frame.summons[k], mid)
 					if sp then
 						animate(sp, (pt.anim or 0) > 0 and "attack" or "idle")
-						local fly = ns.SKILLS[sid].heal and 34 or 0
-						sp:PlaceFeet(frame.scene, (heroFrames[i].drawX or spread[i]) + UNIT / 2 + 18, FEET + fly + (fly > 0 and sin(now * 3 + i) * 3 or 0))
+						local fly = ns.SKILLS[sid].heal and 20 or 0
+						sp:PlaceFeet(frame.scene, behind(BACK_FIG), FEET + 2 + fly + (fly > 0 and sin(now * 3 + i) * 2 or 0))
 						sp:Show()
 					end
 				end
@@ -395,18 +360,40 @@ local function drawHeroes(now)
 			local sp = pickFigure(frame.summons[k], mid)
 			if sp then
 				animate(sp, (f.tickT or 0) > f.sk.tick - 0.25 and "attack" or "idle")
-				-- next to its maker as the maker is drawn
-				local cx = laneX(f.src.x)
-				for j = 1, #list do
-					if list[j] == f.src and heroFrames[j].drawX then cx = heroFrames[j].drawX + UNIT / 2 end
-				end
-				sp:PlaceFeet(frame.scene, cx + 34, FEET)
+				sp:PlaceFeet(frame.scene, behind(BACK_FIG), FEET + 2)
 				sp:Show()
 			end
 		end
 	end
 	for i = k + 1, #frame.summons do
 		if frame.summons[i] then frame.summons[i]:Hide() end
+	end
+	-- the companion, last
+	local pet = ns.db.pet and ns.PET_BY_ID[ns.db.pet]
+	if pet and backX and ns.db.pets[pet.id] then
+		if frame.pet.shownId ~= pet.id then
+			frame.pet.shownId = pet.id
+			UI.SetIcon(frame.pet.icon, pet.icon)
+		end
+		local px = behind(PET_FIG)
+		local pfig = pickFigure(frame.petModel, Figure.ForPet(pet.id))
+		if pfig then
+			animate(pfig, ns.Combat.state.phase == "travel" and "walk" or "idle")
+			pfig:PlaceFeet(frame.scene, px, FEET + 2)
+			pfig:Show()
+			if pfig:IsLoaded() then
+				frame.pet:Hide()
+			else
+				place(frame.pet, px - 10, FEET + 2)
+				frame.pet:Show()
+			end
+		else
+			place(frame.pet, px - 10, FEET + 2)
+			frame.pet:Show()
+		end
+	else
+		frame.pet:Hide()
+		if frame.petModel then frame.petModel:Hide() end
 	end
 end
 
@@ -426,10 +413,8 @@ local function drawMobs()
 				f.hp:SetBarWidth(size)
 				if m.boss then
 					f.edge:SetVertexColor(1, 0.78, 0.2)
-					f.crown:Show()
 				else
 					f.edge:SetVertexColor(0.85, 0.2, 0.15)
-					f.crown:Hide()
 				end
 			end
 			if f.mobRef ~= m then f.mobRef, f.glide = m, nil end
@@ -944,9 +929,9 @@ function Bar.Create()
 	frame.pet.icon = frame.pet:CreateTexture(nil, "ARTWORK")
 	frame.pet.icon:SetAllPoints(frame.pet)
 	frame.pet:Hide()
-	frame.petModel = Figure.New(scene, 40)
+	frame.petModel = Figure.New(scene, PET_FIG)
 	frame.summons = {}
-	for i = 1, 8 do frame.summons[i] = Figure.New(scene, 52) end
+	for i = 1, 8 do frame.summons[i] = Figure.New(scene, BACK_FIG) end
 
 	-- everything drawn above the units lives on an overlay layer
 	local over = CreateFrame("Frame", nil, scene)

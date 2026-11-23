@@ -260,22 +260,6 @@ def P(s, *pts):
 
 
 def glyphs():
-    # tank: a heater shield
-    glyph("role_tank", lambda d, s: (
-        d.polygon(P(s, (12, 10), (52, 10), (52, 30), (32, 56), (12, 30)), fill=255),
-        d.polygon(P(s, (19, 17), (45, 17), (45, 29), (32, 46), (19, 29)), fill=0),
-        d.polygon(P(s, (29, 17), (35, 17), (35, 42), (32, 46), (29, 42)), fill=255),
-        d.rectangle([19 * s, 24 * s, 45 * s, 29 * s], fill=255)))
-    # damage: a sword pointing up-right
-    glyph("role_dps", lambda d, s: (
-        d.polygon(P(s, (50, 8), (56, 14), (26, 44), (20, 38)), fill=255),
-        d.polygon(P(s, (50, 8), (58, 6), (56, 14)), fill=255),
-        d.polygon(P(s, (14, 32), (32, 50), (28, 54), (10, 36)), fill=255),
-        d.polygon(P(s, (17, 43), (21, 47), (11, 57), (7, 53)), fill=255)))
-    # healer: a rounded cross
-    glyph("role_heal", lambda d, s: (
-        d.rounded_rectangle([25 * s, 10 * s, 39 * s, 54 * s], radius=4 * s, fill=255),
-        d.rounded_rectangle([10 * s, 25 * s, 54 * s, 39 * s], radius=4 * s, fill=255)))
     glyph("lock", lambda d, s: (
         d.arc([20 * s, 8 * s, 44 * s, 36 * s], 180, 360, fill=255, width=6 * s),
         d.line([23 * s, 22 * s, 23 * s, 30 * s], fill=255, width=6 * s),
@@ -317,9 +301,11 @@ def glyphs():
             d.ellipse([(x - w / 2) * s, (y - w / 2) * s, (x + w / 2) * s, (y + w / 2) * s], fill=255)
 
     # auto advance: two chevrons pointing right (on to the next stage)
+    # (a chevron's weight sits on its open side: drawn a little right of
+    # the middle so the pair looks centred)
     def auto(d, s):
-        stroke(d, s, [(14, 15), (29, 32), (14, 49)], 8)
-        stroke(d, s, [(33, 15), (48, 32), (33, 49)], 8)
+        stroke(d, s, [(18, 15), (33, 32), (18, 49)], 8)
+        stroke(d, s, [(37, 15), (52, 32), (37, 49)], 8)
     glyph("auto", auto)
 
     # repeat: one clockwise loop; the head sits on the end of the arc and

@@ -25,7 +25,7 @@ local RIGHT_COL = { "hands", "feet", "ring", "trinket" }
 local WEAPONS = { "mh", "oh" }
 local CX = 70
 local CW = LEFT_W - 2 * CX -- the summary between the slot columns
-local PORTRAIT, PORTRAIT_GAP = 32, 5 -- the hero picker: two rows at the top
+local PORTRAIT, PORTRAIT_GAP = 30, 4 -- the hero picker: two rows at the top
 local SLOT_Y = -8 - 2 * PORTRAIT - PORTRAIT_GAP - 15 -- first slot row, under the picker
 local DY = 18 -- the summary starts this far under its rows' base (the name sits beside the picker)
 
@@ -115,12 +115,15 @@ local function buildLeft(page)
 	for i, slot in ipairs(WEAPONS) do slotButton(slot, LEFT_W / 2 - SLOT - 6 + (i - 1) * (SLOT + 12), -340 - DY) end
 
 	-- the summary
-	local nameX = 12 + page.strip:GetWidth() + 12
+	local nameX = 12 + page.strip:GetWidth() + 10
 	local nameW = LEFT_W - 12 - nameX
-	page.name = UI.Text(lp, 15)
-	page.name:SetPoint("TOPLEFT", lp, "TOPLEFT", nameX, -18)
+	-- the full name: the given name over the surname
+	page.name = UI.Text(lp, 14)
+	page.name:SetPoint("TOPLEFT", lp, "TOPLEFT", nameX, -12)
 	page.name:SetWidth(nameW)
-	page.name:SetWordWrap(false)
+	page.name:SetWordWrap(true)
+	if page.name.SetMaxLines then page.name:SetMaxLines(2) end
+	page.nameW = nameW
 	page.spec = UI.Text(lp, 11)
 	page.spec:SetPoint("TOPLEFT", page.name, "BOTTOMLEFT", 0, -4)
 	page.spec:SetWidth(nameW)
@@ -211,7 +214,24 @@ local function refreshLeft(page)
 	local h = ns.db.heroes[id]
 	local sp = ns.SPECS[h.spec]
 	local s = ns.Stats.Get(id)
-	page.name:SetText(U.col("ffb84a", H.ShortName(id)))
+	-- the given name over the surname, in the largest size where each fits
+	local full = H.Name(id)
+	local first, last = full:match("^(%S+)%s+(.+)$")
+	local lines = first and { first, last } or { full }
+	local size = 14
+	for _, sz in ipairs({ 14, 13, 12, 11, 10 }) do
+		size = sz
+		local fits = true
+		page.name:SetFont(ns.FONT, sz, "")
+		for _, l in ipairs(lines) do
+			page.name:SetText(l)
+			if page.name:GetStringWidth() > page.nameW then fits = false end
+		end
+		if fits then break end
+	end
+	page.name:SetFont(ns.FONT, size, "")
+	page.name:SetTextColor(1, 0.72, 0.29)
+	page.name:SetText(table.concat(lines, "\n"))
 	page.spec:SetText(string.format("Lv %d %s", h.level, ns.N(sp.name)))
 	local worn, ups = 0, 0
 	for slot, b in pairs(page.slots) do
