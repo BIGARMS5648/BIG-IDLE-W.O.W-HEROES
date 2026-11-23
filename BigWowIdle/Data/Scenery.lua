@@ -387,7 +387,7 @@ function ns.SceneryFor(diff, idx)
 	return ns.SCENERY[ns.SceneryKey(diff, idx) or ""]
 end
 
--- Behind the scenery: a picture of the place (Media/Scenes/<place>.blp), a
+-- Behind the scenery: a picture of the place (Media/Scenes/<place>.tga), a
 -- strip cut from a screenshot of it in the game.
 ns.BACKDROPS = {
 	ahnqiraj = true, aqtemple = true, arathi = true, ashenvale = true, azshara = true, badlands = true,
@@ -412,5 +412,5 @@ ns.BACKDROP_SAME = {
 function ns.BackdropFile(diff, idx)
 	local key = ns.SceneryKey(diff, idx)
 	key = key and (ns.BACKDROP_SAME[key] or key)
-	return key and ns.BACKDROPS[key] and ("Interface\\AddOns\\BigWowIdle\\Media\\Scenes\\" .. key .. ".blp") or nil
+	return key and ns.BACKDROPS[key] and ("Interface\\AddOns\\BigWowIdle\\Media\\Scenes\\" .. key .. ".tga") or nil
 end
