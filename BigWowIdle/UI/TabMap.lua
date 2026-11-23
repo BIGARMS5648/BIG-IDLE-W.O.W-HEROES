@@ -53,11 +53,19 @@ local function build(page)
 		w.scene = w:CreateTexture(nil, "BACKGROUND")
 		w.scene:SetPoint("TOPLEFT", w, "TOPLEFT", 3, -3)
 		w.scene:SetPoint("BOTTOMRIGHT", w, "BOTTOMRIGHT", -3, 3)
-		local stg = ns.STAGES[d][15]
-		local th, r, g, b = themeRGB(stg.theme)
-		w.scene:SetTexture(UI.Tex(th.art))
-		w.scene:SetTexCoord(0.2, 0.6, 0.15, 0.85)
-		w.scene:SetVertexColor(r * 0.7, g * 0.7, b * 0.7)
+		local art = ns.WorldArt and ns.WorldArt(d)
+		if art then
+			-- a 4:1 picture in the card (about 3.6:1): a little off each side
+			w.scene:SetTexture(art)
+			w.scene:SetTexCoord(0.046, 0.954, 0, 1)
+			w.scene:SetVertexColor(1, 1, 1)
+		else
+			local stg = ns.STAGES[d][15]
+			local th, r, g, b = themeRGB(stg.theme)
+			w.scene:SetTexture(UI.Tex(th.art))
+			w.scene:SetTexCoord(0.2, 0.6, 0.15, 0.85)
+			w.scene:SetVertexColor(r * 0.7, g * 0.7, b * 0.7)
+		end
 		w.shade = UI.Art(w, "grad_h", "BORDER", 0, 0, 0, 0.75)
 		w.shade:SetPoint("TOPLEFT", w, "TOPLEFT", 3, -3)
 		w.shade:SetPoint("BOTTOMLEFT", w, "BOTTOMLEFT", 3, 3)
@@ -334,9 +342,17 @@ local function refresh(page)
 	local d = page.detail
 	local stg = ns.Stage(page.diff, page.idx)
 	local th, r, g, bl = themeRGB(stg.theme)
-	d.banner:SetTexture(UI.Tex(th.art))
-	d.banner:SetTexCoord(0, 0.6, 0.1, 0.85)
-	d.banner:SetVertexColor(r * 0.9, g * 0.9, bl * 0.9)
+	local art = ns.StageArt and ns.StageArt(page.diff, page.idx)
+	if art then
+		-- a 4:1 picture in the banner (about 5:1): a little off the top and bottom
+		d.banner:SetTexture(art)
+		d.banner:SetTexCoord(0, 1, 0.104, 0.896)
+		d.banner:SetVertexColor(1, 1, 1)
+	else
+		d.banner:SetTexture(UI.Tex(th.art))
+		d.banner:SetTexCoord(0, 0.6, 0.1, 0.85)
+		d.banner:SetVertexColor(r * 0.9, g * 0.9, bl * 0.9)
+	end
 	local title = (stg.place and stg.place ~= stg.name and (ns.N(stg.place) .. "  ·  ") or "") .. ns.N(stg.name)
 	d.name:SetText(stg.raid and U.col("ff9326", title) or title)
 	local level = ns.StageLevel(page.diff, page.idx)

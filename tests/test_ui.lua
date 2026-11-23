@@ -736,6 +736,22 @@ do
 	if ns.db.stage.idx ~= 3 or ns.db.stage.diff ~= 1 then fail("travelling from the stage screen did not work") end
 	click("world Outland", function(b) return b.d == 2 end)
 	hoverAll()
+	-- a stage with its own picture shows it in the banner; one that shares
+	-- another's shows that one; the rest keep their theme's scenery
+	local pg = Main.Page("map")
+	ns.ART_READY.s2_01, ns.ART_READY.s2_02 = true, "s2_01"
+	pg.idx = 2
+	Main.Refresh()
+	local tex = pg.detail.banner:GetTexture() or ""
+	if not tostring(tex):find("Stages\\s2_01%.tga$") then fail("a stage's picture should show in its banner: " .. tostring(tex)) end
+	pg.idx = 3
+	Main.Refresh()
+	tex = pg.detail.banner:GetTexture() or ""
+	if tostring(tex):find("Stages") then fail("a stage without a picture should keep its theme's scenery") end
+	ns.ART_READY.s2_01, ns.ART_READY.s2_02 = nil, nil
+	-- (made up for this check: the pictures are not on disk)
+	for path in pairs(Mock.textures) do if path:find("\\Stages\\") then Mock.textures[path] = nil end end
+	if ns.StageArt(2, 1) or ns.WorldArt(1) then fail("a picture not listed should not be used") end
 end
 
 -- companions: pick one, take it along
@@ -1650,8 +1666,9 @@ for path in pairs(Mock.textures) do
 	if path:find("Interface\\Icons\\") and (path:find("%s") or path:sub(-1) == "\\") then
 		fail("malformed icon path: " .. path)
 	end
-	local media = path:match("\\Media\\([%w_]+)%.tga$")
+	local media = path:match("\\Media\\([%w_\\]+)%.tga$")
 	if media then
+		media = media:gsub("\\", "/")
 		local f = io.open(debug.getinfo(1, "S").source:sub(2):gsub("tests/test_ui%.lua$", "BigWowIdle/Media/" .. media .. ".tga"), "rb")
 		if f then f:close() else fail("missing texture file: Media/" .. media .. ".tga") end
 	elseif path:find("AddOns") then
