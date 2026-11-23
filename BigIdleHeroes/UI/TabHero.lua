@@ -120,7 +120,7 @@ local function buildList(page)
 	page.create.label:SetPoint("CENTER", page.create, "CENTER", 0, 8)
 	page.create.cost = UI.Text(page.create, 11)
 	page.create.cost:SetPoint("CENTER", page.create, "CENTER", 0, -11)
-	UI.Tip(page.create, function() return UI.SimpleTip("영웅 만들기", "직업과 전문화, 성별과 이름을 정해 새 영웅을 만듭니다. 영웅이 많을수록 비용이 오릅니다.") end, "TOP")
+	UI.Tip(page.create, function() return UI.SimpleTip("영웅 만들기", "직업과 전문화, 이름을 정해 새 영웅을 만듭니다. 영웅이 많을수록 비용이 오릅니다.") end, "TOP")
 end
 
 local function refreshList(page)
@@ -261,7 +261,7 @@ local function refreshHeader(page, id)
 	UI.SetHeroIcon(hc.portrait.icon, id)
 	hc.portrait.lvl:Hide()
 	hc.name:SetText(U.col("ffb84a", H.Name(id)))
-	hc.info:SetText(string.format("Lv %d · %s %s · %s · %s", h.level, race.name, ns.SEX[H.Sex(id)].name,
+	hc.info:SetText(string.format("Lv %d · %s · %s · %s", h.level, race.name,
 		U.col(ns.CLASSES[sp.class].hex, ns.SpecLabel(h.spec)), ns.N(ns.ROLE[sp.role].name)))
 	if h.level >= ns.HERO_MAX_LEVEL then
 		hc.xp:SetValue(1)

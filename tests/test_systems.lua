@@ -282,7 +282,7 @@ check(ns.Heroes.CreateCost() == 0, "first hero is free")
 local okc, firstId = ns.Heroes.Create("HUNTER_MM")
 check(okc and db.heroes[firstId], "create starter")
 check(type(db.heroes[firstId].name) == "string" and db.heroes[firstId].name:find("^%S+ %S+$"), "a new hero gets a given and a family name: " .. tostring(db.heroes[firstId].name))
-check(db.heroes[firstId].sex == "M" or db.heroes[firstId].sex == "F", "a new hero has a gender")
+check(db.heroes[firstId].sex == nil and ns.Heroes.Sex(firstId) == ns.PlayerSex(), "a hero stores no gender and takes the player's")
 check(ns.Heroes.PartySlot(firstId) == 2, "damage dealer goes to slot 2")
 check(ns.Heroes.CreateCost() == ns.HERO_COST[2], "later heroes cost gold")
 check(not ns.Heroes.Create("PRIEST_HOLY"), "cannot create without gold")
@@ -376,9 +376,16 @@ do
 		end
 	end
 	check(not clash, "no rolled name is a game word or a famous name (" .. tostring(clash) .. ")")
-	local okF, f = ns.Heroes.Create("PRIEST_SHADOW", "F")
-	check(okF and db.heroes[f].sex == "F" and ns.Heroes.Sex(f) == "F", "create a female hero")
-	local okN, n = ns.Heroes.Create("PRIEST_SHADOW", "M", "테스트 이름")
+	-- every hero follows the logged-in character's gender
+	local okF, f = ns.Heroes.Create("PRIEST_SHADOW")
+	local Mock = WoWMock
+	local was = Mock.playerSex
+	Mock.playerSex = 3
+	check(okF and ns.Heroes.Sex(f) == "F" and ns.PlayerSex() == "F", "on a female character, heroes are women")
+	Mock.playerSex = 2
+	check(ns.Heroes.Sex(f) == "M" and ns.PlayerSex() == "M", "on a male character, heroes are men")
+	Mock.playerSex = was
+	local okN, n = ns.Heroes.Create("PRIEST_SHADOW", nil, "테스트 이름")
 	check(okN and db.heroes[n].name == "테스트 이름" and ns.Heroes.ShortName(n) == "테스트", "create with a chosen name")
 	ns.Heroes.Dismiss(f)
 	ns.Heroes.Dismiss(n)
@@ -961,7 +968,7 @@ end
 BigWowIdleDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 5, name = { "아르단", "Ardan" } } }, party = { false, "h1" } }
 ns.InitDB()
 check(ns.db.heroes.h1.name:find("^아르단 %S+$"), "2.0 names keep the Korean given name and get a family name: " .. ns.db.heroes.h1.name)
-check(ns.db.heroes.h1.sex == "M" or ns.db.heroes.h1.sex == "F", "old heroes get a gender")
+check(ns.db.heroes.h1.sex == nil, "old heroes keep no gender of their own")
 check(ns.db.faction == nil, "old saves still choose a faction")
 -- version 2.0 kept skills in the talent tree
 BigWowIdleDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 22, name = "가 나",

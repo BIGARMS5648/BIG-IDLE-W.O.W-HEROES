@@ -105,7 +105,7 @@ function Figure.ForHero(heroId, inCombat)
 		local form = formFor(h.spec, faction)
 		if form then return form end
 	end
-	return Figure.ForSpec(h.spec, faction, h.sex)
+	return Figure.ForSpec(h.spec, faction, Figure.PlayerSex())
 end
 
 -- The create window's preview: the spec picked there, else the class trainer.
@@ -117,7 +117,7 @@ function Figure.ForClass(classId, faction, specId, sex)
 	return usable(t and t.npc)
 end
 
--- The player's gender ("M" or "F").
+-- The player's gender ("M" or "F"): every hero's.
 function Figure.PlayerSex()
 	return UnitSex and UnitSex("player") == 3 and "F" or "M"
 end
@@ -125,13 +125,12 @@ end
 -- A hero's own look: the player's model made the class's race (SetModelByUnit
 -- with the game's race id), with nothing on, in the class's dungeon set and
 -- the spec's weapons (Data/Models.lua ns.MODEL.weapons; none without a spec).
--- A hero of the other gender than the player's is a lightly dressed NPC of
--- the race and gender (ns.MODEL.npcBody) undressed and dressed the same way.
+-- The body has the player's gender: a man logged in gives men, a woman women.
 local bodies = {}
-function Figure.BodyFor(classId, faction, specId, sex)
+function Figure.BodyFor(classId, faction, specId)
 	faction = faction or ns.Faction() or "ALLIANCE"
-	if sex ~= "F" and sex ~= "M" then sex = Figure.PlayerSex() end
-	local key = tostring(classId) .. ":" .. faction .. ":" .. tostring(specId) .. ":" .. sex .. ":" .. Figure.PlayerSex()
+	local sex = Figure.PlayerSex()
+	local key = tostring(classId) .. ":" .. faction .. ":" .. tostring(specId) .. ":" .. sex
 	if bodies[key] ~= nil then return bodies[key] or nil end
 	local race = ns.ClassRace(classId, faction)
 	local rid = race and ns.MODEL.raceId and ns.MODEL.raceId[race]
@@ -143,10 +142,9 @@ function Figure.BodyFor(classId, faction, specId, sex)
 	local items = set and set.items or {}
 	local w = specId and ns.MODEL.weapons and ns.MODEL.weapons[specId]
 	local weapons = w and { mh = w.mh, oh = w.oh } or {}
-	local npc = sex ~= Figure.PlayerSex() and ns.MODEL.npcBody and ns.MODEL.npcBody[race] and ns.MODEL.npcBody[race][sex]
 	local body = {
-		race = race, rid = rid, sex = sex, items = items, weapons = weapons, npc = npc or nil,
-		key = (npc and ("npcbody:" .. table.concat(npc, "/")) or ("body:" .. rid)) .. ":" .. table.concat(items, ",") .. ":" .. tostring(weapons.mh) .. ":" .. tostring(weapons.oh),
+		race = race, rid = rid, sex = sex, items = items, weapons = weapons,
+		key = "body:" .. rid .. ":" .. table.concat(items, ",") .. ":" .. tostring(weapons.mh) .. ":" .. tostring(weapons.oh),
 	}
 	bodies[key] = body
 	return body
@@ -160,7 +158,7 @@ function Figure.HeroBody(heroId, inCombat)
 	local faction = ns.Faction() or "ALLIANCE"
 	if inCombat ~= false and formFor(h.spec, faction) then return nil end
 	local sp = ns.SPECS[h.spec]
-	return sp and Figure.BodyFor(sp.class, faction, h.spec, h.sex)
+	return sp and Figure.BodyFor(sp.class, faction, h.spec)
 end
 
 -- How tall each body stands next to an ordinary hero.
@@ -682,17 +680,6 @@ function scene:Load()
 		local okF, resF = call(a, "SetModelByFileID", self.file)
 		if not okF or resF == false then return false end
 		self.lastTry = true
-		self.loadT = SCENE_WAIT
-		return true
-	end
-	if self.body and self.body.npc then
-		-- an NPC of the race and gender (the next of the list on each try)
-		local disp = self.body.npc[self.tries]
-		if not disp then return false end
-		local okN, resN = call(a, "SetModelByCreatureDisplayID", disp)
-		if not okN or resN == false then return false end
-		self.tryDisplay = disp
-		self.lastTry = self.tries >= #self.body.npc
 		self.loadT = SCENE_WAIT
 		return true
 	end

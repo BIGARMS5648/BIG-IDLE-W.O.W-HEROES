@@ -40,10 +40,12 @@ function Heroes.ShortName(id)
 	return ns.Names.Short(Heroes.Name(id))
 end
 
-function Heroes.Sex(id)
-	local h = ns.db.heroes[id]
-	return h and h.sex == "F" and "F" or "M"
+-- Every hero has the gender of the character the player is logged in with
+-- (the game draws heroes with that character's body).
+function ns.PlayerSex()
+	return UnitSex and UnitSex("player") == 3 and "F" or "M"
 end
+function Heroes.Sex() return ns.PlayerSex() end
 
 -- Race the hero is drawn as (follows the player's faction).
 function Heroes.Race(id)
@@ -85,21 +87,22 @@ local function takenNames()
 end
 Heroes.TakenNames = takenNames
 
--- A name for a hero of this specialization and gender, unique in the roster.
-function Heroes.RollName(specId, sex)
+-- A name for a hero of this specialization (and the player's gender),
+-- unique in the roster.
+function Heroes.RollName(specId)
 	local sp = ns.SPECS[specId]
-	return ns.Names.Roll(sp and ns.ClassRace(sp.class), sex, takenNames())
+	return ns.Names.Roll(sp and ns.ClassRace(sp.class), ns.PlayerSex(), takenNames())
 end
 
 -- Builds the record without charging anything (also used by save migration).
--- sex: "M" or "F" (random when omitted); name: optional pre-rolled name
-function Heroes.NewRecord(specId, sex, name)
+-- name: optional pre-rolled name (the second argument, once a gender, is
+-- not used: heroes take the player's)
+function Heroes.NewRecord(specId, _, name)
 	local sp = ns.SPECS[specId]
 	local db = ns.db
-	if sex ~= "M" and sex ~= "F" then sex = math.random() < 0.5 and "M" or "F" end
 	db.heroSeq = (db.heroSeq or 0) + 1
 	local h = {
-		id = "h" .. db.heroSeq, spec = specId, sex = sex, name = name or Heroes.RollName(specId, sex),
+		id = "h" .. db.heroSeq, spec = specId, name = name or Heroes.RollName(specId),
 		level = 1, xp = 0, tree = {}, sk = {}, skills = {}, gear = {},
 	}
 	-- starter weapon so a fresh hero is never empty-handed
@@ -176,7 +179,7 @@ end
 function Heroes.RerollName(id)
 	local h = ns.db.heroes[id]
 	if not h then return false end
-	h.name = Heroes.RollName(h.spec, h.sex)
+	h.name = Heroes.RollName(h.spec)
 	ns.Fire("HEROES")
 	return true
 end

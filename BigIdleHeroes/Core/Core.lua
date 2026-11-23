@@ -2,7 +2,7 @@
 local ADDON, ns = ...
 ns = ns or {}
 ns.ADDON = ADDON or "BigIdleHeroes"
-ns.VERSION = "3.19.4"
+ns.VERSION = "3.20.0"
 
 local floor, max, min, random = math.floor, math.max, math.min, math.random
 local format = string.format

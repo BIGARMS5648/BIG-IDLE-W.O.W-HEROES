@@ -327,8 +327,9 @@ local function drawHeroes(now)
 			f.shownId = nil
 		end
 	end
-	-- the party's front and back (where the heroes are drawn)
-	local minX, maxX = backX and (laneX(backX) - UNIT / 2), nil
+	-- the party's front and back (where the heroes are drawn: their smooth
+	-- positions, not the fight's steps)
+	local minX, maxX
 	for i = 1, #list do
 		local x = heroFrames[i].drawX or spread[i]
 		if x and (not minX or x < minX) then minX = x end
@@ -394,10 +395,16 @@ local function drawHeroes(now)
 			frame.pet.shownId = pet.id
 			UI.SetIcon(frame.pet.icon, pet.icon)
 		end
-		local px = behind(PET_FIG)
+		-- walks to its place at a steady pace (no hops when the party moves)
+		local want = behind(PET_FIG)
+		local pm = frame.pet
+		if not pm.cx or pm.forId ~= pet.id then pm.cx, pm.forId = want, pet.id end
+		local step = SUMMON_PACE * dt
+		if math.abs(want - pm.cx) <= step then pm.cx = want else pm.cx = pm.cx + (want > pm.cx and step or -step) end
+		local px = pm.cx
 		local pfig = pickFigure(frame.petModel, Figure.ForPet(pet.id))
 		if pfig then
-			animate(pfig, ns.Combat.state.phase == "travel" and "walk" or "idle")
+			animate(pfig, (ns.Combat.state.phase == "travel" or pm.cx ~= want) and "walk" or "idle")
 			pfig:PlaceFeet(frame.scene, px, FEET + 2)
 			pfig:Show()
 			if pfig:IsLoaded() then

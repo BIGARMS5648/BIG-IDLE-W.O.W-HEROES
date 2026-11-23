@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v3.19.0
+BIG IDLE HEROES v3.20.0
 ```
 
 ---
@@ -52,7 +52,7 @@ Build a party of five heroes, send them along a route through the original game'
 
 ### Your party
 - Up to **5 heroes in a fight: 1 tank, 3 damage dealers, 1 healer** (up to 12 heroes on your roster).
-- Pick **Alliance or Horde** at the start. Each class takes its classic race for your faction, and you choose each hero's gender.
+- Pick **Alliance or Horde** at the start. Each class takes its classic race for your faction. Heroes share the gender of the character you are logged in with.
 - **All 9 original classes and 28 specializations**: Arms, Fury and Protection Warrior; Holy, Protection and Retribution Paladin; Guardian, Feral, Balance and Restoration Druid; and so on.
 - Every hero gets a random "first name + family name" that fits its race and gender.
 - **Talents** (stat points, one per level) and **skills** are separate. Skills unlock in the order the original game teaches them, and you equip up to three of them (more with runes).
@@ -88,7 +88,7 @@ Build a party of five heroes, send them along a route through the original game'
 ## Getting started
 
 1. Install the add-on and enable **BIG IDLE HEROES** in the AddOns list at character select.
-2. Log in. Choose **Alliance or Horde**, then create your first hero (class, specialization, gender, name). Your first hero is free.
+2. Log in. Choose **Alliance or Horde**, then create your first hero (class, specialization, name). Your first hero is free.
 3. The fight starts on its own in the battle window. Open the menu at any time with **/bih**.
 
 ## Commands
@@ -133,16 +133,14 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v3.19.0)
+## Changelog for this release (v3.20.0)
 
 ```
-- Renamed to BIG IDLE HEROES (folder BigIdleHeroes). The command is now /bih, and chat messages start with [B.I.H].
-- The menu window's title is crisp again (the header shading no longer covers it).
-- Moving battle scenery: while the party walks between waves, the backdrop picture scrolls and the zone's own ground texture rolls by under the heroes; during fights it all stands still.
-- Melee summons walk beside their summoner and join the melee heroes at the front when a fight starts.
-- Dungeon interiors are filled with the dungeon's own props (shelves, statues, braziers, eggs and more).
-- Battle backdrops are real in-game scenery of each place.
-- The stage screen shows each place's loading screen.
-- Tank, damage and healer icons removed from the hero and party screens.
-- Heroes and monsters are always drawn in front of the scenery.
+- Heroes now share the gender of the character you are logged in with: a male character shows male heroes, a female character female heroes, all in their class's dungeon set. The gender choice in hero creation is gone.
+- Your companion walks back to its place smoothly after a fight.
+- Far scenery rows are faded and softened so they look further away.
+- The battle scenery stands completely still while the party fights.
+- On a fresh start the battle window waits until your first hero is made.
+- The druid cat's health bar sits under its body.
+- Forge tab locks match the other tabs.
 ```

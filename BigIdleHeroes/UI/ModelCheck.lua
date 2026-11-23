@@ -811,16 +811,10 @@ local DRESS_TOP, DRESS_MODEL_H = 32, 180
 local DRESS_H = PANEL_H - DRESS_TOP
 
 -- asRace: the player's own body made that race (SetModelByUnit's
--- customRaceID; the player's gender); npc: the NPC body of the race and the
--- gender picked that heroes of the other gender use (ns.MODEL.npcBody); the
--- cards with neither: the race's own base body of the gender picked (its
--- creature display, nothing baked on), in a model scene and in a dressing
--- model frame - two more ways to dress the other gender
+-- customRaceID), in the player's own gender, as every hero is drawn
 local DRESS = {
+	{ title = "종족으로 바꾼 내 몸", kind = "scene", asRace = true, bare = true },
 	{ title = "바꾼 몸에 입히기", kind = "scene", asRace = true },
-	{ title = "NPC 몸에 입히기", kind = "scene", npc = true },
-	{ title = "기본 몸에 입히기 · 장면", kind = "scene" },
-	{ title = "기본 몸에 입히기 · 틀", kind = "DressUpModel" },
 	{ title = "내 캐릭터에 입히기", kind = "DressUpModel", unit = true },
 }
 
@@ -834,7 +828,7 @@ for _, cls in ipairs(ns.CLASS_ORDER) do
 	end
 end
 dress.COMBOS = COMBOS
-dress.i, dress.sex = 1, "M"
+dress.i = 1
 
 function dress.build(win)
 	local f = CreateFrame("Frame", nil, win)
@@ -842,7 +836,7 @@ function dress.build(win)
 	f:SetSize(W - 36, PANEL_H)
 	f:Hide()
 	dress.frame = f
-	-- which class, race and gender: ◀ [label] ▶  [남] [여]
+	-- which class and race: ◀ [label] ▶
 	dress.prev = UI.Button(f, 30, 24, "<", function() dress.Pick(dress.i - 1) end, "dark")
 	dress.prev:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
 	dress.label = UI.Text(f, 12)
@@ -851,12 +845,6 @@ function dress.build(win)
 	dress.label:SetWordWrap(false)
 	dress.next = UI.Button(f, 30, 24, ">", function() dress.Pick(dress.i + 1) end, "dark")
 	dress.next:SetPoint("LEFT", dress.prev, "RIGHT", 460, 0)
-	dress.sexBtn = {}
-	for k, sx in ipairs(ns.SEXES) do
-		local b = UI.Button(f, 44, 24, ns.SEX[sx].short, function() dress.Pick(dress.i, sx) end, "dark")
-		b:SetPoint("LEFT", dress.next, "RIGHT", 16 + (k - 1) * 50, 0)
-		dress.sexBtn[sx] = b
-	end
 	dress.cards = {}
 	for i, def in ipairs(DRESS) do
 		local card = UI.Panel(f, PANEL_W, DRESS_H, "card")
@@ -890,11 +878,6 @@ local function dressItems()
 	return set and set.items or {}
 end
 
--- the race's own body for the gender picked
-local function bodyDisplay()
-	local b = ns.MODEL.raceBody[combo().race]
-	return b and b[dress.sex]
-end
 
 -- the widget a card's model is shown in, made the first time
 local function dressModel(c)
@@ -917,21 +900,18 @@ local function dressModel(c)
 	return c.model
 end
 
--- ◀ ▶ and 남 · 여
-function dress.Pick(i, sex)
+-- ◀ ▶
+function dress.Pick(i)
 	dress.i = ((i - 1) % #COMBOS) + 1
-	if sex then dress.sex = sex end
 	dress.setup()
 end
 
 function dress.setup()
 	local cb = combo()
 	local set = ns.MODEL.dungeonSet[cb.class]
-	local raceName = ns.RACES[cb.race].name .. " " .. ns.SEX[dress.sex].short
+	local raceName = ns.RACES[cb.race].name
 	dress.label:SetText(string.format("%s (%s) · %s · %s   %d/%d", ns.N(ns.CLASSES[cb.class].name), ns.FACTIONS[cb.faction].name,
 		raceName, set and set.name or "", dress.i, #COMBOS))
-	for sx, b in pairs(dress.sexBtn) do b:SetStyle(sx == dress.sex and "primary" or "dark") end
-	local disp = bodyDisplay()
 	for _, c in ipairs(dress.cards) do
 		local def, m = c.def, dressModel(c)
 		c.name:SetText(def.unit and "내 캐릭터" or (def.asRace and (ns.RACES[cb.race].name .. " · 내 성별") or raceName))
@@ -952,23 +932,14 @@ function dress.setup()
 				-- the player, unarmed and undressed, as the race (game race id)
 				local rid = ns.MODEL.raceId[combo().race]
 				c.lines[1]:SetText("종족 " .. tostring(rid) .. " · SetModelByUnit " .. mark(call(a, "SetModelByUnit", "player", false, false, true, true, false, rid)))
-			elseif def.npc then
-				-- the NPC of the race and the gender picked
-				local list = ns.MODEL.npcBody[combo().race]
-				local nd = list and list[dress.sex] and list[dress.sex][1]
-				c.lines[1]:SetText("NPC 모델 " .. tostring(nd) .. " · " .. mark(nd and call(a, "SetModelByCreatureDisplayID", nd) or nil))
 			elseif def.unit then
 				c.lines[1]:SetText("SetModelByUnit " .. mark(call(a, "SetModelByUnit", "player", false, true)))
-			else
-				c.lines[1]:SetText("몸 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(a, "SetModelByCreatureDisplayID", disp, def.mine and true or nil) or nil))
 			end
 		else
 			call(m, "ClearModel")
 			call(m, "SetFacing", 0)
 			if def.unit then
 				c.lines[1]:SetText("SetUnit " .. mark(call(m, "SetUnit", "player")))
-			else
-				c.lines[1]:SetText("몸 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(m, "SetDisplayInfo", disp) or nil))
 			end
 		end
 	end

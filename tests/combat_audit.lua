@@ -347,7 +347,10 @@ for _, sid in ipairs(skillIds) do
 			end
 			local all = {}
 			for _, g in pairs(byT) do for _, r in ipairs(g.r) do all[#all + 1] = r end end
-			if #all > 0 and not near(mean(all), 1, 0.03) then sfail(sid, "평균 피해 " .. f(mean(all) * v, 1) .. "% (설명 " .. numText(v) .. "%)") end
+			-- each hit rolls ±5%: the average of a few hits may drift more
+			-- than of many (three standard deviations of the mean, at least 3%)
+			local tol = #all > 0 and math.max(0.03, 3 * 0.05 / math.sqrt(3 * #all)) or 0.03
+			if #all > 0 and not near(mean(all), 1, tol) then sfail(sid, "평균 피해 " .. f(mean(all) * v, 1) .. "% (설명 " .. numText(v) .. "%)") end
 			if sk.status then
 				local n = 0
 				for _, e in ipairs(log.status) do if e.cast == sid and e.kind == sk.status[1] then n = n + 1 end end
