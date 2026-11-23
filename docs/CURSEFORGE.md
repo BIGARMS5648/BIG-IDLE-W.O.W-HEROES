@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.0.0
+BIG IDLE HEROES v1.0.1
 ```
 
 ---
@@ -135,12 +135,9 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.0.0)
+## Changelog for this release (v1.0.1)
 
 ```
-First release.
-- A party of up to five heroes from all 9 classic classes and 28 specializations, fighting on their own in a small battle window.
-- 120 stages through the classic zones, dungeons and raids, Elwynn Forest to Naxxramas, over four difficulties.
-- The game's own 3D models, animations and spell effects; heroes' gear changes with your progress, from starting clothes to the Naxxramas sets.
-- Loot in 8 qualities, the Forge (fuse, craft, gems, enchant, rune engraving, enhancement +1 to +20, salvage, lucky seals), runes, companions and offline rewards.
+- Spell effects show in the battle window: the glow in the casters' hands, missiles (and hunters' arrows) and impacts.
+- The battle scenery's far rows are solid again (no fading with distance).
 ```

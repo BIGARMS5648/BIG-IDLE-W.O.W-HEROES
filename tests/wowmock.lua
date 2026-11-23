@@ -428,8 +428,17 @@ function Actor:SetSpellVisualKit(kit, oneShot)
 	self.__kit = kit
 	if kit then Mock.kits[#Mock.kits + 1] = kit end
 end
-function Actor:ClearModel() self.__display = nil end
-function Actor:IsLoaded() return self.__display ~= nil and not Mock.missingDisplays[self.__display] end
+function Actor:ClearModel() self.__display = nil self.__in = nil end
+-- the game brings a model in only while its scene is shown: a model put up
+-- in a hidden scene stays out until the scene is shown
+function Actor:IsLoaded()
+	if self.__display == nil or Mock.missingDisplays[self.__display] then return false end
+	if self.__in ~= self.__display then
+		if self.__scene and self.__scene.IsVisible and not self.__scene:IsVisible() then return false end
+		self.__in = self.__display
+	end
+	return true
+end
 -- the model file a display id brings up (Mock.displayFile; any other: 123456)
 Mock.displayFile = {}
 function Actor:GetModelFileID()

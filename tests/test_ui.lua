@@ -1051,7 +1051,7 @@ do
 			-- a missile is in the air for a moment only: counted when it leaves
 			if ns.Bar.fxStats.missiles > flown then sawMissile = true end
 			for _, hs in ipairs(ns.Bar.hits) do
-				if not hit and hs.active and hs.fig:IsShown() and hitFiles[hs.fig.actor.__display] then
+				if not hit and hs.active and hs.fig:IsShown() and hs.fig:IsLoaded() and hitFiles[hs.fig.actor.__display] then
 					local t = hs.tfig
 					hit = { scale = hs.fig.actor.__scale or 0, height = hs.fig.height, want = 0.5 * (t.norm or 0.5) * (t.corrScale or 1), tall = t.height,
 						clip = hs.clip, clipW = hs.clip and hs.clip:GetWidth() }
@@ -1059,7 +1059,7 @@ do
 			end
 			-- the glow in a caster's hands: the kit's hand model, sized to the caster
 			for _, hs in ipairs(ns.Bar.hits) do
-				if not hand and hs.active and hs.hand and hs.fig:IsShown() and handFiles[hs.fig.actor.__display] then
+				if not hand and hs.active and hs.hand and hs.fig:IsShown() and hs.fig:IsLoaded() and handFiles[hs.fig.actor.__display] then
 					local t, b = hs.tfig, hs.fig.box
 					local ext = b and math.max(b[4] - b[1], b[5] - b[2], b[6] - b[3]) or 0
 					local ts = t.fixedScale or (t.norm or 0.5) * (t.corrScale or 1)
@@ -1304,16 +1304,13 @@ do
 					end
 				end
 			end
-			-- the farther the row, the fainter and greyer its models
-			local fa, ma, na = sc.rows[1].def.alpha, sc.rows[2].def.alpha, sc.rows[3].def.alpha
-			if not (fa < ma and ma <= na) then fail("farther scenery rows should be fainter") end
-			for r, row in ipairs(sc.rows) do
+			-- every row solid: no model see-through or greyed
+			for _, row in ipairs(sc.rows) do
 				for _, it in ipairs(row.items) do
-					if it.sized and it.fig.alpha ~= row.def.alpha then fail("a scenery model should take its row's faintness") end
-					if it.file and it.fig.desat ~= row.def.desat then fail("a scenery model should take its row's greyness") end
+					if it.sized and it.fig.alpha ~= 1 then fail("scenery models should be solid, not see-through") end
+					if it.file and (it.fig.desat or 0) ~= 0 then fail("scenery models should keep their own colours") end
 				end
 			end
-			if not (sc.rows[1].def.desat > sc.rows[2].def.desat and sc.rows[2].def.desat >= sc.rows[3].def.desat) then fail("farther scenery rows should be greyer") end
 			if shown < 6 then
 				fail("most scenery spots should hold a model: " .. shown)
 			end
@@ -1590,9 +1587,9 @@ do
 	local function stand(npc, h)
 		local m = Fig.New(UIParent, h)
 		m:SetModelId(npc)
-		m:Step(0.05)
 		m:PlaceFeet(UIParent, 300, 100)
-		m:Show()
+		m:Show() -- (the game brings a model into a shown frame only)
+		m:Step(0.05)
 		return m
 	end
 	for _, c in ipairs({ { MOB, 70 }, { 11502, 98 }, { 416, 70 } }) do
