@@ -779,6 +779,13 @@ end
 
 function scene:Rescaled() setCamera(self) end
 
+-- How grey the model is (0 = its own colours, 1 = grey): scenery far off.
+function scene:SetDesaturation(v)
+	if self.desat == v then return end
+	self.desat = v
+	call(self.actor, "SetDesaturation", v)
+end
+
 -- The light on the model times (r, g, b): darker and tinted for scenery far
 -- off; nil for the usual light.
 function scene:SetShade(r, g, b)
@@ -932,6 +939,11 @@ function model:Rescaled()
 end
 
 function model:SetAnim(id) call(self, "SetAnimation", id) end
+
+function model:SetDesaturation(v)
+	self.desat = v
+	call(self, "SetDesaturation", v)
+end
 
 function model:SetShade(r, g, b)
 	self.shade = r and { r, g, b } or nil

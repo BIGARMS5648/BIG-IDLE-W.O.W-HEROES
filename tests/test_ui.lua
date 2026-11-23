@@ -1190,6 +1190,16 @@ do
 					end
 				end
 			end
+			-- the farther the row, the fainter and greyer its models
+			local fa, ma, na = sc.rows[1].def.alpha, sc.rows[2].def.alpha, sc.rows[3].def.alpha
+			if not (fa < ma and ma <= na) then fail("farther scenery rows should be fainter") end
+			for r, row in ipairs(sc.rows) do
+				for _, it in ipairs(row.items) do
+					if it.sized and it.fig.alpha ~= row.def.alpha then fail("a scenery model should take its row's faintness") end
+					if it.file and it.fig.desat ~= row.def.desat then fail("a scenery model should take its row's greyness") end
+				end
+			end
+			if not (sc.rows[1].def.desat > sc.rows[2].def.desat and sc.rows[2].def.desat >= sc.rows[3].def.desat) then fail("farther scenery rows should be greyer") end
 			if shown < 6 then
 				fail("most scenery spots should hold a model: " .. shown)
 			end

@@ -872,11 +872,13 @@ local SCENERY_ROWS = {
 	-- lo..hi; minH/maxH: the heights (yards) a model of the row may have;
 	-- shade: its light; speed: share of the walk; phase: where its first
 	-- model stands (in steps), so the rows' models do not stand in line
-	{ key = "far",  n = 4, y = 42, k = 5, lo = 36, hi = 62, minH = 4,   maxH = 80, shade = 0.55, speed = 0.3, phase = 0.15, level = 1,
+	-- alpha, desat: the farther, the fainter (the backdrop shows through) and
+	-- the greyer, as things far off look
+	{ key = "far",  n = 4, y = 42, k = 5, lo = 36, hi = 62, minH = 4,   maxH = 80, shade = 0.7, alpha = 0.5,  desat = 0.6, haze = 0.6, speed = 0.3, phase = 0.15, level = 1,
 		inside = { k = 11, lo = 30, hi = 54, minH = 1.2, maxH = 30 } },
-	{ key = "mid",  n = 3, y = 27, k = 6, lo = 20, hi = 40, minH = 1.2, maxH = 25, shade = 0.75, speed = 0.6, phase = 0.55, level = 2,
+	{ key = "mid",  n = 3, y = 27, k = 6, lo = 20, hi = 40, minH = 1.2, maxH = 25, shade = 0.8, alpha = 0.78, desat = 0.3, haze = 0.3, speed = 0.6, phase = 0.55, level = 2,
 		inside = { k = 13, lo = 16, hi = 34, minH = 0.5, maxH = 10 } },
-	{ key = "near", n = 4, y = 12, k = 9, lo = 8,  hi = 20, minH = 0.2, maxH = 5,  shade = 0.9,  speed = 1.0, phase = 0.85, level = 3,
+	{ key = "near", n = 4, y = 12, k = 9, lo = 8,  hi = 20, minH = 0.2, maxH = 5,  shade = 0.9, alpha = 1,    desat = 0,   haze = 0.1, speed = 1.0, phase = 0.85, level = 3,
 		inside = { k = 16, lo = 7, hi = 18, minH = 0.1, maxH = 3 } },
 }
 -- the limits of a row for the set shown (an inside place's props are smaller,
@@ -1027,7 +1029,7 @@ local function sizeScenery(sc, row, it)
 	local fit = (H and fig.norm) and H * fig.norm or 1
 	fig:SetHeight2(px / max(0.05, fit))
 	it.sized = true
-	fig:SetAlpha(1)
+	fig:SetAlpha(def.alpha or 1)
 end
 
 local function drawScenery()
@@ -1041,13 +1043,14 @@ local function drawScenery()
 	if set ~= sc.set or th ~= sc.theme then
 		sc.set, sc.theme = set, th
 		for _, row in ipairs(sc.rows) do
-			-- far rows take on the colour of the place's sky
+			-- far rows take on the colour of the place's air: dimmer, greyer, tinted
 			local k, rgb = row.def.shade, th and th.rgb or { 1, 1, 1 }
-			local mix = 1 - k
+			local mix = row.def.haze or (1 - k)
 			for _, it in ipairs(row.items) do
 				it.lap = nil
 				if set then
 					it.fig:SetShade(k * (1 - mix + mix * rgb[1]), k * (1 - mix + mix * rgb[2]), k * (1 - mix + mix * rgb[3]))
+					it.fig:SetDesaturation(row.def.desat or 0)
 					setSceneryModel(sc, row, it)
 				else
 					it.file = nil

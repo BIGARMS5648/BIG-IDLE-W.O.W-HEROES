@@ -404,6 +404,8 @@ function Actor:SetModelByUnit(unit, sheathe, autoDress, hideWeapons, native, hol
 	self.__race, self.__dressed, self.__noWeapons = raceId, autoDress ~= false, hideWeapons and true or false
 	return true
 end
+function Actor:SetDesaturation(v) strict(type(v) == "number" and v >= 0 and v <= 1, "actor SetDesaturation: 0..1 expected") self.__desat = v end
+function Actor:GetDesaturation() return self.__desat or 0 end
 function Actor:Undress() self.__worn, self.__hands = {}, {} end
 -- an item on (a hand slot name puts a weapon in that hand)
 local HAND = { MAINHANDSLOT = true, SECONDARYHANDSLOT = true }
