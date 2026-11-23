@@ -267,7 +267,8 @@ local function drawHeroes(now)
 					fig:SetHeight2(HERO_FIG * Figure.HeroScale(u.id, true))
 				end
 				-- a cat or a bear: its effects at its front (spellFx)
-				fig.beast = Figure.BEAST[Figure.HeroForm(u.id, true) or ""]
+				local form = Figure.HeroForm(u.id, true)
+				fig.beast = Figure.BEAST[form or ""] and form or nil
 				-- a hunter's attack is a shot of its bow or gun; other heroes that
 				-- fight from afar (casters, healers) cast at the target instead of
 				-- swinging their weapon
@@ -705,8 +706,9 @@ local HAND_SIZE, HAND_X, HAND_Y = 0.8, 0.22, 0.5
 local FX_ROOM = 8
 -- a beast (a druid's cat or bear) is long, its middle well behind its head:
 -- what it does itself comes out at its front (FRONT_OWN of the way from its
--- middle to its nose), what reaches it lands on its chest (FRONT_HIT)
-local FRONT_OWN, FRONT_HIT = 0.7, 0.4
+-- middle to its nose: the cat's in front of its head, the bear's at its
+-- head and paws), what reaches it lands on its chest (FRONT_HIT)
+local FRONT_OWN, FRONT_HIT = { cat = 1.15, bear = 0.7 }, 0.4
 local missiles, hits, pendingHits = {}, {}, {}
 -- what was launched and shown (the last missile's file), for the tests
 local fxStats = { missiles = 0, hits = 0 }
@@ -762,7 +764,7 @@ end
 -- where a figure's hands and chest are, in the scene (a beast's paws and
 -- chest are at its front)
 local function hand(fig, dir)
-	local x = fig.beast and front(fig, FRONT_OWN) or fig.height * 0.2
+	local x = fig.beast and front(fig, FRONT_OWN[fig.beast]) or fig.height * 0.2
 	return fig.anchorX + x * dir, fig.anchorY + fig.height * 0.6
 end
 local function chest(fig)
@@ -915,11 +917,11 @@ local function drawEffects()
 				local dir = tf.facing == "left" and -1 or 1
 				if hs.hand then
 					-- at the front hand (the way the caster faces; a beast's paws)
-					local x = tf.beast and front(tf, FRONT_OWN) or tf.height * HAND_X
+					local x = tf.beast and front(tf, FRONT_OWN[tf.beast]) or tf.height * HAND_X
 					hs.fig:PlaceFeet(frame.scene, tf.anchorX + x * dir, tf.anchorY + tf.height * HAND_Y)
 				else
 					-- a beast's own blow at its front, a hit on it at its chest
-					local x = front(tf, hs.own and FRONT_OWN or FRONT_HIT)
+					local x = tf.beast and front(tf, hs.own and FRONT_OWN[tf.beast] or FRONT_HIT) or 0
 					hs.fig:PlaceFeet(frame.scene, tf.anchorX + x * dir, tf.anchorY + tf.height * (hs.low and 0.25 or 0.55))
 				end
 				local left = HIT_SHOW - hs.t

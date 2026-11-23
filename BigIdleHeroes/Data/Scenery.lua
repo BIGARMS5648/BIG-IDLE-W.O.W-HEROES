@@ -426,7 +426,7 @@ ns.GROUND = {
 	gordok = 127806, highborne = 127804, hillsbrad = 186781, hinterlands = 186769, lochmodan = 188615,
 	maraudon = 127819, moltencore = 186959, mulgore = 188654, naxxramas = 127851, needles = 188929,
 	onyxia = 186954, plaguelands = 188736, ragefire = 186933, razorfen = 188746, redridge = 188756,
-	scarletarmory = 127923, scarletcathedral = 127924, scarletlib = 127922, scarletyard = 188954,
+	scarletarmory = 127922, scarletcathedral = 127924, scarletlib = 127922, scarletyard = 188954,
 	scholomance = 127762, searing = 186952, shadowfang = 127752, silithus = 188779, silverpine = 188791,
 	stonetalon = 188805, stranglethorn = 188821, stratholme = 127975, stratslaughter = 127763,
 	sunkentemple = 127831, swamp = 188840, tanaris = 188870, teldrassil = 188589, tirisfal = 188954,

@@ -199,7 +199,7 @@ local function candidates()
 	end
 	local rid, rcost = cheapestRune()
 	if rid and ns.CanAfford(rcost) then
-		add({ text = string.format("룬 배우기: %s (%s G)", ns.N(ns.Runes.byId[rid].name), ns.U.fmt(rcost)), tab = "runes", rune = rid })
+		add({ text = "룬 배우기: " .. ns.N(ns.Runes.byId[rid].name), tab = "runes", rune = rid })
 	end
 	local stg = ns.Stage(db.stage.diff, db.stage.idx)
 	if stg.raid then

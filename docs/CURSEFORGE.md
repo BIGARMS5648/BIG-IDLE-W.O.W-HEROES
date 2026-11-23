@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.0.4
+BIG IDLE HEROES v1.0.5
 ```
 
 ---
@@ -135,9 +135,10 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.0.4)
+## Changelog for this release (v1.0.5)
 
 ```
-- Spell effects are no longer cut off by a square around them: impacts, casts and missiles of heroes and monsters show whole.
-- The druid's cat and bear do their attacks at the front of their body instead of at their hips; blows that reach them land on their chest.
+- The cat's attacks and its own buffs (shred, rake, ferocious bite, tiger's fury) show in front of its head.
+- The rune suggestion shows only the rune's name, so it fits its button.
+- The Scarlet Monastery armory has the monastery's plain stone floor.
 ```

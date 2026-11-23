@@ -1204,38 +1204,68 @@ do
 				end
 			end
 			-- a beast (a druid's cat or bear) does its blows at its front, not
-			-- at the middle of its long body; a hit on it lands on its chest
-			if war and wf and wf.figIs and mob and fx then
-				local wfig = wf.figIs
+			-- at the middle of its long body: the cat in front of its head, the
+			-- bear at its head and paws; a hit on a beast lands on its chest
+			local bh, bf
+			for i, x in ipairs(ns.Combat.heroes) do
+				if x ~= war and heroes[i].figIs and heroes[i].figIs:IsLoaded() and not bh then bh, bf = x, heroes[i] end
+			end
+			local bite = ns.SKILL_FX.ferocious_bite
+			if war and wf and wf.figIs and mob and fx and bh and bite then
+				local cfig, bfig = wf.figIs, bf.figIs
 				local was = Fig.HeroForm
-				Fig.HeroForm = function(id, c) if id == war.id then return "bear" end return was(id, c) end
+				Fig.HeroForm = function(id, c)
+					if id == war.id then return "cat" end
+					if id == bh.id then return "bear" end
+					return was(id, c)
+				end
 				frames(1)
 				local smash = ns.MobFx("smash", "fire")
-				ns.Combat.VFX({ k = "skill", u = war, sid = "cleave", to = { mob } })
+				ns.Combat.VFX({ k = "skill", u = war, sid = "ferocious_bite", to = { mob } })
+				ns.Combat.VFX({ k = "skill", u = bh, sid = "cleave", to = { mob } })
 				ns.Combat.VFX({ k = "mob", u = mob, kind = "smash", school = "fire", to = { war } })
-				local ownX, onX
+				local catX, catY, bearX, onX
 				for _ = 1, 6 do
 					frames(1)
 					for _, hs in ipairs(ns.Bar.hits) do
-						if hs.active and hs.tfig == wfig and not hs.hand and hs.fig:IsShown() then
-							if hs.fig.actor.__display == "file:" .. fx.self then ownX = hs.fig.anchorX end
-							if hs.fig.actor.__display == "file:" .. smash.hit then onX = hs.fig.anchorX end
+						if hs.active and not hs.hand and hs.fig:IsShown() then
+							-- (offsets from the body, read in the frame they were placed)
+							local d = hs.fig.actor.__display
+							if hs.tfig == cfig and d == "file:" .. bite.self then catX, catY = hs.fig.anchorX - cfig.anchorX, hs.fig.anchorY - cfig.anchorY end
+							if hs.tfig == cfig and d == "file:" .. smash.hit then onX = hs.fig.anchorX - cfig.anchorX end
+							if hs.tfig == bfig and d == "file:" .. fx.self then bearX = hs.fig.anchorX - bfig.anchorX end
 						end
 					end
 				end
-				local b = wfig.box
-				local half = b and math.abs(b[4] - b[1]) / 2 * (wfig.fixedScale or (wfig.norm or 0.5) * (wfig.corrScale or 1)) * wfig.height or 0
-				local dir = wfig.facing == "left" and -1 or 1
+				local function half(f)
+					local b = f.box
+					return b and math.abs(b[4] - b[1]) / 2 * (f.fixedScale or (f.norm or 0.5) * (f.corrScale or 1)) * f.height or 0
+				end
+				local function dirOf(f) return f.facing == "left" and -1 or 1 end
+				local ch, bhalf = half(cfig) * dirOf(cfig), half(bfig) * dirOf(bfig)
 				Fig.HeroForm = was
 				frames(1)
-				if half <= 0 then fail("the beast check needs a measured body") end
-				if not ownX or math.abs(ownX - (wfig.anchorX + 0.7 * half * dir)) > 1e-6 then
-					fail(string.format("a beast's own blow should come out at its front: %s, want %.2f", tostring(ownX), wfig.anchorX + 0.7 * half * dir))
+				if ch == 0 or bhalf == 0 then fail("the beast check needs measured bodies") end
+				if not catX or math.abs(catX - 1.15 * ch) > 1e-6 then
+					fail(string.format("a cat's own blow should come out in front of its head: %s, want %.2f", tostring(catX), 1.15 * ch))
 				end
-				if not onX or math.abs(onX - (wfig.anchorX + 0.4 * half * dir)) > 1e-6 then
-					fail(string.format("a hit on a beast should land on its chest: %s, want %.2f", tostring(onX), wfig.anchorX + 0.4 * half * dir))
+				if catY and math.abs(catY - cfig.height * 0.55) > 1e-6 then fail("a cat's bite should be at its head's height") end
+				if not bearX or math.abs(bearX - 0.7 * bhalf) > 1e-6 then
+					fail(string.format("a bear's own blow should come out at its front: %s, want %.2f", tostring(bearX), 0.7 * bhalf))
 				end
-				if wfig.beast then fail("a hero out of its form should not be a beast") end
+				if not onX or math.abs(onX - 0.4 * ch) > 1e-6 then
+					fail(string.format("a hit on a beast should land on its chest: %s, want %.2f", tostring(onX), 0.4 * ch))
+				end
+				if cfig.beast or bfig.beast then fail("a hero out of its form should not be a beast") end
+			else
+				fail("the beast check should have a warrior, another hero and a monster")
+			end
+			-- every attack the cat makes shows on the cat itself (in front of
+			-- its head), at its head's height
+			for _, sid in ipairs({ "shred", "rake", "ferocious_bite", "tigers_fury" }) do
+				local e = ns.SKILL_FX[sid]
+				if not (e and e.self) then fail("the cat's " .. sid .. " should show on the cat") end
+				if e and e.selfLow then fail("the cat's " .. sid .. " should be at its head's height") end
 			end
 		end
 		-- a boss ability is a classic spell: its name shows, its cast plays
