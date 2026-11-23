@@ -127,6 +127,16 @@ local function pickFigure(model, modelId)
 	if model then model:Hide() end
 end
 
+-- A hero: its own body (the player's model as its race, in its class's
+-- dungeon set), else the NPC it is drawn as (a druid's form, the mech).
+local function pickHero(model, heroId)
+	if model and Figure.Enabled() then
+		local body = Figure.HeroBody(heroId, true)
+		if body and model:SetBody(body) then return model end
+	end
+	return pickFigure(model, Figure.ForHero(heroId, true))
+end
+
 -- Picks the animation for a unit, letting a started attack, skill or hit
 -- finish before idling or walking again.
 local ONESHOT = { attack = true, cast = true, hit = true }
@@ -250,7 +260,7 @@ local function drawHeroes(now)
 			local px, moved = glide(f, spread[i])
 			f.drawX = px
 			local moving = walking(f, moved)
-			local fig = pickFigure(f.model, Figure.ForHero(u.id, true))
+			local fig = pickHero(f.model, u.id)
 			if fig then
 				if f.figFor ~= u.id or f.figIs ~= fig then
 					f.figFor, f.figIs = u.id, fig
@@ -619,11 +629,110 @@ local function updateInfo()
 	for _, mb in ipairs(frame.menu) do mb:SetBadge(badges[mb.key]) end
 end
 
--- the combat's effect events (shots, hits) are not drawn
+------------------------------------------------------------------------
+-- Skill effects: the game's own spell visuals (Data/Effects.lua) on the
+-- fighters' models - the cast in the caster's hands, the missile flying to
+-- each target, the hit on it; heals land on the healed. Melee classes show
+-- only the hit.
+------------------------------------------------------------------------
+local FX_FLIGHT, FX_HIT_DELAY, MAX_MISSILES, MAX_TARGETS = 0.35, 0.12, 8, 5
+local missiles, pendingHits = {}, {}
+
+local function figureOf(unit)
+	local list = ns.Combat.heroes
+	for i = 1, #list do
+		if list[i] == unit then return heroFrames[i] and heroFrames[i].figIs end
+	end
+	list = ns.Combat.mobs
+	for i = 1, #list do
+		if list[i] == unit then return mobFrames[i] and mobFrames[i].figIs end
+	end
+end
+
+local function freeMissile()
+	for _, ms in ipairs(missiles) do
+		if not ms.active then return ms end
+	end
+	if #missiles >= MAX_MISSILES then return nil end
+	local fig = Figure.New(frame.scene, HERO_FIG)
+	if not fig or fig.kind ~= "scene" then
+		if fig then fig:Hide() end
+		return nil
+	end
+	fig:SetFrameLevel(frame.scene:GetFrameLevel() + 20)
+	fig:Hide()
+	local ms = { fig = fig }
+	missiles[#missiles + 1] = ms
+	return ms
+end
+
+-- where a figure's hands and chest are, in the scene
+local function hand(fig, dir) return fig.anchorX + fig.height * 0.2 * dir, fig.anchorY + fig.height * 0.6 end
+local function chest(fig) return fig.anchorX, fig.anchorY + fig.height * 0.55 end
+
+local function skillFx(e)
+	local u = e.u
+	local fx = ns.SkillFx(u.class, ns.SKILLS[e.sid])
+	if not fx then return end
+	local cfig = figureOf(u)
+	if cfig and not cfig:IsLoaded() then cfig = nil end
+	local melee = ns.MELEE_FX[u.class]
+	if cfig and not melee then cfig:PlayKit(fx.cast) end
+	for k, t in ipairs(e.to or {}) do
+		if k > MAX_TARGETS then break end
+		local tfig = figureOf(t)
+		if tfig and tfig:IsLoaded() and tfig.anchorX then
+			local ms = fx.missile and cfig and cfig.anchorX and not melee and t ~= u and freeMissile()
+			if ms and ms.fig:SetModelFile(fx.missile) then
+				local dir = tfig.anchorX >= cfig.anchorX and 1 or -1
+				ms.fig:SetHeight2(cfig.height)
+				ms.fig:SetFixedScale((cfig.norm or 0.5) * (cfig.corrScale or 1))
+				ms.fig:SetFacing(dir > 0 and "right" or "left")
+				ms.x0, ms.y0 = hand(cfig, dir)
+				ms.tfig, ms.kit, ms.t, ms.active = tfig, fx.impact, 0, true
+			else
+				pendingHits[#pendingHits + 1] = { t = FX_HIT_DELAY, fig = tfig, kit = fx.impact }
+			end
+		end
+	end
+end
+
+-- the combat's effect events: skills play their effects (shots and hits of
+-- basic attacks are not drawn)
 local function drawEffects()
 	local list = ns.Combat.vfx
-	for i = #list, 1, -1 do list[i] = nil end
+	local on = Figure.Enabled()
+	for i = 1, #list do
+		local e = list[i]
+		if on and e.k == "skill" and e.u then skillFx(e) end
+		list[i] = nil
+	end
+	for _, ms in ipairs(missiles) do
+		if ms.active then
+			ms.t = ms.t + dt
+			ms.fig:Step(dt)
+			local p = ms.t / FX_FLIGHT
+			if p >= 1 or not ms.tfig:IsShown() then
+				ms.active = false
+				ms.fig:Hide()
+				if p >= 1 then ms.tfig:PlayKit(ms.kit) end
+			else
+				local tx, ty = chest(ms.tfig)
+				ms.fig:PlaceFeet(frame.scene, ms.x0 + (tx - ms.x0) * p, ms.y0 + (ty - ms.y0) * p)
+				ms.fig:SetShown(ms.fig:IsLoaded())
+			end
+		end
+	end
+	for i = #pendingHits, 1, -1 do
+		local h = pendingHits[i]
+		h.t = h.t - dt
+		if h.t <= 0 then
+			if h.fig:IsShown() then h.fig:PlayKit(h.kit) end
+			table.remove(pendingHits, i)
+		end
+	end
 end
+Bar.missiles = missiles
 
 local function onUpdate(self, elapsed)
 	local now = GetTime()

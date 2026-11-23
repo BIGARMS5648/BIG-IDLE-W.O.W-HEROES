@@ -29,3 +29,34 @@ ns.SPELL_FX = {
 	{ key = "healing_wave", name = "치유의 물결", class = "SHAMAN", spell = 331, self = true, omni = true,
 		precast = 100, cast = 183, impact = 101, hand = 166605, hit = 166703 },
 }
+
+ns.SPELL_FX_BY = {}
+for _, e in ipairs(ns.SPELL_FX) do ns.SPELL_FX_BY[e.key] = e end
+
+-- The effect a hero's skill plays in battle: heals, shields and revives by
+-- the class's healing light (holy, or nature for shamans, druids and
+-- tinkers), damage by the skill's school (fire, frost, shadow, holy, arcane,
+-- nature - a druid's nature is Wrath, a shaman's lightning, a hunter's
+-- shots arcane). Physical skills and buffs play none.
+local HEAL = { heal = true, shield = true, revive = true }
+local NATURE_HEAL = { SHAMAN = true, DRUID = true, TINKER = true }
+function ns.SkillFx(classId, sk)
+	local by = ns.SPELL_FX_BY
+	if not sk then return nil end
+	if HEAL[sk.kind] or (sk.kind == "field" and sk.heal) then
+		return NATURE_HEAL[classId] and by.healing_wave or by.heal
+	end
+	if sk.kind == "buff" then return nil end
+	local school = sk.school
+	if classId == "HUNTER" and school and school ~= "phys" then return by.arcane_shot end
+	if school == "fire" then return by.fireball end
+	if school == "frost" then return by.frostbolt end
+	if school == "shadow" then return by.shadow_bolt end
+	if school == "holy" then return by.smite end
+	if school == "arcane" then return by.arcane_shot end
+	if school == "nature" then return classId == "DRUID" and by.wrath or by.lightning_bolt end
+	return nil
+end
+
+-- Classes that fight up close: their skills show only the hit, no missile.
+ns.MELEE_FX = { WARRIOR = true, ROGUE = true, PALADIN = true }

@@ -109,6 +109,43 @@ function Figure.ForClass(classId, faction, specId, sex)
 	return usable(t and t.npc)
 end
 
+-- A hero's own look: the player's model made the class's race (SetModelByUnit
+-- with the game's race id), with nothing on, in the class's dungeon set.
+-- The tinker has no dungeon set of its own and wears the rogue's for now.
+local SET_OF = { TINKER = "ROGUE" }
+local bodies = {}
+function Figure.BodyFor(classId, faction)
+	faction = faction or ns.Faction() or "ALLIANCE"
+	local key = tostring(classId) .. ":" .. faction
+	if bodies[key] ~= nil then return bodies[key] or nil end
+	local race = ns.ClassRace(classId, faction)
+	local rid = race and ns.MODEL.raceId and ns.MODEL.raceId[race]
+	local set = ns.MODEL.dungeonSet and (ns.MODEL.dungeonSet[classId] or ns.MODEL.dungeonSet[SET_OF[classId] or ""])
+	if not rid then
+		bodies[key] = false
+		return nil
+	end
+	local items = set and set.items or {}
+	local body = { race = race, rid = rid, items = items, key = "body:" .. rid .. ":" .. table.concat(items, ",") }
+	bodies[key] = body
+	return body
+end
+
+-- The body a hero is drawn with, or nil when it fights in another shape (a
+-- druid's form, the tinker's mech) or the body cannot be had.
+function Figure.HeroBody(heroId, inCombat)
+	local h = ns.db and ns.db.heroes[heroId]
+	if not h then return nil end
+	local faction = ns.Faction() or "ALLIANCE"
+	if inCombat ~= false then
+		local form = FORM[h.spec]
+		if form and usable(ns.MODEL.form[form]) then return nil end
+		if h.spec == "TINKER_MECH" and usable(ns.MODEL.mech[faction]) then return nil end
+	end
+	local sp = ns.SPECS[h.spec]
+	return sp and Figure.BodyFor(sp.class, faction)
+end
+
 -- How tall each body stands next to an ordinary hero.
 Figure.RACE_SCALE = { GNOME = 0.78, GOBLIN = 0.82, DWARF = 0.9, TAUREN = 1.12, NIGHTELF = 1.04, TROLL = 1.06 }
 function Figure.HeroScale(heroId)
@@ -182,7 +219,7 @@ end
 function base:SetModelId(id)
 	if not id or failed[id] then return false end
 	if self.id ~= id then
-		self.file = nil
+		self.file, self.body = nil, nil
 		self.id = id
 		self.tries = 0
 		self.loaded = false
@@ -197,13 +234,32 @@ function base:SetModelId(id)
 	return true
 end
 
+-- Puts a hero's body up (Figure.BodyFor); false when the client cannot.
+function base:SetBody(body)
+	if self.kind ~= "scene" or not body or failed[body.key] then return false end
+	if self.id ~= body.key then
+		self.file, self.body = nil, body
+		self.id = body.key
+		self.tries = 0
+		self.loaded = false
+		self.anim, self.left, self.done = nil, 0, true
+		if not self:Load() then
+			failed[body.key] = true
+			self.id, self.body = nil, nil
+			return false
+		end
+		self:Play("idle")
+	end
+	return true
+end
+
 -- Puts a model file up by its file id (a spell's effect or missile) instead
 -- of an NPC; false when the client cannot.
 function base:SetModelFile(file)
 	local id = "file:" .. tostring(file)
 	if not file or failed[id] then return false end
 	if self.id ~= id then
-		self.file = file
+		self.file, self.body = file, nil
 		self.id = id
 		self.tries = 0
 		self.loaded = false
@@ -252,6 +308,7 @@ function base:Loaded()
 		end
 	end
 	self.corrScale, self.corrXf, self.corrYf, self.fixTries, self.fixInfo = nil, nil, nil, 0, nil
+	if self.body and self.Dress then self:Dress() end
 	self:Measure()
 	self:Look()
 	if self.anim then self:SetAnim(ANIM_ID[self.done and self.anim == "death" and "dead" or self.anim]) end
@@ -582,6 +639,14 @@ function scene:Load()
 		self.loadT = SCENE_WAIT
 		return true
 	end
+	if self.body then
+		-- the player, weapons hidden and nothing worn, as the body's race
+		local okB, resB = call(a, "SetModelByUnit", "player", false, false, true, true, false, self.body.rid)
+		if not okB or resB == false then return false end
+		self.lastTry = true
+		self.loadT = SCENE_WAIT
+		return true
+	end
 	local disp = displayFor(self.id)
 	if not disp then return false end
 	local ok, res = call(a, "SetModelByCreatureDisplayID", disp)
@@ -602,6 +667,19 @@ function scene:ModelIn()
 end
 
 function scene:ShownDisplay() return self.tryDisplay end
+
+-- Plays one of the game's spell visual kits on the model once (a spell's
+-- cast in the hands, its hit on the target); nothing before the model is in.
+function scene:PlayKit(kit)
+	if kit and self.loaded then return call(self.actor, "SetSpellVisualKit", kit, true) end
+end
+
+-- The body's clothes off and the set on (once the body is in).
+function scene:Dress()
+	local a = self.actor
+	call(a, "Undress")
+	for _, item in ipairs(self.body.items or {}) do call(a, "TryOn", "item:" .. item) end
+end
 
 -- The model's own size (its bounding box, standing): its height becomes the
 -- figure's height, a long one is fitted by part of its length.
@@ -791,6 +869,13 @@ function model:SetHeight2(h)
 	self.height = h
 	self:SetSize(h * FRAME_W, h * FRAME_H)
 	self:Rescaled()
+end
+
+function model:PlayKit(kit)
+	if not kit or not self.loaded then return end
+	local r = call(self, "ApplySpellVisualKit", kit, true)
+	if r == nil then r = call(self, "SetSpellVisualKit", kit, true) end
+	return r
 end
 
 -- Only the head and chest, in a square of px (the game's portrait framing).

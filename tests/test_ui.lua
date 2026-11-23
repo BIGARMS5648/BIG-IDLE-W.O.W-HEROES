@@ -116,6 +116,13 @@ click("class Hunter", function(b) return b.cid == "HUNTER" end)
 click("spec Marksmanship", function(b) return b.sid == "HUNTER_MM" end)
 click("female", function(b) return b.sex == "F" end)
 click("reroll name", labelIs("다시"))
+do -- the preview: the player's body as the class's race (a hunter: night elf or troll), in its set
+	local cf = ns.UI.CreatePreview()
+	if not cf then fail("the create window should have a 3D preview") end
+	if cf and (cf.actor.__display ~= "unit:player" or cf.actor.__race ~= ns.MODEL.raceId[ns.ClassRace("HUNTER")]) then
+		fail("the create preview should be the player's body as the hunter's race: " .. tostring(cf.actor.__display) .. " " .. tostring(cf.actor.__race))
+	end
+end
 click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 153 end)
 if H.Count() ~= 1 then fail("creating through the dialog did not make a hero") end
 local first = H.List()[1]
@@ -206,6 +213,7 @@ do
 				fail("a party card's model should be a bust the size of its portrait")
 			end
 			if p.badge:IsShown() then fail("a party card should show no red dot") end
+			if m and (m.actor.__display ~= "unit:player" or not m.actor.__race) then fail("a party card should show the hero's body (the player's model as its race)") end
 			if p.ringT:IsShown() or p.role:IsShown() then fail("a party card should show no role ring or role mark behind the model") end
 		end
 	end
@@ -886,8 +894,23 @@ do
 		if f:IsShown() and m and m:IsShown() then
 			hShown = hShown + 1
 			if m.kind ~= "scene" then fail("a battle figure should be a ModelScene") end
-			local want = Fig.DisplayFor(m.id)
-			if m.actor.__display ~= want then fail("a hero model should be put up by its display id: " .. tostring(m.actor.__display) .. " / " .. tostring(want)) end
+			-- the player's body as the hero's race, undressed, in the class's
+			-- dungeon set; a druid in its form or the mech stays an NPC
+			local u
+			for _, x in ipairs(ns.Combat.heroes) do if x.id == f.shownId then u = x end end
+			local body = u and Fig.HeroBody(u.id, true)
+			if body then
+				local cls = ns.SPECS[ns.db.heroes[u.id].spec].class
+				local race = ns.ClassRace(cls)
+				if m.actor.__display ~= "unit:player" or m.actor.__race ~= ns.MODEL.raceId[race] or m.actor.__dressed then
+					fail("a hero should be the player's body as its race (" .. race .. "), undressed: " .. tostring(m.actor.__display) .. " " .. tostring(m.actor.__race))
+				end
+				local worn = m.actor.__worn or {}
+				if #worn ~= #body.items or #worn == 0 then fail("a hero should wear its class's dungeon set: " .. #worn .. " pieces") end
+			else
+				local want = Fig.DisplayFor(m.id)
+				if m.actor.__display ~= want then fail("a hero in another shape should be put up by its display id: " .. tostring(m.actor.__display) .. " / " .. tostring(want)) end
+			end
 			if not m:IsLoaded() or f.icon:IsShown() then fail("a hero whose model is in should not show the icon too") end
 			-- a square frame with room around the model
 			if math.abs(m:GetWidth() - m:GetHeight()) > 1e-6 or m:GetHeight() < 2.5 * m.height then fail("a figure's frame should be square with room around the model") end
@@ -905,6 +928,28 @@ do
 	if hShown == 0 then fail("the heroes in battle should be 3D models") end
 	if mShown == 0 then fail("the monsters in battle should be 3D models") end
 	if #Mock.misuse > 0 then fail("ModelScene calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end
+	-- skills play the game's spell effects: kits on the fighters' models and
+	-- missiles (model files) flying from caster to target
+	do
+		Mock.kits = {}
+		local sawMissile = false
+		for _ = 1, 400 do
+			frames(1)
+			for _, ms in ipairs(ns.Bar.missiles) do
+				if ms.active and type(ms.fig.actor.__display) == "string" and ms.fig.actor.__display:find("^file:") then sawMissile = true end
+			end
+			if sawMissile and #Mock.kits >= 4 then break end
+		end
+		local known = {}
+		for _, e in ipairs(ns.SPELL_FX) do
+			for _, k in ipairs({ e.cast, e.impact }) do if k then known[k] = true end end
+		end
+		local good = 0
+		for _, k in ipairs(Mock.kits) do if known[k] then good = good + 1 end end
+		if good == 0 then fail("skills in battle should play spell kits on the models (" .. #Mock.kits .. " kits)") end
+		if not sawMissile then fail("a skill with a missile should fly it from the caster to the target") end
+		if #Mock.misuse > 0 then fail("effect calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end
+	end
 	-- an attack plays the attack animation
 	local anims = {}
 	for _ = 1, 400 do -- until the party has met the monsters and fought a while

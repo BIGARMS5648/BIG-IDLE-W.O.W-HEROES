@@ -664,11 +664,13 @@ local function cast(u, sid, target)
 	local v = ns.SkillValue(sid, lvl)
 	local kind = sk.kind
 	if not needsMet(u, sk) then return false end
+	local to = {} -- whom the skill reached (for the battle window's effects)
 
 	if kind == "dmg" then
 		if not target then return false end
 		local list = pickTargets(target, sk.targets or 1)
 		for _, m in ipairs(list) do
+			to[#to + 1] = m
 			for _ = 1, sk.hits or 1 do
 				local mult = v / 100
 				if sk.exec and m.hp / m.maxhp * 100 <= sk.exec[1] then mult = mult * sk.exec[2] end
@@ -702,6 +704,7 @@ local function cast(u, sid, target)
 		local list = pickTargets(target, sk.targets or 1)
 		local dps = u.s.atk * v / 100 * schoolMult(u.s, sk.school)
 		for _, m in ipairs(list) do
+			to[#to + 1] = m
 			applyStatus(m, sk.status, nil, dps, sk.dur, sk.school)
 			if m.st[sk.status] then m.st[sk.status].src = u end
 		end
@@ -710,17 +713,20 @@ local function cast(u, sid, target)
 		fields[#fields + 1] = { src = u, sk = sk, mult = v / 100, t = sk.dur, tickT = 0 }
 	elseif kind == "field" then
 		if not target then return false end
+		to[1] = target
 		fields[#fields + 1] = { src = u, sk = sk, mult = v / 100, t = sk.dur, tickT = 0 }
 	elseif kind == "debuff" then
 		if not target then return false end
 		local list = pickTargets(target, sk.targets or 1)
 		for _, m in ipairs(list) do
+			to[#to + 1] = m
 			applyStatus(m, sk.status, nil, v, sk.dur)
 		end
 	elseif kind == "heal" then
 		-- one application: instant, or a heal over time keyed by the skill
 		local function apply(t)
 			if t.dead then return end
+			to[#to + 1] = t
 			if sk.hot then
 				t.hots[sid] = { t = sk.hot, per = t.maxhp * v / 100, src = u }
 				if sk.instant then heal(u, t, t.maxhp * (sk.instant[1] + sk.instant[2] * (lvl - 1)) / 100) end
@@ -746,6 +752,7 @@ local function cast(u, sid, target)
 	elseif kind == "shield" then
 		local function shield(t)
 			if not t.dead then
+				to[#to + 1] = t
 				t.shield = max(t.shield, t.maxhp * v / 100 * (1 + (u.s.heal or 0) / 100) * (u.s.healMult or 1))
 				t.shieldT = sk.dur
 				t.shieldSrc = u
@@ -789,11 +796,13 @@ local function cast(u, sid, target)
 			if heroes[i].dead then t = heroes[i] break end
 		end
 		if not t then return false end
+		to[1] = t
 		revive(t, v / 100)
 	else
 		return false
 	end
 	fxSkill(u, sk.icon)
+	vfx({ k = "skill", u = u, sid = sid, to = to })
 	return true
 end
 

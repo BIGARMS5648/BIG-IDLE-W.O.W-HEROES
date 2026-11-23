@@ -385,7 +385,7 @@ function battle.setup()
 	for i = 1, ns.PARTY_SIZE do
 		local id = party[i]
 		if id and ns.db.heroes[id] and #list < 3 then
-			list[#list + 1] = { npc = ns.Figure3D.ForHero(id, true), h = 74 * ns.Figure3D.HeroScale(id), face = "right", name = ns.Heroes.ShortName(id) }
+			list[#list + 1] = { npc = ns.Figure3D.ForHero(id, true), body = ns.Figure3D.HeroBody(id, true), h = 74 * ns.Figure3D.HeroScale(id), face = "right", name = ns.Heroes.ShortName(id) }
 		end
 	end
 	local st = ns.db and ns.db.stage or {}
@@ -411,7 +411,7 @@ function battle.setup()
 				slot.fig:SetHeight2(e.h * BATTLE_K)
 				slot.fig:SetFacing(e.face)
 				ns.Figure3D.ResetFailed()
-				slot.fig:SetModelId(e.npc)
+				if not (e.body and slot.fig:SetBody(e.body)) then slot.fig:SetModelId(e.npc) end
 				slot.fig:PlaceFeet(f, x, GROUND)
 				slot.fig:Show()
 			end
@@ -656,11 +656,11 @@ function fx.setup()
 			end
 		else
 			-- a model the game lacks shows nothing (not the one before it)
-			local function put(m, id, facing, x)
+			local function put(m, id, facing, x, body)
 				m.id = nil
 				m:SetHeight2(FX_FIG)
 				m:SetFacing(facing)
-				if m:SetModelId(id) then
+				if (body and m:SetBody(body)) or m:SetModelId(id) then
 					m:PlaceFeet(c.card, x, FX_GROUND)
 					m:Show()
 				else
@@ -668,7 +668,8 @@ function fx.setup()
 					m:Hide()
 				end
 			end
-			if c.caster then put(c.caster, caster, "right", fxX(c, "caster")) end
+			-- the caster: the hero's own body (the player as the class's race, in its set)
+			if c.caster then put(c.caster, caster, "right", fxX(c, "caster"), ns.Figure3D.BodyFor(sp.class)) end
 			if c.target then put(c.target, target, "left", fxX(c, "target")) end
 			for _, k in ipairs({ "missile", "hand", "hit" }) do
 				local m = c[k]

@@ -168,8 +168,10 @@ local function heroFigure(parent, size)
 		self:SetHero(id)
 		self.ringT:Hide()
 		self.role:Hide()
-		local mid = id and ns.Figure3D.Enabled() and ns.Figure3D.ForHero(id, false)
-		if self.fig and mid and self.fig:SetModelId(mid) then
+		local F = ns.Figure3D
+		local body = id and F.Enabled() and F.HeroBody(id, false)
+		local mid = id and F.Enabled() and F.ForHero(id, false)
+		if self.fig and ((body and self.fig:SetBody(body)) or (mid and self.fig:SetModelId(mid))) then
 			self.fig:Show()
 			local inModel = self.fig:IsLoaded()
 			self.icon:SetShown(not inModel)
@@ -266,6 +268,8 @@ end
 -- Hero creation (modal): class -> specialization -> gender -> name
 ------------------------------------------------------------------------
 local create = {}
+-- the create window's 3D preview (for the tests)
+function UI.CreatePreview() return create.fig end
 
 local function classRoles(cid)
 	local roles = {}
@@ -504,12 +508,13 @@ function create.refresh()
 	local race = ns.RACES[ns.ClassRace(cid)]
 	local fac = ns.FACTIONS[ns.Faction() or "ALLIANCE"]
 	create.race:SetText(string.format("%s  ·  %s %s", ns.N(fac.name), race.name, ns.SEX[create.sex].name))
+	local body = ns.Figure3D.Enabled() and ns.Figure3D.BodyFor(cid, ns.Faction())
 	local mid = ns.Figure3D.Enabled() and ns.Figure3D.ForClass(cid, ns.Faction(), create.spec, create.sex)
 	UI.SetClassIcon(create.portrait.icon, cid)
 	create.portrait.icon:Show()
 	create.portrait.ringT:SetVertexColor(U.rgb(ns.CLASSES[cid].hex))
 	create.portrait.role:Hide()
-	if create.fig and mid and create.fig:SetModelId(mid) then
+	if create.fig and ((body and create.fig:SetBody(body)) or (mid and create.fig:SetModelId(mid))) then
 		create.fig:SetHeight2(190 * (ns.Figure3D.RACE_SCALE[race.id] or 1))
 		create.fig:PlaceFeet(create.mid, 135, 210)
 		create.fig:Show()
