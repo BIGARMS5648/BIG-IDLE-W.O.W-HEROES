@@ -1,7 +1,36 @@
 -- Saved data: defaults, migration, repair of missing fields and the gold purse.
 local _, ns = ...
 
-local DB_VERSION = 3
+local DB_VERSION = 4
+
+-- skills that became other classic spells (version 4): old id -> new id
+local OLD_SKILL = {
+	arcane_barrage = "blast_wave", arcane_blast = "presence_of_mind", ardent_defender = "blessing_of_sanctuary",
+	avengers_shield = "exorcism", avenging_wrath = "seal_of_the_crusader", berserk = "enrage",
+	black_arrow = "wyvern_sting", bladestorm = "sweeping_strikes", bloodlust = "strength_of_earth",
+	chaos_bolt = "soul_fire", commanding_shout = "defensive_stance", crusader_strike = "seal_of_command",
+	divine_storm = "holy_wrath", earth_shield = "stoneskin_totem", envenom = "instant_poison",
+	explosive_shot = "immolation_trap", felguard = "summon_felhunter", feral_spirit = "searing_totem",
+	hand_of_guldan = "death_coil", haunt = "siphon_life", hunters_pet = "call_pet", ice_lance = "cone_of_cold",
+	incinerate = "searing_pain", kill_command = "intimidation", killing_spree = "riposte",
+	lava_burst = "flame_shock", lava_lash = "flametongue_weapon", lock_and_load = "aspect_of_the_hawk",
+	metamorphosis = "demonic_sacrifice", moonkin_aura = "moonkin_form", mutilate = "ghostly_strike",
+	pack_leader = "aspect_of_the_wild", pain_suppression = "power_infusion", penance = "flash_heal",
+	pw_barrier = "prayer_of_fortitude", raging_blow = "heroic_strike", rampage = "overpower",
+	riptide = "lesser_healing_wave", seed_of_corruption = "hellfire", shadow_blades = "slice_and_dice",
+	shadow_dance = "vanish", shadowfiend = "shadowguard", shield_of_righteous = "holy_shield",
+	stampede = "screech", starfall = "insect_swarm", summon_infernal = "inferno",
+	totem_of_wrath = "flametongue_totem", unstable_affliction = "curse_of_agony", vendetta = "expose_armor",
+	water_elemental = "ice_armor", wild_growth = "regrowth", word_of_glory = "flash_of_light",
+}
+
+-- a hero's learned and equipped skills under their new ids
+local function renameSkills(h)
+	local sk = {}
+	for id, lv in pairs(h.sk or {}) do sk[OLD_SKILL[id] or id] = lv end
+	h.sk = sk
+	for i, id in ipairs(h.skills or {}) do h.skills[i] = OLD_SKILL[id] or id end
+end
 
 -- weapon types that were dropped, and what their items became
 local OLD_WTYPE = { gun = "bow", gadget = "orb" }
@@ -211,6 +240,7 @@ function ns.InitDB()
 			h.skills = h.skills or {}
 			h.gear = h.gear or {}
 			if from < 3 then migrateV2Hero(h) end
+			if from < 4 then renameSkills(h) end
 			h.sk = h.sk or {}
 			clampHero(h)
 			if h.sex ~= "M" and h.sex ~= "F" then h.sex = math.random() < 0.5 and "M" or "F" end

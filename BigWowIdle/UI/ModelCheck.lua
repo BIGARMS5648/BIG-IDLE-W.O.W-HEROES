@@ -811,13 +811,13 @@ local DRESS_TOP, DRESS_MODEL_H = 32, 180
 local DRESS_H = PANEL_H - DRESS_TOP
 
 -- asRace: the player's own body made that race (SetModelByUnit's
--- customRaceID), nothing worn; mine: the race's body with the player's own
--- looks (SetModelByCreatureDisplayID's useActivePlayerCustomizations)
+-- customRaceID; the player's gender), nothing worn; custom: a model frame
+-- with the player made that race and the gender picked (SetCustomRace)
 local DRESS = {
 	{ title = "종족으로 바꾼 내 몸", kind = "scene", asRace = true, bare = true },
 	{ title = "바꾼 몸에 입히기", kind = "scene", asRace = true },
-	{ title = "종족 몸 + 내 꾸미기", kind = "scene", body = true, mine = true, bare = true },
-	{ title = "꾸민 종족 몸에 입히기", kind = "scene", body = true, mine = true },
+	{ title = "종족·성별 바꾼 몸", kind = "DressUpModel", custom = true, bare = true },
+	{ title = "바꾼 몸에 입히기 (성별)", kind = "DressUpModel", custom = true },
 	{ title = "내 캐릭터에 입히기", kind = "DressUpModel", unit = true },
 }
 
@@ -957,7 +957,14 @@ function dress.setup()
 		else
 			call(m, "ClearModel")
 			call(m, "SetFacing", 0)
-			if def.unit then
+			if def.custom then
+				-- the player, then made the race and the gender picked
+				-- (gender: 0 = male, 1 = female)
+				local rid = ns.MODEL.raceId[combo().race]
+				call(m, "SetUnit", "player")
+				c.lines[1]:SetText("SetCustomRace " .. tostring(rid) .. " · " .. ns.SEX[dress.sex].short .. " " ..
+					mark(call(m, "SetCustomRace", rid, dress.sex == "F" and 1 or 0)))
+			elseif def.unit then
 				c.lines[1]:SetText("SetUnit " .. mark(call(m, "SetUnit", "player")))
 			else
 				c.lines[1]:SetText("몸 " .. tostring(disp) .. " · 표시 " .. mark(disp and call(m, "SetDisplayInfo", disp) or nil))

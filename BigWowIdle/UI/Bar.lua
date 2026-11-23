@@ -602,10 +602,11 @@ local function updateInfo()
 end
 
 ------------------------------------------------------------------------
--- Skill effects: the game's own spell visuals (Data/Effects.lua) on the
--- fighters' models - the cast in the caster's hands, the missile flying to
--- each target, the hit on it; heals land on the healed. Melee classes show
--- only the hit. Missiles and hits are the spell's own effect models in
+-- Skill effects: the visuals of the classic spells the skills and boss
+-- abilities are (Data/Effects.lua) on the fighters' models - the cast on the
+-- caster, the missile flying to each target (spells that have one), the hit
+-- on each one reached; heals and buffs land on whom they reach. Missiles and
+-- hits are the spell's own effect models in
 -- figures of their own, sized like the models they fly from and land on
 -- (a hit at HIT_SIZE of the target's size), so they grow and shrink with
 -- the window as the fighters do.
@@ -613,6 +614,8 @@ end
 local FX_FLIGHT, FX_HIT_DELAY, MAX_MISSILES, MAX_TARGETS = 0.35, 0.12, 8, 5
 local MAX_HITS, HIT_SHOW, HIT_FADE, HIT_SIZE = 12, 0.8, 0.25, 0.5
 local missiles, hits, pendingHits = {}, {}, {}
+-- what was launched and shown (the last missile's file), for the tests
+local fxStats = { missiles = 0, hits = 0 }
 
 local function figureOf(unit)
 	local list = ns.Combat.heroes
@@ -649,14 +652,10 @@ local function hand(fig, dir) return fig.anchorX + fig.height * 0.2 * dir, fig.a
 local function chest(fig) return fig.anchorX, fig.anchorY + fig.height * 0.55 end
 
 -- the spell's hit on a figure: its impact model, put up afresh so it plays
--- from the start; the impact kit on the figure where the client has no scene
--- figures
+-- from the start (nothing where the client has no scene figures)
 local function playHit(tfig, fx)
 	local hs = fx.hit and freeFig(hits, MAX_HITS)
-	if not hs then
-		if not fx.hit then return end
-		return tfig:PlayKit(fx.impact)
-	end
+	if not hs then return end
 	local fig = hs.fig
 	fig.id = nil
 	if not fig:SetModelFile(fx.hit) then return end
@@ -664,22 +663,21 @@ local function playHit(tfig, fx)
 	fig:SetFixedScale(HIT_SIZE * (tfig.norm or 0.5) * (tfig.corrScale or 1))
 	fig:SetFacing(tfig.facing == "left" and "right" or "left")
 	fig:SetAlpha(1)
-	hs.tfig, hs.low, hs.t, hs.active = tfig, fx.self, 0, true
+	hs.tfig, hs.low, hs.t, hs.active = tfig, fx.low, 0, true
+	fxStats.hits = fxStats.hits + 1
 end
 
-local function skillFx(e)
-	local u = e.u
-	local fx = ns.SkillFx(u.class, ns.SKILLS[e.sid])
-	if not fx then return end
+-- a spell from caster u at the units in `to`: the cast on the caster, then a
+-- missile to each target or straight its hit
+local function spellFx(u, fx, to)
 	local cfig = figureOf(u)
 	if cfig and not cfig:IsLoaded() then cfig = nil end
-	local melee = ns.MELEE_FX[u.class]
-	if cfig and not melee then cfig:PlayKit(fx.cast) end
-	for k, t in ipairs(e.to or {}) do
+	if cfig and fx.cast then cfig:PlayKit(fx.cast) end
+	for k, t in ipairs(to or {}) do
 		if k > MAX_TARGETS then break end
 		local tfig = figureOf(t)
 		if tfig and tfig:IsLoaded() and tfig.anchorX then
-			local ms = fx.missile and cfig and cfig.anchorX and not melee and t ~= u and freeFig(missiles, MAX_MISSILES)
+			local ms = fx.missile and cfig and cfig.anchorX and t ~= u and freeFig(missiles, MAX_MISSILES)
 			if ms and ms.fig:SetModelFile(fx.missile) then
 				local dir = tfig.anchorX >= cfig.anchorX and 1 or -1
 				ms.fig:SetHeight2(cfig.height)
@@ -687,6 +685,7 @@ local function skillFx(e)
 				ms.fig:SetFacing(dir > 0 and "right" or "left")
 				ms.x0, ms.y0 = hand(cfig, dir)
 				ms.tfig, ms.fx, ms.t, ms.active = tfig, fx, 0, true
+				fxStats.missiles, fxStats.lastMissile = fxStats.missiles + 1, fx.missile
 			else
 				pendingHits[#pendingHits + 1] = { t = FX_HIT_DELAY, fig = tfig, fx = fx }
 			end
@@ -694,14 +693,22 @@ local function skillFx(e)
 	end
 end
 
--- the combat's effect events: skills play their effects (shots and hits of
--- basic attacks are not drawn)
+-- the combat's effect events: hero skills and boss abilities play their
+-- spells (shots and hits of basic attacks are not drawn)
 local function drawEffects()
 	local list = ns.Combat.vfx
 	local on = Figure.Enabled()
 	for i = 1, #list do
 		local e = list[i]
-		if on and e.k == "skill" and e.u then skillFx(e) end
+		if on and e.u then
+			local fx
+			if e.k == "skill" then
+				fx = ns.SkillFx(e.u.class, ns.SKILLS[e.sid])
+			elseif e.k == "mob" then
+				fx = ns.MobFx(e.kind, e.school)
+			end
+			if fx then spellFx(e.u, fx, e.to) end
+		end
 		list[i] = nil
 	end
 	for _, ms in ipairs(missiles) do
@@ -751,7 +758,7 @@ local function drawEffects()
 		end
 	end
 end
-Bar.missiles, Bar.hits = missiles, hits
+Bar.missiles, Bar.hits, Bar.fxStats = missiles, hits, fxStats
 
 local function onUpdate(self, elapsed)
 	local now = GetTime()

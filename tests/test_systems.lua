@@ -57,7 +57,10 @@ do
 	end
 	-- every NPC has a model id
 	local noDisplay = {}
-	local function needs(id) if id and not ns.MODEL.display[id] then noDisplay[#noDisplay + 1] = tostring(id) end end
+	local function needs(id)
+		-- an NPC by its model id, or a model id itself ("disp:<id>")
+		if id and not ns.MODEL.display[id] and not (type(id) == "string" and id:match("^disp:%d+$")) then noDisplay[#noDisplay + 1] = tostring(id) end
+	end
 	for _, id in pairs(ns.MODEL.mob) do needs(id) end
 	for _, id in pairs(ns.MODEL.boss) do needs(id) end
 	for _, id in pairs(ns.MODEL.summon) do needs(id) end
@@ -120,6 +123,16 @@ do
 	for _, sid in ipairs({ "DRUID_FERAL", "DRUID_GUARDIAN", "DRUID_RESTO", "SHAMAN_ENH", "SHAMAN_ELE", "SHAMAN_RESTO" }) do
 		check(ns.SPECS[sid], "missing specialization " .. sid)
 	end
+	-- every skill is a classic spell; all but always-on auras and pets show
+	-- an effect when used
+	for id, sk in pairs(ns.SKILLS) do
+		local fx = ns.SKILL_FX[id]
+		check(fx and type(fx.spell) == "number", id .. ": a classic spell id")
+		if fx and sk.kind ~= "aura" and sk.kind ~= "pet" then
+			check(fx.cast or fx.hit or fx.missile, id .. ": an effect in battle")
+		end
+	end
+	for id in pairs(ns.SKILL_FX) do check(ns.SKILLS[id], "effect data for a skill that exists: " .. id) end
 	for id in pairs(ns.SKILLS) do
 		check(seenSkill[id], "skill " .. id .. " is not used by any specialization")
 	end
@@ -867,7 +880,7 @@ BigWowIdleDB = {
 }
 ns.InitDB()
 db = ns.db
-check(db.v == 3 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
+check(db.v == 4 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
 do
 	local m, w = hero("MAGE_FIRE"), hero("WARRIOR_PROT")
 	check(m and w, "old heroes become heroes of the matching specialization")
@@ -884,6 +897,18 @@ check(ns.db.heroSeq >= 3 and type(ns.db.heroes.h3.name) == "string" and ns.db.he
 ns.Heroes.ValidateParty()
 check(ns.db.party[1] == false and ns.Heroes.PartySlot("h3") == 2, "a hero in the wrong role slot is moved")
 check(ns.db.forge.level == 1 and ns.db.opt.auto == true, "missing fields get defaults")
+-- a version 3 save: skills that became other classic spells keep their
+-- levels and slots under the new ids
+BigWowIdleDB = { v = 3, heroes = { h1 = { spec = "WARRIOR_ARMS", level = 50, name = "가 나",
+	sk = { mortal_strike = 3, bladestorm = 4 }, skills = { "bladestorm", "mortal_strike" } },
+	h2 = { spec = "MAGE_FROST", level = 50, name = "다 라", sk = { frostbolt = 2, water_elemental = 5, ice_lance = 1 }, skills = { "water_elemental", "ice_lance" } } },
+	party = { false, "h1", "h2", false, false } }
+ns.InitDB()
+do
+	local a, f = ns.db.heroes.h1, ns.db.heroes.h2
+	check(a.sk.sweeping_strikes == 4 and a.sk.bladestorm == nil and a.skills[1] == "sweeping_strikes", "renamed skills keep their level and slot")
+	check(f.sk.ice_armor == 5 and f.sk.cone_of_cold == 1 and f.skills[1] == "ice_armor" and f.skills[2] == "cone_of_cold", "every renamed skill moves to its new id")
+end
 -- a save with a tinker (a class that is gone): the hero goes, its gear comes
 -- to the bag, guns and gadgets anywhere become bows and orbs
 BigWowIdleDB = { v = 3, gold = 9, bag = { { s = "oh", t = "gadget", l = 4, q = 2 } }, bank = {},

@@ -885,13 +885,17 @@ do
 	local Fig = ns.Figure3D
 	Fig.ResetFailed()
 	ns.db.opt.models = true
-	-- a known party at the first stage (the random clicks leave any party):
-	-- a tank, casters with missiles, a hunter and a healer, fresh
+	-- a known party at the first stage (the random clicks leave any party
+	-- and roster): a tank, casters with missiles, a hunter and a healer, fresh
+	ns.db.heroes = {}
 	for i, sid in ipairs({ "WARRIOR_PROT", "MAGE_FIRE", "SHAMAN_ELE", "HUNTER_MM", "PRIEST_HOLY" }) do
 		ns.db.party[i] = ns.Heroes.NewRecord(sid).id
 	end
 	ns.db.stage.diff, ns.db.stage.idx = 1, 1
 	ns.Stats.Invalidate()
+	-- all five party slots open (they come from runes, which may be reset)
+	local partyLimit = ns.PartyLimit
+	ns.PartyLimit = function() return ns.PARTY_SIZE end
 	ns.Combat.StartStage()
 	frames(40)
 	local heroes, mobs = ns.Bar.UnitFrames()
@@ -947,14 +951,17 @@ do
 	-- missiles (model files) flying from caster to target
 	do
 		Mock.kits = {}
+		local flown = ns.Bar.fxStats.missiles
 		local sawMissile, hit = false, nil
 		local hitFiles = {}
-		for _, e in ipairs(ns.SPELL_FX) do if e.hit then hitFiles["file:" .. e.hit] = true end end
+		for _, e in pairs(ns.SKILL_FX) do if e.hit then hitFiles["file:" .. e.hit] = true end end
 		for _ = 1, 600 do
 			frames(1)
 			for _, ms in ipairs(ns.Bar.missiles) do
 				if ms.active and type(ms.fig.actor.__display) == "string" and ms.fig.actor.__display:find("^file:") then sawMissile = true end
 			end
+			-- a missile is in the air for a moment only: counted when it leaves
+			if ns.Bar.fxStats.missiles > flown then sawMissile = true end
 			for _, hs in ipairs(ns.Bar.hits) do
 				if not hit and hs.active and hs.fig:IsShown() and hitFiles[hs.fig.actor.__display] then
 					local t = hs.tfig
@@ -964,13 +971,14 @@ do
 			if sawMissile and hit and #Mock.kits >= 4 then break end
 		end
 		local known = {}
-		for _, e in ipairs(ns.SPELL_FX) do
-			for _, k in ipairs({ e.cast, e.impact }) do if k then known[k] = true end end
-		end
+		for _, e in pairs(ns.SKILL_FX) do if e.cast then known[e.cast] = true end end
 		local good = 0
 		for _, k in ipairs(Mock.kits) do if known[k] then good = good + 1 end end
 		if good == 0 then fail("skills in battle should play spell kits on the models (" .. #Mock.kits .. " kits)") end
 		if not sawMissile then fail("a skill with a missile should fly it from the caster to the target") end
+		local known = false
+		for _, e in pairs(ns.SKILL_FX) do if e.missile and e.missile == ns.Bar.fxStats.lastMissile then known = true end end
+		if sawMissile and not known then fail("a flying missile should be its spell's missile model") end
 		-- a hit is the spell's impact model next to its target, half as big
 		-- as the target's own scale, in a figure as tall as the target
 		if not hit then
@@ -982,6 +990,33 @@ do
 			if math.abs(hit.height - hit.tall) > 1e-6 then fail("a hit's figure should be as tall as its target's") end
 		end
 		if #Mock.misuse > 0 then fail("effect calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end
+		-- a boss ability is a classic spell: its name shows, its cast plays
+		-- on the boss and its hit on whom it reaches
+		local boss
+		for _, m in ipairs(ns.Combat.mobs) do if not m.dead then boss = m break end end
+		if boss then
+			local sp = ns.MobFx("aoe", "shadow")
+			Mock.kits = {}
+			ns.Combat.VFX({ k = "mob", u = boss, kind = "aoe", school = "shadow", to = { ns.Combat.heroes[1] } })
+			local sawHit
+			for _ = 1, 30 do
+				frames(1)
+				for _, hs in ipairs(ns.Bar.hits) do
+					if hs.active and hs.fig.actor.__display == "file:" .. sp.hit then sawHit = true end
+				end
+			end
+			local castOk
+			for _, k in ipairs(Mock.kits) do if k == sp.cast then castOk = true end end
+			if not castOk then fail("a boss ability should play its spell's cast on the boss") end
+			if not sawHit then fail("a boss ability should show its spell's hit on the heroes") end
+		end
+		for kind, t in pairs(ns.MOB_FX) do
+			local list = t.spell and { t } or t
+			for _, sp in pairs(list) do
+				if not (sp.spell and (sp.hit or sp.cast)) then fail("every boss ability should be a spell with an effect: " .. kind) end
+				if kind ~= "summon" and not sp.name then fail("a boss ability should have its spell's name: " .. kind) end
+			end
+		end
 	end
 	-- an attack plays the attack animation
 	local anims = {}
@@ -991,6 +1026,7 @@ do
 		if anims[17] then break end
 	end
 	if not anims[17] then fail("heroes should play the attack animation (17) in battle") end
+	ns.PartyLimit = partyLimit
 	-- off in the settings: icons again
 	ns.db.opt.models = false
 	frames(2)
@@ -1340,10 +1376,9 @@ do
 	local dp = MC.pages.dress
 	if not dp.frame:IsShown() or bp.frame:IsShown() then fail("옷 입히기 should show its own page") end
 	frames(20)
-	local function bodyOf(i, sex) local cb = dp.COMBOS[i] return ns.MODEL.raceBody[cb.race][sex] end
 	if dp.COMBOS[1].class ~= "WARRIOR" or dp.COMBOS[1].race ~= "DWARF" or #dp.COMBOS ~= 18 then fail("옷 입히기 should start with the dwarf warrior and go through 18 class/faction pairs") end
 	local c1, c2, c3, c4 = dp.cards[1], dp.cards[2], dp.cards[3], dp.cards[4]
-	local a1, a2, a3, a4 = c1.model.actor, c2.model.actor, c3.model.actor, c4.model.actor
+	local a1, a2, a3, a4 = c1.model.actor, c2.model.actor, c3.model, c4.model
 	-- the player's own body as the race (customRaceID), nothing worn
 	if a1.__display ~= "unit:player" or a1.__race ~= ns.MODEL.raceId.DWARF or a1.__dressed then
 		fail("the first card should be the player's body as a dwarf, undressed: " .. tostring(a1.__display) .. " " .. tostring(a1.__race))
@@ -1352,14 +1387,16 @@ do
 	if not (a2.__worn and #a2.__worn == 8) or not (c2.lines[3].__text or ""):find("TryOn 8/8", 1, true) then
 		fail("the second card should try the eight pieces on the changed body: " .. tostring(c2.lines[3].__text))
 	end
-	-- the race's body with the player's looks
-	if a3.__display ~= 53 or not a3.__mine then fail("the third card should be the dwarf's body with the player's looks: " .. tostring(a3.__display)) end
+	-- a model frame with the player made the race and the gender picked
+	if a3.__race ~= ns.MODEL.raceId.DWARF or a3.__sex ~= 0 or (a3.__worn and #a3.__worn > 0) then
+		fail("the third card should be the player made a male dwarf, undressed: " .. tostring(a3.__race) .. " " .. tostring(a3.__sex))
+	end
 	if not (a4.__worn and #a4.__worn == 8) then fail("the fourth card should try the set on that body") end
 	click("model: dressing next", function(b) return b == dp.next end)
 	click("model: dressing female", function(b) return b == dp.sexBtn.F end)
 	frames(20)
-	if dp.i ~= 2 or dp.sex ~= "F" or a3.__display ~= bodyOf(2, "F") or a1.__race ~= ns.MODEL.raceId.ORC then
-		fail("▶ and 여 should show the orc: " .. tostring(a3.__display) .. " " .. tostring(a1.__race))
+	if dp.i ~= 2 or dp.sex ~= "F" or a3.__race ~= ns.MODEL.raceId.ORC or a3.__sex ~= 1 or a1.__race ~= ns.MODEL.raceId.ORC then
+		fail("▶ and 여 should show the orc woman: " .. tostring(a3.__race) .. " " .. tostring(a3.__sex) .. " " .. tostring(a1.__race))
 	end
 	if not (dp.label.__text or ""):find("오크 여", 1, true) then fail("the dressing label should name the race and gender: " .. tostring(dp.label.__text)) end
 	click("model: dressing back", function(b) return b == dp.prev end)

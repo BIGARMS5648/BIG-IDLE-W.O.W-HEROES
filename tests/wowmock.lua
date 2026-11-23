@@ -348,8 +348,13 @@ function DressUpModel:SetCustomRace(race, sex)
 	check(type(race) == "number", "SetCustomRace: race must be a number")
 	self.__race, self.__sex = race, sex
 end
-function DressUpModel:Undress() end
-function DressUpModel:TryOn(link) check(type(link) == "string" or type(link) == "number", "TryOn: bad item") end
+function DressUpModel:Undress() self.__worn = {} end
+function DressUpModel:TryOn(link)
+	check(type(link) == "string" or type(link) == "number", "TryOn: bad item")
+	self.__worn = self.__worn or {}
+	self.__worn[#self.__worn + 1] = link
+	return true
+end
 Mock.Model, Mock.DressUpModel = Model, DressUpModel
 
 -- ModelScene frames and their actors. Calls with bad arguments are noted in

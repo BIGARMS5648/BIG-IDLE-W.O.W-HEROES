@@ -538,8 +538,8 @@ ns.MODEL.boss = {
 
 -- summons (skills that call a creature)
 ns.MODEL.summon = {
-	felguard       =  17252, -- Felguard
-	hunters_pet    =     69, -- Diseased Timber Wolf
+	summon_felhunter = "disp:850", -- 지옥사냥개 (Felhunter, the game's model)
+	call_pet       =     69, -- Diseased Timber Wolf
 	infernal       =     89, -- Infernal
 }
 

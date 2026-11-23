@@ -460,6 +460,14 @@ local function spawnWave()
 	ns.Fire("WAVE")
 end
 
+-- the classic spell a boss ability is (Data/Effects.lua): its name shows
+-- when it is used and its effect plays on whom it reaches
+local function mobSpell(m, kind, school, to)
+	local sp = ns.MobFx and ns.MobFx(kind, school)
+	vfx({ k = "mob", u = m, kind = kind, school = school, to = to })
+	return sp and sp.name
+end
+
 local function mobSkill(m, entry)
 	local sk = entry.def
 	local kind = sk.kind
@@ -467,7 +475,7 @@ local function mobSkill(m, entry)
 		if not entry.done and m.hp / m.maxhp <= sk.hp then
 			entry.done = true
 			m.enr = sk.mult
-			fx(m.x, "격노!", 1, 0.2, 0.2, true, "mob")
+			fx(m.x, (mobSpell(m, "enrage", m.school, { m }) or "격노") .. "!", 1, 0.2, 0.2, true, "mob")
 		end
 		return
 	end
@@ -480,6 +488,8 @@ local function mobSkill(m, entry)
 		local t = frontHero()
 		if t then
 			m.anim = 0.25
+			local name = mobSpell(m, "smash", school, { t })
+			if name then fx(m.x - 40, name .. "!", 1, 0.75, 0.4, false, "mob") end
 			local dealt = damageHero(t, m.atk * sk.mult * m.enr * st.rage * weak, school, m)
 			if dealt > 0 and sk.status and random() < sk.status[2] then
 				applyStatus(t, sk.status[1], dealt)
@@ -487,7 +497,11 @@ local function mobSkill(m, entry)
 		end
 	elseif kind == "aoe" then
 		m.anim = 0.25
-		fx(m.x - 80, "광역 공격!", 1, 0.6, 0.2, false, "mob")
+		local to = {}
+		for i = 1, #heroes do
+			if not heroes[i].dead then to[#to + 1] = heroes[i] end
+		end
+		fx(m.x - 80, (mobSpell(m, "aoe", school, to) or "광역 공격") .. "!", 1, 0.6, 0.2, false, "mob")
 		for i = 1, #heroes do
 			local t = heroes[i]
 			if not t.dead then
@@ -511,11 +525,12 @@ local function mobSkill(m, entry)
 				mobs[#mobs + 1] = add
 			end
 		end
-		fx(m.x, "소환!", 0.8, 0.6, 1, false, "mob")
+		mobSpell(m, "summon", school, { m })
+		fx(m.x, def.name .. " 소환!", 0.8, 0.6, 1, false, "mob")
 	elseif kind == "shield" then
 		m.drT = sk.dur
 		m.dr = sk.dr
-		fx(m.x, "보호막!", 0.6, 0.8, 1, false, "mob")
+		fx(m.x, (mobSpell(m, "shield", school, { m }) or "보호막") .. "!", 0.6, 0.8, 1, false, "mob")
 	end
 end
 
@@ -780,14 +795,19 @@ local function cast(u, sid, target)
 		if sk.target == "party" then
 			for i = 1, #heroes do
 				local t = heroes[i]
-				if not t.dead then t.buffs[#t.buffs + 1] = { mods = mods, t = sk.dur } end
+				if not t.dead then
+					t.buffs[#t.buffs + 1] = { mods = mods, t = sk.dur }
+					to[#to + 1] = t
+				end
 			end
 		elseif sk.target == "lowest" then
 			local t = lowestAlly(sk.when and sk.when.ally or 1)
 			if not t then return false end
 			t.buffs[#t.buffs + 1] = { mods = mods, t = sk.dur }
+			to[1] = t
 		else
 			u.buffs[#u.buffs + 1] = { mods = mods, t = sk.dur }
+			to[1] = u
 		end
 		Combat.dirty = true
 	elseif kind == "revive" then
