@@ -42,7 +42,6 @@
 | razorfen | [Secrets Tanaris - Razorfen Kraul scrap.jpg](https://warcraft.wiki.gg/wiki/File%3ASecrets_Tanaris_-_Razorfen_Kraul_scrap.jpg) |
 | redridge | [Redridge Highway.jpg](https://warcraft.wiki.gg/wiki/File%3ARedridge_Highway.jpg) |
 | scarlet | [Scarlet Cathedral corpses.jpg](https://warcraft.wiki.gg/wiki/File%3AScarlet_Cathedral_corpses.jpg) |
-| scarletyard | [Headless Horsemen hard mode active.jpg](https://warcraft.wiki.gg/wiki/File%3AHeadless_Horsemen_hard_mode_active.jpg) |
 | scholomance | [Reliquary 5.0.jpg](https://warcraft.wiki.gg/wiki/File%3AReliquary_5.0.jpg) |
 | searing | [Searing Gorge.jpg](https://warcraft.wiki.gg/wiki/File%3ASearing_Gorge.jpg) |
 | shadowfang | [Shadowfang Keep2.jpg](https://warcraft.wiki.gg/wiki/File%3AShadowfang_Keep2.jpg) |
