@@ -89,6 +89,13 @@ local function onLogin()
 			ns.Main.ShowTab("hero", { create = true })
 		end
 	end
+	-- no hero yet: no battle window until the first one is made
+	if ns.Heroes.Count() == 0 then
+		ns.Bar.Hold(true)
+		ns.On("HEROES", function()
+			if ns.Bar.IsHeld() and ns.Heroes.Count() > 0 then ns.Bar.Hold(false) end
+		end)
+	end
 	if not ns.Faction() then
 		-- first start (or a save from before factions): choose a side first
 		ns.Main.Toggle(true)

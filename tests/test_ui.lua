@@ -72,7 +72,10 @@ end
 if not Main.IsShown() then fail("the menu should open by itself for a new player") end
 if Main.Current() ~= "hero" then fail("a new player should land on the hero screen, got " .. tostring(Main.Current())) end
 if ns.db.faction then fail("a new player has no faction yet") end
+if ns.Bar.IsShown() then fail("a new player should see no battle window before the first hero, only the choice of side") end
+if not find(function(b) return label(b) == "호드로 시작" end) then fail("a new player should be asked to choose a side straight away") end
 click("choose Horde", labelIs("호드로 시작"))
+if ns.Bar.IsShown() then fail("the battle window should still wait while the first hero is being made") end
 if ns.db.faction ~= "HORDE" then fail("the faction choice was not saved") end
 if not find(function(b) return b.cid == "WARRIOR" end) then fail("the hero creation dialog should open after the faction choice") end
 if not SlashCmdList.BIGIDLEHEROES then fail("slash command missing") end
@@ -126,6 +129,8 @@ do -- the preview: the hunter's race (night elf or troll) in the gender picked
 end
 click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 153 end)
 if H.Count() ~= 1 then fail("creating through the dialog did not make a hero") end
+if not ns.Bar.IsShown() then fail("the battle window should show once the first hero is made") end
+if ns.db.ui.shown == false then fail("waiting for the first hero should not change the battle window setting") end
 local first = H.List()[1]
 if first and ns.db.heroes[first].spec ~= "HUNTER_MM" then fail("the hero has the wrong specialization") end
 if first and ns.db.heroes[first].sex ~= "F" then fail("the chosen gender was not kept") end

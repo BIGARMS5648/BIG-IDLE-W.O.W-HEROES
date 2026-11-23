@@ -21,6 +21,7 @@ local MAX_FLOATS = 28
 local MAX_PIPS = 10
 
 local frame
+local held = false -- hidden until the first hero is made (Bar.Hold)
 local heroFrames, mobFrames, floats, pips = {}, {}, {}, {}
 local newScenery -- (Scenery, below)
 local shade, drawBackdrop -- (moving layers, below)
@@ -1530,9 +1531,25 @@ end
 function Bar.Toggle(show)
 	if not frame then return end
 	if show == nil then show = not frame:IsShown() end
+	held = false
 	ns.db.ui.shown = show and true or false
 	if show then frame:Show() else frame:Hide() end
 end
+
+-- Before the first hero there is nothing to fight: the battle window waits
+-- (the game starts with choosing a side and making a hero), then shows as
+-- the settings say. The setting itself is left alone.
+function Bar.Hold(on)
+	if not frame then return end
+	if on then
+		held = true
+		frame:Hide()
+	elseif held then
+		held = false
+		if ns.db.ui.shown ~= false then frame:Show() end
+	end
+end
+function Bar.IsHeld() return held end
 
 function Bar.IsShown()
 	return frame and frame:IsShown()
