@@ -258,7 +258,7 @@ local function drawHeroes(now)
 			if fig then
 				if f.figFor ~= u.id or f.figIs ~= fig then
 					f.figFor, f.figIs = u.id, fig
-					fig:SetHeight2(HERO_FIG * Figure.HeroScale(u.id))
+					fig:SetHeight2(HERO_FIG * Figure.HeroScale(u.id, true))
 				end
 				local want = "idle"
 				if u.dead then want = "death"

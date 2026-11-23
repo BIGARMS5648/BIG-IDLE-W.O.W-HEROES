@@ -370,7 +370,7 @@ function battle.setup()
 	for i = 1, ns.PARTY_SIZE do
 		local id = party[i]
 		if id and ns.db.heroes[id] and #list < 3 then
-			list[#list + 1] = { npc = ns.Figure3D.ForHero(id, true), body = ns.Figure3D.HeroBody(id, true), h = 74 * ns.Figure3D.HeroScale(id), face = "right", name = ns.Heroes.ShortName(id) }
+			list[#list + 1] = { npc = ns.Figure3D.ForHero(id, true), body = ns.Figure3D.HeroBody(id, true), h = 74 * ns.Figure3D.HeroScale(id, true), face = "right", name = ns.Heroes.ShortName(id) }
 		end
 	end
 	local st = ns.db and ns.db.stage or {}
@@ -1018,106 +1018,6 @@ function dress.step(dt)
 end
 
 ------------------------------------------------------------------------
--- 변신: the druid forms the battle uses (night elf for the Alliance, tauren
--- for the Horde), each by its display id, with the model file the game
--- loaded and whether it is the HD one
-------------------------------------------------------------------------
-local forms = {}
-PAGES.forms = forms
-local FORM_COLS, FORM_FIG = 3, 92
-local FORM_W = floor((W - 36 - (FORM_COLS - 1) * GAP) / FORM_COLS)
-local FORM_H = floor((PANEL_H - GAP) / 2)
-local FORM_GROUND = 52
-local FORM_LIST = {}
-for _, fac in ipairs({ "ALLIANCE", "HORDE" }) do
-	for _, f in ipairs({ { "bear", "곰 변신" }, { "cat", "표범 변신" }, { "moonkin", "달빛야수 변신" } }) do
-		FORM_LIST[#FORM_LIST + 1] = { faction = fac, form = f[1], name = f[2] }
-	end
-end
-forms.LIST = FORM_LIST
-
-function forms.build(win)
-	local f = CreateFrame("Frame", nil, win)
-	f:SetPoint("TOPLEFT", win, "TOPLEFT", 18, -66)
-	f:SetSize(W - 36, PANEL_H)
-	f:Hide()
-	forms.frame = f
-	forms.cards = {}
-	for i, e in ipairs(FORM_LIST) do
-		local col, row = (i - 1) % FORM_COLS, floor((i - 1) / FORM_COLS)
-		local card = UI.Panel(f, FORM_W, FORM_H, "card")
-		card:SetPoint("TOPLEFT", f, "TOPLEFT", col * (FORM_W + GAP), -row * (FORM_H + GAP))
-		if card.SetClipsChildren then card:SetClipsChildren(true) end
-		local over = CreateFrame("Frame", nil, card)
-		over:SetAllPoints(card)
-		over:SetFrameLevel(card:GetFrameLevel() + 30)
-		local t = UI.Text(over, 12, ns.FACTIONS[e.faction].name .. " · " .. e.name)
-		t:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -8)
-		t:SetWidth(FORM_W - 20)
-		t:SetWordWrap(false)
-		UI.Color(t, UI.C.gold)
-		local c = { e = e, card = card, lines = {} }
-		for k = 1, 2 do
-			local l = UI.Text(over, 10)
-			l:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 10, FORM_GROUND - 10 - (k - 1) * 15)
-			l:SetWidth(FORM_W - 20)
-			l:SetWordWrap(false)
-			UI.Color(l, UI.C.sub)
-			c.lines[k] = l
-		end
-		forms.cards[i] = c
-	end
-end
-
-function forms.setup()
-	ns.Figure3D.ResetFailed()
-	for _, c in ipairs(forms.cards) do
-		local disp = ns.MODEL.form[c.e.form][c.e.faction]
-		c.disp = disp
-		if c.fig == nil then
-			local fig = ns.Figure3D.New(c.card, FORM_FIG)
-			if fig and fig.kind ~= "scene" then fig:Hide() fig = nil end
-			c.fig = fig or false
-		end
-		local fig = c.fig
-		if fig then
-			fig.id = nil
-			fig:SetHeight2(FORM_FIG)
-			fig:SetFacing("right")
-			if fig:SetModelId("disp:" .. disp) then
-				fig:PlaceFeet(c.card, FORM_W / 2, FORM_GROUND)
-				fig:Show()
-			else
-				fig:Hide()
-			end
-		end
-		forms.lines(c)
-	end
-end
-
--- 모델 <display> · 불러옴; 파일 <file id> · HD 모델 (or 옛 모델)
-function forms.lines(c)
-	local fig = c.fig
-	c.lines[1]:SetText("모델 " .. tostring(c.disp) .. " · " .. battleState(fig or nil))
-	local file = fig and fig:IsLoaded() and select(2, call(fig.actor, "GetModelFileID"))
-	if type(file) == "number" and file ~= 0 then
-		local hd = ns.MODEL.formHD[file]
-		c.lines[2]:SetText("파일 " .. file .. " · " .. (hd and U.col("60e070", "HD 모델") or U.col("ff6a5a", "HD 아님")))
-		c.hd = hd and true or false
-	else
-		c.lines[2]:SetText("파일 -")
-		c.hd = nil
-	end
-end
-
-function forms.step(dt)
-	for _, c in ipairs(forms.cards) do
-		if c.fig and c.fig:IsShown() then c.fig:Step(dt) end
-		forms.lines(c)
-	end
-end
-
-------------------------------------------------------------------------
 -- The window
 ------------------------------------------------------------------------
 local function build()
@@ -1148,7 +1048,7 @@ local function build()
 	close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -14)
 	-- which page: effects, dressing, the battle look or the basic check
 	frame.setButtons = {}
-	for i, s in ipairs({ { "forms", "변신" }, { "fx", "효과" }, { "dress", "옷 입히기" }, { "battle", "전투 모습" }, { "basic", "기본 확인" } }) do
+	for i, s in ipairs({ { "fx", "효과" }, { "dress", "옷 입히기" }, { "battle", "전투 모습" }, { "basic", "기본 확인" } }) do
 		local b = UI.Button(frame, 96, 24, s[2], function()
 			state.set = s[1]
 			setupAll()
@@ -1305,7 +1205,7 @@ end
 
 function Check.Frame() return frame end
 
--- shows one page of models (basic, battle, dress, fx, forms)
+-- shows one page of models (basic, battle, dress, fx)
 function Check.ShowSet(name)
 	if not frame then build() end
 	state.set = name
