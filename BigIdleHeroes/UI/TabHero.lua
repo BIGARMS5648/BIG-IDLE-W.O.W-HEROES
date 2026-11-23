@@ -417,7 +417,7 @@ local function buildSkills(page, f)
 	end, "primary")
 	page.autoSkills:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -30)
 	page.autoSkills.clickWhenOff = true
-	UI.Tip(page.autoSkills, function() return UI.SimpleTip("자동 배분", "남은 기술 점수로 알맞은 기술을 배우고 강화하고 장착합니다.") end, "TOP")
+	UI.Tip(page.autoSkills, function() return UI.SimpleTip("자동 배분", "남은 기술 점수를 장착한 기술부터 올립니다. 빈 칸이 있으면 새 기술을 배워 넣고, 장착한 기술이 모두 최고 레벨이면 나머지 기술에 씁니다.") end, "TOP")
 	page.resetSkills = UI.Button(f, 140, 24, "", function()
 		local id = heroOf()
 		if not id then return end

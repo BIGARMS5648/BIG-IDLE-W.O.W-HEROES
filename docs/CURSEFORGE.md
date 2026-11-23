@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.0.7
+BIG IDLE HEROES v1.0.8
 ```
 
 ---
@@ -135,8 +135,8 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.0.7)
+## Changelog for this release (v1.0.8)
 
 ```
-- The hunter's pet (and every summon that fights up close) runs to the front and back into formation as fast as the heroes do.
+- Auto-assign for skill points raises the equipped skills first, the lowest first. An empty slot gets a new skill; only once every equipped skill is at its top do points go to the other learned skills, then to new ones.
 ```

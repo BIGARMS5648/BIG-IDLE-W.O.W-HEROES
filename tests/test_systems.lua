@@ -458,6 +458,44 @@ check(ns.Heroes.PointsSpent(H) == 0 and ns.Stats.Get(H).aspd < sBefore, "reset r
 check(ns.Heroes.AutoSkills(H) > 0 and ns.Heroes.SkillPointsFree(H) == 0, "auto skills spends every skill point")
 check(#ns.Heroes.ActiveSkills(H) == ns.SkillSlots(), "auto skills fills the slots")
 check(ns.Heroes.ResetSkills(H) and ns.Heroes.SkillPointsSpent(H) == 1, "skill reset keeps only the first skill")
+-- auto skills: the equipped skills first (lowest rank first); an empty slot
+-- takes the next open skill; only once the equipped skills are at the top do
+-- points go to learned skills out of the slots, then to new ones
+do
+	local list = ns.Heroes.SkillList(H)
+	local h = db.heroes[H]
+	local wasSlots, wasLevel = ns.SkillSlots, h.level
+	local function setup(level, slots, sk, skills)
+		h.level, h.sk, h.skills = level, sk, skills
+		ns.SkillSlots = function() return slots end
+	end
+	local function ranks()
+		local out = {}
+		for i, sid in ipairs(list) do out[i] = h.sk[sid] or 0 end
+		return table.concat(out, ",")
+	end
+	-- one slot, level 12 (4 points): all three free points go into the equipped skill
+	setup(12, 1, { [list[1]] = 1 }, { list[1] })
+	ns.Heroes.AutoSkills(H)
+	check(ranks() == "4,0,0,0,0,0", "auto skills raises the equipped skill instead of learning new ones: " .. ranks())
+	-- one slot, level 24 (7 points): the equipped skill to its top, the rest
+	-- to a learned skill out of the slot before any new one
+	setup(24, 1, { [list[1]] = 1, [list[2]] = 1 }, { list[1] })
+	ns.Heroes.AutoSkills(H)
+	check(ranks() == "5,2,0,0,0,0", "auto skills: equipped to the top, then learned skills, then new ones: " .. ranks())
+	-- two slots, one empty, level 40 (11 points): the next open skill fills
+	-- the slot, both equipped go up evenly to the top, the last point learns
+	-- the next skill
+	setup(40, 2, { [list[1]] = 1 }, { list[1] })
+	ns.Heroes.AutoSkills(H)
+	check(ranks() == "5,5,1,0,0,0", "auto skills fills an empty slot, then raises the equipped ones: " .. ranks())
+	check(ns.Heroes.IsSkillEquipped(H, list[2]) and #ns.Heroes.ActiveSkills(H) == 2, "the new skill is slotted")
+	check(ns.Heroes.SkillPointsFree(H) == 0, "auto skills leaves no point unspent")
+	ns.SkillSlots = wasSlots
+	setup(wasLevel, ns.SkillSlots(), { [list[1]] = 1 }, { list[1] })
+	ns.SkillSlots = wasSlots
+	ns.Stats.Invalidate(H)
+end
 
 ------------------------------------------------------------------------
 section("items")

@@ -420,31 +420,47 @@ function Heroes.LearnSkill(id, skillId)
 	return true
 end
 
--- Spends every free skill point: learn each open skill first, then raise the
--- equipped skills, then the rest; finally fill empty skill slots.
+-- Spends every free skill point on the skills in use: learned skills fill
+-- the empty slots first (no point needed), an empty slot still left takes
+-- the next open skill; then the equipped skills go up, the lowest first.
+-- Only once every equipped skill is at its top do points go to the learned
+-- skills out of the slots, then to the ones not learned yet.
 function Heroes.AutoSkills(id)
 	local list = Heroes.SkillList(id)
 	local spent = 0
+	for _, sid in ipairs(list) do
+		if Heroes.SkillPoints(id, sid) > 0 then Heroes.EquipSkill(id, sid, true) end
+	end
+	local function inUse(sid)
+		local i = Heroes.IsSkillEquipped(id, sid)
+		return i ~= nil and i <= ns.SkillSlots()
+	end
+	local function learned(sid) return Heroes.SkillPoints(id, sid) > 0 end
+	local function any() return true end
+	-- the skill that can take a point with the lowest rank among `which`
+	-- (the first in the list on a tie)
+	local function lowest(which)
+		local pick, best
+		for _, sid in ipairs(list) do
+			if which(sid) and Heroes.CanLearnSkill(id, sid) then
+				local pts = Heroes.SkillPoints(id, sid)
+				if not best or pts < best then pick, best = sid, pts end
+			end
+		end
+		return pick
+	end
 	for _ = 1, 100 do
 		if Heroes.SkillPointsFree(id) <= 0 then break end
 		local pick
-		for _, sid in ipairs(list) do
-			if Heroes.SkillPoints(id, sid) == 0 and Heroes.CanLearnSkill(id, sid) then pick = sid break end
-		end
-		if not pick then
-			local best
+		if #Heroes.ActiveSkills(id) < ns.SkillSlots() then
+			-- an empty slot: the next open skill (learning it slots it)
 			for _, sid in ipairs(list) do
-				if Heroes.CanLearnSkill(id, sid) then
-					local score = Heroes.SkillPoints(id, sid) - (Heroes.IsSkillEquipped(id, sid) and 10 or 0)
-					if not best or score < best then pick, best = sid, score end
-				end
+				if not learned(sid) and Heroes.CanLearnSkill(id, sid) then pick = sid break end
 			end
 		end
+		pick = pick or lowest(inUse) or lowest(learned) or lowest(any)
 		if not pick or not Heroes.LearnSkill(id, pick) then break end
 		spent = spent + 1
-	end
-	for _, sid in ipairs(list) do
-		if Heroes.SkillPoints(id, sid) > 0 then Heroes.EquipSkill(id, sid, true) end
 	end
 	return spent
 end
