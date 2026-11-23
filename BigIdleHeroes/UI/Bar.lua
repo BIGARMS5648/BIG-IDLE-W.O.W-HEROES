@@ -287,7 +287,9 @@ local function drawHeroes(now)
 				if u.anim > 0 then px = px + 4 end
 			end
 			local bob = (not u.dead and ns.Combat.state.phase == "travel" and not fig) and (sin(now * 10 + i) * 1.5) or 0
-			place(f, px, FEET + bob)
+			-- the bar under the body (a cat's middle is behind it, for its tail)
+			local barX = (fig and fig:IsLoaded()) and Figure.HeroBarShift(u.id, true) * HERO_FIG * Figure.HeroScale(u.id, true) or 0
+			place(f, px + barX, FEET + bob)
 			if not backX or u.x < backX then backX = u.x end
 			if u.dead then
 				f:SetAlpha(0.35)

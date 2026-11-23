@@ -181,6 +181,17 @@ function Figure.HeroScale(heroId, inCombat)
 	return s
 end
 
+-- Where the health bar sits under a form, as a share of the figure's height
+-- forward of the model's middle: the cat's long tail puts its middle behind
+-- its body.
+Figure.FORM_BAR_X = { cat = 0.4 }
+function Figure.HeroBarShift(heroId, inCombat)
+	local h = inCombat and ns.db and ns.db.heroes[heroId]
+	local form = h and FORM[h.spec]
+	if form and formFor(h.spec) then return Figure.FORM_BAR_X[form] or 0 end
+	return 0
+end
+
 function Figure.ForMonster(monsterId, bossKey)
 	return usable(bossKey and ns.MODEL.boss[bossKey]) or usable(monsterId and ns.MODEL.mob[monsterId])
 end

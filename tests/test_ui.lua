@@ -1417,7 +1417,12 @@ do
 			if sid == "DRUID_FERAL" and math.abs(inForm - raceScale * 0.92) > 1e-9 then fail("the cat should be drawn at 92%: " .. inForm) end
 			if sid == "DRUID_BALANCE" and math.abs(inForm - Fig.RACE_SCALE.TAUREN) > 1e-9 then fail("the moonkin of both factions should be as tall as the tauren's: " .. inForm) end
 			if (sid == "DRUID_GUARDIAN" or sid == "DRUID_RESTO") and math.abs(inForm - raceScale) > 1e-9 then fail(sid .. " should keep its size") end
+			-- the cat's health bar under its body, forward of its middle (its tail is long)
+			local shift = Fig.HeroBarShift(h.id, true)
+			if sid == "DRUID_FERAL" and not (shift > 0.2) then fail("the cat's health bar should sit under its body, forward of its middle") end
+			if sid ~= "DRUID_FERAL" and shift ~= 0 then fail(sid .. "'s health bar should sit under its middle") end
 			ns.db.opt.druidForm = false
+			if Fig.HeroBarShift(h.id, true) ~= 0 then fail("a druid as itself has its health bar under its middle") end
 			if math.abs(Fig.HeroScale(h.id, true) - raceScale) > 1e-9 then fail("a druid as itself keeps its race's size") end
 			local body = Fig.HeroBody(h.id, true)
 			if not body or body.weapons.mh ~= ns.MODEL.weapons[sid].mh or Fig.ForHero(h.id, true) == want then
