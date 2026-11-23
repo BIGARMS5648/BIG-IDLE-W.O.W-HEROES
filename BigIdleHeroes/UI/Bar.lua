@@ -22,7 +22,7 @@ local FEET = 9        -- unit bottom above the scene's bottom edge (the health b
 -- how tall the fighters stand on screen: every model height below times this
 local FIG_SCALE = 0.85
 local BACK_FIG, PET_FIG = 34 * FIG_SCALE, 24 * FIG_SCALE -- summons (by the front or their summoner) and the companion (at the back)
-local SUMMON_PACE = 140 -- how fast a melee summon walks to the front and back (pixels a second)
+local SUMMON_PACE = 140 -- how fast the companion walks to its place behind the party (pixels a second)
 local MAX_MOBS = 12
 local MAX_FLOATS = 28
 local MAX_PIPS = 10
@@ -353,7 +353,8 @@ local function drawHeroes(now)
 	-- summoned creatures (only as 3D models): one that shoots stands beside its
 	-- summoner; one that fights up close walks beside its summoner too, and
 	-- goes up to the front by the monsters (as the melee heroes do) while the
-	-- party fights, walking there and back
+	-- party fights, walking there and back as fast as its summoner does (up at
+	-- its speed, back into formation BACK_PACE faster)
 	local k, front, beside = 0, 0, {}
 	local phase = ns.Combat.state.phase
 	local fighting = phase == "fight"
@@ -379,7 +380,8 @@ local function drawHeroes(now)
 							if sp.summonFor ~= u.id .. sid or not sp.sx then
 								sp.summonFor, sp.sx = u.id .. sid, own + UNIT / 2 + 20
 							end
-							local step = SUMMON_PACE * dt
+							local pace = laneX(ns.Combat.HeroSpeed(u)) * (target < sp.sx and ns.Combat.BACK_PACE or 1)
+							local step = pace * dt
 							if math.abs(target - sp.sx) <= step then sp.sx = target
 							else sp.sx = sp.sx + (target > sp.sx and step or -step) end
 							sp.going = sp.sx ~= target
@@ -1177,7 +1179,12 @@ local function drawScenery()
 	end
 end
 Bar.DrawScenery = drawScenery
-function Bar.DrawHeroes() drawHeroes(GetTime()) end
+-- (for the checks: step = the seconds the frame took)
+function Bar.DrawHeroes(step)
+	if step then dt = step end
+	drawHeroes(GetTime())
+end
+Bar.LaneX = laneX
 function Bar.Ground() return frame and frame.ground, frame and frame.sky, frame and frame.sky2 end
 function Bar.Scenery() return frame and frame.scenery, frame and frame.units end
 function Bar.Sky() return frame and frame.sky end

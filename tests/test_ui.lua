@@ -1379,6 +1379,17 @@ do
 			fail("a melee summon should stand at the front, by the monsters, while the party fights: " .. tostring(s1 and s1.anchorX) .. " / " .. tostring(front))
 		end
 		if x1 and s1.anchorX and s1.anchorX <= x1 then fail("a melee summon should go forward when the fight starts") end
+		-- it goes back into formation as fast as its summoner falls back (as
+		-- the melee heroes do), not slower
+		if s1 and s1.sx then
+			st.phase = "travel"
+			local x0 = s1.sx
+			ns.Bar.DrawHeroes(0.1)
+			local want = ns.Bar.LaneX(ns.Combat.HeroSpeed(u) * ns.Combat.BACK_PACE) * 0.1
+			if math.abs((x0 - s1.sx) - want) > 1e-6 then
+				fail(string.format("a melee summon should fall back as fast as its summoner: %.2f px in 0.1 s, want %.2f", x0 - s1.sx, want))
+			end
+		end
 		st.phase = was
 		if petFig and petFig:IsShown() and back and not (petFig.anchorX < back) then
 			fail("the companion should stand behind the whole party: " .. tostring(petFig.anchorX) .. " / " .. tostring(back))

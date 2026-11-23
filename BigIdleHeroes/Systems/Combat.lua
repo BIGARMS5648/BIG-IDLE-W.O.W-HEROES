@@ -832,6 +832,9 @@ end
 local function heroSpeed(u)
 	return 240 * (1 + (u.s.move or 0) / 100)
 end
+-- falling back into formation goes this much faster than walking up
+local BACK_PACE = 1.5
+Combat.HeroSpeed, Combat.BACK_PACE = heroSpeed, BACK_PACE
 
 local function stepHero(u)
 	if u.flash > 0 then u.flash = u.flash - STEP end
@@ -1219,7 +1222,7 @@ function Combat.Step()
 			stepHero(u)
 			if not u.dead then
 				-- fall back into formation
-				local sp = heroSpeed(u) * 1.5 * STEP
+				local sp = heroSpeed(u) * BACK_PACE * STEP
 				if u.x > u.homeX then u.x = max(u.homeX, u.x - sp) elseif u.x < u.homeX then u.x = min(u.homeX, u.x + sp) end
 			end
 		end
