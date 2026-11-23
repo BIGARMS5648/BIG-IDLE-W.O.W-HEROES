@@ -387,14 +387,21 @@ function Actor:SetModelByUnit(unit, sheathe, autoDress, hideWeapons, native, hol
 	strict(type(unit) == "string", "SetModelByUnit: unit expected")
 	strict(raceId == nil or type(raceId) == "number", "SetModelByUnit: customRaceID must be a number")
 	self.__display = "unit:" .. unit
-	self.__race, self.__dressed = raceId, autoDress ~= false
+	self.__race, self.__dressed, self.__noWeapons = raceId, autoDress ~= false, hideWeapons and true or false
 	return true
 end
-function Actor:Undress() self.__worn = {} end
-function Actor:TryOn(link)
+function Actor:Undress() self.__worn, self.__hands = {}, {} end
+-- an item on (a hand slot name puts a weapon in that hand)
+local HAND = { MAINHANDSLOT = true, SECONDARYHANDSLOT = true }
+function Actor:TryOn(link, hand)
 	strict(type(link) == "string" or type(link) == "number", "TryOn: item link or id expected")
+	strict(hand == nil or HAND[hand], "TryOn: hand slot must be MAINHANDSLOT or SECONDARYHANDSLOT")
 	self.__worn = self.__worn or {}
 	self.__worn[#self.__worn + 1] = link
+	if hand then
+		self.__hands = self.__hands or {}
+		self.__hands[hand] = link
+	end
 	return true
 end
 -- spell visual kits played on an actor: none clears; Mock.kits notes them

@@ -654,7 +654,8 @@ function fx.setup()
 				end
 			end
 			-- the caster: the hero's own body (the player as the class's race, in its set)
-			if c.caster then put(c.caster, caster, "right", fxX(c, "caster"), ns.Figure3D.BodyFor(sp.class)) end
+			local cls = ns.CLASSES[sp.class]
+			if c.caster then put(c.caster, caster, "right", fxX(c, "caster"), ns.Figure3D.BodyFor(sp.class, nil, cls and cls.specs[1])) end
 			if c.target then put(c.target, target, "left", fxX(c, "target")) end
 			for _, k in ipairs({ "missile", "hand", "hit" }) do
 				local m = c[k]

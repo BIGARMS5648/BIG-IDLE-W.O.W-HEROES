@@ -508,7 +508,7 @@ function create.refresh()
 	local race = ns.RACES[ns.ClassRace(cid)]
 	local fac = ns.FACTIONS[ns.Faction() or "ALLIANCE"]
 	create.race:SetText(string.format("%s  ·  %s %s", ns.N(fac.name), race.name, ns.SEX[create.sex].name))
-	local body = ns.Figure3D.Enabled() and ns.Figure3D.BodyFor(cid, ns.Faction())
+	local body = ns.Figure3D.Enabled() and ns.Figure3D.BodyFor(cid, ns.Faction(), create.spec)
 	local mid = ns.Figure3D.Enabled() and ns.Figure3D.ForClass(cid, ns.Faction(), create.spec, create.sex)
 	UI.SetClassIcon(create.portrait.icon, cid)
 	create.portrait.icon:Show()

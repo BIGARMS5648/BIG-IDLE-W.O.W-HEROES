@@ -39,6 +39,22 @@ do
 		if pet.id ~= "skull" and not isId(ns.MODEL.pet[pet.id]) then noModel[#noModel + 1] = "pet " .. pet.id end
 	end
 	for k in pairs(ns.MODEL.mob) do if not ns.MONSTERS[k] then noModel[#noModel + 1] = "model for no monster: " .. k end end
+	-- every spec holds weapons from the level 60 five-man dungeons; a
+	-- two-hander or a bow has nothing in the off hand
+	local DUNGEON_WEAPON = {
+		[12592] = "2h", [12940] = "1h", [12939] = "1h", [11684] = "1h", [12602] = "shield", [11923] = "1h",
+		[11928] = "held", [18538] = "2h", [18680] = "ranged", [12651] = "ranged", [12590] = "1h", [13368] = "1h",
+		[18392] = "1h", [22406] = "2h", [22335] = "2h", [13964] = "1h", [22336] = "shield", [18523] = "held",
+		[22253] = "held", [18372] = "1h", [23124] = "2h", [13372] = "2h", [18531] = "2h", [11932] = "2h",
+	}
+	for sid in pairs(ns.SPECS) do
+		local w = ns.MODEL.weapons[sid]
+		check(w and DUNGEON_WEAPON[w.mh], sid .. ": a main hand weapon from the dungeon list")
+		if w and w.oh then
+			check(DUNGEON_WEAPON[w.oh] and DUNGEON_WEAPON[w.mh] == "1h", sid .. ": an off hand only next to a one-hander")
+		end
+		if w and DUNGEON_WEAPON[w.mh] == "ranged" then check(ns.SPECS[sid].class == "HUNTER", sid .. ": only hunters hold a bow") end
+	end
 	-- every NPC has a model id
 	local noDisplay = {}
 	local function needs(id) if id and not ns.MODEL.display[id] then noDisplay[#noDisplay + 1] = tostring(id) end end

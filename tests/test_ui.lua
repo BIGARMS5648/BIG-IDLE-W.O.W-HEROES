@@ -913,7 +913,15 @@ do
 					fail("a hero should be the player's body as its race (" .. race .. "), undressed: " .. tostring(m.actor.__display) .. " " .. tostring(m.actor.__race))
 				end
 				local worn = m.actor.__worn or {}
-				if #worn ~= #body.items or #worn == 0 then fail("a hero should wear its class's dungeon set: " .. #worn .. " pieces") end
+				local w = ns.MODEL.weapons[ns.db.heroes[u.id].spec]
+				local nW = (w.mh and 1 or 0) + (w.oh and 1 or 0)
+				if #worn ~= #body.items + nW or #body.items == 0 then fail("a hero should wear its class's dungeon set and its weapons: " .. #worn .. " pieces") end
+				-- the spec's dungeon weapons in its hands, drawn
+				local hands = m.actor.__hands or {}
+				if hands.MAINHANDSLOT ~= "item:" .. w.mh or (w.oh and hands.SECONDARYHANDSLOT ~= "item:" .. w.oh) then
+					fail("a hero should hold its spec's weapons: " .. tostring(hands.MAINHANDSLOT) .. " " .. tostring(hands.SECONDARYHANDSLOT))
+				end
+				if m.actor.__noWeapons then fail("a hero's body should not hide its weapons") end
 			else
 				local want = Fig.DisplayFor(m.id)
 				if m.actor.__display ~= want then fail("a hero in another shape should be put up by its display id: " .. tostring(m.actor.__display) .. " / " .. tostring(want)) end

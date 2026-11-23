@@ -624,6 +624,42 @@ ns.MODEL.dungeonSet = {
 	WARLOCK = { name = "공포안개 의복", items = { 16698, 16701, 16700, 16705, 16702, 16699, 16704, 16703 } },
 	DRUID   = { name = "자연의정수 의복", items = { 16720, 16718, 16706, 16717, 16716, 16719, 16715, 16714 } },
 }
+-- The weapons each spec holds: its best weapons from the original game's
+-- level 60 five-man dungeons (Blackrock Depths, Lower and Upper Blackrock
+-- Spire, Dire Maul, Scholomance, Stratholme), item ids; mh = main hand (a
+-- two-hander or, for hunters, the bow or crossbow they shoot with), oh = off
+-- hand (a weapon, shield or held item).
+ns.MODEL.weapons = {
+	WARRIOR_ARMS   = { mh = 12592 },                -- 샤크람의 흑도 (검은바위 첨탑 상층: 장군 드라키사스)
+	WARRIOR_FURY   = { mh = 12940, oh = 12939 },    -- 달렌드의 성검 · 부족 수호검 (검은바위 첨탑 상층: 대족장 렌드 블랙핸드)
+	WARRIOR_PROT   = { mh = 11684, oh = 12602 },    -- 무쇠폭군 (검은바위 나락: 제왕 다그란 타우릿산) · 용족 굴절방패 (첨탑 상층: 드라키사스)
+	PALADIN_HOLY   = { mh = 11923, oh = 11928 },    -- 은총의 망치 · 제왕 타우릿산의 홀 (검은바위 나락)
+	PALADIN_PROT   = { mh = 11684, oh = 12602 },    -- 무쇠폭군 · 용족 굴절방패
+	PALADIN_RET    = { mh = 18538 },                -- 나무정령 파멸의 도끼 (혈투의 전장 북부: 공물)
+	HUNTER_BM      = { mh = 18680 },                -- 고대의 해골 장궁 (스칼로맨스: 교관 말리시아)
+	HUNTER_MM      = { mh = 12651 },                -- 검은까마귀 (검은바위 첨탑 하층: 그림자사냥꾼 보쉬가진)
+	HUNTER_SV      = { mh = 18680 },                -- 고대의 해골 장궁
+	ROGUE_ASSA     = { mh = 12590, oh = 13368 },    -- 필살의 비수 (첨탑 상층: 렌드) · 해골 절단기 (스트라솔름: 남작 리븐데어)
+	ROGUE_OUTLAW   = { mh = 12940, oh = 12939 },    -- 달렌드의 성검 · 부족 수호검
+	ROGUE_SUB      = { mh = 12590, oh = 18392 },    -- 필살의 비수 · 혼돈의 단검 (혈투의 전장 서부: 왕자 토르텔드린)
+	PRIEST_DISC    = { mh = 11923, oh = 11928 },    -- 은총의 망치 · 제왕 타우릿산의 홀
+	PRIEST_HOLY    = { mh = 22406 },                -- 구원의 지팡이 (스트라솔름: 포병대장 윌리)
+	PRIEST_SHADOW  = { mh = 22335 },                -- 군주 발타라크의 지휘봉 (첨탑 상층: 군주 발타라크)
+	SHAMAN_ELE     = { mh = 13964, oh = 22336 },    -- 마녀의 비수 (스칼로맨스: 암흑스승 간들링) · 군단 용기병 아이기스 (첨탑 상층: 발타라크)
+	SHAMAN_ENH     = { mh = 18538 },                -- 나무정령 파멸의 도끼
+	SHAMAN_RESTO   = { mh = 11923, oh = 18523 },    -- 은총의 망치 · 밝게 빛나는 돌 (혈투의 전장 북부: 왕 고르독)
+	MAGE_ARCANE    = { mh = 13964, oh = 22253 },    -- 마녀의 비수 · 길잃은자의 고서 (첨탑 상층: 드라키사스)
+	MAGE_FIRE      = { mh = 13964, oh = 22253 },
+	MAGE_FROST     = { mh = 13964, oh = 22253 },
+	WARLOCK_AFF    = { mh = 18372, oh = 22253 },    -- 초승달 단도 (혈투의 전장 서부: 이몰타르) · 길잃은자의 고서
+	WARLOCK_DEMO   = { mh = 18372, oh = 22253 },
+	WARLOCK_DESTRO = { mh = 13964, oh = 22253 },    -- 마녀의 비수 · 길잃은자의 고서
+	DRUID_BALANCE  = { mh = 23124 },                -- 발자폰의 지팡이 (스트라솔름: 발자폰)
+	DRUID_FERAL    = { mh = 13372 },                -- 노예감독의 지팡이 (스트라솔름: 게걸먹보 램스타인)
+	DRUID_GUARDIAN = { mh = 18531 },                -- 단호의 마울 (혈투의 전장 북부: 공물)
+	DRUID_RESTO    = { mh = 11932 },                -- 지혜의 지팡이 (검은바위 나락: 타우릿산)
+}
+
 -- the game's race ids (SetCustomRace)
 ns.MODEL.raceId = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, UNDEAD = 5, TAUREN = 6, GNOME = 7, TROLL = 8 }
 -- Each race's own body with nothing on (the game's base display of the race,

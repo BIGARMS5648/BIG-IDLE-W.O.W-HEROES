@@ -106,11 +106,12 @@ function Figure.ForClass(classId, faction, specId, sex)
 end
 
 -- A hero's own look: the player's model made the class's race (SetModelByUnit
--- with the game's race id), with nothing on, in the class's dungeon set.
+-- with the game's race id), with nothing on, in the class's dungeon set and
+-- the spec's weapons (Data/Models.lua ns.MODEL.weapons; none without a spec).
 local bodies = {}
-function Figure.BodyFor(classId, faction)
+function Figure.BodyFor(classId, faction, specId)
 	faction = faction or ns.Faction() or "ALLIANCE"
-	local key = tostring(classId) .. ":" .. faction
+	local key = tostring(classId) .. ":" .. faction .. ":" .. tostring(specId)
 	if bodies[key] ~= nil then return bodies[key] or nil end
 	local race = ns.ClassRace(classId, faction)
 	local rid = race and ns.MODEL.raceId and ns.MODEL.raceId[race]
@@ -120,7 +121,12 @@ function Figure.BodyFor(classId, faction)
 		return nil
 	end
 	local items = set and set.items or {}
-	local body = { race = race, rid = rid, items = items, key = "body:" .. rid .. ":" .. table.concat(items, ",") }
+	local w = specId and ns.MODEL.weapons and ns.MODEL.weapons[specId]
+	local weapons = w and { mh = w.mh, oh = w.oh } or {}
+	local body = {
+		race = race, rid = rid, items = items, weapons = weapons,
+		key = "body:" .. rid .. ":" .. table.concat(items, ",") .. ":" .. tostring(weapons.mh) .. ":" .. tostring(weapons.oh),
+	}
 	bodies[key] = body
 	return body
 end
@@ -136,7 +142,7 @@ function Figure.HeroBody(heroId, inCombat)
 		if form and usable(ns.MODEL.form[form]) then return nil end
 	end
 	local sp = ns.SPECS[h.spec]
-	return sp and Figure.BodyFor(sp.class, faction)
+	return sp and Figure.BodyFor(sp.class, faction, h.spec)
 end
 
 -- How tall each body stands next to an ordinary hero.
@@ -627,8 +633,8 @@ function scene:Load()
 		return true
 	end
 	if self.body then
-		-- the player, weapons hidden and nothing worn, as the body's race
-		local okB, resB = call(a, "SetModelByUnit", "player", false, false, true, true, false, self.body.rid)
+		-- the player, weapons drawn and nothing worn, as the body's race
+		local okB, resB = call(a, "SetModelByUnit", "player", false, false, false, true, false, self.body.rid)
 		if not okB or resB == false then return false end
 		self.lastTry = true
 		self.loadT = SCENE_WAIT
@@ -661,11 +667,16 @@ function scene:PlayKit(kit)
 	if kit and self.loaded then return call(self.actor, "SetSpellVisualKit", kit, true) end
 end
 
--- The body's clothes off and the set on (once the body is in).
+-- The body's clothes off, the set on and the weapons in its hands (once the
+-- body is in).
 function scene:Dress()
 	local a = self.actor
+	local body = self.body
 	call(a, "Undress")
-	for _, item in ipairs(self.body.items or {}) do call(a, "TryOn", "item:" .. item) end
+	for _, item in ipairs(body.items or {}) do call(a, "TryOn", "item:" .. item) end
+	local w = body.weapons or {}
+	if w.mh then call(a, "TryOn", "item:" .. w.mh, "MAINHANDSLOT") end
+	if w.oh then call(a, "TryOn", "item:" .. w.oh, "SECONDARYHANDSLOT") end
 end
 
 -- The model's own size (its bounding box, standing): its height becomes the
