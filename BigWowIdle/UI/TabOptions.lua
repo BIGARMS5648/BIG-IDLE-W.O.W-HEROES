@@ -91,6 +91,8 @@ local function build(page)
 			function(v) ns.db.opt.models = v and true or false end),
 		UI.Check(sc, "드루이드를 변신한 모습으로 보기 (끄면 사람 모습)", function() return ns.db.opt.druidForm ~= false end,
 			function(v) ns.db.opt.druidForm = v and true or false end),
+		UI.Check(sc, "전투 창 뒤에 지역의 나무·바위 모델 보기", function() return ns.db.opt.scenery ~= false end,
+			function(v) ns.db.opt.scenery = v and true or false end),
 	}
 	for i, c in ipairs(sc.checks) do c:SetPoint("TOPLEFT", sc, "TOPLEFT", K.PAD, -150 - (i - 1) * 26) end
 	UI.Tip(sc.checks[4], function()
@@ -99,7 +101,10 @@ local function build(page)
 	UI.Tip(sc.checks[5], function()
 		return UI.SimpleTip("드루이드 변신", "켜면 수호 드루이드는 곰, 야성은 표범, 조화는 달빛야수 모습으로 싸웁니다(얼라이언스는 나이트 엘프, 호드는 타우렌의 변신 모습). 끄면 모두 사람 모습으로 무기를 들고 싸웁니다. 회복 드루이드는 늘 사람 모습입니다.")
 	end, "TOP")
-	sc.howto = note(sc, K.PAD, -288, "• 전투 창은 왼쪽 버튼으로 끌어 옮깁니다.\n" ..
+	UI.Tip(sc.checks[6], function()
+		return UI.SimpleTip("지역 배경", "전투 창 뒤에 지금 스테이지 지역의 나무·바위·폐허·풀을 게임에 들어 있는 3D 모델로 세워 둡니다. 파티가 다음 무리로 걸어갈 때 앞쪽 줄일수록 빨리 지나갑니다. 3D 모델 보기를 끄면 함께 꺼집니다.")
+	end, "TOP")
+	sc.howto = note(sc, K.PAD, -314, "• 전투 창은 왼쪽 버튼으로 끌어 옮깁니다.\n" ..
 		"• 오른쪽 아래 모서리를 끌면 크기가 바뀝니다 (모서리 우클릭: 원래 크기).\n" ..
 		"• 전투 창을 우클릭하면 메뉴가 열립니다.")
 

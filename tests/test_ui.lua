@@ -1095,6 +1095,81 @@ do
 		u.pets = {}
 		ns.db.pet = wasPet
 	end
+	-- the place's own trees and rocks stand behind the fight in three rows,
+	-- each as tall as its row makes it, and go by while the party walks on
+	do
+		local sc, units = ns.Bar.Scenery()
+		local st = ns.Combat.state
+		local diff, idx = ns.db.stage.diff, ns.db.stage.idx
+		if st.phase ~= "idle" and st.diff then diff, idx = st.diff, st.idx end
+		local set = ns.SceneryFor(diff, idx)
+		if not (sc and set and units) then fail("the battle should have the stage's scenery") else
+			for _, f in ipairs(set.far) do Mock.boxes["file:" .. f] = { -3, -3, 0, 3, 3, 10 } end
+			local tooBig = set.near[1]
+			Mock.boxes["file:" .. tooBig] = { -1, -1, 0, 1, 1, 20 }
+			sc.set = nil -- put up again with the boxes above
+			frames(4)
+			if heroes[1]:GetParent() ~= units then fail("the fighters should be on the layer above the scenery") end
+			local shown = 0
+			for r, row in ipairs(sc.rows) do
+				local def = row.def
+				for _, it in ipairs(row.items) do
+					local fig = it.fig
+					if fig:GetFrameLevel() >= units:GetFrameLevel() then fail("scenery should be drawn behind the fighters") end
+					if it.file and fig:IsShown() then
+						shown = shown + 1
+						local ok = false
+						for _, f in ipairs(set[def.key]) do if f == it.file then ok = true end end
+						if not ok then fail("a scenery model should be one of its place's: " .. tostring(it.file)) end
+						if def.key == "near" and it.file == tooBig and it.sized then fail("a model too big for its row should be swapped") end
+						if it.sized then
+							local b = fig.box
+							local drawn = fig.height * (b[6] - b[3]) * fig.norm
+							if drawn < def.lo * 0.84 or drawn > def.hi * 1.16 then
+								fail(string.format("a %s scenery model should be %d..%d tall: %.1f", def.key, def.lo, def.hi, drawn))
+							end
+						end
+					end
+				end
+			end
+			if shown < 8 then fail("most scenery spots should hold a model: " .. shown) end
+			if not (sc.bad.near and sc.bad.near[tooBig]) then fail("a model too big for its row should be noted") end
+			-- walking on: the near row goes by fastest, the far one slowest
+			local was = st.phase
+			local x0 = {}
+			for r, row in ipairs(sc.rows) do x0[r] = row.off end
+			st.phase = "travel"
+			for _ = 1, 5 do ns.Bar.DrawScenery() end
+			st.phase = was
+			local moved = {}
+			for r, row in ipairs(sc.rows) do moved[r] = row.off - x0[r] end
+			if not (moved[1] > 0 and moved[2] > moved[1] and moved[3] > moved[2]) then
+				fail(string.format("scenery rows should go by faster the nearer they are: %.1f %.1f %.1f", moved[1], moved[2], moved[3]))
+			end
+			-- standing (fighting): still
+			local off = sc.rows[3].off
+			if st.phase ~= "travel" then
+				ns.Bar.DrawScenery()
+				if sc.rows[3].off ~= off then fail("scenery should stand still while the party fights") end
+			end
+			-- a model that leaves on the left comes back on the right
+			local it = sc.rows[3].items[1]
+			local lap = it.lap
+			sc.rows[3].off = sc.rows[3].off + ns.Bar.SCENERY_ROWS[3].n * 1000
+			ns.Bar.DrawScenery()
+			if it.lap == lap then fail("a scenery model should come round again") end
+			-- off in the settings: gone
+			ns.db.opt.scenery = false
+			frames(1)
+			for _, row in ipairs(sc.rows) do
+				for _, i2 in ipairs(row.items) do if i2.fig:IsShown() then fail("scenery should hide when turned off") break end end
+			end
+			ns.db.opt.scenery = true
+			frames(1)
+			for _, f in ipairs(set.far) do Mock.boxes["file:" .. f] = nil end
+			Mock.boxes["file:" .. tooBig] = nil
+		end
+	end
 	-- an attack plays the attack animation
 	local anims = {}
 	for _ = 1, 400 do -- until the party has met the monsters and fought a while

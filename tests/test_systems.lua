@@ -123,6 +123,19 @@ do
 	for _, sid in ipairs({ "DRUID_FERAL", "DRUID_GUARDIAN", "DRUID_RESTO", "SHAMAN_ENH", "SHAMAN_ELE", "SHAMAN_RESTO" }) do
 		check(ns.SPECS[sid], "missing specialization " .. sid)
 	end
+	-- every stage has its place's scenery: three rows of terrain models
+	for d = 1, #ns.DIFFS do
+		for i = 1, ns.STAGE_COUNT do
+			local set = ns.SceneryFor(d, i)
+			check(set, "stage " .. d .. "-" .. i .. " should have scenery")
+			if set then
+				for _, row in ipairs({ "far", "mid", "near" }) do
+					check(type(set[row]) == "table" and #set[row] > 0, "stage " .. d .. "-" .. i .. " scenery should have a " .. row .. " row")
+					for _, f in ipairs(set[row] or {}) do check(type(f) == "number" and f > 0, "scenery should be file ids") end
+				end
+			end
+		end
+	end
 	-- every spec's skills open in the order the original game teaches them
 	for sid, sp in pairs(ns.SPECS) do
 		for i = 2, #sp.skills do

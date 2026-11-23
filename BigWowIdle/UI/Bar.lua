@@ -21,6 +21,7 @@ local MAX_PIPS = 10
 
 local frame
 local heroFrames, mobFrames, floats, pips = {}, {}, {}, {}
+local newScenery -- (Scenery, below)
 local infoT = 0
 local dt = 0 -- seconds since the last drawn frame
 local HERO_FIG, MOB_FIG = 74, 70 -- model heights on screen
@@ -814,9 +815,163 @@ end
 Bar.missiles, Bar.hits, Bar.fxStats = missiles, hits, fxStats
 function Bar.Summons() return frame and frame.summons, frame and frame.petModel end
 
+------------------------------------------------------------------------
+-- Scenery: the stage's own terrain models (Data/Scenery.lua) in three rows
+-- behind the fight. Each model is drawn at a size that follows its real
+-- height (a tree tall, a bush low) within its row's limits; ones too small
+-- or too big for their row are swapped for another. While the party walks on
+-- between waves the rows go by, the near one as fast as the walk and the far
+-- one slowest; a model that leaves on the left comes back on the right as
+-- another of the place's models.
+------------------------------------------------------------------------
+local SCENERY_ROWS = {
+	-- y: ground of the row; k: pixels per yard of the model's height, within
+	-- lo..hi; minH/maxH: the heights (yards) a model of the row may have;
+	-- shade: its light; speed: share of the walk
+	{ key = "far",  n = 4, y = 34, k = 7,  lo = 48, hi = 92, minH = 3,   maxH = 80, shade = 0.5,  speed = 0.3, level = 1 },
+	{ key = "mid",  n = 4, y = 22, k = 9,  lo = 26, hi = 68, minH = 1.2, maxH = 60, shade = 0.72, speed = 0.6, level = 2 },
+	{ key = "near", n = 5, y = 10, k = 14, lo = 10, hi = 30, minH = 0.2, maxH = 6,  shade = 0.9,  speed = 1.0, level = 3 },
+}
+Bar.SCENERY_ROWS = SCENERY_ROWS
+local WALK_PX = 90             -- how fast the ground goes by while the party walks (pixels a second)
+local SPAN_PAD = 90            -- room past each side of the scene where a model turns round
+local SPAN = SCENE_W + 2 * SPAN_PAD
+
+function newScenery(scene)
+	local sc = { rows = {}, bad = {} }
+	local lv = scene:GetFrameLevel()
+	for r, def in ipairs(SCENERY_ROWS) do
+		local row = { def = def, off = 0, items = {} }
+		for i = 1, def.n do
+			local fig = Figure.New(scene, def.hi)
+			if fig then
+				fig:SetFrameLevel(lv + def.level)
+				-- spread evenly, a little off the even step, each row shifted
+				local step = SPAN / def.n
+				row.items[i] = { fig = fig, x = (i - 1) * step + step * (0.15 + 0.5 * ((i * 7 + r * 3) % 5) / 5), lap = nil }
+			end
+		end
+		sc.rows[r] = row
+	end
+	frame.scenery = sc
+end
+
+-- the place's model for a spot: another than its neighbour's, none known
+-- not to fit the row or not to load
+local function sceneryFile(sc, row, it, prev)
+	local list = sc.set and sc.set[row.def.key]
+	if not list or #list == 0 then return nil end
+	local bad = sc.bad[row.def.key]
+	local start = math.random(#list)
+	local fallback
+	for k = 0, #list - 1 do
+		local f = list[(start + k - 1) % #list + 1]
+		if not (bad and bad[f]) and not Figure.failed["file:" .. f] then
+			if f ~= prev and f ~= it.file then return f end
+			fallback = fallback or f
+		end
+	end
+	return fallback
+end
+
+local function setSceneryModel(sc, row, it, prev)
+	local fig = it.fig
+	it.sized = false
+	fig:SetAlpha(0)
+	for _ = 1, 4 do
+		local f = sceneryFile(sc, row, it, prev)
+		if not f then break end
+		it.file = f
+		if fig:SetModelFile(f) then
+			fig:SetFacing(math.random(2) == 1 and "left" or "right")
+			it.scale = 0.85 + math.random() * 0.3
+			fig:Show()
+			return
+		end
+	end
+	it.file = nil
+	fig:Hide()
+end
+
+-- the model is in: drawn as tall as its row makes it, or swapped when it
+-- does not fit the row
+local function sizeScenery(sc, row, it)
+	local fig, def = it.fig, row.def
+	local b = fig.box
+	local H = b and (b[6] - b[3]) or nil
+	if H and (H < def.minH or H > def.maxH) then
+		sc.bad[def.key] = sc.bad[def.key] or {}
+		sc.bad[def.key][it.file] = true
+		setSceneryModel(sc, row, it, it.file)
+		return
+	end
+	local px = H and max(def.lo, min(def.hi, H * def.k)) or (def.lo + def.hi) / 2
+	px = px * (it.scale or 1)
+	-- drawn height = figure height x the model's height x its fitting
+	local fit = (H and fig.norm) and H * fig.norm or 1
+	fig:SetHeight2(px / max(0.05, fit))
+	it.sized = true
+	fig:SetAlpha(1)
+end
+
+local function drawScenery()
+	local sc = frame.scenery
+	if not sc then return end
+	local st = ns.Combat.state
+	local diff, idx = ns.db.stage.diff, ns.db.stage.idx
+	if st.phase ~= "idle" and st.diff then diff, idx = st.diff, st.idx end
+	local set = ns.db.opt.scenery ~= false and Figure.Enabled() and ns.SceneryFor and ns.SceneryFor(diff, idx) or nil
+	local th = set and (ns.THEMES[ns.Stage(diff, idx).theme] or ns.THEMES.forest)
+	if set ~= sc.set or th ~= sc.theme then
+		sc.set, sc.theme = set, th
+		for _, row in ipairs(sc.rows) do
+			-- far rows take on the colour of the place's sky
+			local k, rgb = row.def.shade, th and th.rgb or { 1, 1, 1 }
+			local mix = 1 - k
+			for _, it in ipairs(row.items) do
+				it.lap = nil
+				if set then
+					it.fig:SetShade(k * (1 - mix + mix * rgb[1]), k * (1 - mix + mix * rgb[2]), k * (1 - mix + mix * rgb[3]))
+					setSceneryModel(sc, row, it)
+				else
+					it.file = nil
+					it.fig:Hide()
+				end
+			end
+		end
+	end
+	if not set then return end
+	local walk = st.phase == "travel"
+	for _, row in ipairs(sc.rows) do
+		if walk then row.off = (row.off + WALK_PX * row.def.speed * dt) % (SPAN * 1000) end
+		local prev
+		for _, it in ipairs(row.items) do
+			local pos = it.x - row.off
+			local lap = floor(pos / SPAN)
+			if it.lap and lap ~= it.lap then setSceneryModel(sc, row, it, prev) end
+			it.lap = lap
+			if it.file then
+				local fig = it.fig
+				fig:Step(dt)
+				if not fig.id then
+					-- the game could not load it: another one
+					setSceneryModel(sc, row, it, prev)
+				elseif not it.sized and fig:IsLoaded() then
+					sizeScenery(sc, row, it)
+				end
+				fig:PlaceFeet(frame.scene, pos - lap * SPAN - SPAN_PAD, row.def.y)
+				prev = it.file
+			end
+		end
+	end
+end
+Bar.DrawScenery = drawScenery
+function Bar.Scenery() return frame and frame.scenery, frame and frame.units end
+
 local function onUpdate(self, elapsed)
 	local now = GetTime()
 	dt = elapsed
+	drawScenery()
 	drawHeroes(now)
 	drawMobs()
 	drawPips(now)
@@ -1017,16 +1172,23 @@ function Bar.Create()
 	local edge = UI.Slice(scene, "frame", "OVERLAY", 10)
 	edge:SetColor(0.14, 0.17, 0.27, 1)
 
-	for i = 1, ns.PARTY_SIZE do heroFrames[i] = newHero(scene) end
-	for i = 1, MAX_MOBS do mobFrames[i] = newMob(scene) end
-	frame.pet = CreateFrame("Frame", nil, scene)
+	-- the place's own trees and rocks behind the fight, the fighters on a
+	-- layer above them
+	newScenery(scene)
+	local units = CreateFrame("Frame", nil, scene)
+	units:SetAllPoints(scene)
+	units:SetFrameLevel(scene:GetFrameLevel() + 4)
+	frame.units = units
+	for i = 1, ns.PARTY_SIZE do heroFrames[i] = newHero(units) end
+	for i = 1, MAX_MOBS do mobFrames[i] = newMob(units) end
+	frame.pet = CreateFrame("Frame", nil, units)
 	frame.pet:SetSize(20, 20)
 	frame.pet.icon = frame.pet:CreateTexture(nil, "ARTWORK")
 	frame.pet.icon:SetAllPoints(frame.pet)
 	frame.pet:Hide()
-	frame.petModel = Figure.New(scene, PET_FIG)
+	frame.petModel = Figure.New(units, PET_FIG)
 	frame.summons = {}
-	for i = 1, 8 do frame.summons[i] = Figure.New(scene, BACK_FIG) end
+	for i = 1, 8 do frame.summons[i] = Figure.New(units, BACK_FIG) end
 
 	-- everything drawn above the units lives on an overlay layer
 	local over = CreateFrame("Frame", nil, scene)
@@ -1034,7 +1196,7 @@ function Bar.Create()
 	over:SetFrameLevel(scene:GetFrameLevel() + 12)
 	frame.over = over
 
-	frame.banner = UI.Pill(over, 300, 24, 0.02, 0.03, 0.06, 0.72)
+	frame.banner = UI.Pill(over, 300, 24, 0.02, 0.03, 0.06, 0.5)
 	frame.banner:SetPoint("TOPLEFT", scene, "TOPLEFT", 6, -5)
 	frame.diffChip = UI.Pill(frame.banner, 52, 18, 0.3, 0.3, 0.3, 1)
 	frame.diffChip:SetPoint("LEFT", frame.banner, "LEFT", 3, 0)
@@ -1056,7 +1218,7 @@ function Bar.Create()
 		pips[i] = p
 	end
 
-	frame.gold = UI.Pill(over, 118, 24, 0.02, 0.03, 0.06, 0.72)
+	frame.gold = UI.Pill(over, 118, 24, 0.02, 0.03, 0.06, 0.5)
 	frame.gold:SetPoint("TOPRIGHT", scene, "TOPRIGHT", -6, -5)
 	frame.gold.text:ClearAllPoints()
 	frame.gold.text:SetPoint("RIGHT", frame.gold, "RIGHT", -10, 0)

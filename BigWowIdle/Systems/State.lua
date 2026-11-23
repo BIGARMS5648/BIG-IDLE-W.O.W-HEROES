@@ -64,7 +64,7 @@ local DEFAULTS = {
 	prog = { 0, 0, 0, 0 },       -- stages cleared per difficulty
 	kills = {},                  -- [monsterType] = count
 	pets = {},                   -- [petId] = true
-	opt = { auto = true, retreat = true, retry = true, druidForm = true },
+	opt = { auto = true, retreat = true, retry = true, druidForm = true, scenery = true },
 	ui = { scale = 1, locked = false, shown = true, sound = true },
 	stat = { kills = 0, gold = 0, clears = 0, wipes = 0, time = 0, chests = 0 },
 	rate = { gold = 0, xp = 0 }, -- smoothed income per second, used for offline rewards

@@ -20,6 +20,7 @@ Data\Runes.lua
 Data\Pets.lua
 Data\Models.lua
 Data\Effects.lua
+Data\Scenery.lua
 
 Systems\State.lua
 Systems\Runes.lua

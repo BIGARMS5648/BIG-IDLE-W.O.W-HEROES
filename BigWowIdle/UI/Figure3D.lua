@@ -457,8 +457,11 @@ local function setCamera(f)
 	call(f, "SetLightVisible", true)
 	if LE_MODEL_LIGHT_TYPE_DIRECTIONAL then call(f, "SetLightType", LE_MODEL_LIGHT_TYPE_DIRECTIONAL) end
 	call(f, "SetLightDirection", lx / n, ly / n, lz / n)
-	call(f, "SetLightAmbientColor", 0.75, 0.75, 0.75)
-	call(f, "SetLightDiffuseColor", 0.7, 0.7, 0.7)
+	-- a shaded figure (SetShade: scenery in the distance) gets less light
+	local sr, sg, sb = 1, 1, 1
+	if f.shade then sr, sg, sb = f.shade[1], f.shade[2], f.shade[3] end
+	call(f, "SetLightAmbientColor", 0.75 * sr, 0.75 * sg, 0.75 * sb)
+	call(f, "SetLightDiffuseColor", 0.7 * sr, 0.7 * sg, 0.7 * sb)
 end
 
 -- The game's projection (Project3DPointTo2D) answers in units and from an
@@ -760,6 +763,13 @@ end
 
 function scene:Rescaled() setCamera(self) end
 
+-- The light on the model times (r, g, b): darker and tinted for scenery far
+-- off; nil for the usual light.
+function scene:SetShade(r, g, b)
+	self.shade = r and { r, g, b } or nil
+	setCamera(self)
+end
+
 function scene:SetAnim(id) call(self.actor, "SetAnimation", id) end
 
 function scene:SetAlpha(v)
@@ -906,6 +916,11 @@ function model:Rescaled()
 end
 
 function model:SetAnim(id) call(self, "SetAnimation", id) end
+
+function model:SetShade(r, g, b)
+	self.shade = r and { r, g, b } or nil
+	call(self, "SetLight", true, false, 0, 0, -1, 1, r or 1, g or 1, b or 1, 1, r or 1, g or 1, b or 1)
+end
 
 function model:SetHeight2(h)
 	if self.height == h then return end
