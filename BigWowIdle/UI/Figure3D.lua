@@ -83,8 +83,8 @@ function Figure.ForSpec(specId, faction, sex)
 	return usable(look and look.npc, f and f.npc, t and t.npc)
 end
 
--- A hero: druids fight in their form, the mech tinker in the mech
--- (inCombat=false gives the hero's own body).
+-- A hero: druids fight in their form (inCombat=false gives the hero's own
+-- body).
 function Figure.ForHero(heroId, inCombat)
 	local h = ns.db and ns.db.heroes[heroId]
 	if not h then return nil end
@@ -92,10 +92,6 @@ function Figure.ForHero(heroId, inCombat)
 	if inCombat ~= false then
 		local form = FORM[h.spec]
 		if form and usable(ns.MODEL.form[form]) then return ns.MODEL.form[form] end
-		if h.spec == "TINKER_MECH" then
-			local mech = usable(ns.MODEL.mech[faction])
-			if mech then return mech end
-		end
 	end
 	return Figure.ForSpec(h.spec, faction, h.sex)
 end
@@ -111,8 +107,6 @@ end
 
 -- A hero's own look: the player's model made the class's race (SetModelByUnit
 -- with the game's race id), with nothing on, in the class's dungeon set.
--- The tinker has no dungeon set of its own and wears the rogue's for now.
-local SET_OF = { TINKER = "ROGUE" }
 local bodies = {}
 function Figure.BodyFor(classId, faction)
 	faction = faction or ns.Faction() or "ALLIANCE"
@@ -120,7 +114,7 @@ function Figure.BodyFor(classId, faction)
 	if bodies[key] ~= nil then return bodies[key] or nil end
 	local race = ns.ClassRace(classId, faction)
 	local rid = race and ns.MODEL.raceId and ns.MODEL.raceId[race]
-	local set = ns.MODEL.dungeonSet and (ns.MODEL.dungeonSet[classId] or ns.MODEL.dungeonSet[SET_OF[classId] or ""])
+	local set = ns.MODEL.dungeonSet and ns.MODEL.dungeonSet[classId]
 	if not rid then
 		bodies[key] = false
 		return nil
@@ -132,7 +126,7 @@ function Figure.BodyFor(classId, faction)
 end
 
 -- The body a hero is drawn with, or nil when it fights in another shape (a
--- druid's form, the tinker's mech) or the body cannot be had.
+-- druid's form) or the body cannot be had.
 function Figure.HeroBody(heroId, inCombat)
 	local h = ns.db and ns.db.heroes[heroId]
 	if not h then return nil end
@@ -140,14 +134,13 @@ function Figure.HeroBody(heroId, inCombat)
 	if inCombat ~= false then
 		local form = FORM[h.spec]
 		if form and usable(ns.MODEL.form[form]) then return nil end
-		if h.spec == "TINKER_MECH" and usable(ns.MODEL.mech[faction]) then return nil end
 	end
 	local sp = ns.SPECS[h.spec]
 	return sp and Figure.BodyFor(sp.class, faction)
 end
 
 -- How tall each body stands next to an ordinary hero.
-Figure.RACE_SCALE = { GNOME = 0.78, GOBLIN = 0.82, DWARF = 0.9, TAUREN = 1.12, NIGHTELF = 1.04, TROLL = 1.06 }
+Figure.RACE_SCALE = { GNOME = 0.78, DWARF = 0.9, TAUREN = 1.12, NIGHTELF = 1.04, TROLL = 1.06 }
 function Figure.HeroScale(heroId)
 	return Figure.RACE_SCALE[ns.Heroes.Race(heroId)] or 1
 end
@@ -156,16 +149,10 @@ function Figure.ForMonster(monsterId, bossKey)
 	return usable(bossKey and ns.MODEL.boss[bossKey]) or usable(monsterId and ns.MODEL.mob[monsterId])
 end
 
--- a skill's summon (pets, turrets, the drone)
+-- a skill's summon (the hunter's pet, the warlock's demons)
 function Figure.ForSkill(skillId)
-	local sk = ns.SKILLS[skillId]
-	if not sk then return nil end
-	return usable(sk.summon and ns.MODEL.summon[sk.summon], ns.MODEL.summon[skillId])
-end
-
--- a ground summon by its key (the turrets of a field skill)
-function Figure.ForSummon(key)
-	return usable(key and ns.MODEL.summon[key])
+	if not ns.SKILLS[skillId] then return nil end
+	return usable(ns.MODEL.summon[skillId])
 end
 
 function Figure.ForPet(petId)

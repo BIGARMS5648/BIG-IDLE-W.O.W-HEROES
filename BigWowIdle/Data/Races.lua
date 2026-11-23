@@ -7,7 +7,7 @@ ns.FACTIONS = {
 	ALLIANCE = { name = "얼라이언스", hex = "4a8cff", icon = "Achievement_PVP_A_A",
 		desc = "인간, 드워프, 나이트 엘프, 노움의 동맹." },
 	HORDE    = { name = "호드", hex = "e0402e", icon = "Achievement_PVP_H_H",
-		desc = "오크, 언데드, 타우렌, 트롤, 고블린의 연합." },
+		desc = "오크, 언데드, 타우렌, 트롤의 연합." },
 }
 ns.FACTION_ORDER = { "ALLIANCE", "HORDE" }
 for id, f in pairs(ns.FACTIONS) do f.id = id end
@@ -37,13 +37,10 @@ ns.RACES = {
 		icons = { M = "Achievement_Character_Tauren_Male", F = "Achievement_Character_Tauren_Female" } },
 	TROLL    = { name = "트롤",        faction = "HORDE", names = "troll",
 		icons = { M = "Achievement_Character_Troll_Male", F = "Achievement_Character_Troll_Female" } },
-	GOBLIN   = { name = "고블린",      faction = "HORDE", names = "goblin",
-		icons = { M = "Achievement_Goblinhead", F = "Achievement_Goblinhead" } },
 }
 for id, r in pairs(ns.RACES) do r.id = id end
 
--- The race each class is drawn as, per faction: the races of the original
--- game, and the goblin for the tinker.
+-- The race each class is drawn as, per faction (the original game's races).
 ns.CLASS_RACE = {
 	WARRIOR = { ALLIANCE = "DWARF",    HORDE = "ORC" },
 	PALADIN = { ALLIANCE = "HUMAN",    HORDE = "TAUREN" },
@@ -54,7 +51,6 @@ ns.CLASS_RACE = {
 	MAGE    = { ALLIANCE = "HUMAN",    HORDE = "UNDEAD" },
 	WARLOCK = { ALLIANCE = "HUMAN",    HORDE = "ORC" },
 	DRUID   = { ALLIANCE = "NIGHTELF", HORDE = "TAUREN" },
-	TINKER  = { ALLIANCE = "GNOME",    HORDE = "GOBLIN" },
 }
 
 function ns.Faction()

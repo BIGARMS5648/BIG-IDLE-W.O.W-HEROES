@@ -34,12 +34,11 @@ ns.SPELL_FX_BY = {}
 for _, e in ipairs(ns.SPELL_FX) do ns.SPELL_FX_BY[e.key] = e end
 
 -- The effect a hero's skill plays in battle: heals, shields and revives by
--- the class's healing light (holy, or nature for shamans, druids and
--- tinkers), damage by the skill's school (fire, frost, shadow, holy, arcane,
+-- the class's healing light (holy, or nature for shamans and druids), damage by the skill's school (fire, frost, shadow, holy, arcane,
 -- nature - a druid's nature is Wrath, a shaman's lightning, a hunter's
 -- shots arcane). Physical skills and buffs play none.
 local HEAL = { heal = true, shield = true, revive = true }
-local NATURE_HEAL = { SHAMAN = true, DRUID = true, TINKER = true }
+local NATURE_HEAL = { SHAMAN = true, DRUID = true }
 function ns.SkillFx(classId, sk)
 	local by = ns.SPELL_FX_BY
 	if not sk then return nil end

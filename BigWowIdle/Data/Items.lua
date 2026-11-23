@@ -85,13 +85,9 @@ ns.WTYPE = {
 		icons = { "INV_Misc_Idol_01", "INV_Misc_Idol_02", "INV_Misc_Idol_03", "INV_Misc_Book_09", "INV_Misc_Book_11" } },
 	whetstone = { slot = "oh", name = "숫돌",   base = { atk = 2.0, critdmg = 6 },
 		icons = { "INV_Stone_SharpeningStone_01", "INV_Stone_SharpeningStone_02", "INV_Stone_SharpeningStone_03", "INV_Stone_SharpeningStone_04", "INV_Stone_SharpeningStone_05" } },
-	gun      = { slot = "mh", name = "총",            base = { atk = 5.0, crit = 2 },
-		icons = { "INV_Weapon_Rifle_01", "INV_Weapon_Rifle_02", "INV_Weapon_Rifle_05", "INV_Weapon_Rifle_08", "INV_Weapon_Rifle_10" } },
-	gadget   = { slot = "oh", name = "공학 장치", base = { atk = 1.4, cast = 4 },
-		icons = { "INV_Misc_Gear_01", "INV_Gizmo_02", "INV_Gizmo_05", "INV_Gizmo_06", "INV_Gizmo_08" } },
 }
-ns.WTYPES_MH = { "sword", "axe", "mace", "dagger", "staff", "bow", "gun" }
-ns.WTYPES_OH = { "shield", "orb", "quiver", "offblade", "relic", "whetstone", "gadget" }
+ns.WTYPES_MH = { "sword", "axe", "mace", "dagger", "staff", "bow" }
+ns.WTYPES_OH = { "shield", "orb", "quiver", "offblade", "relic", "whetstone" }
 
 -- Material tier names by item level (one per 10 levels).
 ns.ITEM_TIER = {

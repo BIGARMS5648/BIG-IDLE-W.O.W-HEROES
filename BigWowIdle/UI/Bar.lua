@@ -345,23 +345,10 @@ local function drawHeroes(now)
 					local sp = pickFigure(frame.summons[k], mid)
 					if sp then
 						animate(sp, (pt.anim or 0) > 0 and "attack" or "idle")
-						local fly = ns.SKILLS[sid].heal and 20 or 0
-						sp:PlaceFeet(frame.scene, behind(BACK_FIG), FEET + 2 + fly + (fly > 0 and sin(now * 3 + i) * 2 or 0))
+						sp:PlaceFeet(frame.scene, behind(BACK_FIG), FEET + 2)
 						sp:Show()
 					end
 				end
-			end
-		end
-	end
-	for _, f in ipairs(ns.Combat.fields) do
-		local mid = Figure.ForSummon(f.sk.summon)
-		if mid and k < #frame.summons and not f.src.dead then
-			k = k + 1
-			local sp = pickFigure(frame.summons[k], mid)
-			if sp then
-				animate(sp, (f.tickT or 0) > f.sk.tick - 0.25 and "attack" or "idle")
-				sp:PlaceFeet(frame.scene, behind(BACK_FIG), FEET + 2)
-				sp:Show()
 			end
 		end
 	end

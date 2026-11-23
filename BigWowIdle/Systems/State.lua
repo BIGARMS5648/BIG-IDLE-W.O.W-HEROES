@@ -3,6 +3,9 @@ local _, ns = ...
 
 local DB_VERSION = 3
 
+-- weapon types that were dropped, and what their items became
+local OLD_WTYPE = { gun = "bow", gadget = "orb" }
+
 local function fill(t, defaults)
 	for k, v in pairs(defaults) do
 		if t[k] == nil then
@@ -175,9 +178,30 @@ function ns.InitDB()
 	for i = 1, #ns.CHEST do
 		db.autoT[i] = db.autoT[i] or 0
 	end
-	-- drop references to data that no longer exists
+	-- weapon types that no longer exist become the nearest kept one
+	local function retype(it)
+		if type(it) == "table" and it.t and not ns.WTYPE[it.t] then
+			it.t = OLD_WTYPE[it.t] or (it.s == "oh" and "orb" or "sword")
+		end
+	end
+	for _, list in ipairs({ db.bag, db.bank }) do
+		for _, it in ipairs(list) do retype(it) end
+	end
+	for _, h in pairs(db.heroes) do
+		if type(h) == "table" and type(h.gear) == "table" then
+			for _, it in pairs(h.gear) do retype(it) end
+		end
+	end
+	-- drop references to data that no longer exists; a dropped hero's gear
+	-- is kept (put in the bag below)
+	local orphans = {}
 	for id, h in pairs(db.heroes) do
 		if type(h) ~= "table" or not ns.SPECS[h.spec] then
+			if type(h) == "table" and type(h.gear) == "table" then
+				for _, it in pairs(h.gear) do
+					if type(it) == "table" then orphans[#orphans + 1] = it end
+				end
+			end
 			db.heroes[id] = nil
 		else
 			h.id = id
@@ -216,6 +240,13 @@ function ns.InitDB()
 	db.stage.diff = ns.U.clamp(db.stage.diff or 1, 1, #ns.DIFFS)
 	db.stage.idx = ns.U.clamp(db.stage.idx or 1, 1, ns.STAGE_COUNT)
 	ns.db = db
+	-- gear of dropped heroes: the bag, the bank once the bag is full (the bag
+	-- past its size when both are)
+	if #orphans > 0 and ns.Runes then ns.Runes.Invalidate() end
+	for _, it in ipairs(orphans) do
+		local to = (#db.bag >= ns.BagSize() and #db.bank < ns.BankSize()) and db.bank or db.bag
+		to[#to + 1] = it
+	end
 	return db
 end
 

@@ -1,8 +1,8 @@
 -- 3D model check (/bwi model): a window that shows the game's own 3D models
 -- the way the battle bar uses them - the selected hero (an NPC of its class,
 -- race and gender), the player's own character, a monster, a boss and a
--- summon; or the tinker's mech, turrets and drone; or other mechs, drones
--- and robots to choose from - and plays animations on all of them. Every model function is called through pcall, and under each
+-- summon - and plays animations on all of them. Every model function is
+-- called through pcall, and under each
 -- model it says which ones this client has (됨 = worked, 없음 = the client
 -- lacks it, 오류 = it failed) and the client's name for the NPC id.
 local _, ns = ...
@@ -31,21 +31,7 @@ local SAMPLES = {
 	{ key = "boss", title = "우두머리: " .. ns.STAGES[4][10].boss.name, kind = "PlayerModel", creature = ns.MODEL.boss["4-10"] },
 	{ key = "pet", title = "소환물: 임프", kind = "PlayerModel", creature = 416 },
 }
--- 땜장이 후보: what the tinker's mech, turret and drone could look like
-local M, S = ns.MODEL.mech, ns.MODEL.summon
-local TINKER = {
-	{ key = "mech_horde", title = "기갑 (호드)", creature = M.HORDE[1], name = "스니드의 벌목기" },
-	{ key = "mech_alliance", title = "기갑 (얼라이언스)", creature = M.ALLIANCE[1], name = "거대 전차 마크 II" },
-	{ key = "turret", title = "포격: 포탑", creature = S.turret_gun, name = "기계화 보초병" },
-	{ key = "drone", title = "정비: 치유 드론", creature = S.drone_heal, name = "꼬마 폴폴이" },
-	{ key = "heal_turret", title = "정비: 치유 포탑", creature = S.turret_heal, name = "야전수리로봇 74A" },
-}
--- 다른 후보: more mechs, drones and robots to choose from
-local OTHER = {}
-for i, c in ipairs(ns.MODEL.candidates) do
-	OTHER[i] = { key = "other" .. i, title = c.name, creature = c.npc, name = c.name }
-end
-local SETS = { basic = SAMPLES, tinker = TINKER, other = OTHER }
+local SETS = { basic = SAMPLES }
 -- pages drawn their own way (not the five cards)
 local PAGES = {}
 
@@ -171,8 +157,7 @@ local SETUP = { hero = setupHero, player = setupPlayer }
 -- monsters to the left; the facing value used shows in the window
 local function facingOf(p)
 	if not state.battle then return state.facing end
-	-- the tinker's mech, turret and drone stand with the heroes
-	local hero = state.set == "tinker" or state.set == "other" or p.def.key == "hero" or p.def.key == "player"
+	local hero = p.def.key == "hero" or p.def.key == "player"
 	return hero and (pi / 2) or (3 * pi / 2)
 end
 
@@ -1054,9 +1039,9 @@ local function build()
 	UI.Color(desc, UI.C.sub)
 	local close = UI.Button(frame, 30, 30, "", function() Check.Toggle(false) end, "dark")
 	close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -14)
-	-- which models: the basic check, or the tinker's candidates
+	-- which page: effects, dressing, the battle look or the basic check
 	frame.setButtons = {}
-	for i, s in ipairs({ { "fx", "효과" }, { "dress", "옷 입히기" }, { "battle", "전투 모습" }, { "other", "다른 후보" }, { "tinker", "땜장이 후보" }, { "basic", "기본 확인" } }) do
+	for i, s in ipairs({ { "fx", "효과" }, { "dress", "옷 입히기" }, { "battle", "전투 모습" }, { "basic", "기본 확인" } }) do
 		local b = UI.Button(frame, 96, 24, s[2], function()
 			state.set = s[1]
 			setupAll()
@@ -1213,7 +1198,7 @@ end
 
 function Check.Frame() return frame end
 
--- shows one set of models (basic, tinker, other, battle, dress)
+-- shows one page of models (basic, battle, dress, fx)
 function Check.ShowSet(name)
 	if not frame then build() end
 	state.set = name

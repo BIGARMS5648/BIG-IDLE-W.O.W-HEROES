@@ -14,9 +14,9 @@ ns.Main.CloseModal()
 local db = ns.db
 db.faction = "ALLIANCE"
 ns.AddGold(123456789)
-ns.Heroes.Create("TINKER_MECH")
+ns.Heroes.Create("PALADIN_PROT")
 for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7", "w1", "w1", "w2", "g1", "m1", "x1", "e1", "e2", "e3" }) do ns.Runes.Buy(id) end
-for _, sid in ipairs({ "MAGE_FIRE", "ROGUE_SUB", "TINKER_TURRET", "PRIEST_DISC", "DRUID_RESTO", "SHAMAN_ENH", "WARRIOR_PROT", "TINKER_MEDIC" }) do ns.Heroes.Create(sid) end
+for _, sid in ipairs({ "MAGE_FIRE", "ROGUE_SUB", "HUNTER_MM", "PRIEST_DISC", "DRUID_RESTO", "SHAMAN_ENH", "WARRIOR_PROT", "PALADIN_HOLY" }) do ns.Heroes.Create(sid) end
 for id in pairs(db.heroes) do ns.Heroes.AddXP(id, 2.5e6) end
 -- the longest name the generator can make, to test every place a name is shown
 db.heroes[db.party[2]].name = "로르티아스 브라이트스트라이더"
@@ -129,7 +129,7 @@ end
 
 -- modals
 S.faction = function() show("hero") ns.PickFaction() end
-S.create = function() show("hero") ns.CreateHeroDialog("TINKER") end
+S.create = function() show("hero") ns.CreateHeroDialog("PALADIN") end
 S.create_druid = function() show("hero") ns.CreateHeroDialog("DRUID", "HEALER") end
 S.rename = function() show("hero") ns.OpenRename(db.party[2]) end
 

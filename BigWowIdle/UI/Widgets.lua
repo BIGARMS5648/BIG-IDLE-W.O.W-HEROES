@@ -64,12 +64,6 @@ function UI.SetClassIcon(tex, classId)
 		tex:SetTexCoord(0, 1, 0, 1)
 		return
 	end
-	local sq = ns.CLASS_ICON_SQUARE and ns.CLASS_ICON_SQUARE[classId]
-	if sq then
-		tex:SetTexture(sq)
-		tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-		return
-	end
 	local c = ns.CLASS_ICON_COORD[classId]
 	tex:SetTexture(ns.CLASS_ICON_FILE)
 	if c then tex:SetTexCoord(c[1], c[2], c[3], c[4]) end

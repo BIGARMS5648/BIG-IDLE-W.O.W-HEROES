@@ -39,8 +39,7 @@ do
 		if pet.id ~= "skull" and not isId(ns.MODEL.pet[pet.id]) then noModel[#noModel + 1] = "pet " .. pet.id end
 	end
 	for k in pairs(ns.MODEL.mob) do if not ns.MONSTERS[k] then noModel[#noModel + 1] = "model for no monster: " .. k end end
-	-- the Alliance tinker is High Tinker Mekkatorque; every NPC has a model id
-	check(ns.MODEL.famous.TINKER_MECH.ALLIANCE.npc == 7937, "the gnome tinker should be Mekkatorque (NPC 7937)")
+	-- every NPC has a model id
 	local noDisplay = {}
 	local function needs(id) if id and not ns.MODEL.display[id] then noDisplay[#noDisplay + 1] = tostring(id) end end
 	for _, id in pairs(ns.MODEL.mob) do needs(id) end
@@ -51,9 +50,9 @@ do
 	check(#noDisplay == 0, "a model id for every NPC: " .. table.concat(noDisplay, ", "))
 	check(#noModel == 0, "3D models for every monster, boss and companion: " .. table.concat(noModel, ", "))
 end
--- heroes are of the original game's races (and the goblin for the tinker)
+-- heroes are of the original game's races
 do
-	local ORIGINAL = { HUMAN = 1, DWARF = 1, NIGHTELF = 1, GNOME = 1, ORC = 1, UNDEAD = 1, TAUREN = 1, TROLL = 1, GOBLIN = 1 }
+	local ORIGINAL = { HUMAN = 1, DWARF = 1, NIGHTELF = 1, GNOME = 1, ORC = 1, UNDEAD = 1, TAUREN = 1, TROLL = 1 }
 	for race in pairs(ns.RACES) do check(ORIGINAL[race], "no race from after the original game: " .. race) end
 	for cid, m in pairs(ns.CLASS_RACE) do
 		for fac, race in pairs(m) do
@@ -74,8 +73,8 @@ do
 		check(#c.specs >= 3, cid .. ": every class needs at least three specializations")
 		for _, sid in ipairs(c.specs) do check(ns.SPECS[sid] and ns.SPECS[sid].class == cid, cid .. ": bad spec " .. sid) end
 	end
-	check(#ns.CLASS_ORDER == 10, "expected 10 classes, got " .. #ns.CLASS_ORDER)
-	check(#ns.SPEC_ORDER == 31, "expected 31 specializations, got " .. #ns.SPEC_ORDER)
+	check(#ns.CLASS_ORDER == 9, "expected 9 classes, got " .. #ns.CLASS_ORDER)
+	check(#ns.SPEC_ORDER == 28, "expected 28 specializations, got " .. #ns.SPEC_ORDER)
 	for _, sid in ipairs(ns.SPEC_ORDER) do
 		local sp = ns.SPECS[sid]
 		check(ns.ROLE[sp.role], sid .. ": unknown role")
@@ -99,9 +98,9 @@ do
 	end
 	check(roles.TANK >= 3 and roles.DPS >= 15 and roles.HEALER >= 4, "role spread: " .. roles.TANK .. "/" .. roles.DPS .. "/" .. roles.HEALER)
 	check(#ns.PARTY_ROLES == 5 and ns.PARTY_ROLES[1] == "TANK" and ns.PARTY_ROLES[5] == "HEALER", "party must be tank / 3 damage / healer")
-	-- the examples from the request, and the tinker in all three roles
-	check(ns.SPECS.TINKER_MECH.role == "TANK" and ns.SPECS.TINKER_TURRET.role == "DPS" and ns.SPECS.TINKER_MEDIC.role == "HEALER", "tinker covers tank, damage and healing")
-	check(ns.ClassRace("TINKER", "ALLIANCE") == "GNOME" and ns.ClassRace("TINKER", "HORDE") == "GOBLIN", "gnome / goblin tinkers")
+	-- the nine classes of the original game, nothing else
+	check(#ns.CLASS_ORDER == 9 and not ns.CLASSES.TINKER, "the nine original classes")
+	for sid, sp in pairs(ns.SPECS) do check(ns.CLASSES[sp.class], sid .. ": a spec of a class that exists") end
 	for _, sid in ipairs({ "DRUID_FERAL", "DRUID_GUARDIAN", "DRUID_RESTO", "SHAMAN_ENH", "SHAMAN_ELE", "SHAMAN_RESTO" }) do
 		check(ns.SPECS[sid], "missing specialization " .. sid)
 	end
@@ -312,7 +311,7 @@ do
 	for _ = 1, 200 do names[ns.Names.Roll("ORC", "M")] = true end
 	check(ns.U.count(names) > 150, "names are varied")
 	local clash
-	for _, race in ipairs({ "HUMAN", "DWARF", "GNOME", "GOBLIN", "NIGHTELF", "UNDEAD", "TAUREN", "ORC", "TROLL" }) do
+	for _, race in ipairs({ "HUMAN", "DWARF", "GNOME", "NIGHTELF", "UNDEAD", "TAUREN", "ORC", "TROLL" }) do
 		for _ = 1, 300 do
 			for part in ns.Names.Roll(race, (_ % 2 == 0) and "F" or "M"):gmatch("%S+") do
 				if ns.Names.BLOCKED[part] then clash = part end
@@ -869,6 +868,26 @@ check(ns.db.heroSeq >= 3 and type(ns.db.heroes.h3.name) == "string" and ns.db.he
 ns.Heroes.ValidateParty()
 check(ns.db.party[1] == false and ns.Heroes.PartySlot("h3") == 2, "a hero in the wrong role slot is moved")
 check(ns.db.forge.level == 1 and ns.db.opt.auto == true, "missing fields get defaults")
+-- a save with a tinker (a class that is gone): the hero goes, its gear comes
+-- to the bag, guns and gadgets anywhere become bows and orbs
+BigWowIdleDB = { v = 3, gold = 9, bag = { { s = "oh", t = "gadget", l = 4, q = 2 } }, bank = {},
+	heroes = {
+		h1 = { spec = "TINKER_TURRET", level = 20, name = "가 나", gear = { mh = { s = "mh", t = "gun", l = 18, q = 3 }, head = { s = "head", l = 17, q = 2 } } },
+		h2 = { spec = "HUNTER_MM", level = 20, name = "다 라", gear = { mh = { s = "mh", t = "gun", l = 19, q = 4 } } },
+	},
+	party = { false, "h1", "h2", false, false } }
+ns.InitDB()
+do
+	local d = ns.db
+	check(d.heroes.h1 == nil and d.party[2] == false, "a tinker hero is dropped from the roster and the party")
+	check(#d.bag == 3, "its gear comes to the bag: " .. #d.bag)
+	local types = {}
+	for _, it in ipairs(d.bag) do if it.t then types[#types + 1] = it.t end end
+	table.sort(types)
+	check(table.concat(types, ",") == "bow,orb", "a gun becomes a bow, a gadget an orb: " .. table.concat(types, ","))
+	check(d.heroes.h2.gear.mh.t == "bow" and d.heroes.h2.gear.mh.l == 19, "worn guns become bows too")
+	for _, it in ipairs(d.bag) do check(ns.Items.Def(it), "every kept item has a definition") end
+end
 -- version 2.0 stored names as { korean, english }, without family names
 BigWowIdleDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 5, name = { "아르단", "Ardan" } } }, party = { false, "h1" } }
 ns.InitDB()

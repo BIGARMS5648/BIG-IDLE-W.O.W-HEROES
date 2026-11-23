@@ -33,12 +33,8 @@ ns.CLASS_ICON_COORD = {
 	WARLOCK = { 0.7421875, 0.98828125, 0.25, 0.5 },
 	PALADIN = { 0, 0.25, 0.5, 0.75 },
 }
--- Classes without a circle on that sheet use a square icon instead.
-ns.CLASS_ICON_SQUARE = {
-	TINKER = "Interface\\Icons\\Trade_Engineering",
-}
 
-ns.CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID", "TINKER" }
+ns.CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 
 ns.CLASSES = {
 	WARRIOR = { name = "전사",     hex = "c79c6e", specs = { "WARRIOR_ARMS", "WARRIOR_FURY", "WARRIOR_PROT" } },
@@ -50,7 +46,6 @@ ns.CLASSES = {
 	MAGE    = { name = "마법사",      hex = "69ccf0", specs = { "MAGE_ARCANE", "MAGE_FIRE", "MAGE_FROST" } },
 	WARLOCK = { name = "흑마법사", hex = "9482c9", specs = { "WARLOCK_AFF", "WARLOCK_DEMO", "WARLOCK_DESTRO" } },
 	DRUID   = { name = "드루이드",   hex = "ff7d0a", specs = { "DRUID_BALANCE", "DRUID_FERAL", "DRUID_GUARDIAN", "DRUID_RESTO" } },
-	TINKER  = { name = "땜장이",     hex = "3ad6c0", specs = { "TINKER_MECH", "TINKER_TURRET", "TINKER_MEDIC" } },
 }
 for id, c in pairs(ns.CLASSES) do c.id = id end
 
@@ -376,32 +371,6 @@ spec("DRUID_RESTO", "DRUID", "회복", {
 	skills = { "rejuvenation", "healing_touch", "wild_growth", "mark_of_wild", "tranquility", "rebirth" },
 })
 
--- Tinker ----------------------------------------------------------------
-spec("TINKER_MECH", "TINKER", "기갑", {
-	role = "TANK", school = "phys", range = MELEE, icon = "Ability_Mount_Mechastrider",
-	desc = "직접 만든 전투기계에 올라타 최전선을 막는 탱커. 로켓 주먹과 화염 방사기로 적을 붙잡습니다.",
-	base = { atk = 8, aspd = 0.85, crit = 3, critdmg = 150, hp = 240, armor = 40 },
-	mh = { "mace", "axe" }, oh = { "shield" },
-	arch = "TANK", a = "dmg_fire", g = "block",
-	skills = { "rocket_punch", "flamethrower", "mech_stomp", "defense_protocol", "shield_generator", "emergency_repair" },
-})
-spec("TINKER_TURRET", "TINKER", "섬멸", {
-	role = "DPS", school = "phys", range = 680, ranged = true, icon = "INV_Weapon_Rifle_01",
-	desc = "기관총 포탑과 로켓 포탑을 깔아 두고 뒤에서 총을 쏘는 원거리 딜러.",
-	base = { atk = 8.5, aspd = 1.00, crit = 5, critdmg = 155, hp = 145, armor = 20 },
-	mh = { "gun" }, oh = { "gadget" },
-	arch = "RANGED", a = "dmg_phys", b = "dmg_fire",
-	skills = { "gun_turret", "bomb_toss", "net_launcher", "rocket_turret", "overcharge", "goblin_mortar" },
-})
-spec("TINKER_MEDIC", "TINKER", "재생", {
-	role = "HEALER", school = "fire", range = 520, ranged = true, icon = "Ability_Repair",
-	desc = "치유 드론을 띄우고 치유 포탑을 세워 파티를 고치는 힐러. 쓰러진 동료는 점퍼 케이블로 깨웁니다.",
-	base = { atk = 7, aspd = 0.90, crit = 3, critdmg = 150, hp = 160, armor = 22 },
-	mh = { "gun", "mace" }, oh = { "gadget", "relic" },
-	arch = "HEALER", a = "dmg_fire", g = "dodge",
-	skills = { "heal_drone", "repair_beam", "heal_turret", "nanite_shield", "power_amplifier", "jumper_cables" },
-})
-
 ------------------------------------------------------------------------
 -- Balance multipliers found with tests/bench.lua (see README). They scale a
 -- specialization's final attack, final health or healing so that every choice
@@ -436,9 +405,6 @@ ns.SPEC_TUNE = {
 	DRUID_FERAL = { atk = 0.92 },
 	DRUID_GUARDIAN = { hp = 1.04 },
 	DRUID_RESTO = { heal = 1.28 },
-	TINKER_MECH = { hp = 1.02 },
-	TINKER_TURRET = { atk = 1.05 },
-	TINKER_MEDIC = { heal = 0.87 },
 }
 
 function ns.SpecTune(specId, what)

@@ -111,7 +111,7 @@ local page = Main.Page("hero")
 if not page.empty:IsVisible() then fail("an empty roster should say how to make the first hero") end
 if label(page.create) ~= "영웅 만들기" then fail("the hero list should end with '영웅 만들기'") end
 try("open create dialog", page.create.Click, page.create, "LeftButton")
-click("class Tinker", function(b) return b.cid == "TINKER" end)
+click("class Druid", function(b) return b.cid == "DRUID" end)
 click("class Hunter", function(b) return b.cid == "HUNTER" end)
 click("spec Marksmanship", function(b) return b.sid == "HUNTER_MM" end)
 click("female", function(b) return b.sex == "F" end)
@@ -885,6 +885,13 @@ do
 	local Fig = ns.Figure3D
 	Fig.ResetFailed()
 	ns.db.opt.models = true
+	-- a known party at the first stage (the random clicks leave any party):
+	-- a tank, casters with missiles, a hunter and a healer, fresh
+	for i, sid in ipairs({ "WARRIOR_PROT", "MAGE_FIRE", "SHAMAN_ELE", "HUNTER_MM", "PRIEST_HOLY" }) do
+		ns.db.party[i] = ns.Heroes.NewRecord(sid).id
+	end
+	ns.db.stage.diff, ns.db.stage.idx = 1, 1
+	ns.Stats.Invalidate()
 	ns.Combat.StartStage()
 	frames(40)
 	local heroes, mobs = ns.Bar.UnitFrames()
@@ -941,7 +948,10 @@ do
 				if ms.active and type(ms.fig.actor.__display) == "string" and ms.fig.actor.__display:find("^file:") then sawMissile = true end
 			end
 			for _, hs in ipairs(ns.Bar.hits) do
-				if hs.active and hs.fig:IsShown() and hitFiles[hs.fig.actor.__display] then hit = hit or hs end
+				if not hit and hs.active and hs.fig:IsShown() and hitFiles[hs.fig.actor.__display] then
+					local t = hs.tfig
+					hit = { scale = hs.fig.actor.__scale or 0, height = hs.fig.height, want = 0.5 * (t.norm or 0.5) * (t.corrScale or 1), tall = t.height }
+				end
 			end
 			if sawMissile and hit and #Mock.kits >= 4 then break end
 		end
@@ -958,12 +968,10 @@ do
 		if not hit then
 			fail("a skill's hit should show the spell's impact model on the target")
 		else
-			local t = hit.tfig
-			local want = 0.5 * (t.norm or 0.5) * (t.corrScale or 1)
-			if math.abs((hit.fig.actor.__scale or 0) - want) > 1e-6 then
-				fail(string.format("a hit should be at half the target's scale (%.3f, want %.3f)", hit.fig.actor.__scale or 0, want))
+			if math.abs(hit.scale - hit.want) > 1e-6 then
+				fail(string.format("a hit should be at half the target's scale (%.3f, want %.3f)", hit.scale, hit.want))
 			end
-			if math.abs(hit.fig.height - t.height) > 1e-6 then fail("a hit's figure should be as tall as its target's") end
+			if math.abs(hit.height - hit.tall) > 1e-6 then fail("a hit's figure should be as tall as its target's") end
 		end
 		if #Mock.misuse > 0 then fail("effect calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end
 	end
@@ -1031,17 +1039,6 @@ do
 	Fig.failed[f] = true
 	if Fig.ForSpec("PALADIN_HOLY", "ALLIANCE", "M") ~= ns.MODEL.trainer.PALADIN.ALLIANCE.npc then fail("when the famous model cannot be shown, the class trainer should stand in") end
 	Fig.ResetFailed()
-	-- the 기갑 tinker fights in the mech of the faction
-	local was = ns.db.faction
-	for _, fac in ipairs({ "ALLIANCE", "HORDE" }) do
-		ns.db.faction = fac
-		local h = H.NewRecord("TINKER_MECH")
-		ns.db.heroes[h.id] = h
-		if Fig.ForHero(h.id, true) ~= ns.MODEL.mech[fac][1] then fail("the 기갑 tinker should fight in the " .. fac .. " mech") end
-		if Fig.ForHero(h.id, false) ~= ns.MODEL.famous.TINKER_MECH[fac].npc then fail("the 기갑 tinker's body should be the famous tinker") end
-		ns.db.heroes[h.id] = nil
-	end
-	ns.db.faction = was
 end
 
 -- a figure measures its model: whatever the model's own size, it stands as
@@ -1213,7 +1210,7 @@ do
 	for n = 1, 60 do
 		frames(1, 0.02) -- 50 frames a second
 		xs[n] = f:IsShown() and select(4, f:GetPoint(1)) or nil
-		if f.model and f.model:IsShown() then anims[#anims + 1] = animOf(f.model) end
+		anims[n] = f.model and f.model:IsShown() and animOf(f.model) or false
 	end
 	-- while it walks: from its first step to its last (it stops to fight)
 	local first, last
@@ -1230,9 +1227,13 @@ do
 	if moved < 10 then fail("a monster walking in should move (moved on " .. moved .. " frames)") end
 	if still > moved / 4 then fail(string.format("a walking monster should move on nearly every frame, not in steps (%d moved, %d still)", moved, still)) end
 	if moved > 0 and biggest > 3 * total / moved then fail("a walking monster should move by even amounts") end
+	-- the animation while it walks (from its first step to its last)
 	local walk, other = 0, 0
-	for _, a in ipairs(anims) do if a == 4 then walk = walk + 1 else other = other + 1 end end
-	if #anims > 10 and other > walk / 4 then fail(string.format("the walk should not be broken off between steps (%d walking, %d not)", walk, other)) end
+	for n = (first or 2), (last or 1) do
+		local a = anims[n]
+		if a == 4 then walk = walk + 1 elseif a then other = other + 1 end
+	end
+	if walk + other > 10 and other > walk / 4 then fail(string.format("the walk should not be broken off between steps (%d walking, %d not)", walk, other)) end
 end
 
 -- the 3D model check (/bwi model): five models, animations, facing, distance
@@ -1277,16 +1278,10 @@ do
 	frames(10)
 	Mock.Model.SetAnimation = setAnim
 	if not (MC.panels[2].lines[5].__text or ""):find("없음", 1, true) then fail("a missing model function should read 없음: " .. tostring(MC.panels[2].lines[5].__text)) end
-	-- the tinker's candidates: mech, turret and drone models
-	click("model: tinker candidates", function(b) return label(b) == "땜장이 후보" end)
-	if MC.panels[1].model.__model ~= "display:" .. D[ns.MODEL.mech.HORDE[1]] or MC.panels[4].model.__model ~= "display:" .. D[ns.MODEL.summon.drone_heal] then
-		fail("땜장이 후보 should show the mech, turret and drone models")
+	-- only the pages the window has
+	for _, b in ipairs(MC.Frame().setButtons) do
+		if label(b) == "땜장이 후보" or label(b) == "다른 후보" then fail("the model check should have no page " .. label(b)) end
 	end
-	frames(20)
-	-- 다른 후보: more mechs, drones and robots
-	click("model: other candidates", function(b) return label(b) == "다른 후보" end)
-	if MC.panels[1].model.__model ~= "display:" .. D[ns.MODEL.candidates[1].npc] then fail("다른 후보 should show the other models: " .. tostring(MC.panels[1].model.__model)) end
-	if not (MC.panels[1].lines[2].__text or ""):find(ns.MODEL.candidates[1].name, 1, true) then fail("다른 후보 should name the models") end
 	-- 전투 모습: the models as the battle draws them, on one ground line
 	click("model: battle look", function(b) return label(b) == "전투 모습" end)
 	local bp = MC.pages.battle
