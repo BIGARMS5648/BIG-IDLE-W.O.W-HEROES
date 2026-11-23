@@ -104,6 +104,13 @@ function Items.EachMod(it, fn, acc)
 	end
 end
 
+-- The hero wearing this item (nil when it is in the bag or the bank).
+function Items.Wearer(it)
+	for id, h in pairs(ns.db.heroes) do
+		if it and h.gear[it.s] == it then return id end
+	end
+end
+
 function Items.SocketCount(it, kind)
 	return ns.QUALITY[it.q][kind] or 0
 end

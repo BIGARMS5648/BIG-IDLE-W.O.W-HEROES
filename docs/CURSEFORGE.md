@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.0.8
+BIG IDLE HEROES v1.0.9
 ```
 
 ---
@@ -135,8 +135,11 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.0.8)
+## Changelog for this release (v1.0.9)
 
 ```
-- Auto-assign for skill points raises the equipped skills first, the lowest first. An empty slot gets a new skill; only once every equipped skill is at its top do points go to the other learned skills, then to new ones.
+- A chest's tooltip counts down to its auto-open live while the mouse is on it.
+- Gems, enchants, rune inscriptions, extraction and enhancement update the stats of the hero actually wearing the piece right away, also when the forge screen still had another hero in mind.
+- The forge's "부여됨" and enhancement result lines belong to their piece: picking another piece clears them.
+- The forge screen names the hero actually wearing the chosen piece.
 ```

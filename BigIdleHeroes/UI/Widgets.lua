@@ -530,6 +530,23 @@ function UI.Tip(widget, fn, anchor)
 	end)
 end
 
+-- the widget whose tooltip is up (nil when none is)
+function UI.TipOwner()
+	return tip and tip:IsShown() and tip.owner or nil
+end
+
+-- what the tooltip shows, line by line ("left  right"; for the checks)
+function UI.TipText()
+	local out = {}
+	if not (tip and tip:IsShown()) then return out end
+	for _, row in ipairs(tip.rows) do
+		if row.left:IsShown() then
+			out[#out + 1] = (row.left:GetText() or "") .. (row.right:IsShown() and ("  " .. (row.right:GetText() or "")) or "")
+		end
+	end
+	return out
+end
+
 function UI.RefreshTip()
 	if tip and tip:IsShown() and tip.owner and tip.owner.tipFn then
 		UI.ShowTip(tip.owner, tip.owner.tipFn(tip.owner), tip.owner.tipAnchor)

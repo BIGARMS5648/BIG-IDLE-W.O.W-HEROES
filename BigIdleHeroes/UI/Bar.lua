@@ -656,6 +656,9 @@ local function updateInfo()
 		cb:SetDim(count == 0)
 		if count >= ns.ChestCap(t) then cb:SetBorderRGB(1, 0.25, 0.2) else cb:SetQuality(t == 1 and 3 or (t == 2 and 5 or 6)) end
 	end
+	-- a chest's tooltip, while the mouse is on it, counts down to the auto-open
+	local owner = UI.TipOwner()
+	if owner and owner.chestType then UI.RefreshTip() end
 	local auto = db.opt.auto and true or false
 	local ab = frame.auto
 	if ab.on ~= auto then

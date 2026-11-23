@@ -487,7 +487,8 @@ local function buildSocket(kind)
 			local ok, entry = ns.Forge.Socket(p.picked, kind, p.mat, p.pickedHero)
 			if UI.Try(ok, entry) then
 				local text = ns.Items.SocketText(p.picked, kind, entry)
-				p.last = U.col("60e070", "부여됨: ") .. U.col("60e070", text)
+				-- shown while this piece is the one picked
+				p.last, p.lastFor = U.col("60e070", "부여됨: ") .. U.col("60e070", text), p.picked
 				ForgeView.Log(string.format("%s: %s · %s", ns.N(ns.SOCKET[kind].short), text, ns.Items.Name(p.picked)))
 			end
 			Main.Refresh()
@@ -535,7 +536,7 @@ local function buildSocket(kind)
 				for _, r in ipairs(c.rows) do r.socket:Hide() r.text:Hide() r.remove:Hide() end
 				p.go:SetOff(true)
 				p.why:SetText("")
-				p.lastText:SetText(p.last or "")
+				p.lastText:SetText("")
 				return
 			end
 			local q = ns.QUALITY[it.q]
@@ -545,8 +546,9 @@ local function buildSocket(kind)
 			c.icon:SetQuality(it.q)
 			c.icon:SetCount(ns.Upgrade.Text(it))
 			c.name:SetText(U.col(q.hex, ns.Items.Name(it)))
+			local wearer = ns.Items.Wearer(it)
 			c.sub:SetText(string.format("%s 홈 %d개 중 %d개 비어 있음%s", ns.N(ns.SOCKET[kind].short), ns.Items.SocketCount(it, kind), ns.Items.FreeSockets(it, kind),
-				p.pickedHero and ("  ·  " .. ns.Heroes.ShortName(p.pickedHero) .. " 착용 중") or "  ·  가방"))
+				wearer and ("  ·  " .. ns.Heroes.ShortName(wearer) .. " 착용 중") or "  ·  가방"))
 			local l = ns.Items.SocketList(it, kind)
 			for i, r in ipairs(c.rows) do
 				local has = i <= ns.Items.SocketCount(it, kind)
@@ -581,7 +583,7 @@ local function buildSocket(kind)
 			if p.mat then can, why = ns.Forge.CanSocket(it, kind, p.mat) end
 			p.go:SetOff(not can)
 			p.why:SetText(can and "" or (why or ""))
-			p.lastText:SetText(p.last or "")
+			p.lastText:SetText(p.lastFor == it and p.last or "")
 		end
 		return p
 	end
@@ -639,7 +641,7 @@ local function buildUpgrade(page, f)
 			onOk = function()
 				local ok, n = Up.Move(from, to, fromHero, p.pickedHero)
 				if UI.Try(ok, n) then
-					p.last = U.col("60e070", string.format("계승: +%d", n))
+					p.last, p.lastFor = U.col("60e070", string.format("계승: +%d", n)), to
 					ForgeView.Log(string.format("계승: +%d → %s", n, ns.Items.Name(to)))
 				end
 				Main.Refresh()
@@ -658,10 +660,10 @@ local function buildUpgrade(page, f)
 		local ok, success, n = Up.Try(it, p.pickedHero)
 		if UI.Try(ok, success) then
 			if success then
-				p.last = U.col("60e070", string.format("성공! +%d", n))
+				p.last, p.lastFor = U.col("60e070", string.format("성공! +%d", n)), it
 				ForgeView.Log(U.col("60e070", string.format("강화 성공 +%d", n)) .. " · " .. ns.Items.Name(it))
 			else
-				p.last = U.col("ff6a5a", string.format("실패 · +%d 그대로", n))
+				p.last, p.lastFor = U.col("ff6a5a", string.format("실패 · +%d 그대로", n)), it
 				ForgeView.Log(U.col("ff6a5a", string.format("강화 실패 +%d", n)) .. " · " .. ns.Items.Name(it))
 			end
 		end
@@ -686,7 +688,8 @@ local function buildUpgrade(page, f)
 		p.empty:SetShown(it == nil)
 		for _, w in ipairs({ c.icon, c.name, c.sub, c.moveText, c.move }) do w:SetShown(it ~= nil) end
 		for _, l in ipairs(c.lines) do l:SetShown(it ~= nil) end
-		p.lastText:SetText(p.last or "")
+		-- the last result, while its piece is the one picked
+		p.lastText:SetText(it ~= nil and p.lastFor == it and p.last or "")
 		if not it then
 			p.empty:SetText("오른쪽에서 강화할 장비를 고르세요.")
 			p.go:SetLabel("강화하기")
@@ -702,7 +705,8 @@ local function buildUpgrade(page, f)
 		c.icon:SetQuality(it.q)
 		c.icon:SetCount(Up.Text(it))
 		c.name:SetText(U.col(q.hex, (n > 0 and ("+" .. n .. " ") or "") .. ns.Items.Name(it)))
-		c.sub:SetText(string.format("강화 +%d / +%d  ·  %s", n, Up.MAX, p.pickedHero and (ns.Heroes.ShortName(p.pickedHero) .. " 착용 중") or "가방"))
+		local wearer = ns.Items.Wearer(it)
+		c.sub:SetText(string.format("강화 +%d / +%d  ·  %s", n, Up.MAX, wearer and (ns.Heroes.ShortName(wearer) .. " 착용 중") or "가방"))
 		local function pct(k) return floor((Up.Bonus(k) - 1) * 100 + 0.5) end
 		for _, l in ipairs(c.lines) do l:SetText("") end
 		local top = n >= Up.MAX

@@ -7,6 +7,7 @@
     python3 tests/run.py cover           # line coverage of the addon under the tests
     python3 tests/run.py ui              # only the UI smoke test
     python3 tests/run.py audit           # combat formulas measured in controlled fights
+    python3 tests/run.py stats           # every stat source into the stat sheet and into combat
 
 Needs:  pip install lupa
 """
@@ -165,6 +166,12 @@ def main(argv):
         print("== combat audit ==")
         lua = new_runtime()
         ok = run_script(lua, "combat_audit.lua") and ok
+
+    if what == "stats":
+        # every stat source followed into the stat sheet and into combat (tests/stat_audit.lua)
+        print("== stat audit ==")
+        lua = new_runtime()
+        ok = run_script(lua, "stat_audit.lua") and ok
 
     if what == "bench":
         # specialization benchmark / tuner (takes several minutes)

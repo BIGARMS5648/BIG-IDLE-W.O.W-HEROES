@@ -81,8 +81,10 @@ function Upgrade.Try(it, heroId)
 	local success = math.random() < Upgrade.Chance(n)
 	if success then
 		it.up = n + 1
-		ns.Stats.Invalidate(heroId)
-		if heroId then ns.Fire("GEAR", heroId) end
+		-- the hero wearing it now (whatever hero the caller had in mind)
+		local wearer = ns.Items.Wearer(it)
+		ns.Stats.Invalidate(wearer)
+		if wearer then ns.Fire("GEAR", wearer) end
 	end
 	ns.Fire("BAG")
 	return true, success, Upgrade.Level(it)
@@ -126,6 +128,8 @@ function Upgrade.Move(from, to, fromHero, toHero)
 	if not ns.SpendGold(Upgrade.MoveCost(from, to)) then return false, "골드가 부족합니다." end
 	to.up = from.up
 	from.up = nil
+	-- the heroes wearing the two pieces now (whatever the caller had in mind)
+	fromHero, toHero = ns.Items.Wearer(from), ns.Items.Wearer(to)
 	ns.Stats.Invalidate(fromHero)
 	ns.Stats.Invalidate(toHero)
 	if fromHero then ns.Fire("GEAR", fromHero) end

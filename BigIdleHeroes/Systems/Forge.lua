@@ -381,9 +381,11 @@ function Forge.Socket(it, kind, matId, heroId)
 	if not ok then return false, why end
 	ns.AddMat(matId, -1)
 	local entry = ns.Items.AddSocket(it, kind, ns.MATS[matId].tier)
-	ns.Stats.Invalidate(heroId)
+	-- the hero wearing it now (whatever hero the caller had in mind)
+	local wearer = ns.Items.Wearer(it)
+	ns.Stats.Invalidate(wearer)
 	ns.Fire("BAG")
-	if heroId then ns.Fire("GEAR", heroId) end
+	if wearer then ns.Fire("GEAR", wearer) end
 	return true, entry
 end
 
@@ -401,9 +403,10 @@ function Forge.RemoveSocket(it, kind, index, heroId)
 		return false, "골드가 부족합니다."
 	end
 	table.remove(l, index)
-	ns.Stats.Invalidate(heroId)
+	local wearer = ns.Items.Wearer(it)
+	ns.Stats.Invalidate(wearer)
 	ns.Fire("BAG")
-	if heroId then ns.Fire("GEAR", heroId) end
+	if wearer then ns.Fire("GEAR", wearer) end
 	return true
 end
 

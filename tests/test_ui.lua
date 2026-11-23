@@ -646,6 +646,23 @@ do
 		if not epic[step[3]] or #epic[step[3]] ~= 1 then fail(step[1] .. " did not add a stat") end
 		hoverAll()
 	end
+	-- the "부여됨" line belongs to the piece it was set in: another piece
+	-- picked, it goes; back on that piece, it is there again
+	do
+		press("gem tab", ep.tabs:Get("gem"))
+		local sp = ep.forge.gem
+		local other = ns.Items.New("chest", 30, 6)
+		ns.Items.AddToBag(other)
+		Main.Refresh()
+		click("gem target", function(b) return b.data == epic end)
+		if not (sp.lastText.__text or ""):find("부여됨", 1, true) then fail("the gem tab should say what was just set") end
+		click("another target", function(b) return b.data == other end)
+		if sp.picked ~= other then fail("clicking another item should choose it") end
+		if (sp.lastText.__text or "") ~= "" then fail("'부여됨' should go when another item is picked: " .. tostring(sp.lastText.__text)) end
+		click("gem target again", function(b) return b.data == epic end)
+		if not (sp.lastText.__text or ""):find("부여됨", 1, true) then fail("'부여됨' should show again on the piece it was set in") end
+		ns.Items.RemoveFromBag(ns.Items.IndexInBag(other))
+	end
 	-- nothing picked (no item with that socket yet): the button explains, no error
 	press("inscribe tab", ep.tabs:Get("insc"))
 	local ip = ep.forge.insc
@@ -895,6 +912,33 @@ do
 		end
 		ns.Loot.AddChest(1, 10, 1)
 		try("chest", bar.chests[1].Click, bar.chests[1], "LeftButton")
+		-- with auto-open learned, a chest's tooltip counts down while the mouse
+		-- is on it
+		do
+			local wasRune = ns.db.runes.e3
+			ns.db.runes.e3 = 1
+			ns.Runes.Invalidate()
+			local cb = bar.chests[1]
+			local function left()
+				for _, l in ipairs(ns.UI.TipText()) do
+					local v = l:match("^자동 개봉까지  (.+)$")
+					if v then return v end
+				end
+			end
+			ns.db.autoT[1] = 0
+			try("chest hover", cb.__scripts.OnEnter, cb)
+			local before = left()
+			frames(20, 0.25) -- five seconds with the mouse on it
+			local after = left()
+			local want = ns.U.time(math.max(0, ns.Loot.AutoInterval(1) - (ns.db.autoT[1] or 0)))
+			if not before then fail("a chest's tooltip should show the time to its auto-open") end
+			if not after or after == before or after ~= want then
+				fail("a chest's tooltip should count down while the mouse is on it: " .. tostring(before) .. " -> " .. tostring(after) .. ", want " .. want)
+			end
+			if cb.__scripts.OnLeave then cb.__scripts.OnLeave(cb) end
+			ns.db.runes.e3 = wasRune
+			ns.Runes.Invalidate()
+		end
 		if #bar.menu ~= 7 then fail("the HUD menu should have the seven screens") end
 		for _, mb in ipairs(bar.menu) do
 			try("menu " .. mb.key, mb.Click, mb, "LeftButton")
@@ -1211,22 +1255,32 @@ do
 		do
 			local war, wf
 			for i, x in ipairs(ns.Combat.heroes) do if x.class == "WARRIOR" then war, wf = x, heroes[i] end end
-			local mob
-			for _ = 1, 300 do
-				for _, m in ipairs(ns.Combat.mobs) do if not m.dead then mob = m break end end
-				if mob then break end
-				frames(1)
+			-- a monster that is alive and drawn (its model in)
+			local _, mobFr = ns.Bar.UnitFrames()
+			local function liveMob()
+				for _ = 1, 300 do
+					for i, m in ipairs(ns.Combat.mobs) do
+						local mf = mobFr[i] and mobFr[i].figIs
+						if not m.dead and mf and mf:IsShown() and mf:IsLoaded() then return m end
+					end
+					frames(1)
+				end
 			end
+			local mob = liveMob()
 			local fx = ns.SKILL_FX.cleave
 			if war and wf and wf.figIs and mob and fx then
-				ns.Combat.VFX({ k = "skill", u = war, sid = "cleave", to = { mob } })
 				local own, onMob
-				for _ = 1, 4 do
-					frames(1)
-					for _, hs in ipairs(ns.Bar.hits) do
-						if hs.active and hs.fig.actor.__display == "file:" .. fx.self then own = hs.fig.facing end
-						if hs.active and hs.fig.actor.__display == "file:" .. fx.hit and hs.tfig ~= wf.figIs then onMob = hs.fig.facing end
+				for _ = 1, 3 do -- (again with another monster if this one fell meanwhile)
+					ns.Combat.VFX({ k = "skill", u = war, sid = "cleave", to = { mob } })
+					for _ = 1, 4 do
+						frames(1)
+						for _, hs in ipairs(ns.Bar.hits) do
+							if hs.active and hs.fig.actor.__display == "file:" .. fx.self then own = hs.fig.facing end
+							if hs.active and hs.fig.actor.__display == "file:" .. fx.hit and hs.tfig ~= wf.figIs then onMob = hs.fig.facing end
+						end
 					end
+					if onMob then break end
+					mob = liveMob() or mob
 				end
 				if own ~= wf.figIs.facing then fail("an effect on its caster should face the way the caster does: " .. tostring(own) .. " / " .. tostring(wf.figIs.facing)) end
 				if onMob ~= "right" then fail("a hit on a monster should face the way it flies (toward the monster): " .. tostring(onMob)) end
