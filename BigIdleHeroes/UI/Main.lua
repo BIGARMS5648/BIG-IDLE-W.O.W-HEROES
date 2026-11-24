@@ -124,8 +124,17 @@ function Main.RefreshHeader()
 		local id = db.party[i]
 		if id and db.heroes[id] then power = power + ns.Heroes.PowerScore(id) end
 	end
-	frame.where:SetText(U.col(d.hex, ns.N(d.name)) .. " " .. ns.StageLabel(st.diff, st.idx)
-		.. "     파티 전투력 " .. U.col("ffd24a", U.fmt(power)))
+	-- a long stage name takes a smaller font, and past that it is left out,
+	-- rather than reaching the gold
+	local stage = U.col(d.hex, ns.N(d.name)) .. " " .. ns.StageLabel(st.diff, st.idx)
+	local tail = "   파티 전투력 " .. U.col("ffd24a", U.fmt(power))
+	local act, n = ns.StageAct(st.idx)
+	local short = U.col(d.hex, ns.N(d.name)) .. string.format(" %d-%d", act, n)
+	for _, try in ipairs({ { stage, 11 }, { stage, 10 }, { short, 11 } }) do
+		frame.where:SetFont(ns.FONT, try[2], "")
+		frame.where:SetText(try[1] .. tail)
+		if frame.where:GetStringWidth() <= frame.where:GetWidth() then break end
+	end
 	frame.gold:SetLabel(U.fmt(db.gold))
 	for _, c in ipairs(frame.currency) do
 		local n = 0
@@ -276,7 +285,6 @@ function Main.Create()
 	frame.faction:SetPoint("LEFT", frame.brand, "RIGHT", 8, 0)
 	frame.where = UI.Text(frame, 11)
 	frame.where:SetPoint("TOPLEFT", frame, "TOPLEFT", textX, -34)
-	frame.where:SetWidth(388 - textX)
 	frame.where:SetWordWrap(false)
 	UI.Color(frame.where, UI.C.sub)
 
@@ -339,6 +347,10 @@ function Main.Create()
 	end
 	frame.gold = pill(100, "INV_Misc_Coin_01", "icon_gold")
 	frame.gold:SetPoint("RIGHT", right, "LEFT", -6, 0)
+	-- the line under the title ends before the gold (close, gear, the
+	-- material pills and the gold, from the right edge)
+	local goldLeft = Main.W - 12 - 30 - 6 - 34 - 6 - #CURRENCY * (76 + 6) - 100
+	frame.where:SetWidth(goldLeft - 10 - textX)
 	UI.Color(frame.gold.text, UI.C.gold)
 	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 모집하기, 룬, 장비 제작·강화와 기능 해금에 씁니다.") end)
 
