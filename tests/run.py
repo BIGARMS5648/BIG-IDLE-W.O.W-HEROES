@@ -8,6 +8,7 @@
     python3 tests/run.py ui              # only the UI smoke test
     python3 tests/run.py audit           # combat formulas measured in controlled fights
     python3 tests/run.py stats           # every stat source into the stat sheet and into combat
+    python3 tests/run.py pace 70         # long play run: when each act is first cleared
 
 Needs:  pip install lupa
 """
@@ -153,6 +154,14 @@ def main(argv):
         print("== balance run (%g simulated hours, starting as %s) ==" % (hours, starter))
         lua = new_runtime()
         ok = run_script(lua, "test_balance.lua", hours, starter) and ok
+
+    if what == "pace":
+        # long play run for pacing against TBH's hours (tests/pace.lua)
+        hours = float(argv[2]) if len(argv) > 2 else 70
+        party = argv[3] if len(argv) > 3 else ""
+        print("== pace run (%g simulated hours%s) ==" % (hours, (", party " + party) if party else ""))
+        lua = new_runtime()
+        ok = run_script(lua, "pace.lua", hours, party) and ok
 
     if what == "gold":
         # where every gold piece comes from and goes, hour by hour (tests/gold_audit.lua)
