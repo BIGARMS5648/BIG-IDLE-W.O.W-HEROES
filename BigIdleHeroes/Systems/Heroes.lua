@@ -237,12 +237,11 @@ function Heroes.AddXP(id, amount)
 	return gained
 end
 
--- Experience is best near your own level: far above or below, it drops off.
+-- Experience is the monster's (TBH: no cut for heroes above the stage); a
+-- hero far below the stage gets less of it.
 function Heroes.XPFactor(heroLevel, stageLevel)
 	local d = heroLevel - stageLevel
-	if d > 5 then
-		return max(0.05, 1 - 0.10 * (d - 5))
-	elseif d < -10 then
+	if d < -10 then
 		return max(0.25, 1 - 0.05 * (-d - 10))
 	end
 	return 1
