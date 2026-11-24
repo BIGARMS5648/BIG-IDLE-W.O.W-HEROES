@@ -80,6 +80,7 @@ Build a party of five heroes, send them along a route through the original game'
 - **Gear in 10 grades**, from Common to Cosmic, in fixed item levels (1, 5, 10, 15, 20, 30, 40, 50, 65, 80, 100). A hero wears an item from its own level, so gear above your heroes waits in the bag until they catch up.
 - **Three kinds of chests**: monster chests, boss chests and act boss chests. Each stage has its own chests, drop chances and contents, shown on the stage screen.
 - **The Forge**, a screen of its own: every function in a list on the left (fuse, craft, gems, enchant, engrave runes, enhance, salvage, lucky seals, materials), the work in the middle, and on the right the hero and item you work on plus a log of the latest results. Bags fill up, so auto-salvage helps keep them clear.
+- **Gems, enchanting and rune inscription** work like Task Bar Hero's cube: 36 gems, 33 enchanting reagents and 10 rune scrolls, each giving its own stats by gear type (weapon, armor or accessory) at tiers 1 to 10. Better grades give higher tiers; nine of one material fuse into a random one of the next grade.
 - **Enhancement** (+1 to +20) once Mythic+ is cleared: every step raises an item's base stats; steps past +10 can fail (only the gold is lost), and enhancement can be moved to a new item of the same slot for gold. Item icons show their +N.
 - **Rune tree**: account-wide bonuses that open more party slots, skill slots and more.
 - **Companions** that join the party.
