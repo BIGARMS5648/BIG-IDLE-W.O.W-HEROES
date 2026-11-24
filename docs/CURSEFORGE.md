@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.2.0
+BIG IDLE HEROES v1.2.1
 ```
 
 ---
@@ -138,36 +138,22 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.2.0)
+## Changelog for this release (v1.2.1)
 
 ```
-- Gems, enchanting and rune inscription work like Task Bar Hero's cube: 79 materials with
-  WoW-style names (36 gems, 33 enchanting reagents, 10 rune scrolls), each with its own
-  stats for weapons, armor and accessories at tiers 1 to 10. Nine of one material fuse
-  into a random one of the next grade. Materials you already have become materials of
-  the same grade.
-- Forge: the item you work on stays with the hero you picked; salvage pays what its
-  confirmation showed; Unequip all needs room for everything; crafting shows the real
-  item levels; fusion counts only the pieces it would use; one 1% rule for "better gear"
-  everywhere; screens with a gold cost update when your gold changes.
-- Combat: damage over time deals exactly what its tooltip says; the stronger DoT and
-  the stronger shield keep their caster; life-draining skills heal by the damage dealt
-  (at most 30% of maximum health per hit); chill slows heroes too; cooldowns keep running when
-  an earlier skill fires; no double basic attack on coming into range; Fireball's
-  cooldown is 5 s; heal and shield tooltips say when they trigger.
-- Retrying after a retreat follows the current setting.
-- Lost first-clear chests are counted; companions join on the kill that completes them.
-- Offline rewards: income is measured in real time (game speed included) from every
-  kill, also before the first win; the report shows the experience heroes actually got;
-  a clock set back no longer pays the same time twice.
-- The stage screen shows chest chances with your chest bonus and no monsters on
-  boss-only stages.
-- A full reset also removes rune bonuses and waits for your first hero; a faction must
-  be chosen before recruiting.
-- Older and damaged saves load safely (saves without a version number, broken values,
-  a hero in two party slots, skill ranks above the top, old gear stats outside their
-  range).
-- The Settings statistics and companion progress update while the screen is open.
-- With 3D models off, summons show as icons. Fixes for older model frames and loading
-  screens that fail to load.
+- Auto-equip judges gear by every combat stat: lifesteal, health regeneration, healing
+  on hit and on kill, flat damage absorb, thorns, and resistances against the elements
+  of the monsters you are fighting.
+- "+ to all skills" counts by the skills a hero has equipped, and element damage by the
+  elements of those skills.
+- Multistrike stops at 100% (it gives at most one extra half hit).
+- Gear for later: every step up on the way is kept from salvage and fusion, not only the
+  best piece.
+- Salvage and fusion check every piece again right before it goes: protected gear never
+  goes; enhanced, socketed or still useful gear only when you pick it yourself.
+- Party auto-equip gives each piece to the hero it helps most.
+- New setting: also keep gear for heroes waiting outside the party.
+- Item tooltips use the same 1% step as auto-equip and the upgrade marks.
+- After a long frame (a loading screen) the fight catches up instead of losing time.
+- Damaged saved items are repaired on load; unreadable ones are set aside, not deleted.
 ```
