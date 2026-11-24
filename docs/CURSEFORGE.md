@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.0.10
+BIG IDLE HEROES v1.0.11
 ```
 
 ---
@@ -135,16 +135,8 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.0.10)
+## Changelog for this release (v1.0.11)
 
 ```
-- The battle ground is drawn solid in every place, and a place whose ground texture the client lacks uses another of its own tileset (/bih ground lists them).
-- The druid's cat keeps its size after a reload or a stage change: a model whose size comes a moment after it is measured again.
-- The hunter's pet is a little smaller than a druid's cat.
-- The hero screen's experience bars move live.
-- The cat's shred and rake come out low by its paws.
-- Hero creation is called 영웅 모집하기 everywhere.
-- Settings are one page (no tabs), without the battle window size (its corner sets it) and the bag's auto break-down (the bag has its own switch).
-- On the forge's break-down tab, right-click breaks a bag piece down.
-- A hero's own body that comes slowly is waited for instead of being replaced by an NPC (the restoration druid drawn as Remulos).
+- The BIG IDLE HEROES logo sits at the top left of the menu window.
 ```

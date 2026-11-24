@@ -116,7 +116,6 @@ function Main.RefreshHeader()
 	local db = ns.db
 	local fid = ns.Faction() or "ALLIANCE"
 	local f = ns.FACTIONS[fid]
-	UI.SetIcon(frame.crest, f.icon)
 	frame.faction:SetText(U.col(f.hex, ns.N(f.name)))
 	local st = db.stage
 	local d = ns.DIFFS[st.diff]
@@ -206,6 +205,9 @@ function Main.CloseModal()
 	end
 end
 
+local LOGO_H = 50
+local LOGO_W = math.floor(LOGO_H * 1.517 + 0.5)
+
 local refreshT = 0
 local function onUpdate(_, elapsed)
 	refreshT = refreshT - elapsed
@@ -247,30 +249,34 @@ function Main.Create()
 	end
 	frame:SetScale(ns.db.ui.scale or 1)
 
-	-- title bar: crest, name and faction; where the party fights and its
+	-- title bar: the game's logo, name and faction; where the party fights and its
 	-- power; gold and materials; settings; close
 	local head = CreateFrame("Frame", nil, frame)
 	head:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
 	head:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -3)
 	head:SetHeight(56)
-	-- (the shading belongs to the window itself, under the title and crest:
+	-- (the shading belongs to the window itself, under the title and logo:
 	-- on the header frame it would be drawn over them and dim them)
 	local hbg = UI.Art(frame, "grad_v", "BORDER", 0.10, 0.13, 0.22, 0.9)
 	hbg:SetAllPoints(head)
 	if UI.ArtUI("ui_header") then UI.Slice(head, "card", "BACKGROUND"):SetArt(UI.ArtUI("ui_header")) end
 	local line = UI.Line(frame, Main.W - 24, 0.55, 0.60, 0.75, 0.35)
 	line:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -59)
-	frame.crest = frame:CreateTexture(nil, "ARTWORK")
-	frame.crest:SetSize(34, 34)
-	frame.crest:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -13)
+	-- the logo (Media/logo.tga: the sign in the middle of a square picture)
+	frame.logo = frame:CreateTexture(nil, "ARTWORK")
+	frame.logo:SetSize(LOGO_W, LOGO_H)
+	frame.logo:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -5)
+	frame.logo:SetTexture(UI.Tex("logo"))
+	frame.logo:SetTexCoord(0, 1, 0.168, 0.828)
+	local textX = 8 + LOGO_W + 8
 	frame.brand = UI.Title(frame, "BIG IDLE HEROES", 16)
-	frame.brand:SetPoint("TOPLEFT", frame, "TOPLEFT", 58, -12)
+	frame.brand:SetPoint("TOPLEFT", frame, "TOPLEFT", textX, -12)
 	UI.Color(frame.brand, { 0.92, 0.94, 1 })
 	frame.faction = UI.Text(frame, 14)
 	frame.faction:SetPoint("LEFT", frame.brand, "RIGHT", 8, 0)
 	frame.where = UI.Text(frame, 11)
-	frame.where:SetPoint("TOPLEFT", frame, "TOPLEFT", 58, -34)
-	frame.where:SetWidth(330)
+	frame.where:SetPoint("TOPLEFT", frame, "TOPLEFT", textX, -34)
+	frame.where:SetWidth(388 - textX)
 	frame.where:SetWordWrap(false)
 	UI.Color(frame.where, UI.C.sub)
 
