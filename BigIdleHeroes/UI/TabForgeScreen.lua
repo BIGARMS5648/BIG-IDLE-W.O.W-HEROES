@@ -200,14 +200,23 @@ local function buildSide(page)
 	local function grid(n, y)
 		local out = {}
 		for i = 1, n do
-			local b = UI.IconButton(sp, CELL, function(self)
-				if self.data then
-					ns.ForgeView.SetTarget(self.data, self.heroId)
-					Main.Refresh()
+			local b = UI.IconButton(sp, CELL, function(self, button)
+				if not self.data then return end
+				-- on 분해, right-click breaks a bag piece down (after asking)
+				if button == "RightButton" and page.func == "smelt" and not self.heroId then
+					ns.BagView.SmeltOne(self.data)
+					return
 				end
+				ns.ForgeView.SetTarget(self.data, self.heroId)
+				Main.Refresh()
 			end)
 			b:SetPoint("TOPLEFT", sp, "TOPLEFT", 10 + ((i - 1) % SIDE_COLS) * CELL_STEP, y - floor((i - 1) / SIDE_COLS) * CELL_STEP)
-			UI.Tip(b, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end, "TOP")
+			UI.Tip(b, function(self)
+				if not self.data then return nil end
+				local lines = ns.Items.Tooltip(self.data, Main.SelectedHero())
+				if page.func == "smelt" and not self.heroId then lines[#lines + 1] = { "우클릭: 분해", nil, 0.45, 0.8, 1 } end
+				return lines
+			end, "TOP")
 			out[i] = b
 		end
 		return out

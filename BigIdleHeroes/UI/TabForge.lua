@@ -786,13 +786,21 @@ local function buildSmelt(page, f)
 	p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -44)
 	p.cells = {}
 	for i = 1, SMELT_COLS * SMELT_ROWS do
-		local b = UI.IconButton(f, CELL)
+		-- right-click: breaks that one down (after asking, as in the bag)
+		local b = UI.IconButton(f, CELL, function(self, button)
+			if button == "RightButton" and self.data then ns.BagView.SmeltOne(self.data) end
+		end)
 		local col, row = (i - 1) % SMELT_COLS, floor((i - 1) / SMELT_COLS)
 		b:SetPoint("TOPLEFT", f, "TOPLEFT", col * STEP, -70 - row * STEP)
-		UI.Tip(b, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end)
+		UI.Tip(b, function(self)
+			if not self.data then return nil end
+			local lines = ns.Items.Tooltip(self.data, Main.SelectedHero())
+			lines[#lines + 1] = { "우클릭: 분해", nil, 0.45, 0.8, 1 }
+			return lines
+		end)
 		p.cells[i] = b
 	end
-	p.note = note(f, -70 - SMELT_ROWS * STEP - 8, "보호한 장비, 강화한 장비, 보석·마법부여·각인이 붙은 장비, 파티에게 지금 장비보다 더 좋은 장비는 남깁니다. 장비 하나는 가방에서 오른쪽 클릭으로 분해합니다.")
+	p.note = note(f, -70 - SMELT_ROWS * STEP - 8, "보호한 장비, 강화한 장비, 보석·마법부여·각인이 붙은 장비, 파티에게 지금 장비보다 더 좋은 장비는 남깁니다.")
 	p.go = UI.Button(f, 220, 36, "일괄 분해", function()
 		local picked, kept = ns.Forge.PickByQuality(smeltQ())
 		if #picked == 0 then

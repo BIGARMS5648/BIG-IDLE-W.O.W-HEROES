@@ -22,6 +22,8 @@ local FEET = 9        -- unit bottom above the scene's bottom edge (the health b
 -- how tall the fighters stand on screen: every model height below times this
 local FIG_SCALE = 0.85
 local BACK_FIG, PET_FIG = 34 * FIG_SCALE, 24 * FIG_SCALE -- summons (by the front or their summoner) and the companion (at the back)
+-- summons drawn as a share of a druid's cat (Bar.CatScale): the hunter's pet
+local SUMMON_SIZE = { call_pet = 0.9 }
 local SUMMON_PACE = 140 -- how fast the companion walks to its place behind the party (pixels a second)
 local MAX_MOBS = 12
 local MAX_FLOATS = 28
@@ -267,10 +269,10 @@ local function drawHeroes(now)
 			local moving = walking(f, moved)
 			local fig = pickHero(f.model, u.id)
 			if fig then
-				if f.figFor ~= u.id or f.figIs ~= fig then
-					f.figFor, f.figIs = u.id, fig
-					fig:SetHeight2(HERO_FIG * Figure.HeroScale(u.id, true))
-				end
+				f.figFor, f.figIs = u.id, fig
+				-- its size every frame (a druid's form can come up a moment later)
+				local tall = HERO_FIG * Figure.HeroScale(u.id, true)
+				if fig.height ~= tall then fig:SetHeight2(tall) end
 				-- a cat or a bear: its effects at its front (spellFx)
 				local form = Figure.HeroForm(u.id, true)
 				fig.beast = Figure.BEAST[form or ""] and form or nil
@@ -367,6 +369,9 @@ local function drawHeroes(now)
 					k = k + 1
 					local sp = pickFigure(frame.summons[k], mid)
 					if sp then
+						-- the hunter's pet a little smaller than a druid's cat; the rest small
+						local tall = SUMMON_SIZE[sid] and HERO_FIG * Bar.CatScale() * SUMMON_SIZE[sid] or BACK_FIG
+						if sp.height ~= tall then sp:SetHeight2(tall) end
 						local x
 						local own = heroFrames[i].drawX or spread[i]
 						if ns.SKILLS[sid].ranged then
@@ -579,7 +584,8 @@ local function updateInfo()
 
 	-- the backdrop: a picture of the place (else the theme's drawn hills)
 	local backdrop = ns.BackdropFile and ns.BackdropFile(diff, idx)
-	local ground = ns.GroundFile and ns.GroundFile(diff, idx)
+	local grounds, place = ns.GroundFiles(diff, idx)
+	local ground = grounds and grounds[1]
 	local key = tostring(backdrop or stg.theme) .. "|" .. tostring(ground)
 	if frame.themeKey ~= key then
 		frame.themeKey = key
@@ -592,7 +598,8 @@ local function updateInfo()
 			t:SetTexture(art)
 			t:SetVertexColor(r, g, b)
 		end
-		-- the ground of the place
+		-- the ground of the place: the first of its textures the game has
+		ground = grounds and Bar.PickGround(frame.ground, grounds, place)
 		frame.groundFile = ground
 		for _, t in ipairs({ frame.ground, frame.groundFade }) do
 			if ground then
@@ -630,7 +637,7 @@ local function updateInfo()
 	if (db.retry or 0) > 0 and db.opt.auto then
 		frame.note:SetText(string.format("힘을 기르는 중 · 재도전까지 %d회", db.retry))
 	elseif st.phase == "idle" then
-		frame.note:SetText("영웅을 만들어 파티에 넣으세요")
+		frame.note:SetText("영웅을 모집해 파티에 넣으세요")
 	else
 		frame.note:SetText("")
 	end
@@ -719,6 +726,9 @@ local FX_ROOM = 8
 -- middle to its nose: the cat's in front of its head, the bear's at its
 -- head and paws), what reaches it lands on its chest (FRONT_HIT)
 local FRONT_OWN, FRONT_HIT = { cat = 1.15, bear = 0.7 }, 0.4
+-- how high a beast's own low blow (a claw: selfLow) comes out, as a share
+-- of its figure's height (the cat is low and long: by its paws)
+local LOW_OWN = { cat = 0.1 }
 local missiles, hits, pendingHits = {}, {}, {}
 -- what was launched and shown (the last missile's file), for the tests
 local fxStats = { missiles = 0, hits = 0 }
@@ -932,7 +942,8 @@ local function drawEffects()
 				else
 					-- a beast's own blow at its front, a hit on it at its chest
 					local x = tf.beast and front(tf, hs.own and FRONT_OWN[tf.beast] or FRONT_HIT) or 0
-					hs.fig:PlaceFeet(frame.scene, tf.anchorX + x * dir, tf.anchorY + tf.height * (hs.low and 0.25 or 0.55))
+					local y = hs.low and ((hs.own and LOW_OWN[tf.beast or ""]) or 0.25) or 0.55
+					hs.fig:PlaceFeet(frame.scene, tf.anchorX + x * dir, tf.anchorY + tf.height * y)
 				end
 				local left = HIT_SHOW - hs.t
 				-- shown (see-through) while its model comes in: the game loads a
@@ -1189,6 +1200,50 @@ function Bar.DrawHeroes(step)
 end
 Bar.LaneX = laneX
 function Bar.Ground() return frame and frame.ground, frame and frame.sky, frame and frame.sky2 end
+
+-- How tall a druid's cat stands next to an ordinary hero (its race for the
+-- player's faction, then the cat's own size).
+function Bar.CatScale()
+	local race = ns.ClassRace("DRUID")
+	return (Figure.RACE_SCALE[race or ""] or 1) * (Figure.FORM_SCALE.cat or 1)
+end
+Bar.SUMMON_SIZE, Bar.LOW_OWN = SUMMON_SIZE, LOW_OWN
+
+-- The first of a place's ground textures the game has (SetTexture says no
+-- to a file it lacks); a place whose own first one was missing is noted
+-- (Bar.groundMissing, /bih ground).
+Bar.groundMissing = {}
+function Bar.PickGround(tex, list, place)
+	for i, id in ipairs(list) do
+		if tex:SetTexture(id, "REPEAT", "REPEAT") ~= false then
+			if place then Bar.groundMissing[place] = i > 1 and list[1] or nil end
+			return id
+		end
+	end
+	if place then Bar.groundMissing[place] = list[1] end
+	return nil
+end
+
+-- /bih ground: every place's ground tried; the ones the game lacks listed.
+function Bar.CheckGrounds()
+	local t = (frame and frame.scene or UIParent):CreateTexture(nil, "BACKGROUND")
+	t:Hide()
+	local seen, missing, total = {}, {}, 0
+	for d = 1, #ns.STAGE_SCENERY do
+		for i = 1, #ns.STAGE_SCENERY[d] do
+			local list, place = ns.GroundFiles(d, i)
+			if list and not seen[place] then
+				seen[place] = true
+				total = total + 1
+				local used = Bar.PickGround(t, list, place)
+				if used ~= list[1] then
+					missing[#missing + 1] = place .. (used and (" → " .. used) or " (없음)")
+				end
+			end
+		end
+	end
+	return total, missing
+end
 function Bar.Scenery() return frame and frame.scenery, frame and frame.units end
 function Bar.Sky() return frame and frame.sky end
 
@@ -1401,6 +1456,9 @@ function Bar.Create()
 	frame.ground:SetPoint("BOTTOMLEFT", scene, "BOTTOMLEFT", 0, 0)
 	frame.ground:SetPoint("BOTTOMRIGHT", scene, "BOTTOMRIGHT", 0, 0)
 	frame.ground:SetHeight(GROUND_H)
+	-- drawn opaque: a terrain texture's alpha channel holds its shine, not
+	-- how see-through it is (some places' ground would vanish)
+	frame.ground:SetBlendMode("DISABLE")
 	frame.ground:Hide()
 	frame.groundFade = scene:CreateTexture(nil, "BACKGROUND", nil, 2)
 	frame.groundFade:SetPoint("BOTTOMLEFT", frame.ground, "TOPLEFT", 0, 0)

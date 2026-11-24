@@ -290,7 +290,7 @@ end
 local function buildCreate()
 	local c = Main.ModalContent(800, 470)
 	create.frame = c
-	local title = UI.Title(c, "영웅 만들기", 20)
+	local title = UI.Title(c, "영웅 모집하기", 20)
 	title:SetPoint("TOPLEFT", c, "TOPLEFT", 0, 0)
 	create.info = UI.Text(c, 12)
 	create.info:SetPoint("TOPRIGHT", c, "TOPRIGHT", 0, -4)
@@ -533,7 +533,7 @@ function create.refresh()
 		end
 	end
 	local full = H.Count() >= ns.ROSTER_MAX
-	create.go:SetLabel(full and "보유 한도 가득 참" or (sp and (ns.SpecLabel(create.spec) .. " 만들기") or "전문화를 고르세요"))
+	create.go:SetLabel(full and "보유 한도 가득 참" or (sp and (ns.SpecLabel(create.spec) .. " 모집하기") or "전문화를 고르세요"))
 	create.go:SetOff(full or not sp or not ns.CanAfford(cost))
 end
 
@@ -900,7 +900,7 @@ local function refresh(page)
 			c:Hide()
 		end
 	end
-	page.benchEmpty:SetText(#bench == 0 and "대기 중인 영웅이 없습니다. '영웅' 화면 왼쪽 아래의 '영웅 만들기'로 새 영웅을 만들 수 있습니다." or "")
+	page.benchEmpty:SetText(#bench == 0 and "대기 중인 영웅이 없습니다. '영웅' 화면 왼쪽 아래의 '영웅 모집하기'로 새 영웅을 모집할 수 있습니다." or "")
 end
 
 local function open(page, opts)

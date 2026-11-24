@@ -334,7 +334,7 @@ function Main.Create()
 	frame.gold = pill(100, "INV_Misc_Coin_01", "icon_gold")
 	frame.gold:SetPoint("RIGHT", right, "LEFT", -6, 0)
 	UI.Color(frame.gold.text, UI.C.gold)
-	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 만들기, 룬, 장비 제작·강화와 기능 해금에 씁니다.") end)
+	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 모집하기, 룬, 장비 제작·강화와 기능 해금에 씁니다.") end)
 
 	-- bottom navigation
 	local navBg = UI.Art(frame, "grad_v", "BORDER", 0, 0, 0, 0.45)

@@ -1,6 +1,6 @@
 -- Hero screen (영웅).
 --   left: every hero as a card (party first; the mouse wheel scrolls), and
---         [영웅 만들기] at the bottom;
+--         [영웅 모집하기] at the bottom;
 --   right: the chosen hero: a header card (portrait, name, level and
 --          experience, 전투력, 이름 바꾸기 · 출전/휴식 · 떠나보내기) and three
 --          tabs: 능력치·전문화, 기술, 특성.
@@ -110,7 +110,7 @@ local function buildList(page)
 		Main.Refresh()
 	end)
 	-- a new hero
-	page.create = UI.Button(list, CARD_W, 56, "영웅 만들기", function()
+	page.create = UI.Button(list, CARD_W, 56, "영웅 모집하기", function()
 		if page.createWhy then UI.Try(false, page.createWhy) return end
 		if ns.OpenCreate then ns.OpenCreate() end
 	end, "primary")
@@ -120,7 +120,7 @@ local function buildList(page)
 	page.create.label:SetPoint("CENTER", page.create, "CENTER", 0, 8)
 	page.create.cost = UI.Text(page.create, 11)
 	page.create.cost:SetPoint("CENTER", page.create, "CENTER", 0, -11)
-	UI.Tip(page.create, function() return UI.SimpleTip("영웅 만들기", "직업과 전문화, 이름을 정해 새 영웅을 만듭니다. 영웅이 많을수록 비용이 오릅니다.") end, "TOP")
+	UI.Tip(page.create, function() return UI.SimpleTip("영웅 모집하기", "직업과 전문화, 이름을 정해 새 영웅을 모집합니다. 영웅이 많을수록 비용이 오릅니다.") end, "TOP")
 end
 
 local function refreshList(page)
@@ -645,7 +645,7 @@ local function build(page)
 	buildStats(page, page.bodies.stats)
 	buildSkills(page, page.bodies.skills)
 	buildTree(page, page.bodies.tree)
-	page.empty = UI.Text(rp, 13, "영웅이 없습니다.\n왼쪽 아래 '영웅 만들기'로 첫 영웅을 만드세요 (무료).")
+	page.empty = UI.Text(rp, 13, "영웅이 없습니다.\n왼쪽 아래 '영웅 모집하기'로 첫 영웅을 모집하세요 (무료).")
 	page.empty:SetPoint("CENTER", rp, "CENTER", 0, 20)
 	page.empty:SetWidth(RIGHT_W - 60)
 	page.empty:SetJustifyH("CENTER")
@@ -674,7 +674,27 @@ local function refresh(page)
 	end
 end
 
-local function tick(page) end
+-- the experience bars follow the fight live (five times a second): the
+-- chosen hero's and each card's
+local function xpBar(bar, h, label)
+	if h.level >= ns.HERO_MAX_LEVEL then
+		bar:SetValue(1)
+		if label then bar:SetLabel("최고 레벨") end
+	else
+		local need = ns.XPForLevel(h.level)
+		bar:SetValue(h.xp / need)
+		if label then bar:SetLabel(string.format("%s / %s", U.fmt(h.xp), U.fmt(need))) end
+	end
+end
+local function tick(page)
+	local id = heroOf()
+	local h = id and ns.db.heroes[id]
+	if h and page.head:IsShown() then xpBar(page.head.xp, h, true) end
+	for _, c in ipairs(page.cards or {}) do
+		local ch = c.heroId and ns.db.heroes[c.heroId]
+		if ch and c:IsShown() then xpBar(c.xp, ch) end
+	end
+end
 
 -- opts: sub ("stats" | "skills" | "tree"), hero
 local function open(page, opts)

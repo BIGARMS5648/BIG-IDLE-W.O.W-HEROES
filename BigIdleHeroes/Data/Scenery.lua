@@ -434,6 +434,66 @@ ns.GROUND = {
 	winterspring = 189051, zulfarrak = 188872, zulgurub = 189066,
 }
 
+-- More of the same ground (the place's own tileset), tried in turn when the
+-- game does not have the one above; then a plain ground every client has
+-- (GROUND_LAST: outside, inside).
+ns.GROUND_ALT = {
+	arathi = { 186820, 186812 },
+	ashenvale = { 186828, 186830 },
+	azshara = { 186852, 186853 },
+	badlands = { 188879, 188882 },
+	barrens = { 186904, 186906 },
+	blasted = { 188908, 188902 },
+	burningsteppes = { 186937, 186940 },
+	desolace = { 187003, 187005 },
+	dunmorogh = { 188577, 188579 },
+	durotar = { 187019, 187025 },
+	duskwood = { 187070, 187083 },
+	elwynn = { 187128, 187129 },
+	felwood = { 188476, 188463 },
+	feralas = { 188495, 188497 },
+	hillsbrad = { 186782, 186784 },
+	hinterlands = { 186758, 186760 },
+	lochmodan = { 188616, 188612 },
+	moltencore = { 186950, 186952 },
+	mulgore = { 188656, 320827 },
+	needles = { 188930, 188932 },
+	onyxia = { 186950, 186952 },
+	plaguelands = { 188738, 188740 },
+	ragefire = { 186937, 186940 },
+	razorfen = { 188745, 188747 },
+	redridge = { 188753, 188754 },
+	scarletyard = { 188956, 188957 },
+	searing = { 186950, 186954 },
+	silithus = { 188781, 188783 },
+	silverpine = { 188799, 397419 },
+	stonetalon = { 188803, 188807 },
+	stranglethorn = { 188819, 188823 },
+	swamp = { 188842, 188844 },
+	tanaris = { 188872, 188874 },
+	teldrassil = { 188599, 188601 },
+	tirisfal = { 188956, 188957 },
+	ungoro = { 188974, 188978 },
+	wailing = { 186900, 186902 },
+	westfall = { 188993, 189007 },
+	winterspring = { 189049, 189053 },
+	zulfarrak = { 188870, 188874 },
+	zulgurub = { 189068, 189072 },
+}
+ns.GROUND_LAST = { out = 186908, inside = 127718 }
+
+-- The ground's textures to try, best first (nil when the place has none).
+function ns.GroundFiles(diff, idx)
+	local key = ns.SceneryKey(diff, idx)
+	local first = key and ns.GROUND[key]
+	if not first then return nil end
+	local list = { first }
+	for _, id in ipairs(ns.GROUND_ALT[key] or {}) do list[#list + 1] = id end
+	local inside = ns.SCENERY[key] and ns.SCENERY[key].inside
+	list[#list + 1] = inside and ns.GROUND_LAST.inside or ns.GROUND_LAST.out
+	return list, key
+end
+
 function ns.GroundFile(diff, idx)
 	local key = ns.SceneryKey(diff, idx)
 	return key and ns.GROUND[key]

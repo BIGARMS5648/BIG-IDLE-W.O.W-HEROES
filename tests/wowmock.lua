@@ -401,6 +401,7 @@ function Actor:SetModelByUnit(unit, sheathe, autoDress, hideWeapons, native, hol
 	strict(type(unit) == "string", "SetModelByUnit: unit expected")
 	strict(raceId == nil or type(raceId) == "number", "SetModelByUnit: customRaceID must be a number")
 	self.__display = "unit:" .. unit
+	self.__since = nil
 	self.__race, self.__dressed, self.__noWeapons = raceId, autoDress ~= false, hideWeapons and true or false
 	return true
 end
@@ -431,8 +432,15 @@ end
 function Actor:ClearModel() self.__display = nil self.__in = nil end
 -- the game brings a model in only while its scene is shown: a model put up
 -- in a hidden scene stays out until the scene is shown
+-- Mock.loadDelay[display] = seconds the game takes to bring it in (once shown)
+Mock.loadDelay = {}
 function Actor:IsLoaded()
 	if self.__display == nil or Mock.missingDisplays[self.__display] then return false end
+	local delay = Mock.loadDelay[self.__display]
+	if delay and self.__in ~= self.__display then
+		self.__since = self.__since or Mock.now
+		if Mock.now - self.__since < delay then return false end
+	end
 	if self.__in ~= self.__display then
 		if self.__scene and self.__scene.IsVisible and not self.__scene:IsVisible() then return false end
 		self.__in = self.__display
@@ -445,8 +453,11 @@ function Actor:GetModelFileID()
 	if not self:IsLoaded() then return 0 end
 	return Mock.displayFile[self.__display] or 123456
 end
+-- Mock.noBoxUntil: until then a model that is in has no size yet (the game
+-- can bring a model before its bounds)
+Mock.noBoxUntil = 0
 function Actor:GetActiveBoundingBox()
-	if not self:IsLoaded() then return 0, 0, 0, 0, 0, 0 end
+	if not self:IsLoaded() or Mock.now < Mock.noBoxUntil then return 0, 0, 0, 0, 0, 0 end
 	local b = Mock.boxes[self.__display] or { -0.4, -0.3, 0, 0.5, 0.3, 2.0 }
 	return b[1], b[2], b[3], b[4], b[5], b[6]
 end

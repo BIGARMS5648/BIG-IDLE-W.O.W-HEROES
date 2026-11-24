@@ -336,25 +336,30 @@ S.runes_locked = function() show("runes", { rune = "w9" }) end
 
 -- 스테이지
 -- the 3D model check (/bih model); the models themselves are empty boxes here
+-- (the model check stands alone: the menu window closed under it)
 S.model_check = function()
+	ns.Main.Toggle(false)
 	ns.ModelCheck.Toggle(true)
-	S.restore = function() ns.ModelCheck.Toggle(false) end
+	S.restore = function() ns.ModelCheck.Toggle(false) ns.Main.Toggle(true) end
 end
 -- the model check's battle look and dressing pages
 S.model_check_battle = function()
+	ns.Main.Toggle(false)
 	ns.ModelCheck.Toggle(true)
 	ns.ModelCheck.ShowSet("battle")
-	S.restore = function() ns.ModelCheck.ShowSet("basic") ns.ModelCheck.Toggle(false) end
+	S.restore = function() ns.ModelCheck.ShowSet("basic") ns.ModelCheck.Toggle(false) ns.Main.Toggle(true) end
 end
 S.model_check_fx = function()
+	ns.Main.Toggle(false)
 	ns.ModelCheck.Toggle(true)
 	ns.ModelCheck.ShowSet("fx")
-	S.restore = function() ns.ModelCheck.ShowSet("basic") ns.ModelCheck.Toggle(false) end
+	S.restore = function() ns.ModelCheck.ShowSet("basic") ns.ModelCheck.Toggle(false) ns.Main.Toggle(true) end
 end
 S.model_check_dress = function()
+	ns.Main.Toggle(false)
 	ns.ModelCheck.Toggle(true)
 	ns.ModelCheck.ShowSet("dress")
-	S.restore = function() ns.ModelCheck.ShowSet("basic") ns.ModelCheck.Toggle(false) end
+	S.restore = function() ns.ModelCheck.ShowSet("basic") ns.ModelCheck.Toggle(false) ns.Main.Toggle(true) end
 end
 -- every rune learned: the 보너스 합계 list is longer than its box and scrolls
 S.runes_full = function()
@@ -394,14 +399,11 @@ S.pets = function() local p = show("pets") p.sel = nil ns.Main.Refresh() end
 S.pets_locked = function() local p = show("pets") p.sel = ns.PETS[#ns.PETS].id ns.Main.Refresh() end
 
 -- 설정
-S.options = function() local p = show("options") p.tab = "screen" ns.Main.Refresh() end
-S.options_game = function() local p = show("options") p.tab = "game" ns.Main.Refresh() end
-S.options_info = function() local p = show("options") p.tab = "info" ns.Main.Refresh() end
+S.options = function() show("options") ns.Main.Refresh() end
 S.options_reset = function()
 	local p = show("options")
-	p.tab = "info"
 	ns.Main.Refresh()
-	p.info.reset:Click()
+	p.game.reset:Click()
 end
 
 -- a new player: no hero yet, then one hero

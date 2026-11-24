@@ -105,7 +105,7 @@ local function onLogin()
 	elseif ns.Heroes.Count() == 0 then
 		ns.Main.Toggle(true)
 		afterFaction()
-		ns.Print("환영합니다! 첫 영웅은 무료입니다. 직업과 전문화를 골라 만들어 보세요. (/bih 로 메뉴를 엽니다)")
+		ns.Print("환영합니다! 첫 영웅은 무료입니다. 직업과 전문화를 골라 모집해 보세요. (/bih 로 메뉴를 엽니다)")
 	else
 		ns.Print("불러왔습니다. /bih 로 메뉴를 엽니다.")
 	end
@@ -149,10 +149,18 @@ local function slash(msg)
 	elseif msg == "reset" then
 		ns.Bar.ResetPosition()
 		ns.Bar.Toggle(true)
+	elseif msg == "ground" or msg == "땅" then
+		local total, missing = ns.Bar.CheckGrounds()
+		if #missing == 0 then
+			ns.Log(string.format("땅 그림: %d곳 모두 있음", total))
+		else
+			ns.Log(string.format("땅 그림: %d곳 중 %d곳은 다른 그림으로 바꿔 씀", total, #missing))
+			for _, m in ipairs(missing) do ns.Log("  " .. m) end
+		end
 	elseif msg == "model" or msg == "모델" then
 		ns.ModelCheck.Toggle()
 	else
-		ns.Print("/bih (메뉴) · /bih bar (전투 창 표시/숨김) · /bih reset (전투 창 위치 초기화) · /bih model (3D 모델 확인)")
+		ns.Print("/bih (메뉴) · /bih bar (전투 창 표시/숨김) · /bih reset (전투 창 위치 초기화) · /bih model (3D 모델 확인) · /bih ground (땅 그림 확인)")
 	end
 end
 

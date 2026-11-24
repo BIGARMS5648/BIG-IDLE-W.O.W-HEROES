@@ -115,7 +115,7 @@ frames(20)
 try("show hero", Main.ShowTab, "hero")
 local page = Main.Page("hero")
 if not page.empty:IsVisible() then fail("an empty roster should say how to make the first hero") end
-if label(page.create) ~= "영웅 만들기" then fail("the hero list should end with '영웅 만들기'") end
+if label(page.create) ~= "영웅 모집하기" then fail("the hero list should end with '영웅 모집하기'") end
 try("open create dialog", page.create.Click, page.create, "LeftButton")
 click("class Druid", function(b) return b.cid == "DRUID" end)
 click("class Hunter", function(b) return b.cid == "HUNTER" end)
@@ -130,7 +130,7 @@ do -- the preview: the player's own body as the hunter's race (troll here),
 		fail("the create preview should be the player's body as the hunter's race: " .. tostring(cf.actor.__display) .. " " .. tostring(cf.actor.__race))
 	end
 end
-click("create", function(b) return label(b) == "사격 사냥꾼 만들기" and b.__w == 153 end)
+click("create", function(b) return label(b) == "사격 사냥꾼 모집하기" and b.__w == 153 end)
 if H.Count() ~= 1 then fail("creating through the dialog did not make a hero") end
 if not ns.Bar.IsShown() then fail("the battle window should show once the first hero is made") end
 if ns.db.ui.shown == false then fail("waiting for the first hero should not change the battle window setting") end
@@ -864,19 +864,17 @@ do
 	hoverAll()
 end
 
--- settings: every tab
+-- settings: one page, no tabs; no battle-window size (its corner sets it)
+-- and no bag auto break-down (the bag's own switch)
 do
 	Main.ShowTab("options")
-	for _, t in ipairs({ "screen", "game", "info" }) do
-		tab("options", t)
-		hoverAll()
-	end
+	hoverAll()
 	local op = Main.Page("options")
-	if op.S.card:IsVisible() then fail("settings should have no side card") end
-	tab("options", "screen")
+	if op.S then fail("settings should be one page without tabs") end
+	if not (op.screen:IsVisible() and op.game:IsVisible()) then fail("every setting should show on the one page") end
+	if op.screen.bar or op.game.autoSmelt then fail("settings should not have the battle window size or the bag auto break-down") end
 	press("battle window back to default", op.screen.resetPos)
-	tab("options", "info")
-	press("reset everything", op.info.reset)
+	press("reset everything", op.game.reset)
 	local yes, no = ns.UI.ConfirmButtons()
 	if not (no and no:IsVisible()) then fail("resetting everything must ask first") else press("cancel the reset", no) end
 	if H.Count() == 0 then fail("cancelling the reset must keep the heroes") end
@@ -1317,9 +1315,10 @@ do
 				frames(1)
 				local smash = ns.MobFx("smash", "fire")
 				ns.Combat.VFX({ k = "skill", u = war, sid = "ferocious_bite", to = { mob } })
+				ns.Combat.VFX({ k = "skill", u = war, sid = "rake", to = { mob } })
 				ns.Combat.VFX({ k = "skill", u = bh, sid = "cleave", to = { mob } })
 				ns.Combat.VFX({ k = "mob", u = mob, kind = "smash", school = "fire", to = { war } })
-				local catX, catY, bearX, onX
+				local catX, catY, bearX, onX, clawY
 				for _ = 1, 6 do
 					frames(1)
 					for _, hs in ipairs(ns.Bar.hits) do
@@ -1327,6 +1326,7 @@ do
 							-- (offsets from the body, read in the frame they were placed)
 							local d = hs.fig.actor.__display
 							if hs.tfig == cfig and d == "file:" .. bite.self then catX, catY = hs.fig.anchorX - cfig.anchorX, hs.fig.anchorY - cfig.anchorY end
+							if hs.tfig == cfig and d == "file:" .. ns.SKILL_FX.rake.self then clawY = hs.fig.anchorY - cfig.anchorY end
 							if hs.tfig == cfig and d == "file:" .. smash.hit then onX = hs.fig.anchorX - cfig.anchorX end
 							if hs.tfig == bfig and d == "file:" .. fx.self then bearX = hs.fig.anchorX - bfig.anchorX end
 						end
@@ -1345,6 +1345,9 @@ do
 					fail(string.format("a cat's own blow should come out in front of its head: %s, want %.2f", tostring(catX), 1.15 * ch))
 				end
 				if catY and math.abs(catY - cfig.height * 0.55) > 1e-6 then fail("a cat's bite should be at its head's height") end
+				if not clawY or math.abs(clawY - cfig.height * ns.Bar.LOW_OWN.cat) > 1e-6 then
+					fail(string.format("a cat's claw should come out low by its paws: %s, want %.2f", tostring(clawY), cfig.height * ns.Bar.LOW_OWN.cat))
+				end
 				if not bearX or math.abs(bearX - 0.7 * bhalf) > 1e-6 then
 					fail(string.format("a bear's own blow should come out at its front: %s, want %.2f", tostring(bearX), 0.7 * bhalf))
 				end
@@ -1356,11 +1359,13 @@ do
 				fail("the beast check should have a warrior, another hero and a monster")
 			end
 			-- every attack the cat makes shows on the cat itself (in front of
-			-- its head): at its head's height, rake low by its paws
+			-- its head): its claws (shred, rake) low by its paws, the rest at
+			-- its head's height
+			local CLAW = { shred = true, rake = true }
 			for _, sid in ipairs({ "shred", "rake", "ferocious_bite", "tigers_fury" }) do
 				local e = ns.SKILL_FX[sid]
 				if not (e and e.self) then fail("the cat's " .. sid .. " should show on the cat") end
-				if e and (e.selfLow and true or false) ~= (sid == "rake") then fail("the cat's " .. sid .. " is at the wrong height") end
+				if e and (e.selfLow and true or false) ~= (CLAW[sid] or false) then fail("the cat's " .. sid .. " is at the wrong height") end
 			end
 		end
 		-- a boss ability is a classic spell: its name shows, its cast plays
@@ -1433,6 +1438,11 @@ do
 			fail("a melee summon should stand at the front, by the monsters, while the party fights: " .. tostring(s1 and s1.anchorX) .. " / " .. tostring(front))
 		end
 		if x1 and s1.anchorX and s1.anchorX <= x1 then fail("a melee summon should go forward when the fight starts") end
+		-- the hunter's pet a little smaller than a druid's cat
+		local catTall = ns.Bar.FIG.hero * ns.Bar.CatScale()
+		if not (s1 and s1.height and s1.height < catTall and s1.height > catTall * 0.8) then
+			fail(string.format("the hunter's pet should be a little smaller than a druid's cat: %s / %.1f", tostring(s1 and s1.height), catTall))
+		end
 		-- it goes back into formation as fast as its summoner falls back (as
 		-- the melee heroes do), not slower
 		if s1 and s1.sx then
@@ -1653,6 +1663,51 @@ do
 	frames(2)
 	for _, f in ipairs(heroes) do if f.model and f.model:IsShown() then fail("models should hide when turned off") break end end
 	ns.db.opt.models = true
+	-- a model whose size comes a moment after the model itself (a druid's
+	-- cat drawn as tall as a man) is measured again: its own size
+	do
+		local f
+		for _, x in ipairs(heroes) do if x:IsShown() and x.model and x.model:IsLoaded() and x.model.box then f = x break end end
+		if f then
+			-- a long, low body (a cat): as tall as a man it would be drawn too small
+			local disp = f.model.actor.__display
+			local wasBox = Mock.boxes[disp]
+			Mock.boxes[disp] = { -1.0, -0.3, 0, 1.2, 0.3, 1.0 }
+			local want = 1 / (2.2 * 0.6)
+			Fig.ResetFailed()
+			f.model.id = nil
+			Mock.noBoxUntil = Mock.now + 0.25
+			frames(2)
+			local early = f.model:IsLoaded() and f.model.box == nil
+			frames(12)
+			Mock.boxes[disp] = wasBox
+			if not early then fail("the late-size check needs a model that came before its size") end
+			if not (f.model.box and math.abs((f.model.norm or 0) - want) < 1e-6) then
+				fail(string.format("a model whose size came late should get its own size: %s, want %s", tostring(f.model.norm), tostring(want)))
+			end
+		end
+	end
+	-- a hero's body that comes slowly (seconds, as when every model comes
+	-- back at once) is waited for: the hero is not drawn as an NPC meanwhile
+	do
+		local f
+		for _, x in ipairs(heroes) do if x:IsShown() and x.model and x.model.body then f = x break end end
+		if f then
+			Mock.loadDelay["unit:player"] = 4
+			Fig.ResetFailed()
+			f.model.id = nil
+			local npc = false
+			for _ = 1, 120 do
+				frames(1)
+				if f.model.id and not f.model.body then npc = true end
+			end
+			Mock.loadDelay["unit:player"] = nil
+			if npc then fail("a hero whose body comes slowly should not be drawn as an NPC meanwhile") end
+			if not (f.model.body and f.model:IsLoaded()) then fail("a hero's body that comes slowly should come in: " .. tostring(f.model.id)) end
+		else
+			fail("the battle check should have a hero drawn as its own body")
+		end
+	end
 	-- models this game does not have: the icon stays meanwhile, and in the
 	-- end every one of them is given up on
 	Mock.missingDisplays = setmetatable({}, { __index = function() return true end })

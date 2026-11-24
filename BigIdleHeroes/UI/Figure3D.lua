@@ -34,6 +34,7 @@ local SIDE, FEET_AT, FOV = 3.0, 0.32, 0.3
 -- model, from mid-chest to just over the head (in model heights)
 local BUST_SIDE, BUST_TZ = 0.62, 0.74
 local SCENE_WAIT = 1.5 -- seconds a display id is given to come up
+local BODY_WAIT_MAX, BODY_TRIES = 6, 5 -- a hero's body: the longest wait between tries (seconds), and the tries
 -- a long model (a dragon, a wolf) is fitted by this much of its length, so it
 -- stays inside the frame
 local WIDE = 0.6
@@ -188,6 +189,8 @@ end
 -- forward of the model's middle: the cat's long tail puts its middle behind
 -- its body.
 Figure.FORM_BAR_X = { cat = 0.15 }
+-- seconds after a model is in that its size is read once more
+Figure.REMEASURE = 0.5
 -- the forms that go on four legs, long and low
 Figure.BEAST = { cat = true, bear = true }
 -- the form a hero fights in (cat, bear, moonkin ...), nil when it stands as
@@ -359,6 +362,7 @@ function base:Loaded()
 		end
 	end
 	self.corrScale, self.corrXf, self.corrYf, self.fixTries, self.fixInfo = nil, nil, nil, 0, nil
+	self.sinceLoad, self.remeasured = 0, nil
 	if self.body and self.Dress then self:Dress() end
 	self:Measure()
 	self:Look()
@@ -417,6 +421,24 @@ function base:Step(dt)
 					failed[self.id] = true
 					self.id = nil
 				end
+			end
+		end
+	end
+	-- a model can come in before its size does (it would stand as tall as a
+	-- man: a cat much too small): its size is read again until the game has
+	-- it, and once more a moment later
+	if self.loaded and self.kind == "scene" and not self.fixedScale and not self.bust then
+		self.sinceLoad = (self.sinceLoad or 0) + dt
+		local again = (not self.box and self.sinceLoad < 5)
+			or (not self.remeasured and self.sinceLoad >= Figure.REMEASURE)
+		if again then
+			if self.sinceLoad >= Figure.REMEASURE then self.remeasured = true end
+			local old = self.box and self.norm
+			self:Measure()
+			if self.box and (not old or abs(self.norm - old) > 0.01 * old) then
+				self.corrScale, self.corrXf, self.corrYf, self.fixTries, self.fixInfo = nil, nil, nil, 0, nil
+				self:Look()
+				if self.anchorTo then self:PlaceFeet(self.anchorTo, self.anchorX, self.anchorY) end
 			end
 		end
 	end
@@ -714,11 +736,15 @@ function scene:Load()
 		return true
 	end
 	if self.body then
-		-- the player, weapons drawn and nothing worn, as the body's race
+		-- the player, weapons drawn and nothing worn, as the body's race. It
+		-- comes slower than an NPC (the player's model and every piece of its
+		-- set; all heroes at once when the models are turned back on): it is
+		-- asked for again, waiting longer each time (about 20 seconds in all)
+		-- before the hero is drawn as an NPC instead
 		local okB, resB = call(a, "SetModelByUnit", "player", false, false, false, true, false, self.body.rid)
 		if not okB or resB == false then return false end
-		self.lastTry = true
-		self.loadT = SCENE_WAIT
+		self.lastTry = self.tries >= BODY_TRIES
+		self.loadT = min(BODY_WAIT_MAX, SCENE_WAIT * self.tries)
 		return true
 	end
 	local disp = displayFor(self.id)

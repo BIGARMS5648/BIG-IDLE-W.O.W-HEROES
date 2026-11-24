@@ -163,7 +163,7 @@ local function candidates()
 			add({ text = ns.Heroes.ShortName(bench) .. " 출전시키기", tab = "party", act = function() ns.Heroes.Deploy(bench) end })
 		elseif heroes < ns.ROSTER_MAX then
 			local cost = ns.Heroes.CreateCost()
-			add({ text = string.format("%s 영웅 만들기 (%s G)", ns.ROLE[role].name, ns.U.fmt(cost)),
+			add({ text = string.format("%s 영웅 모집하기 (%s G)", ns.ROLE[role].name, ns.U.fmt(cost)),
 				tab = "hero", create = role, wait = not ns.CanAfford(cost) })
 		end
 	end
