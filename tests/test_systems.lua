@@ -1027,7 +1027,8 @@ do
 		db.party[slot] = bySpec[sid]
 		db.heroes[bySpec[sid]].skills = skillsOf(sid, 1, 2, 3)
 	end
-	db.stage = { diff = 2, idx = 12 }
+	-- a stage the level 40 party wins while taking hits
+	db.stage = { diff = 1, idx = 25 }
 	C.StartStage()
 	for _ = 1, 1200 do C.Step() end
 	-- the running stage plus the one before it (a stage may just have restarted)
