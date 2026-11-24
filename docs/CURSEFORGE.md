@@ -61,7 +61,7 @@ Build a party of five heroes, send them along a route through the original game'
 - A route through **the original game's zones, dungeons and raids in recommended-level order**: Elwynn Forest, Dun Morogh, the Deadmines, Scarlet Monastery, Uldaman, Blackrock Depths, Scholomance, Stratholme, Zul'Gurub, Ahn'Qiraj, and on to Molten Core, Onyxia's Lair, Blackwing Lair, the Temple of Ahn'Qiraj and **Naxxramas**.
 - **Four difficulty tiers** (Normal, Heroic, Mythic, Mythic+), each with 30 stages in three acts.
 - Every stage is a long run of monster waves ending in a boss, with stage levels from 1 to 95. The last stage of each act is its raid boss alone, with its own abilities.
-- A long climb: about 60 hours to clear Normal, about 110 hours to reach the last act of Mythic+, and around 300 hours to clear everything and reach level 100 with the auto-play the add-on was tuned with.
+- A long climb: about 64 hours to clear Normal, about 115 hours to reach the last act of Mythic+, and around 330 hours to clear everything and reach level 100 (measured with eight different parties played automatically).
 
 ### A living battle window
 - Heroes, monsters, bosses, summons and companions are **the game's own 3D models**, animated: they stand, walk, attack, cast, get hit and die.
@@ -152,6 +152,7 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - At most 4/5/6/7 monsters at once by difficulty; a stage keeps its full monster count in
   more waves. The last stage of each act is its boss alone.
 - Monster strength and experience were tuned with long play runs for Task Bar Hero's pace:
-  Normal in about 60 hours, Mythic+ act 3 by about 110, everything around 300.
+  Normal in about 64 hours, Mythic+ act 3 by about 115, everything around 330 (the middle
+  of eight parties that cover every specialization).
 - Saved gear moves to the new item levels.
 ```
