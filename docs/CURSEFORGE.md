@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.0.11
+BIG IDLE HEROES v1.1.0
 ```
 
 ---
@@ -137,8 +137,21 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.0.11)
+## Changelog for this release (v1.1.0)
 
 ```
-- The BIG IDLE HEROES logo sits at the top left of the menu window.
+- Loot works like Task Bar Hero now: item levels 1, 5, 10, 15, 20, 30, 40, 50, 65, 80 and 100,
+  a hero wears an item from its own level, and better gear waits in the bag until a hero
+  reaches it (it is kept by salvage and fusion).
+- Ten grades, from Common to Cosmic.
+- Every stage has Task Bar Hero's level (1 to 95), monster count, chests, drop chances and
+  chest contents: monster chests, boss chests and act boss chests. The stage screen shows
+  them.
+- The experience table is Task Bar Hero's, and heroes far above a stage still get its full
+  experience.
+- At most 4/5/6/7 monsters at once by difficulty; a stage keeps its full monster count in
+  more waves. The last stage of each act is its boss alone.
+- Monster strength and experience were tuned with long play runs for Task Bar Hero's pace:
+  Normal in about 60 hours, Mythic+ act 3 by about 110, everything around 300.
+- Saved gear moves to the new item levels.
 ```

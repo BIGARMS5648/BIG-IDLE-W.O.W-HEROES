@@ -479,12 +479,13 @@ end
 -- Monster strength on top of the base growth, by stage level: { level,
 -- times } points, followed in a straight line on a log scale between them.
 -- It sets how long each part of the climb takes (tests/pace: TBH's hours).
--- Set by long play runs (tests/pace.lua) for TBH's hours: Normal 3-10 by
--- about 64 h, Hell 3-10 by about 108 h, Torment act 3 opens by about 115 h
--- and holds out longest.
+-- Set by long play runs (tests/pace.lua, eight parties covering every
+-- specialization) for TBH's hours at their middle: Normal 3-10 by about
+-- 64 h, Hell 3-10 by about 108 h, Torment act 3 opens by about 115 h and
+-- holds out longest.
 ns.MIGHT = {
-	{ 1, 0.47 }, { 5, 1.15 }, { 12, 2.29 }, { 22, 5.0 }, { 32, 7.4 }, { 40, 6.25 }, { 52, 6.25 },
-	{ 65, 5.2 }, { 77, 4.8 }, { 85, 5.4 }, { 90, 6.85 }, { 93, 11 }, { 94, 10.5 }, { 95, 10.7 }, { 100, 30 },
+	{ 1, 0.47 }, { 5, 1.2 }, { 12, 2.38 }, { 22, 5.2 }, { 32, 7.7 }, { 40, 6.56 }, { 52, 6.56 },
+	{ 65, 5.46 }, { 77, 5.04 }, { 85, 5.67 }, { 90, 7.19 }, { 93, 13.5 }, { 94, 13.5 }, { 95, 14.5 }, { 100, 40 },
 }
 local function knots(k, l)
 	if l <= k[1][1] then return k[1][2] end
