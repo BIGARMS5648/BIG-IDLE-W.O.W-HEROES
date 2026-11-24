@@ -188,11 +188,19 @@ local function build(page)
 	local optY = PATH_Y - 2 * (NODE_H + 8) - 6
 	page.checks = {
 		UI.Check(page, "자동 진행 - 깨면 다음 스테이지로",
-			function() return ns.db.opt.auto end, function(v) ns.db.opt.auto = v if v then ns.db.retry = 0 end ns.Fire("OPTIONS") end),
+			function() return ns.db.opt.auto end, function(v) ns.db.opt.auto = v ns.db.retry = 0 ns.Fire("OPTIONS") end),
 		UI.Check(page, "전멸하면 한 스테이지 물러나기",
 			function() return ns.db.opt.retreat end, function(v) ns.db.opt.retreat = v end),
 		UI.Check(page, "물러난 뒤 8번 깨면 다시 도전",
-			function() return ns.db.opt.retry end, function(v) ns.db.opt.retry = v end),
+			function() return ns.db.opt.retry end, function(v)
+				ns.db.opt.retry = v
+				if not v and (ns.db.retry or 0) > 0 then
+					-- stop the countdown and stay on the stage being farmed
+					ns.db.retry = 0
+					ns.db.opt.auto = false
+				end
+				ns.Fire("OPTIONS")
+			end),
 	}
 	for i, c in ipairs(page.checks) do
 		c:SetPoint("TOPLEFT", page, "TOPLEFT", 4, optY - (i - 1) * 24)
@@ -356,8 +364,10 @@ local function refresh(page)
 	local skills = {}
 	for _, sk in ipairs(b.skills) do skills[#skills + 1] = "• " .. bossSkillText(sk) end
 	d.bossSkills:SetText(table.concat(skills, "\n"))
+	-- a stage of the boss alone has no monster waves
+	d.mobTitle:SetShown(kills > 0)
 	for i, m in ipairs(d.mobs) do
-		local e = stg.mobs[i]
+		local e = kills > 0 and stg.mobs[i]
 		if e then
 			m.data = e[1]
 			m:SetIconName(ns.MONSTERS[e[1]].icon)
@@ -368,15 +378,21 @@ local function refresh(page)
 			m:Hide()
 		end
 	end
-	-- its boxes (TBH's): the monster box at its chance each kill, the boss's
-	-- box at its chance, and the gear levels they hold (worn from that level)
+	-- its boxes (TBH's): the monster box at its chance each kill (with the
+	-- chest bonus), the boss's box at its chance and a second one by the
+	-- bonus, and the gear levels they hold (worn from that level)
 	local tb = ns.TBH.STAGES[page.diff][page.idx]
 	local lines = { "보상" }
-	local function pct(v) return (v >= 100 and "%d%%" or (v >= 10 and "%.0f%%" or "%.1f%%")):format(v) end
+	local function pct(v) v = math.min(100, v) return (v >= 100 and "%d%%" or (v >= 10 and "%.0f%%" or "%.1f%%")):format(v) end
 	if tb.mbox then
-		lines[#lines + 1] = U.col("ffffff", string.format("Lv %d %s %s", ns.TBH.BOXES[tb.mbox].lv, ns.N(ns.CHEST[1].name), pct(tb.mrate / 10)))
+		local chance = tb.mrate / 10 * (1 + ns.Bonus("chestChance") / 100)
+		lines[#lines + 1] = U.col("ffffff", string.format("Lv %d %s %s", ns.TBH.BOXES[tb.mbox].lv, ns.N(ns.CHEST[1].name), pct(chance)))
 	end
 	lines[#lines + 1] = U.col("ffd24a", string.format("Lv %d %s %s", ns.TBH.BOXES[tb.bbox].lv, ns.N((stg.raid and ns.CHEST[3] or ns.CHEST[2]).name), pct(tb.brate / 10)))
+	local extra = ns.Bonus("bossChest")
+	if extra > 0 then
+		lines[#lines + 1] = U.col("ffd24a", string.format("한 개 더 %s", pct(extra)))
+	end
 	local lo, hi = ns.Loot.BoxLevels(tb.bbox)
 	if tb.mbox then
 		local mlo, mhi = ns.Loot.BoxLevels(tb.mbox)

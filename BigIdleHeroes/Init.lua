@@ -19,8 +19,10 @@ local function showOffline(r)
 			string.format("자리를 비운 시간: %s", U.time(r.away)),
 			string.format("보상 인정 시간: %s (효율 %d%%)", U.time(r.counted), math.floor(r.eff * 100 + 0.5)),
 			string.format("골드 +%s", U.fmt(r.gold)),
-			string.format("경험치 +%s", U.fmt(r.xp)),
 		}
+		if r.xp >= 1 then
+			lines[#lines + 1] = string.format("경험치 +%s", U.fmt(r.xp))
+		end
 		if r.levels > 0 then
 			lines[#lines + 1] = string.format("영웅 레벨 +%d", r.levels)
 		end

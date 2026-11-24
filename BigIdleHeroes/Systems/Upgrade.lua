@@ -60,9 +60,13 @@ local function made(it, n)
 	return total
 end
 
+local function lockedText()
+	return string.format("%s 난이도를 끝까지(%d 스테이지) 깨면 쓸 수 있습니다.", ns.N(ns.DIFFS[#ns.DIFFS].name), ns.STAGE_COUNT)
+end
+
 -- why an item cannot be enhanced now (nil when it can)
 function Upgrade.Why(it)
-	if not Upgrade.Open() then return "무한의 탑이 열리면 쓸 수 있습니다." end
+	if not Upgrade.Open() then return lockedText() end
 	if not it then return "강화할 장비를 고르세요." end
 	local n = Upgrade.Level(it)
 	if n >= Upgrade.MAX then return "최고 강화 단계입니다." end
@@ -96,7 +100,7 @@ function Upgrade.MoveCost(from, to)
 end
 
 function Upgrade.CanMove(from, to)
-	if not Upgrade.Open() then return false, "무한의 탑이 열리면 쓸 수 있습니다." end
+	if not Upgrade.Open() then return false, lockedText() end
 	if not from or not to or from == to then return false, "옮길 장비가 없습니다." end
 	if from.s ~= to.s then return false, "같은 부위의 장비끼리만 옮길 수 있습니다." end
 	if Upgrade.Level(from) <= Upgrade.Level(to) then return false, "이 장비보다 강화 단계가 높은 장비가 없습니다." end

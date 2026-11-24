@@ -1641,7 +1641,7 @@ function Bar.Create()
 	auto:SetScript("OnClick", function()
 		ns.Sound("click")
 		ns.db.opt.auto = not ns.db.opt.auto
-		if ns.db.opt.auto then ns.db.retry = 0 end
+		ns.db.retry = 0
 		updateInfo()
 		ns.Fire("OPTIONS")
 	end)

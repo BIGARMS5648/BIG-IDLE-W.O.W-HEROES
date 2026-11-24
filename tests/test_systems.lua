@@ -1103,6 +1103,24 @@ r = ns.Offline.Claim(1000 + 31 * 86400)
 check(r and r.expired and r.gold == 0, "a month away pays nothing")
 db.lastSeen = 1000
 check(ns.Offline.Claim(1030) == nil, "less than a minute pays nothing")
+-- a clock set back keeps the later time, so the span is not paid twice
+db.lastSeen = 50000
+check(ns.Offline.Claim(40000) == nil and db.lastSeen == 50000, "an earlier clock pays nothing and keeps the saved time")
+ns.Offline.Stamp(45000)
+check(db.lastSeen == 50000, "a stamp never moves the saved time back")
+-- experience shown is what the heroes took: none at the top level
+do
+	local keep = {}
+	for slot = 1, ns.PARTY_SIZE do
+		local id = db.party[slot]
+		if id and db.heroes[id] then keep[id] = db.heroes[id].level db.heroes[id].level = ns.HERO_MAX_LEVEL end
+	end
+	db.rate = { gold = 10, xp = 10, level = 5 }
+	db.lastSeen = 1000
+	r = ns.Offline.Claim(1060)
+	check(r and r.xp == 0 and r.gold > 0, "heroes at the top level take no offline experience")
+	for id, lv in pairs(keep) do db.heroes[id].level = lv ns.Stats.Invalidate(id) end
+end
 
 ------------------------------------------------------------------------
 section("companions")
@@ -1116,6 +1134,90 @@ check(not db.pets.cat, "the cat waits for its kill count")
 db.kills = { beast = catNeed }
 ns.CheckPets()
 check(db.pets.cat and ns.Bonus("exp") == e0 + 15, "enough beast kills unlock the cat and its bonus")
+
+------------------------------------------------------------------------
+section("stage results: retry, first clears, companions, income")
+do
+	for slot, sid in ipairs({ "WARRIOR_PROT", "MAGE_FIRE", "ROGUE_OUTLAW", "HUNTER_BM", "PRIEST_HOLY" }) do
+		db.party[slot] = bySpec[sid]
+	end
+	ns.Stats.Invalidate()
+	local function untilClear(limit)
+		local c0 = db.stat.clears
+		for _ = 1, limit or 6000 do
+			C.Step()
+			if db.stat.clears > c0 then return true end
+		end
+		return false
+	end
+	-- the retry option turned off while farming: stay on the stage, auto off
+	db.prog = { 10, 0, 0, 0 }
+	db.stage = { diff = 1, idx = 5 }
+	db.opt.auto, db.opt.retry, db.retry = true, false, 3
+	C.StartStage()
+	check(untilClear(), "a farmed stage is cleared")
+	check(db.retry == 0 and not db.opt.auto and db.stage.idx == 5, "retry turned off: the countdown stops and the stage stays")
+	-- the countdown runs out: back up to the stage that was lost
+	db.stage = { diff = 1, idx = 5 }
+	db.opt.auto, db.opt.retry, db.retry = true, true, 1
+	C.StartStage()
+	untilClear()
+	check(db.retry == 0 and db.stage.idx == 6, "the last counted clear goes back up a stage")
+	-- auto off: no countdown starts after a retreat
+	db.opt.auto, db.opt.retreat, db.opt.retry = false, true, true
+	db.prog = { 30, 30, 9, 0 }
+	db.stage = { diff = 3, idx = 10 }
+	local keep = db.party
+	db.party = { false, bySpec.HUNTER_MM, false, false, false }
+	ns.Stats.Invalidate()
+	local w0 = db.stat.wipes
+	C.StartStage()
+	for _ = 1, 3000 do
+		C.Step()
+		if db.stat.wipes > w0 then break end
+	end
+	check(db.stat.wipes > w0 and (db.retry or 0) == 0, "with auto off a retreat starts no retry countdown")
+	db.party = keep
+	ns.Stats.Invalidate()
+
+	-- a first clear with the boss chest storage full counts as a lost chest
+	db.opt.auto, db.retry = false, 0
+	db.prog = { 4, 0, 0, 0 }
+	db.stage = { diff = 1, idx = 5 }
+	db.chests = {}
+	for _ = 1, ns.ChestCap(2) do db.chests[#db.chests + 1] = { t = 2, l = 5, d = 1, box = ns.TBH.STAGES[1][5].bbox } end
+	local lost0 = db.stat.lost or 0
+	C.StartStage()
+	untilClear()
+	check(db.prog[1] == 5 and (db.stat.lost or 0) > lost0, "a first-clear chest that does not fit is counted as lost")
+	db.chests = {}
+
+	-- a companion comes with the kill that completes it, not at the stage's end
+	db.pets = {}
+	db.kills = { beast = catNeed - 1 }
+	db.stage = { diff = 1, idx = 1 }
+	C.StartStage()
+	local c0 = db.stat.clears
+	for _ = 1, 3000 do
+		C.Step()
+		if (db.kills.beast or 0) >= catNeed then break end
+	end
+	check(db.stat.clears == c0 and db.pets.cat, "the cat joins on the kill that reaches its count")
+
+	-- income is measured over real time, game speed included, and kept
+	-- even when no stage has been won
+	local speed = ns.GameSpeed
+	ns.GameSpeed = function() return 1.25 end
+	C.FoldRate(0)
+	local t0 = C.earn.t
+	C.Update(2.0)
+	check(math.abs((C.earn.t - t0) - 2.0) < 0.11, "a faster game still counts real seconds: " .. (C.earn.t - t0))
+	ns.GameSpeed = speed
+	db.rate = { gold = 0, xp = 0 }
+	C.earn.g, C.earn.x, C.earn.t = 3, 2, 10
+	ns.Offline.Stamp(5000)
+	check(db.rate.gold > 0 and math.abs(db.rate.gold - 0.3) < 1e-9, "a kill before the first win already sets the income")
+end
 
 ------------------------------------------------------------------------
 section("save repair and migration")

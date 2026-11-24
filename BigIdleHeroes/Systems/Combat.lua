@@ -281,6 +281,8 @@ local function killReward(m, killer)
 	ns.AddGold(gold)
 	st.gGold = st.gGold + gold
 	st.gXP = st.gXP + m.exp
+	Combat.earn.g = Combat.earn.g + gold
+	Combat.earn.x = Combat.earn.x + m.exp
 
 	local expBonus = ns.Bonus("exp")
 	for i = 1, #heroes do
@@ -296,6 +298,7 @@ local function killReward(m, killer)
 
 	db.kills[m.type] = (db.kills[m.type] or 0) + 1
 	db.stat.kills = db.stat.kills + 1
+	ns.CheckPets()
 
 	-- the stage's TBH boxes: the monster box at its rate each kill (more with
 	-- the chest bonus), the boss box at its rate (an act boss always drops
@@ -1142,23 +1145,47 @@ local function travelTime()
 	return max(0.4, 1.2 / (1 + avg / 100))
 end
 
-local function updateRate()
+-- Income per real second (the offline reward and the map use it): the gold
+-- and experience of kills over the real time spent fighting, whatever the
+-- stages' results, folded into a running average weighted by time.
+local earn = { g = 0, x = 0, t = 0 }
+Combat.earn = earn
+local stepReal = STEP -- real seconds per step at the current game speed
+
+function Combat.FoldRate(minTime)
 	local db = ns.db
-	if st.time < 5 then return end
-	local g, x = st.gGold / st.time, st.gXP / st.time
-	if db.rate.gold <= 0 then
-		db.rate.gold, db.rate.xp = g, x
+	if not db or earn.t < (minTime or 5) then return end
+	local g, x = earn.g / earn.t, earn.x / earn.t
+	local rate = db.rate
+	if (rate.gold or 0) <= 0 then
+		rate.gold, rate.xp = g, x
 	else
-		db.rate.gold = db.rate.gold * 0.7 + g * 0.3
-		db.rate.xp = db.rate.xp * 0.7 + x * 0.3
+		local w = 1 - 0.7 ^ (earn.t / 60)
+		rate.gold = rate.gold * (1 - w) + g * w
+		rate.xp = (rate.xp or 0) * (1 - w) + x * w
 	end
-	db.rate.level = st.level
+	rate.level = st.level or rate.level
+	earn.g, earn.x, earn.t = 0, 0, 0
+end
+
+local function updateRate()
+	Combat.FoldRate(5)
 end
 
 local function nextAfterVictory()
 	local db = ns.db
-	if not db.opt.auto then return end
+	if not db.opt.auto then
+		db.retry = 0
+		return
+	end
 	if (db.retry or 0) > 0 then
+		if not db.opt.retry then
+			-- the option was turned off while farming: keep farming this stage
+			db.retry = 0
+			db.opt.auto = false
+			ns.Fire("OPTIONS")
+			return
+		end
 		-- farming after a failed push: count clears, then try again
 		db.retry = db.retry - 1
 		if db.retry > 0 then return end
@@ -1183,7 +1210,9 @@ local function victory()
 		local bonus = floor(ns.MobGold(40, st.level))
 		ns.AddGold(bonus)
 		local tb = ns.TBH.STAGES[st.diff][st.idx]
-		local got = ns.Loot.AddChest(st.raid and 3 or 2, st.level, st.diff, tb.bbox)
+		local chest = st.raid and 3 or 2
+		local got = ns.Loot.AddChest(chest, st.level, st.diff, tb.bbox)
+		if not got then ns.Loot.Lost(chest, true) end
 		ns.Toast(string.format("첫 공략! %s (+%s 골드, %s)",
 			ns.StageLabel(st.diff, st.idx), U.fmt(bonus), got and "궤짝 1개" or "궤짝 보관함이 가득 차 궤짝을 받지 못함"))
 		if st.idx == ns.STAGE_COUNT and st.diff < #ns.DIFFS then
@@ -1202,6 +1231,7 @@ local function defeat()
 	st.result = "lose"
 	st.timer = 2.5
 	db.stat.wipes = db.stat.wipes + 1
+	updateRate()
 	local label = ns.StageLabel(st.diff, st.idx)
 	if db.opt.retreat and (db.stage.idx > 1 or db.stage.diff > 1) then
 		if db.stage.idx > 1 then
@@ -1210,7 +1240,7 @@ local function defeat()
 			db.stage.diff = db.stage.diff - 1
 			db.stage.idx = ns.STAGE_COUNT
 		end
-		if db.opt.retry then
+		if db.opt.retry and db.opt.auto then
 			db.retry = 8
 			ns.Toast(string.format("%s 공략 실패. 힘을 기른 뒤 다시 도전합니다.", label))
 		else
@@ -1256,6 +1286,8 @@ function Combat.Step()
 	end
 	if Combat.dirty then recalcAll() end
 	st.time = st.time + STEP
+	earn.t = earn.t + stepReal
+	if earn.t >= 60 then Combat.FoldRate(60) end
 
 	if st.phase == "travel" then
 		st.timer = st.timer - STEP
@@ -1312,7 +1344,9 @@ end
 -- Called every frame with real elapsed seconds.
 local acc = 0
 function Combat.Update(elapsed)
-	acc = acc + elapsed * ns.GameSpeed()
+	local speed = ns.GameSpeed()
+	stepReal = STEP / speed
+	acc = acc + elapsed * speed
 	if acc > 3 then acc = 3 end
 	while acc >= STEP do
 		acc = acc - STEP
@@ -1330,6 +1364,7 @@ ns.On("STATS", function() Combat.dirty = true end)
 ns.On("SKILLS", function() Combat.dirty = true end)
 ns.On("RESET", function()
 	st.phase = "idle"
+	earn.g, earn.x, earn.t = 0, 0, 0
 	wipe(heroes)
 	wipe(mobs)
 	wipe(fields)

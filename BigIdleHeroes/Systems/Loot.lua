@@ -98,9 +98,10 @@ end
 -- A chest dropped while its storage was full: counted, and the player is told
 -- (at most once a minute per chest type) so it never vanishes unnoticed.
 local lostWarned = {}
-function Loot.Lost(chestType)
+function Loot.Lost(chestType, quiet)
 	local db = ns.db
 	db.stat.lost = (db.stat.lost or 0) + 1
+	if quiet then return end
 	local now = GetTime and GetTime() or 0
 	if not lostWarned[chestType] or now - lostWarned[chestType] > 60 then
 		lostWarned[chestType] = now

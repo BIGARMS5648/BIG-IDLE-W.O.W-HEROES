@@ -24,8 +24,10 @@ end
 function Offline.Claim(now)
 	local db = ns.db
 	local last = db.lastSeen
+	-- a clock set back: keep the later time so the same span is never paid twice
+	if last and now < last then return nil end
 	db.lastSeen = now
-	if not last or now <= last then return nil end
+	if not last or now == last then return nil end
 	local away = now - last
 	if away < 60 then return nil end
 	if away >= Offline.MAX_AWAY then
@@ -46,8 +48,9 @@ function Offline.Claim(now)
 		if id and db.heroes[id] then
 			local s = ns.Stats.Get(id)
 			local amount = baseXP * (1 + (expBonus + (s.exp or 0)) / 100) * ns.Heroes.XPFactor(db.heroes[id].level, stageLevel)
-			xpTotal = xpTotal + amount
-			levels = levels + ns.Heroes.AddXP(id, amount)
+			local gained, used = ns.Heroes.AddXP(id, amount)
+			xpTotal = xpTotal + used
+			levels = levels + gained
 		end
 	end
 	ns.AddGold(gold)
@@ -55,5 +58,8 @@ function Offline.Claim(now)
 end
 
 function Offline.Stamp(now)
-	if ns.db then ns.db.lastSeen = now end
+	local db = ns.db
+	if not db then return end
+	if ns.Combat and ns.Combat.FoldRate then ns.Combat.FoldRate(1) end
+	if not db.lastSeen or now > db.lastSeen then db.lastSeen = now end
 end

@@ -213,15 +213,17 @@ end
 ------------------------------------------------------------------------
 -- Experience
 ------------------------------------------------------------------------
+-- Returns the levels gained and the experience the hero actually took (none
+-- at the top level, and not what spills over on reaching it).
 function Heroes.AddXP(id, amount)
 	local h = ns.db.heroes[id]
-	if not h or amount <= 0 then return 0 end
+	if not h or amount <= 0 then return 0, 0 end
 	if h.level >= ns.HERO_MAX_LEVEL then
 		h.xp = 0
-		return 0
+		return 0, 0
 	end
 	h.xp = h.xp + amount
-	local gained = 0
+	local gained, used = 0, amount
 	while h.level < ns.HERO_MAX_LEVEL do
 		local need = ns.XPForLevel(h.level)
 		if h.xp < need then break end
@@ -229,12 +231,15 @@ function Heroes.AddXP(id, amount)
 		h.level = h.level + 1
 		gained = gained + 1
 	end
-	if h.level >= ns.HERO_MAX_LEVEL then h.xp = 0 end
+	if h.level >= ns.HERO_MAX_LEVEL then
+		used = amount - h.xp
+		h.xp = 0
+	end
 	if gained > 0 then
 		ns.Stats.Invalidate(id)
 		ns.Fire("LEVEL", id, h.level)
 	end
-	return gained
+	return gained, used
 end
 
 -- Experience is the monster's (TBH: no cut for heroes above the stage); a

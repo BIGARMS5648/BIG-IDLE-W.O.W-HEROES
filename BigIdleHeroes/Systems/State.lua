@@ -332,7 +332,7 @@ function ns.AddGold(n)
 	ns.Fire("GOLD")
 end
 
--- The endless tower opens once the last difficulty is cleared to its end.
+-- The endgame (enhancement) opens once the last difficulty is cleared to its end.
 function ns.TowerOpen()
 	local prog = ns.db and ns.db.prog
 	return prog ~= nil and (prog[#ns.DIFFS] or 0) >= ns.STAGE_COUNT
