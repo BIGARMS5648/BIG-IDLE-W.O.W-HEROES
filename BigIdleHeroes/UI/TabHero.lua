@@ -709,4 +709,5 @@ Main.RegisterTab({
 	key = "hero", title = "영웅", sub = "영웅, 능력치, 기술, 특성",
 	icon = "INV_Helmet_06", art = "icon_hero", build = build, refresh = refresh, open = open, tick = tick,
 	events = { "HEROES", "PARTY", "LEVEL", "TREE", "SKILLS", "GEAR", "STATS", "RUNES", "RESET", "FACTION" },
+	gold = true,
 })

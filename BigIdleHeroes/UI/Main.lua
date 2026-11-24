@@ -35,12 +35,24 @@ local dirty = {}
 ------------------------------------------------------------------------
 -- def: { key, title, sub, icon, art (imported icon id), build(page), refresh(page),
 --        open(page, opts) optional, tick(page) optional, events = { ... },
+--        gold = true to refresh (at most once a second) as the gold changes,
 --        nav = false to keep it off the bottom bar }
+local goldT = {}
 function Main.RegisterTab(def)
 	tabs[#tabs + 1] = def
 	tabByKey[def.key] = def
 	for _, ev in ipairs(def.events or {}) do
 		ns.On(ev, function() Main.MarkDirty(def.key) end)
+	end
+	if def.gold then
+		-- buttons that cost gold turn on as soon as it is there
+		ns.On("GOLD", function()
+			local now = GetTime and GetTime() or 0
+			if now - (goldT[def.key] or -1) >= 1 then
+				goldT[def.key] = now
+				Main.MarkDirty(def.key)
+			end
+		end)
 	end
 end
 

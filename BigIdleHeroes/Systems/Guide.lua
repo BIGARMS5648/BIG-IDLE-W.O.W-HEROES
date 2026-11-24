@@ -28,7 +28,7 @@ function Guide.UpgradeHeroes()
 	for _, id in ipairs(partyHeroes()) do
 		for _, it in ipairs(ns.db.bag) do
 			local r = ns.Items.Compare(id, it)
-			if r and r > 1.01 then
+			if r and r > ns.Items.UPGRADE then
 				upHeroes[id] = true
 				break
 			end

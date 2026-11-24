@@ -166,9 +166,15 @@ local function buildLeft(page)
 		local id = heroOf()
 		if not id then return end
 		if not next(ns.db.heroes[id].gear) then UI.Try(false, "착용한 장비가 없습니다.") return end
-		if ns.Items.BagFree() <= 0 then UI.Try(false, "가방이 가득 찼습니다. 벗긴 장비를 넣을 자리가 없습니다.") return end
+		-- every piece needs a bag slot: all of them come off, or none
+		local worn = 0
+		for _ in pairs(ns.db.heroes[id].gear) do worn = worn + 1 end
+		if ns.Items.BagFree() < worn then
+			UI.Try(false, string.format("가방 빈칸이 %d개 필요합니다 (지금 %d개).", worn, ns.Items.BagFree()))
+			return
+		end
 		UI.Confirm({ title = "전체 해제", ok = "해제", style = "red",
-			text = string.format("%s의 장비를 모두 벗기시겠습니까?\n벗긴 장비는 가방으로 갑니다 (가방 빈칸 %d개).", H.Name(id), ns.Items.BagFree()),
+			text = string.format("%s의 장비 %d개를 모두 벗기시겠습니까?\n벗긴 장비는 가방으로 갑니다.", H.Name(id), worn),
 			onOk = function()
 				local n = 0
 				for _, slot in ipairs(ns.SLOTS) do
@@ -233,7 +239,7 @@ local function refreshLeft(page)
 			b.empty:Show()
 		end
 		local r = bestFor(id, slot)
-		local better = r and r > 1.01
+		local better = r and r > ns.Items.UPGRADE
 		if better then ups = ups + 1 end
 		b.up:SetText(better and "+" or "")
 	end

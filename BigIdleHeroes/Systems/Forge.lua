@@ -212,11 +212,21 @@ function Forge.Fuse(items)
 end
 
 -- Nine unlocked bag items of a quality / category, lowest level first.
+-- Why a bag item is kept out of fusion, or nil when it can be fused. The
+-- fusion screen counts and marks items with this too.
+function Forge.FuseBlock(it)
+	if it.lock then return "보호한 장비는 쓰지 않습니다." end
+	if it.up then return "강화한 장비는 쓰지 않습니다." end
+	if ns.Items.HasSockets(it) then return "보석·마법부여·각인이 붙은 장비는 쓰지 않습니다." end
+	if ns.Items.PartyUpgrade(it) then return "파티에게 더 좋은 장비라 쓰지 않습니다." end
+	if ns.Items.FutureUpgrade(it) then return "영웅이 레벨을 올리면 낄 더 좋은 장비라 쓰지 않습니다." end
+	return nil
+end
+
 function Forge.PickForFusion(quality, cat)
 	local pool = {}
 	for _, it in ipairs(ns.db.bag) do
-		if not it.lock and not it.up and it.q == quality and ns.Items.FuseCat(it) == cat and not ns.Items.HasSockets(it)
-			and not ns.Items.PartyUpgrade(it) and not ns.Items.FutureUpgrade(it) then
+		if it.q == quality and ns.Items.FuseCat(it) == cat and not Forge.FuseBlock(it) then
 			pool[#pool + 1] = it
 		end
 	end
@@ -375,7 +385,7 @@ function Forge.Craft(group, tier)
 	ns.SpendGold(gold)
 	local d = ns.CRAFT_TIERS[tier]
 	local g = ns.CRAFT_GROUPS[group]
-	local level = random(d.lo, d.hi)
+	local level = d.levels[random(#d.levels)]
 	local q = U.weightedIndex(d.q)
 	local it = ns.Items.New(U.pick(g.slots), level, q)
 	ns.Items.AddToBag(it)

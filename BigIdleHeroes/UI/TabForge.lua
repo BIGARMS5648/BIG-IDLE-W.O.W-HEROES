@@ -113,8 +113,7 @@ local function buildFuse(page, f)
 	local function usableCount(q)
 		local n = 0
 		for _, it in ipairs(ns.db.bag) do
-			if it.q == q and ns.Items.FuseCat(it) == p.cat and not it.lock and not it.up and not ns.Items.HasSockets(it)
-				and not ns.Items.PartyUpgrade(it) then n = n + 1 end
+			if it.q == q and ns.Items.FuseCat(it) == p.cat and not ns.Forge.FuseBlock(it) then n = n + 1 end
 		end
 		return n
 	end
@@ -193,7 +192,7 @@ local function buildFuse(page, f)
 	p.all:SetPoint("LEFT", p.one, "RIGHT", 8, 0)
 	p.all.clickWhenOff = true
 	p.result = addResult(f, 372, -326)
-	p.note = note(f, -384, "같은 등급 장비 9개 → 장비 1개. 가장 낮은 레벨부터 쓰고, 보호한 장비(가방에서 Alt+클릭), 보석·마법부여·각인이 붙은 장비, 파티에게 더 좋은 장비는 쓰지 않습니다. 결과의 레벨은 재료의 평균 부근, 부위는 같은 종류 안에서 무작위입니다.")
+	p.note = note(f, -384, "같은 등급 장비 9개 → 장비 1개. 가장 낮은 레벨부터 쓰고, 보호한 장비(가방에서 Alt+클릭), 보석·마법부여·각인이 붙은 장비, 파티에게 지금 또는 레벨을 올리면 더 좋은 장비는 쓰지 않습니다. 결과의 레벨은 재료의 평균 부근, 부위는 같은 종류 안에서 무작위입니다.")
 	p.refresh = function()
 		p.pick:Refresh()
 		p.kinds:Select(p.cat)
@@ -205,7 +204,7 @@ local function buildFuse(page, f)
 		for _, it in ipairs(ns.db.bag) do
 			if it.q == p.q and ns.Items.FuseCat(it) == p.cat then
 				list[#list + 1] = it
-				if not it.lock and not it.up and not ns.Items.HasSockets(it) and not ns.Items.PartyUpgrade(it) then usable = usable + 1 end
+				if not ns.Forge.FuseBlock(it) then usable = usable + 1 end
 			end
 		end
 		local kindName = p.cat == "gear" and "무기·방어구" or "액세서리"
@@ -221,10 +220,7 @@ local function buildFuse(page, f)
 				b:SetCount(ns.Upgrade.Text(it))
 				b:SetLocked(it.lock)
 				b:SetSelected(used[it] == true)
-				if it.lock then b.why = "보호한 장비는 쓰지 않습니다."
-				elseif it.up then b.why = "강화한 장비는 쓰지 않습니다."
-				elseif ns.Items.HasSockets(it) then b.why = "보석·마법부여·각인이 붙은 장비는 쓰지 않습니다."
-				elseif ns.Items.PartyUpgrade(it) then b.why = "파티에게 더 좋은 장비라 쓰지 않습니다." end
+				b.why = ns.Forge.FuseBlock(it)
 				b:SetDim(b.why ~= nil)
 			end
 		end
@@ -310,7 +306,7 @@ local function buildCraft(page, f)
 		for i, row in ipairs(p.tiers) do
 			local t = ns.CRAFT_TIERS[i]
 			local open = ns.Forge.CraftTierUnlocked(i)
-			row.title:SetText(string.format("%d단계  ·  장비 Lv %d~%d", i, t.lo, t.hi))
+			row.title:SetText(string.format("%d단계  ·  장비 Lv %s", i, table.concat(t.levels, "·")))
 			if open then
 				row.sub:SetText(U.col("60e070", "열림"))
 			elseif ns.db.forge.level >= t.forge then
@@ -837,8 +833,7 @@ local function buildSmelt(page, f)
 			UI.Try(false, "분해 등급 이하인 장비가 없습니다. 등급을 올려 보세요.")
 			return
 		end
-		local total = 0
-		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
+		local total = ns.Items.SmeltGoldOf(picked)
 		local q = ns.QUALITY[smeltQ()]
 		UI.Confirm({ title = "일괄 분해", ok = "분해", style = "red",
 			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다.", U.col(q.hex, ns.N(q.name)), #picked, U.fmt(total)),
@@ -858,9 +853,9 @@ local function buildSmelt(page, f)
 	p.total:SetWordWrap(false)
 	p.refresh = function()
 		p.pick:Refresh()
+		p.auto:Refresh() -- (the bag's 자동 분해 sets the same option)
 		local picked, kept = ns.Forge.PickByQuality(smeltQ())
-		local total = 0
-		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
+		local total = ns.Items.SmeltGoldOf(picked)
 		p.head:Set("분해할 장비", string.format("%d개%s", #picked, kept > 0 and string.format(" · 파티에게 더 좋은 장비 %d개는 남김", kept) or ""))
 		for i, b in ipairs(p.cells) do
 			local it = picked[i]

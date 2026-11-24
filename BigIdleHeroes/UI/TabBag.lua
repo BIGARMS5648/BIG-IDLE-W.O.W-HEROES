@@ -243,8 +243,7 @@ function BagView.Build(page, f)
 			UI.Try(false, "분해 등급 이하인 장비가 없습니다. 등급을 올려 보세요.")
 			return
 		end
-		local total = 0
-		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
+		local total = ns.Items.SmeltGoldOf(picked)
 		local q = ns.QUALITY[smeltQ()]
 		UI.Confirm({ title = "일괄 분해", ok = "분해", style = "red",
 			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다. 보호한 장비, 보석·마법부여·각인이 붙은 장비, 파티에게 더 좋은 장비%s는 남깁니다.",
@@ -258,8 +257,7 @@ function BagView.Build(page, f)
 	page.smeltGo.clickWhenOff = true
 	UI.Tip(page.smeltGo, function()
 		local picked, kept = ns.Forge.PickByQuality(smeltQ())
-		local total = 0
-		for _, it in ipairs(picked) do total = total + ns.Items.SmeltGold(it) end
+		local total = ns.Items.SmeltGoldOf(picked)
 		local body = string.format("분해 등급 이하의 장비 %d개를 골드로 바꿉니다 (+%s 골드). 보호한 장비, 보석·마법부여·각인이 붙은 장비, 파티에게 더 좋은 장비는 남깁니다.", #picked, U.fmt(total))
 		if kept > 0 then body = body .. string.format("\n(파티에게 더 좋은 장비 %d개는 남김)", kept) end
 		return UI.SimpleTip("일괄 분해", body)
@@ -317,7 +315,7 @@ function BagView.Refresh(page)
 				b:SetDim(not usable)
 				if usable then
 					local r = ns.Items.Compare(sel, it)
-					if r and r > 1.01 then b:SetMark("+", 0.4, 1, 0.45) end
+					if r and r > ns.Items.UPGRADE then b:SetMark("+", 0.4, 1, 0.45) end
 				end
 			end
 		end
@@ -438,7 +436,8 @@ function MatsView.Build(page, f)
 			if count <= 0 then UI.Try(false, "분해할 재료가 없습니다.") return end
 			UI.Confirm({ title = "재료 분해", ok = "분해", style = "red",
 				text = string.format("%s %s개를 모두 분해하시겠습니까?\n%s 골드를 받습니다.", ns.N(ns.MATS[id].name), U.fmt(count), U.fmt(ns.Forge.MatSmeltGold(id, count))),
-				onOk = function() UI.Try(ns.Forge.SmeltMat(id, ns.MatCount(id))) end })
+				-- as many as the question named (more may have come in meanwhile)
+				onOk = function() UI.Try(ns.Forge.SmeltMat(id, math.min(count, ns.MatCount(id)))) end })
 		end, "red")
 		r.smelt:SetPoint("TOPRIGHT", r, "TOPRIGHT", -8, -7)
 		r.smelt.clickWhenOff = true
@@ -480,7 +479,7 @@ function MatsView.Build(page, f)
 			for q = 1, ns.MAX_QUALITY do
 				if (s.q[q] or 0) > 0 then parts[#parts + 1] = U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name) .. " " .. s.q[q] .. "%") end
 			end
-			local body = "인장 1개와 골드로 장비를 하나 얻습니다. 레벨은 지금까지 간 가장 높은 스테이지를 따르되, 파티에서 레벨이 가장 높은 영웅이 낄 수 있는 데까지입니다.\n" .. table.concat(parts, "  ")
+			local body = "인장 1개와 골드로 장비를 하나 얻습니다. 레벨은 지금까지 간 가장 높은 스테이지를 따릅니다. 영웅보다 레벨이 높은 장비는 영웅이 그 레벨이 될 때까지 가방에 남겨 둡니다.\n" .. table.concat(parts, "  ")
 			if not ns.Forge.Unlocked("seal") then
 				body = body .. "\n" .. U.col("ff9a7a", Unlock.Tip("seal"))
 			elseif ns.MatCount(s.mat) <= 0 then

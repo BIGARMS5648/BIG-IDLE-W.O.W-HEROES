@@ -302,9 +302,13 @@ local function refreshSide(page)
 		if a.q ~= b.q then return a.q > b.q end
 		return a.l > b.l
 	end)
-	-- the target stays while it can be used; else the first piece there is
+	-- the target stays while it is one of the pieces shown (the selected
+	-- hero's or the bag's) and can be used; else the first piece there is
 	local t = ns.ForgeView.Target()
-	if not (t and accepts(t)) then
+	local shown = false
+	for _, it in ipairs(worn) do if it == t then shown = true end end
+	for _, it in ipairs(bag) do if it == t then shown = true end end
+	if not (t and shown and accepts(t)) then
 		if worn[1] then ns.ForgeView.SetTarget(worn[1], id) elseif bag[1] then ns.ForgeView.SetTarget(bag[1], nil) else ns.ForgeView.SetTarget(nil, nil) end
 	end
 	for i, b in ipairs(page.worn) do
@@ -374,4 +378,5 @@ Main.RegisterTab({
 	key = "forge", title = "용광로", sub = "융합, 제작, 보석, 강화, 분해, 재료",
 	icon = "Trade_BlackSmithing", build = build, refresh = refresh, open = open,
 	events = { "HEROES", "PARTY", "LEVEL", "GEAR", "BAG", "MATS", "STATS", "FORGE", "RESET", "PROGRESS" },
+	gold = true,
 })

@@ -515,14 +515,27 @@ function Items.SmeltGold(it)
 	return floor(Items.Value(it) * (1 + ns.Bonus("smeltGold") / 100))
 end
 
--- The party hero this bag item would improve the most (ratio > 1.01), if any.
+-- What breaking several down at once pays (the bonus on the sum, as
+-- Forge.Smelt pays it).
+function Items.SmeltGoldOf(items)
+	local v = 0
+	for i = 1, #items do v = v + Items.Value(items[i]) end
+	return floor(v * (1 + ns.Bonus("smeltGold") / 100))
+end
+
+-- How much better (as a ratio of the power score) a piece must be to count
+-- as an upgrade: auto-equip, the "+" marks, protection from breaking down
+-- and fusion, and the hints all use this one number.
+Items.UPGRADE = 1.01
+
+-- The party hero this bag item would improve the most, if any.
 function Items.PartyUpgrade(it)
 	local best, bestR
 	for i = 1, ns.PARTY_SIZE do
 		local id = ns.db.party[i]
 		if id and ns.db.heroes[id] then
 			local r = Items.Compare(id, it)
-			if r and r > 1.01 and (not bestR or r > bestR) then best, bestR = id, r end
+			if r and r > Items.UPGRADE and (not bestR or r > bestR) then best, bestR = id, r end
 		end
 	end
 	return best, bestR
@@ -539,7 +552,7 @@ function Items.FutureUpgrade(it)
 		local h = id and ns.db.heroes[id]
 		if h and h.level < Items.ReqLevel(it) and Items.CanUse(id, it) then
 			local r = Items.Compare(id, it, true)
-			if r and r > 1.01 then
+			if r and r > Items.UPGRADE then
 				local better = false
 				for _, o in ipairs(bag) do
 					if o ~= it and o.s == it.s and h.level < Items.ReqLevel(o) and Items.CanUse(id, o) then
@@ -578,7 +591,7 @@ function Items.AutoEquip(heroId)
 	for _ = 1, 3 do -- a few passes because percent stats interact
 		local any = false
 		for _, slot in ipairs(ns.SLOTS) do
-			local bestIndex, bestRatio = nil, 1.002
+			local bestIndex, bestRatio = nil, Items.UPGRADE
 			for i = 1, #db.bag do
 				local it = db.bag[i]
 				if it.s == slot then
