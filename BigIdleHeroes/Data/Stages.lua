@@ -423,15 +423,17 @@ function ns.StageLabel(diff, idx)
 	return string.format("%d-%d %s", act, n, ns.N(ns.STAGES[diff][idx].name))
 end
 
--- A stage's monsters are TBH's (waves x per wave): as many in all, at most
--- MAX_WAVE_MOBS at once (the battle's room), then the boss alone.
-ns.MAX_WAVE_MOBS = 12
+-- A stage's monsters are TBH's (waves x per wave): as many in all, but at
+-- most WAVE_CAP[difficulty] at once (what a fight here is built for), then
+-- the boss alone.
+ns.WAVE_CAP = { 4, 5, 6, 7 }
+ns.MAX_WAVE_MOBS = 7
 function ns.StageKills(diff, idx)
 	local t = ns.TBH.STAGES[diff][idx]
 	return t.waves * t.per
 end
 function ns.MobsPerWave(diff, idx)
-	return math.min(ns.MAX_WAVE_MOBS, ns.TBH.STAGES[diff][idx].per)
+	return math.min(ns.WAVE_CAP[diff] or ns.MAX_WAVE_MOBS, ns.TBH.STAGES[diff][idx].per)
 end
 -- every wave, the boss's last
 function ns.StageWaves(diff, idx)
