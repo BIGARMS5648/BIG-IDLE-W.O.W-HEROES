@@ -854,6 +854,8 @@ local function spellFx(u, fx, to)
 				ms.x0, ms.y0 = hand(cfig, dir)
 				ms.tfig, ms.fx, ms.t, ms.active = tfig, fx, 0, true
 				fxStats.missiles, fxStats.lastMissile = fxStats.missiles + 1, fx.missile
+				fxStats.seen = fxStats.seen or {}
+				fxStats.seen[fx.missile] = fxStats.missiles
 			else
 				-- straight on the target (on the caster itself: its own way)
 				pendingHits[#pendingHits + 1] = { t = FX_HIT_DELAY, fig = tfig, fx = t == u and { hit = fx.hit, low = fx.low, own = true } or fx }

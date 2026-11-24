@@ -1184,7 +1184,9 @@ do
 				local before = ns.Bar.fxStats.missiles
 				ns.Combat.vfx[#ns.Combat.vfx + 1] = { k = "shot", u = hu, to = { mob } }
 				frames(5)
-				if ns.Bar.fxStats.missiles <= before or ns.Bar.fxStats.lastMissile ~= shot.missile then
+				-- (a skill's missile may fly in the same frames)
+				local seen = ns.Bar.fxStats.seen or {}
+				if ns.Bar.fxStats.missiles <= before or (seen[shot.missile] or 0) <= before then
 					fail("a hunter's basic attack should fly its arrow to the target: " .. tostring(ns.Bar.fxStats.lastMissile))
 				end
 			else
