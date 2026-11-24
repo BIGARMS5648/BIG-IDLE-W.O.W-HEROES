@@ -354,7 +354,7 @@ local function drawHeroes(now)
 		if x and (not minX or x < minX) then minX = x end
 		if x and not list[i].dead and (not maxX or x > maxX) then maxX = x end
 	end
-	-- summoned creatures (only as 3D models): one that shoots stands beside its
+	-- summoned creatures (3D models, else their skill's icon): one that shoots stands beside its
 	-- summoner; one that fights up close walks beside its summoner too, and
 	-- goes up to the front by the monsters (as the melee heroes do) while the
 	-- party fights, walking there and back as fast as its summoner does (up at
@@ -366,14 +366,19 @@ local function drawHeroes(now)
 		local u = list[i]
 		if not u.dead and spread[i] then
 			for sid, pt in pairs(u.pets) do
-				local mid = Figure.ForSkill(sid)
-				if mid and k < #frame.summons then
+				if ns.SKILLS[sid] and k < #frame.summons then
 					k = k + 1
+					local mid = Figure.ForSkill(sid)
 					local sp = pickFigure(frame.summons[k], mid)
-					if sp then
-						-- the hunter's pet a little smaller than a druid's cat; the rest small
-						local tall = SUMMON_SIZE[sid] and HERO_FIG * Bar.CatScale() * SUMMON_SIZE[sid] or BACK_FIG
-						if sp.height ~= tall then sp:SetHeight2(tall) end
+					local icon = frame.summonIcons[k]
+					-- the model, or its icon in its place (the walking state is kept on either)
+					local holder = sp or icon
+					do
+						if sp then
+							-- the hunter's pet a little smaller than a druid's cat; the rest small
+							local tall = SUMMON_SIZE[sid] and HERO_FIG * Bar.CatScale() * SUMMON_SIZE[sid] or BACK_FIG
+							if sp.height ~= tall then sp:SetHeight2(tall) end
+						end
 						local x
 						local own = heroFrames[i].drawX or spread[i]
 						if ns.SKILLS[sid].ranged then
@@ -384,22 +389,35 @@ local function drawHeroes(now)
 							local target = fighting and (maxX or own) + UNIT / 2 + 22 + (front - 1) * 16
 								or own + UNIT / 2 + 20 + (front - 1) * 14
 							-- walks from where it is to its place (a new summon starts by its summoner)
-							if sp.summonFor ~= u.id .. sid or not sp.sx then
-								sp.summonFor, sp.sx = u.id .. sid, own + UNIT / 2 + 20
+							local h = holder
+							if h.summonFor ~= u.id .. sid or not h.sx then
+								h.summonFor, h.sx = u.id .. sid, own + UNIT / 2 + 20
 							end
-							local pace = laneX(ns.Combat.HeroSpeed(u)) * (target < sp.sx and ns.Combat.BACK_PACE or 1)
+							local pace = laneX(ns.Combat.HeroSpeed(u)) * (target < h.sx and ns.Combat.BACK_PACE or 1)
 							local step = pace * dt
-							if math.abs(target - sp.sx) <= step then sp.sx = target
-							else sp.sx = sp.sx + (target > sp.sx and step or -step) end
-							sp.going = sp.sx ~= target
-							x = sp.sx
+							if math.abs(target - h.sx) <= step then h.sx = target
+							else h.sx = h.sx + (target > h.sx and step or -step) end
+							h.going = h.sx ~= target
+							x = h.sx
 						end
-						local want = (pt.anim or 0) > 0 and "attack"
-							or ((phase == "travel" or sp.going) and "walk" or "idle")
-						animate(sp, want)
-						sp:SetFacing("right")
-						sp:PlaceFeet(frame.scene, x, FEET + 2)
-						sp:Show()
+						if sp then
+							local want = (pt.anim or 0) > 0 and "attack"
+								or ((phase == "travel" or sp.going) and "walk" or "idle")
+							animate(sp, want)
+							sp:SetFacing("right")
+							sp:PlaceFeet(frame.scene, x, FEET + 2)
+							sp:Show()
+						end
+						if sp and sp:IsLoaded() then
+							icon:Hide()
+						else
+							if icon.shownSkill ~= sid then
+								icon.shownSkill = sid
+								UI.SetIcon(icon.icon, ns.SKILLS[sid].icon)
+							end
+							place(icon, x - 10, FEET + 2)
+							icon:Show()
+						end
 					end
 				end
 			end
@@ -407,6 +425,7 @@ local function drawHeroes(now)
 	end
 	for i = k + 1, #frame.summons do
 		if frame.summons[i] then frame.summons[i]:Hide() end
+		if frame.summonIcons[i] then frame.summonIcons[i]:Hide() end
 	end
 	-- the companion: the very back, behind the whole party
 	local function behind(w)
@@ -977,7 +996,7 @@ Bar.missiles, Bar.hits, Bar.fxStats, Bar.FX_ROOM = missiles, hits, fxStats, FX_R
 function Bar.Scene() return frame and frame.scene end
 Bar.FIG = { hero = HERO_FIG, mob = MOB_FIG, back = BACK_FIG, pet = PET_FIG, scale = FIG_SCALE }
 Bar.GOAL = { w = GOAL_W, textX = GOAL_TEXT_X, textW = GOAL_TEXT_W }
-function Bar.Summons() return frame and frame.summons, frame and frame.petModel end
+function Bar.Summons() return frame and frame.summons, frame and frame.petModel, frame and frame.summonIcons end
 
 ------------------------------------------------------------------------
 -- Scenery: the stage's own terrain models (Data/Scenery.lua) in three rows
@@ -1062,11 +1081,14 @@ local function drawGround()
 end
 
 -- the scenery's own dice (math.random is the fights' own, left alone)
+-- the scenery's own numbers (the fight's chances are not touched): the
+-- minimal standard generator, exact in a double, its high part for a choice
 local seed = 20240611
 local function rnd(n)
-	seed = (seed * 1103515245 + 12345) % 2147483648
-	if n then return seed % n + 1 end
-	return seed / 2147483648
+	seed = (seed * 16807) % 2147483647
+	local u = (seed - 1) / 2147483646
+	if n then return math.min(n, floor(u * n) + 1) end
+	return u
 end
 local WALK_PX = 90             -- how fast the ground goes by while the party walks (pixels a second)
 local SPAN_PAD = 90            -- room past each side of the scene where a model turns round
@@ -1508,8 +1530,16 @@ function Bar.Create()
 	frame.pet.icon:SetAllPoints(frame.pet)
 	frame.pet:Hide()
 	frame.petModel = Figure.New(units, PET_FIG)
-	frame.summons = {}
-	for i = 1, 8 do frame.summons[i] = Figure.New(units, BACK_FIG) end
+	frame.summons, frame.summonIcons = {}, {}
+	for i = 1, 8 do
+		frame.summons[i] = Figure.New(units, BACK_FIG)
+		local ic = CreateFrame("Frame", nil, units)
+		ic:SetSize(20, 20)
+		ic.icon = ic:CreateTexture(nil, "ARTWORK")
+		ic.icon:SetAllPoints(ic)
+		ic:Hide()
+		frame.summonIcons[i] = ic
+	end
 
 	-- everything drawn above the units lives on an overlay layer
 	local over = CreateFrame("Frame", nil, scene)

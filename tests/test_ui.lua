@@ -591,6 +591,12 @@ do
 		press("roll", s.roll)
 		if #ns.db.bag ~= before + 1 then fail("rolling a seal should add one item") end
 	end
+	-- on 인장 굴리기 the other material tabs can be picked
+	Main.ShowTab("forge", { sub = "seal" })
+	local fp = Main.Page("forge")
+	if fp.matTab ~= "mat_seal" then fail("인장 굴리기 should open on the seals") end
+	click("craft materials tab", labelIs("제작 재료"))
+	if fp.matTab ~= "mat_craft" or fp.func ~= "mats" then fail("picking another tab on 인장 굴리기 should show those materials: " .. tostring(fp.matTab) .. " " .. tostring(fp.func)) end
 	hoverAll()
 end
 
@@ -1135,7 +1141,7 @@ do
 		local m = f.model
 		if f:IsShown() and m and m:IsShown() then
 			mShown = mShown + 1
-			if math.abs((m.actor.__yaw or 0) - math.pi / 2) > 1e-6 then fail("monster models should face the heroes (left)") end
+			if m:IsLoaded() and math.abs((m.actor.__yaw or 0) - math.pi / 2) > 1e-6 then fail("monster models should face the heroes (left)") end
 		end
 	end
 	if hShown == 0 then fail("the heroes in battle should be 3D models") end
@@ -1691,6 +1697,23 @@ do
 	ns.db.opt.models = false
 	frames(2)
 	for _, f in ipairs(heroes) do if f.model and f.model:IsShown() then fail("models should hide when turned off") break end end
+	-- a summon with the models off: its skill's icon in its place
+	do
+		local u
+		for _, h in ipairs(ns.Combat.heroes) do if not h.dead then u = h break end end
+		if u then
+			local keep = u.pets
+			u.pets = { call_pet = { sk = ns.SKILLS.call_pet, mult = 0.5, t = 1, anim = 0 } }
+			ns.Bar.DrawHeroes()
+			local summons, _, icons = ns.Bar.Summons()
+			local shown = 0
+			for _, ic in ipairs(icons or {}) do if ic:IsShown() then shown = shown + 1 end end
+			if shown ~= 1 then fail("with 3D off a summon should show as its icon: " .. shown) end
+			for _, m in ipairs(summons) do if m:IsShown() then fail("with 3D off no summon model should show") break end end
+			u.pets = keep
+			ns.Bar.DrawHeroes()
+		end
+	end
 	ns.db.opt.models = true
 	-- a model whose size comes a moment after the model itself (a druid's
 	-- cat drawn as tall as a man) is measured again: its own size
@@ -2014,6 +2037,54 @@ do
 	for _ = 1, 30 do p2:Step(0.1) end
 	if not p2:IsLoaded() or not tostring(p2.__model):find("^creature:") then fail("after a missing display id the NPC id should bring the model") end
 	Mock.Model.GetModelFileID = getFile
+	-- a loading screen the client cannot load: the original it stands in for
+	do
+		local t = UIParent:CreateTexture()
+		local set = t.SetTexture
+		t.SetTexture = function(self, f) if f == "missing" then return false end return set(self, f) end
+		local ok = ns.UI.SetLoadingScreen(t, { file = "missing", kind = "forever", fallback = { file = "kept", kind = "classic" } }, 4)
+		if not ok or t.__tex ~= "kept" then fail("a loading screen that fails should fall back to the original: " .. tostring(t.__tex)) end
+		ok = ns.UI.SetLoadingScreen(t, { file = "missing", kind = "forever" }, 4)
+		if ok then fail("a loading screen that fails with nothing to fall back on should say so") end
+	end
+	-- greying a PlayerModel reaches the model's own call, once
+	do
+		local calls = 0
+		Mock.Model.SetDesaturation = function(self, v) calls = calls + 1 end
+		local q = Fig.New(UIParent, 60)
+		calls = 0
+		q:SetDesaturation(true)
+		if calls ~= 1 then fail("greying a PlayerModel figure should call the model once, got " .. calls) end
+		Mock.Model.SetDesaturation = nil
+		q:Hide()
+	end
+	-- a display id the game answers false to: the NPC id is tried at once
+	do
+		local setDisp = Mock.Model.SetDisplayInfo
+		Mock.Model.SetDisplayInfo = function(self, id) return false end
+		local q = Fig.New(UIParent, 60)
+		q:Show()
+		q:SetModelId(npc)
+		if not tostring(q.__model):find("^creature:") then fail("a display id answered false should fall to the NPC id on the first try: " .. tostring(q.__model)) end
+		Mock.Model.SetDisplayInfo = setDisp
+		q:Hide()
+	end
+	-- the older spell effect call when the newer one is missing
+	do
+		local apply = Mock.Model.ApplySpellVisualKit
+		local used = 0
+		Mock.Model.ApplySpellVisualKit = nil
+		Mock.Model.SetSpellVisualKit = function() used = used + 1 end
+		local q = Fig.New(UIParent, 60)
+		q:Show()
+		q:SetModelId(npc)
+		for _ = 1, 30 do q:Step(0.1) end
+		q.loaded = true
+		q:PlayKit(1234)
+		if used ~= 1 then fail("a PlayerModel without the newer effect call should use the older one") end
+		Mock.Model.ApplySpellVisualKit, Mock.Model.SetSpellVisualKit = apply, nil
+		q:Hide()
+	end
 	Mock.noModelScene = false
 	p:Hide() p2:Hide()
 	ns.db.models = nil
@@ -2048,9 +2119,12 @@ do
 	if moved < 10 then fail("a monster walking in should move (moved on " .. moved .. " frames)") end
 	if still > moved / 4 then fail(string.format("a walking monster should move on nearly every frame, not in steps (%d moved, %d still)", moved, still)) end
 	if moved > 0 and biggest > 3 * total / moved then fail("a walking monster should move by even amounts") end
-	-- the animation while it walks (from its first step to its last)
+	-- the animation while it walks (from its first step to its last walking
+	-- frame: one that reaches its place may swing while it slides the last bit)
+	local lastWalk
+	for n = (first or 2), (last or 1) do if anims[n] == 4 then lastWalk = n end end
 	local walk, other = 0, 0
-	for n = (first or 2), (last or 1) do
+	for n = (first or 2), (lastWalk or 1) do
 		local a = anims[n]
 		if a == 4 then walk = walk + 1 elseif a then other = other + 1 end
 	end
@@ -2229,6 +2303,31 @@ frames(10)
 local st = ns.db.stat
 print(string.format("  after the run: %d kills, %d clears, %d chests opened, forge level %d, %d heroes",
 	st.kills, st.clears, st.chests, ns.db.forge.level, H.Count()))
+
+-- open screens keep their numbers current: the settings' play time, the
+-- companions' kill counts
+do
+	Main.Toggle(true)
+	Main.ShowTab("options")
+	local op = Main.Page("options")
+	ns.db.stat.time = 7200
+	frames(8, 0.2)
+	if op.game.rows[1].v.__text ~= ns.U.time(ns.db.stat.time) then fail("the play time in the settings should count on while open: " .. tostring(op.game.rows[1].v.__text)) end
+	Main.ShowTab("pets")
+	local pp = Main.Page("pets")
+	local pet = ns.PET_BY_ID.chicken
+	local had = ns.db.pets.chicken
+	ns.db.pets.chicken = nil
+	ns.db.kills.humanoid = pet.unlock.n - 7
+	frames(8, 0.2)
+	local card
+	for _, c in ipairs(pp.cards) do if c.pet == pet then card = c end end
+	local want = ns.U.fmt(pet.unlock.n - 7) .. " / " .. ns.U.fmt(pet.unlock.n)
+	if not (card and card.bar.text.__text == want) then
+		fail("the companion screen should show the kill count as it moves: " .. tostring(card and card.bar.text.__text) .. " / " .. want)
+	end
+	ns.db.pets.chicken = had
+end
 
 -- a reset: the runes' room goes, no battle window until the first hero, and
 -- the side is chosen again

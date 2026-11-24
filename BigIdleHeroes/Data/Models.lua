@@ -550,6 +550,7 @@ ns.MODEL.pet = {
 	chicken        =   8376, -- Mechanical Chicken
 	ember          =  12265, -- Lava Spawn
 	imp            =    416, -- Imp
+	skull          =     48, -- Skeletal Warrior (the monster list's), drawn pet-sized
 	squirrel       =   2671, -- Mechanical Squirrel
 	whelp          =   7544, -- Crimson Whelpling
 }

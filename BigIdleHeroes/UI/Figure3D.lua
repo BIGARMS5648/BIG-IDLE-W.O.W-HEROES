@@ -258,6 +258,12 @@ local function call(f, name, ...)
 	return false
 end
 
+-- a call that worked: it ran, and did not answer false
+local function worked(f, name, ...)
+	local ok, res = call(f, name, ...)
+	return ok and res ~= false
+end
+
 ------------------------------------------------------------------------
 -- The figure widget: what both kinds share
 ------------------------------------------------------------------------
@@ -936,8 +942,10 @@ local model = {}
 local function newModel(parent, height)
 	local ok, f = pcall(CreateFrame, "PlayerModel", nil, parent)
 	if not ok or not f then return nil end
-	-- the model's own turning, kept apart from the figure's SetFacing("left"|"right")
+	-- the model's own turning and greying, kept apart from the figure's
+	-- SetFacing("left"|"right") and SetDesaturation
 	f.ModelFacing = f.SetFacing
+	f.ModelDesaturation = f.SetDesaturation
 	f.kind = "model"
 	dress(f, model)
 	return f
@@ -951,7 +959,7 @@ function model:Load()
 	call(self, "ClearModel")
 	self.tryDisplay = nil
 	if self.file then
-		local okF = call(self, "SetModel", self.file)
+		local okF = worked(self, "SetModel", self.file)
 		self.lastTry = true
 		self.loadT = WAIT[1]
 		self:Look()
@@ -960,12 +968,12 @@ function model:Load()
 	local disp = self.tries == 1 and displayFor(id) or nil
 	local ok = false
 	if disp then
-		ok = call(self, "SetDisplayInfo", disp)
+		ok = worked(self, "SetDisplayInfo", disp)
 		if ok then self.tryDisplay = disp end
 	end
 	if not ok and type(id) == "number" then
 		if self.tries == 1 then self.tries = 2 end
-		ok = call(self, "SetCreature", id)
+		ok = worked(self, "SetCreature", id)
 	end
 	self.lastTry = self.tries >= #WAIT
 	self.loadT = WAIT[self.tries] or WAIT[#WAIT]
@@ -1003,7 +1011,7 @@ function model:SetAnim(id) call(self, "SetAnimation", id) end
 
 function model:SetDesaturation(v)
 	self.desat = v
-	call(self, "SetDesaturation", v)
+	call(self, "ModelDesaturation", v)
 end
 
 function model:SetShade(r, g, b)
@@ -1020,9 +1028,8 @@ end
 
 function model:PlayKit(kit)
 	if not kit or not self.loaded then return end
-	local r = call(self, "ApplySpellVisualKit", kit, true)
-	if r == nil then r = call(self, "SetSpellVisualKit", kit, true) end
-	return r
+	-- the older call when the newer one is missing or fails
+	return worked(self, "ApplySpellVisualKit", kit, true) or worked(self, "SetSpellVisualKit", kit, true)
 end
 
 -- Only the head and chest, in a square of px (the game's portrait framing).

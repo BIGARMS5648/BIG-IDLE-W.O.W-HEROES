@@ -336,7 +336,8 @@ local function build(page)
 	buildSide(page)
 end
 
-local function refresh(page)
+local refresh
+function refresh(page)
 	local d = FUNC_BY[page.func] or FUNCS[1]
 	page.func = d.key
 	refreshLeft(page)
@@ -350,7 +351,14 @@ local function refresh(page)
 		page.lockView.refresh(d.key == "up" and "up" or d.op)
 	elseif d.key == "mats" or d.key == "seal" then
 		-- one materials view for both; 인장 굴리기 opens it on the seals
-		if d.key == "seal" then page.matTab = "mat_seal" page.matPage = 1
+		if d.key == "seal" then
+			if page.lastFunc ~= "seal" then
+				page.matTab = "mat_seal" page.matPage = 1
+			elseif page.matTab ~= "mat_seal" then
+				-- another kind of material picked here: the materials screen
+				page.func, page.lastFunc = "mats", "mats"
+				return refresh(page)
+			end
 		elseif page.matTab == "mat_seal" and page.lastFunc == "seal" then page.matTab = "mat_craft" page.matPage = 1 end
 		page.bodies.mats:Show()
 		ns.MatsView.Refresh(page)

@@ -140,6 +140,7 @@ local function build(page)
 		U.col("ff9a7a", "영웅, 장비, 골드, 룬, 진행도가 모두 사라지며 되돌릴 수 없습니다."))
 end
 
+local stats -- below
 local function refresh(page)
 	local db = ns.db
 	local sc, gm = page.screen, page.game
@@ -160,7 +161,13 @@ local function refresh(page)
 	gm.factionIcon:SetIconName(f.icon)
 	gm.factionName:SetText(U.col(f.hex, ns.N(f.name)))
 	gm.factionText:SetText(ns.N(f.desc) .. " 진영에 따라 영웅의 종족 모습이 바뀝니다. 이름, 레벨, 장비, 능력치는 그대로입니다.")
-	local s = db.stat
+	stats(page)
+end
+
+-- the play statistics, kept current while the screen is open
+function stats(page)
+	local gm = page.game
+	local s = ns.db.stat
 	local rows = {
 		{ "플레이 시간", U.time(s.time or 0) },
 		{ "처치한 몬스터", U.fmt(s.kills) },
@@ -172,7 +179,13 @@ local function refresh(page)
 	for i, r in ipairs(gm.rows) do r:Set(rows[i][1], rows[i][2]) end
 end
 
-local function tick(page) end
+local function tick(page)
+	page.statT = (page.statT or 0) + 1
+	if page.statT >= 5 then -- the page ticks five times a second
+		page.statT = 0
+		stats(page)
+	end
+end
 
 Main.RegisterTab({
 	key = "options", title = "설정", sub = "화면, 소리, 진영, 정보", nav = false,

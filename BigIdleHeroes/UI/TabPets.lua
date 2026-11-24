@@ -166,7 +166,14 @@ local function refresh(page)
 	end
 end
 
-local function tick(page) end
+-- kill counts move while the screen is open
+local function tick(page)
+	page.tickN = (page.tickN or 0) + 1
+	if page.tickN >= 5 then
+		page.tickN = 0
+		refresh(page)
+	end
+end
 
 Main.RegisterTab({
 	key = "pets", title = "동료", sub = "조건을 채우면 얻는 동료",

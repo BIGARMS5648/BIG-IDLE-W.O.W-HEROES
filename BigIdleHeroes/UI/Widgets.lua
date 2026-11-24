@@ -237,7 +237,12 @@ end
 
 function UI.SetLoadingScreen(tex, ls, shape)
 	if not ls then return false end
-	tex:SetTexture(ls.file)
+	-- a file the client cannot load: the original screen it stands in for,
+	-- else nothing (the caller shows its own picture)
+	if tex:SetTexture(ls.file) == false then
+		ls = ls.fallback
+		if not ls or tex:SetTexture(ls.file) == false then return false end
+	end
 	tex:SetTexCoord(screenCoords(ls, shape))
 	tex:SetVertexColor(1, 1, 1)
 	shownScreens[tex] = { ls, shape }

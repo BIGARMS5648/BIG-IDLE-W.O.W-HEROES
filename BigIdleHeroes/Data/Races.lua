@@ -1,6 +1,7 @@
 -- Factions and races. The player picks Alliance or Horde once; every hero is
 -- then drawn as its class's representative race of that faction, in the
--- gender chosen when the hero was created. Looks only: no stat differences.
+-- gender of the player's own character (heroes keep none of their own).
+-- Looks only: no stat differences.
 local _, ns = ...
 
 ns.FACTIONS = {

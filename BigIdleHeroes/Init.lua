@@ -71,10 +71,11 @@ local function onUpdate(_, elapsed)
 		stampT = 0
 		ns.Offline.Stamp(time()) -- so a crash does not hand out a huge offline reward
 	end
-	-- nobody is drawing: drop queued visual events
+	-- nobody is drawing: drop queued visual events (numbers and spells)
 	if not ns.Bar.IsShown() then
-		local fx = ns.Combat.fx
+		local fx, vfx = ns.Combat.fx, ns.Combat.vfx
 		for i = #fx, 1, -1 do fx[i] = nil end
+		for i = #vfx, 1, -1 do vfx[i] = nil end
 	end
 end
 
