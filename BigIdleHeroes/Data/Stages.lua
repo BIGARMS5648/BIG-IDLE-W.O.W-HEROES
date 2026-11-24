@@ -480,8 +480,7 @@ end
 -- times } points, followed in a straight line on a log scale between them.
 -- It sets how long each part of the climb takes (tests/pace: TBH's hours).
 ns.MIGHT = { { 1, 1 }, { 25, 1 }, { 100, 13.8 } }
-function ns.MobMight(l)
-	local k = ns.MIGHT
+local function knots(k, l)
 	if l <= k[1][1] then return k[1][2] end
 	for i = 2, #k do
 		local a, b = k[i - 1], k[i]
@@ -492,6 +491,12 @@ function ns.MobMight(l)
 	end
 	return k[#k][2]
 end
+function ns.MobMight(l) return knots(ns.MIGHT, l) end
+-- Experience on top of TBH's growth, by stage level (same kind of points):
+-- fewer monsters come at once here than in TBH's big waves, so later
+-- stages give more for each one.
+ns.EXP_GROW = { { 1, 1 } }
+function ns.ExpGrow(l) return knots(ns.EXP_GROW, l) end
 -- The gear level a party has at stage level l: boxes give gear in TBH's
 -- steps (1, 5, 10, ... 100), and the first stages of a step are fought with
 -- the step before's gear, so it climbs from that step to this one.
@@ -522,7 +527,7 @@ function ns.MobAtk(base, l)
 end
 function ns.MobGold(base, l) return base * (1 + 0.15 * (l - 1)) * 1.04 ^ (l - 1) end
 -- experience grows with the stage level as TBH's (Data/TBH.lua)
-function ns.MobExp(base, l)  return ns.EXP_RATE * base * ns.TBH.MULT[math.max(1, math.min(100, l))][4] end
+function ns.MobExp(base, l)  return ns.EXP_RATE * base * ns.TBH.MULT[math.max(1, math.min(100, l))][4] * ns.ExpGrow(l) end
 ns.EXP_RATE = 1.2 -- every monster's experience
 
 -- Physical mitigation threshold: armor equal to this halves physical damage.
