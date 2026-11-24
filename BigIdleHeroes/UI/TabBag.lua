@@ -565,9 +565,12 @@ function MatsView.Refresh(page)
 				r.sub:SetText("가장 높은 단계 (융합 없음)")
 			else
 				local nextM = ns.MATS[nextList[1]]
-				local what = #nextList > 1 and (ns.N(ns.QUALITY[nextM.q].name) .. " 등급 " .. ns.N(ns.MAT_KIND_NAME[m.kind]) .. " 중 하나")
-					or ns.N(nextM.name)
-				r.sub:SetText(string.format("%d개 → %s 1개", ns.Forge.FUSE_COUNT, what))
+				if #nextList > 1 then
+					r.sub:SetText(string.format("%d개 → %s 등급 %s 1개 (무작위)", ns.Forge.FUSE_COUNT,
+						ns.N(ns.QUALITY[nextM.q].name), ns.N(ns.MAT_KIND_NAME[m.kind])))
+				else
+					r.sub:SetText(string.format("%d개 → %s 1개", ns.Forge.FUSE_COUNT, ns.N(nextM.name)))
+				end
 				r.one:SetOff(count < ns.Forge.FUSE_COUNT)
 				r.all:SetOff(count < ns.Forge.FUSE_COUNT)
 			end

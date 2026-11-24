@@ -306,6 +306,13 @@ function Items.RandomSlot(level, cat)
 	return U.weighted(choices).slot
 end
 
+-- "+14~16%" / "+30" for a stat's range
+function Items.RangeText(key, lo, hi)
+	local pct = ns.AFFIX[key].f == "pct" and "%" or ""
+	if lo == hi then return "+" .. U.num(lo, 1) .. pct end
+	return "+" .. U.num(lo, 1) .. "~" .. U.num(hi, 1) .. pct
+end
+
 -- What a socket material can give an item of this gear group: its TBH
 -- options, { stat mod, lowest tier, highest tier }, one picked evenly.
 function Items.SocketOptions(matId, it)
@@ -710,9 +717,7 @@ function Items.MatTooltip(id)
 					local r1, r2 = ns.TBH.STAT_MODS[o[1]][o[2]], ns.TBH.STAT_MODS[o[1]][o[3]]
 					local key, lo = ns.SocketStat(o[1], o[2], r1[1])
 					local _, hi = ns.SocketStat(o[1], o[3], r2[2])
-					local a = ns.AFFIX[key]
-					local f = function(v) return a.f == "pct" and (U.num(v, 1) .. "%") or U.num(v, 1) end
-					lines[#lines + 1] = { "  " .. ns.N(a.n), (lo == hi) and ("+" .. f(lo)) or ("+" .. f(lo) .. "~" .. f(hi)), 0.85, 0.85, 0.85 }
+					lines[#lines + 1] = { "  " .. ns.N(ns.AFFIX[key].n), Items.RangeText(key, roundValue(lo), roundValue(hi)), 0.85, 0.85, 0.85 }
 				end
 			end
 		end

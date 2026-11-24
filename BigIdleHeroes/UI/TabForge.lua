@@ -466,8 +466,9 @@ local function buildSocket(kind)
 		p.matHead = UI.Section(f, W, "쓸 재료")
 		p.matHead:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -214)
 		p.matPage = 1
-		p.prev = p.matHead:AddTool(UI.Button(f, 30, 22, "<", function() p.matPage = p.matPage - 1 Main.Refresh() end, "dark"))
+		-- (tools go right to left)
 		p.next = p.matHead:AddTool(UI.Button(f, 30, 22, ">", function() p.matPage = p.matPage + 1 Main.Refresh() end, "dark"))
+		p.prev = p.matHead:AddTool(UI.Button(f, 30, 22, "<", function() p.matPage = p.matPage - 1 Main.Refresh() end, "dark"))
 		p.mats = {}
 		for i = 1, MAT_SLOTS do
 			local b = UI.IconButton(f, CELL, function(self) p.mat = self.matId Main.Refresh() end)
@@ -598,9 +599,7 @@ local function buildSocket(kind)
 				local pool = ns.Items.SocketPool(p.mat, it)
 				local parts = {}
 				for _, e in ipairs(pool) do
-					local a = ns.AFFIX[e[1]]
-					local f = function(v) return a.f == "pct" and (U.num(v, 1) .. "%") or U.num(v, 1) end
-					parts[#parts + 1] = ns.N(a.n) .. " +" .. ((e[2] == e[3]) and f(e[2]) or (f(e[2]) .. "~" .. f(e[3])))
+					parts[#parts + 1] = ns.N(ns.AFFIX[e[1]].n) .. " " .. ns.Items.RangeText(e[1], e[2], e[3])
 				end
 				if #parts > 3 then
 					c.pool:SetText(string.format("%s: %d가지 능력치 중 하나 (재료에 마우스를 올리면 목록)", ns.N(ns.MATS[p.mat].name), #parts))
