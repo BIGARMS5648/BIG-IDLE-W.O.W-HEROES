@@ -445,7 +445,15 @@ end
 -- Every stage's monsters on one footing: their average health and attack,
 -- and the boss's, come to the same base, so how hard a stage is comes from
 -- its level (TBH's) alone; each monster keeps its build next to the others.
-local NORM = { hp = 65.7, dps = 7.07, bossHP = 750, bossAtk = 12.5 }
+local NORM = { hp = 65.7, dps = 5.44, bossHP = 750, bossAtk = 12.5 }
+-- how hard a monster hits: armor takes about half of a physical blow, and a
+-- burning, poisoning or bleeding hit keeps on hurting
+function ns.MobThreat(m)
+	local t = m.atk * (m.aspd or 1)
+	if not m.school or m.school == "phys" then t = t * 0.5 end
+	if m.status then t = t * (1 + (m.status[2] or 0)) end
+	return t
+end
 function ns.StageNorm(diff, idx)
 	local stg = ns.STAGES[diff] and ns.STAGES[diff][idx]
 	if not stg then return nil end
@@ -454,7 +462,7 @@ function ns.StageNorm(diff, idx)
 		for _, e in ipairs(stg.mobs) do
 			local m = ns.MONSTERS[e[1]]
 			hp = hp + m.hp * e[2]
-			dps = dps + m.atk * (m.aspd or 1) * e[2]
+			dps = dps + ns.MobThreat(m) * e[2]
 			w = w + e[2]
 		end
 		local b = stg.boss
