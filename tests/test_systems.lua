@@ -284,10 +284,26 @@ end
 for cat, pool in pairs(ns.AFFIX_POOL) do
 	for _, e in ipairs(pool) do check(ns.AFFIX[e[1]], cat .. " pool: unknown affix " .. e[1]) end
 end
-for kind, def in pairs(ns.SOCKET) do
-	for _, cat in ipairs({ "weapon", "armor", "accessory" }) do
-		for _, e in ipairs(def[cat]) do check(ns.AFFIX[e[1]], kind .. "/" .. cat .. ": unknown affix " .. e[1]) end
+-- every TBH stat a socket material can give has one of ours, and every
+-- material has a name, an icon and something for each gear group
+do
+	local counts = { gem = 0, dust = 0, scroll = 0 }
+	for id, sm in pairs(ns.TBH.SOCKET_MATS) do
+		counts[sm.kind] = counts[sm.kind] + 1
+		local m = ns.MATS[sm.kind .. id]
+		check(m and m.name ~= "?" and m.icon and m.tier == sm.grade, "socket material " .. id .. " is defined")
+		for _, cat in ipairs({ "weapon", "armor", "accessory" }) do
+			local opts = sm[cat] or sm.any
+			check(opts and #opts > 0, id .. ": nothing for " .. cat)
+			for _, o in ipairs(opts or {}) do
+				local mod = ns.TBH.STAT_MODS[o[1]]
+				local d = mod and ns.SOCKET_STAT[mod.stat .. ":" .. mod.mod]
+				check(d and ns.AFFIX[d[1]], id .. ": TBH stat without ours: " .. tostring(mod and (mod.stat .. ":" .. mod.mod)))
+				check(o[2] >= 1 and o[3] <= 10 and o[2] <= o[3], id .. ": tiers")
+			end
+		end
 	end
+	check(counts.gem == 36 and counts.dust == 33 and counts.scroll == 10, "TBH's 36 decoration, 33 engraving and 10 inscription materials")
 end
 for _, br in ipairs(ns.RUNE_BRANCHES) do
 	for _, node in ipairs(br.nodes) do
@@ -828,43 +844,55 @@ check(not F.Craft(1, 2), "craft tier 2 is locked until bought")
 check(F.UnlockCraftTier(2), "unlock craft tier 2")
 local epic = ns.Items.New("chest", 40, 5)
 check(ns.Items.FreeSockets(epic, "gem") == 2 and ns.Items.FreeSockets(epic, "ench") == 1 and ns.Items.FreeSockets(epic, "insc") == 0, "epic sockets")
-ns.AddMat("gem3", 3)
-ns.AddMat("dust2", 1)
-check(F.Socket(epic, "gem", "gem3") and F.Socket(epic, "gem", "gem3"), "socket two gems")
-check(not F.Socket(epic, "gem", "gem3"), "no third gem socket")
-check(F.Socket(epic, "ench", "dust2"), "enchant")
-check(not F.Socket(epic, "insc", "scroll1"), "epic has no inscription slot")
-check(not F.Socket(epic, "gem", "dust2"), "wrong material kind is refused")
+local GEM3, DUST2, SCROLL1 = ns.SocketMat("gem", 3), ns.SocketMat("dust", 2), ns.SocketMat("scroll", 1)
+ns.AddMat(GEM3, 3)
+ns.AddMat(DUST2, 1)
+check(F.Socket(epic, "gem", GEM3) and F.Socket(epic, "gem", GEM3), "socket two gems")
+check(not F.Socket(epic, "gem", GEM3), "no third gem socket")
+check(F.Socket(epic, "ench", DUST2), "enchant")
+check(not F.Socket(epic, "insc", SCROLL1), "an immortal item has no inscription slot")
+check(not F.Socket(epic, "gem", DUST2), "wrong material kind is refused")
 check(#epic.g == 2 and #epic.e == 1, "socket entries stored")
 local goldBefore = db.gold
 check(F.RemoveSocket(epic, "gem", 1) and #epic.g == 1 and db.gold < goldBefore, "extraction costs gold and frees the slot")
-check(ns.MatCount("gem3") == 1, "extraction does not refund the material")
+check(ns.MatCount(GEM3) == 1, "extraction does not refund the material")
+check(F.RemoveCost("gem", 5) == 1500 and F.RemoveCost("insc", 10) == 200000, "extraction costs are TBH's")
 -- socket stats are rolled: each value lies in the range the tooltip shows
 do
 	local I = ns.Items
 	local outside, ranged, fixed = 0, 0, 0
 	for _, slot in ipairs({ "mh", "chest", "ring" }) do
 		for _, kind in ipairs(ns.SOCKET_KINDS) do
-			for tier = 1, #ns.SOCKET_TIER_MULT do
-				for _ = 1, 40 do
-					local it = I.New(slot, 30, ns.MAX_QUALITY)
-					local e = I.AddSocket(it, kind, tier)
-					local lo, hi = I.SocketRange(it, kind, e)
-					if lo then
-						ranged = ranged + 1
-						if e[2] < lo or e[2] > hi or lo >= hi then outside = outside + 1 end
-					else
-						fixed = fixed + 1
-						if e[1] ~= "skills" then outside = outside + 1 end
+			for tier = 1, ns.MAT_MAX_TIER[ns.SOCKET[kind].mat] do
+				for _, mat in ipairs(ns.Forge.MatsAt(ns.SOCKET[kind].mat, tier)) do
+					for _ = 1, 6 do
+						local it = I.New(slot, 30, ns.MAX_QUALITY)
+						local e = I.AddSocket(it, kind, mat)
+						local lo, hi = I.SocketRange(it, kind, e)
+						if lo then
+							ranged = ranged + 1
+							if e[2] < lo or e[2] > hi or lo >= hi then outside = outside + 1 end
+						else
+							fixed = fixed + 1
+							-- (one more strike, or a TBH tier with a single number)
+							local r = ns.TBH.STAT_MODS[e[5]][e[3]]
+							if e[1] ~= "multi" and e[1] ~= "aspd" and r[1] ~= r[2] then outside = outside + 1 end
+						end
+						-- what was set is one of the material's options for this gear group
+						local ok = false
+						for _, p in ipairs(I.SocketPool(mat, it)) do
+							if p[1] == e[1] and e[2] >= p[2] - 1e-9 and e[2] <= p[3] + 1e-9 then ok = true end
+						end
+						if not ok then outside = outside + 1 end
 					end
 				end
 			end
 		end
 	end
 	check(outside == 0, "every socket value lies in its shown range (" .. outside .. " outside)")
-	check(ranged > 0 and fixed > 0, "rolled stats show a range, the fixed skill level does not")
+	check(ranged > 0 and fixed > 0, "rolled stats show a range, the fixed ones (one more strike) do not")
 	local it = I.New("mh", 30, ns.MAX_QUALITY)
-	local e = I.AddSocket(it, "gem", 3)
+	local e = I.AddSocket(it, "gem", ns.SocketMat("gem", 3))
 	local text = I.SocketText(it, "gem", e)
 	check(text:find("%(") and text:find("~", 1, true), "the socket text ends with its range: " .. text)
 	local tip = table.concat((function() local t = {} for _, l in ipairs(I.Tooltip(it)) do t[#t + 1] = l[1] end return t end)(), "\n")
@@ -872,7 +900,8 @@ do
 	-- the sockets are drawn: a filled one with its material's icon, the
 	-- empty ones by kind
 	local top = I.New("chest", 50, ns.MAX_QUALITY)
-	I.AddSocket(top, "gem", 4)
+	local gem4 = ns.SocketMat("gem", 4)
+	I.AddSocket(top, "gem", gem4)
 	local filled, order, emptyOf = nil, {}, {}
 	for _, l in ipairs(I.Tooltip(top)) do
 		if l.sockets then
@@ -886,7 +915,7 @@ do
 			end
 		end
 	end
-	check(filled and filled[1] == "gem" and filled[2] == ns.MATS.gem4.icon, "a set gem shows that gem's icon in its socket")
+	check(filled and filled[1] == "gem" and filled[2] == ns.MATS[gem4].icon, "a set gem shows that gem's icon in its socket")
 	check(table.concat(order, ",") == "gem,ench,insc", "sockets come kind by kind: gem, then ench, then insc (" .. table.concat(order, ",") .. ")")
 	check(emptyOf.gem == I.SocketCount(top, "gem") - 1 and emptyOf.ench == I.SocketCount(top, "ench") and emptyOf.insc == I.SocketCount(top, "insc"),
 		"each kind's empty sockets are drawn on that kind's own line")
@@ -1117,7 +1146,7 @@ BigWowIdleDB = {
 }
 ns.InitDB()
 db = ns.db
-check(db.v == 5 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
+check(db.v == 6 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
 do
 	local m, w = hero("MAGE_FIRE"), hero("WARRIOR_PROT")
 	check(m and w, "old heroes become heroes of the matching specialization")
@@ -1166,6 +1195,18 @@ do
 	check(d.heroes.h2.gear.mh.t == "bow", "worn guns become bows too")
 	check(d.heroes.h2.gear.mh.l == 15 and d.bag[1].l == 1, "old item levels move to the TBH level a hero of the same level wears")
 	for _, it in ipairs(d.bag) do check(ns.Items.Def(it), "every kept item has a definition") end
+end
+-- a version 5 save: socket materials by tier become TBH's materials of
+-- that grade, every one kept
+BigWowIdleDB = { v = 5, mats = { gem3 = 7, dust1 = 2, scroll6 = 1, bar2 = 4 }, heroes = {}, party = { false, false, false, false, false } }
+ns.InitDB()
+do
+	local n3, n1, n6 = 0, 0, 0
+	for _, id in ipairs(ns.SOCKET_MATS_BY.gem[3]) do n3 = n3 + ns.MatCount(id) end
+	for _, id in ipairs(ns.SOCKET_MATS_BY.dust[1]) do n1 = n1 + ns.MatCount(id) end
+	for _, id in ipairs(ns.SOCKET_MATS_BY.scroll[6]) do n6 = n6 + ns.MatCount(id) end
+	check(n3 == 7 and n1 == 2 and n6 == 1 and ns.MatCount("bar2") == 4 and ns.db.mats.gem3 == nil,
+		"old socket materials become TBH's of the same grade")
 end
 -- version 2.0 stored names as { korean, english }, without family names
 BigWowIdleDB = { v = 2, heroes = { h1 = { spec = "MAGE_FIRE", level = 5, name = { "아르단", "Ardan" } } }, party = { false, "h1" } }

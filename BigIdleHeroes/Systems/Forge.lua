@@ -29,8 +29,6 @@ for q = 1, ns.MAX_QUALITY - 1 do
 	Forge.FUSE_ODDS[q] = odds
 end
 
-local REMOVE_BASE = { gem = 100, ench = 200, insc = 400 }
-
 ------------------------------------------------------------------------
 -- Level and operations
 ------------------------------------------------------------------------
@@ -229,11 +227,26 @@ function Forge.PickForFusion(quality, cat)
 	return out
 end
 
--- Materials: 9 of a tier become 1 of the next tier of the same kind.
+-- Materials: 9 of one become 1 of the next tier of the same kind (for a
+-- socket material: one of that kind's materials of the next grade).
+function Forge.NextMat(id)
+	local m = ns.MATS[id]
+	if not m or m.tier >= ns.MAT_MAX_TIER[m.kind] then return nil end
+	local by = ns.SOCKET_MATS_BY[m.kind]
+	if by then
+		for t = m.tier + 1, ns.MAT_MAX_TIER[m.kind] do
+			if by[t] then return by[t] end
+		end
+		return nil
+	end
+	return { m.kind .. (m.tier + 1) }
+end
+
 function Forge.FuseMat(id)
 	local m = ns.MATS[id]
 	if not m then return false end
-	if m.tier >= ns.MAT_MAX_TIER[m.kind] then
+	local nextList = Forge.NextMat(id)
+	if not nextList then
 		return false, "이미 최고 단계 재료입니다."
 	end
 	if ns.MatCount(id) < Forge.FUSE_COUNT then
@@ -241,13 +254,21 @@ function Forge.FuseMat(id)
 	end
 	local _, fxp = ns.MatValue(id)
 	ns.AddMat(id, -Forge.FUSE_COUNT)
-	local nextId = m.kind .. (m.tier + 1)
+	local nextId = nextList[random(#nextList)]
 	ns.AddMat(nextId, 1)
 	Forge.AddXP(fxp * Forge.FUSE_COUNT)
 	return true, nextId
 end
 
 local MAT_KINDS = { "bar", "leather", "cloth", "gem", "dust", "scroll", "seal" }
+
+-- The materials of a kind at a tier (several for socket materials).
+local function matsAt(kind, tier)
+	local by = ns.SOCKET_MATS_BY[kind]
+	if by then return by[tier] or {} end
+	return ns.MATS[kind .. tier] and { kind .. tier } or {}
+end
+Forge.MatsAt = matsAt
 
 -- How many fusions FuseAllMats would make now (lower tiers first, so what
 -- they make can be fused again).
@@ -258,8 +279,11 @@ function Forge.MatFusionsReady(kinds)
 		if not kinds or kinds[kind] then
 			local carry = 0
 			for tier = 1, ns.MAT_MAX_TIER[kind] - 1 do
-				local have = ns.MatCount(kind .. tier) + carry
-				local k = math.floor(have / Forge.FUSE_COUNT)
+				local k = 0
+				for i, id in ipairs(matsAt(kind, tier)) do
+					-- (what the tier below makes lands on one of these)
+					k = k + math.floor((ns.MatCount(id) + (i == 1 and carry or 0)) / Forge.FUSE_COUNT)
+				end
 				n = n + k
 				carry = k
 			end
@@ -274,10 +298,11 @@ function Forge.FuseAllMats(kinds)
 	local n = 0
 	for _, kind in ipairs(MAT_KINDS) do
 		for tier = 1, (kinds and not kinds[kind]) and 0 or (ns.MAT_MAX_TIER[kind] - 1) do
-			local id = kind .. tier
-			while ns.MatCount(id) >= Forge.FUSE_COUNT do
-				if not Forge.FuseMat(id) then break end
-				n = n + 1
+			for _, id in ipairs(matsAt(kind, tier)) do
+				while ns.MatCount(id) >= Forge.FUSE_COUNT do
+					if not Forge.FuseMat(id) then break end
+					n = n + 1
+				end
 			end
 		end
 	end
@@ -386,7 +411,7 @@ function Forge.Socket(it, kind, matId, heroId)
 	local ok, why = Forge.CanSocket(it, kind, matId)
 	if not ok then return false, why end
 	ns.AddMat(matId, -1)
-	local entry = ns.Items.AddSocket(it, kind, ns.MATS[matId].tier)
+	local entry = ns.Items.AddSocket(it, kind, matId)
 	-- the hero wearing it now (whatever hero the caller had in mind)
 	local wearer = ns.Items.Wearer(it)
 	ns.Stats.Invalidate(wearer)
@@ -395,8 +420,10 @@ function Forge.Socket(it, kind, matId, heroId)
 	return true, entry
 end
 
+-- TBH's extraction cost for the kind and the tier of what is set
 function Forge.RemoveCost(kind, tier)
-	return REMOVE_BASE[kind] * 2 ^ ((tier or 1) - 1)
+	local t = ns.TBH.EXTRACT[ns.SOCKET[kind].mat]
+	return t[math.max(1, math.min(#t, tier or 1))]
 end
 
 function Forge.RemoveSocket(it, kind, index, heroId)

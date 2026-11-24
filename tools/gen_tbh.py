@@ -129,5 +129,50 @@ for r in grades:
         r['GRADE'].lower(), r['InherentSlotAmount'], r['ExtraSlotAmount_Decoration'], r['ExtraSlotAmount_Engraving'], r['ExtraSlotAmount_Inscription'],
         r['BaseAlchemyGold'], r['BaseCubeExp'], r['Lower2GradeWeight'], r['Lower1GradeWeight'], r['SameGradeWeight'], r['Higher1GradeWeight'], r['Higher2GradeWeight']))
 L.append('}')
+
+# socket materials (장식 / 세공 / 각인) and the stats they give
+from collections import defaultdict
+mats = json.load(open(D + 'data_t_materials.json'))
+groups = defaultdict(list)
+for r in json.load(open(D + 'data_t_stat_mod_groups.json')): groups[r['StatModGroupKey']].append(r)
+mods = defaultdict(dict)
+for r in json.load(open(D + 'data_t_stat_mods.json')): mods[r['StatModKey']][r['Tier']] = r
+SK = {'DECORATION': 'gem', 'ENGRAVING': 'dust', 'INSCRIPTION': 'scroll'}
+GG = {'WEAPON': 'weapon', 'ARMOR': 'armor', 'ACCESSORY': 'accessory', 'COMMON': 'any'}
+used = set()
+L.append('')
+L.append('-- socket materials: kind (gem 장식, dust 세공, scroll 각인), grade and, for')
+L.append('-- each gear group (weapon, armor, accessory; any = every group), the stats')
+L.append('-- one may give, one picked evenly: { stat mod, lowest tier, highest tier }')
+L.append('T.SOCKET_MATS = {')
+for m in sorted((m for m in mats if m['MATERIALTYPE'] in SK), key=lambda m: m['ItemKey']):
+    r = items[m['ItemKey']]
+    parts = ['kind = "%s"' % SK[m['MATERIALTYPE']], 'grade = %d' % GI[r['grade']]]
+    by = defaultdict(list)
+    for e in groups[m['StatModGroupKey']]:
+        used.add(e['StatModKey'])
+        by[GG[e['GearGroup']]].append('{ %d, %d, %d }' % (e['StatModKey'], e['MinTier'], e['MaxTier']))
+    for g in ('weapon', 'armor', 'accessory', 'any'):
+        if by[g]: parts.append('%s = { %s }' % (g, ', '.join(by[g])))
+    L.append('\t[%d] = { %s },' % (m['ItemKey'], ', '.join(parts)))
+L.append('}')
+L.append('')
+L.append('-- stat mods: stat, FLAT or ADDITIVE, then { low, high } for tiers 1..10')
+L.append('T.STAT_MODS = {')
+for k in sorted(used):
+    t = mods[k]
+    a = t[min(t)]
+    L.append('\t[%d] = { stat = "%s", mod = "%s", %s },' % (k, a['STATTYPE'], a['MODTYPE'],
+        ', '.join('{ %s, %s }' % (t[i]['MinValue'], t[i]['MaxValue']) for i in range(1, 11))))
+L.append('}')
+L.append('')
+L.append('-- taking a socket stat back out: gold by kind and tier')
+ext = defaultdict(dict)
+for r in json.load(open(D + 'data_t_extraction_costs.json')):
+    ext[SK[r['MATERIALTYPE']]][r['Tier']] = r['Cost']
+L.append('T.EXTRACT = {')
+for k in ('gem', 'dust', 'scroll'):
+    L.append('\t%s = { %s },' % (k, ', '.join(str(ext[k][t]) for t in range(1, 11))))
+L.append('}')
 open(OUT, 'w', encoding='utf-8').write('\n'.join(L) + '\n')
 print('wrote', OUT, len(L), 'lines')

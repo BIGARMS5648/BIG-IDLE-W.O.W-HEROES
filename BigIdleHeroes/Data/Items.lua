@@ -175,32 +175,84 @@ ns.AFFIX_POOL = {
 	},
 }
 
--- Socketed stats: three socket kinds, each with its own pool per category.
+-- Sockets (TBH's cube): 보석 세공 = 장식, 마법부여 = 세공, 룬 각인 = 각인.
+-- Each material gives what its TBH counterpart gives (Data/TBH.lua
+-- SOCKET_MATS): per gear group, one of its stats at one of its tiers.
 ns.SOCKET = {
-	gem = {
-		name = "보석 세공", mat = "gem", short = "보석",
-		weapon    = { { "atkPct", 5, 9 }, { "crit", 2, 4 }, { "critdmg", 8, 16 }, { "dmg_all", 3, 6 } },
-		armor     = { { "hpPct", 4, 8 }, { "armorPct", 5, 10 }, { "regen", 0.5, 0.9 }, { "allres", 2, 5 } },
-		accessory = { { "atk", 0.8, 1.4 }, { "aspd", 3, 6 }, { "crit", 2, 4 }, { "cdr", 2, 4 } },
-	},
-	ench = {
-		name = "마법부여", mat = "dust", short = "마법부여",
-		weapon    = { { "aspd", 4, 8 }, { "hph", 0.7, 1.2 }, { "leech", 0.6, 1.4 }, { "cast", 5, 10 } },
-		armor     = { { "dr", 1.5, 3 }, { "dodge", 2, 4 }, { "block", 2, 5 }, { "absorb", 0.6, 1.0 } },
-		accessory = { { "critdmg", 10, 20 }, { "heal", 8, 16 }, { "move", 4, 8 }, { "cdr", 3, 5 } },
-	},
-	insc = {
-		name = "룬 각인", mat = "scroll", short = "각인",
-		weapon    = { { "multi", 4, 8 }, { "atkPct", 8, 14 }, { "dmg_all", 5, 9 } },
-		armor     = { { "hpPct", 7, 12 }, { "dr", 2, 4 }, { "hpk", 3, 5 } },
-		accessory = { { "exp", 4, 8 }, { "gold", 4, 8 }, { "cdr", 3, 6 }, { "skills", 1, 1 } },
-	},
+	gem  = { name = "보석 세공", mat = "gem", short = "보석" },
+	ench = { name = "마법부여", mat = "dust", short = "마법부여" },
+	insc = { name = "룬 각인", mat = "scroll", short = "각인" },
 }
 ns.SOCKET_KINDS = { "gem", "ench", "insc" }
 ns.SOCKET_FIELD = { gem = "g", ench = "e", insc = "i" }
--- Socket material tier -> value multiplier, and the level its flat stats scale to.
-ns.SOCKET_TIER_MULT = { 0.75, 1.0, 1.25, 1.5, 1.75, 2.1 }
-ns.SOCKET_TIER_LEVEL = { 5, 20, 35, 50, 70, 90 }
+-- the item level a socket tier's flat stats (attack, health, armor ...) are
+-- sized for
+ns.SOCKET_TIER_LEVEL = { 1, 5, 10, 15, 20, 30, 40, 50, 65, 80 }
+
+-- TBH's stats as ours. A percent is TBH's number / div (TBH keeps tenths);
+-- flat numbers are ours at the tier's level (coefficient times the stat's
+-- level scale), rolled as widely as TBH's; fixed is a stat TBH counts in
+-- whole steps. Stats without a match here take the nearest one: lightning
+-- is nature, chaos is shadow, area / melee / projectile / summon damage is
+-- all damage (half for area size), projectiles and extra strikes are
+-- 연속 타격, fewer basic attacks per skill is attack speed.
+ns.SOCKET_STAT = {
+	["AttackDamage:FLAT"]                  = { "atk", flat = 1.1 },
+	["AttackDamage:ADDITIVE"]              = { "atkPct", div = 10 },
+	["AttackSpeed:ADDITIVE"]               = { "aspd", div = 10 },
+	["CriticalChance:FLAT"]                = { "crit", div = 10 },
+	["CriticalChance:ADDITIVE"]            = { "crit", div = 200 }, -- TBH: "increased", of a ~5% base
+	["CriticalDamage:FLAT"]                = { "critdmg", div = 10 },
+	["MaxHp:FLAT"]                         = { "hp", flat = 10 },
+	["MaxHp:ADDITIVE"]                     = { "hpPct", div = 10 },
+	["Armor:FLAT"]                         = { "armor", flat = 3 },
+	["Armor:ADDITIVE"]                     = { "armorPct", div = 10 },
+	["CooldownReduction:FLAT"]             = { "cdr", div = 10 },
+	["MovementSpeed:ADDITIVE"]             = { "move", div = 10 },
+	["MovementSpeed:FLAT"]                 = { "move", div = 5 },
+	["AreaOfEffect:ADDITIVE"]              = { "dmg_all", div = 20 },
+	["BaseAttackCountReduction:FLAT"]      = { "aspd", fixed = 10 },
+	["FireResistance:FLAT"]                = { "res_fire" },
+	["ColdResistance:FLAT"]                = { "res_frost" },
+	["LightningResistance:FLAT"]           = { "res_nature" },
+	["ChaosResistance:FLAT"]               = { "res_shadow" },
+	["AllElementalResistance:FLAT"]        = { "allres" },
+	["DodgeChance:FLAT"]                   = { "dodge", div = 10 },
+	["BlockChance:FLAT"]                   = { "block", div = 10 },
+	["Multistrike:FLAT"]                   = { "multi", fixed = 15 },
+	["ProjectileCount:FLAT"]               = { "multi", fixed = 15 },
+	["HpLeech:FLAT"]                       = { "leech", div = 10 },
+	["HpRegenPerSec:FLAT"]                 = { "regen", flat = 0.6 },
+	["PhysicalDamagePercent:FLAT"]         = { "dmg_phys", div = 10 },
+	["FireDamagePercent:FLAT"]             = { "dmg_fire", div = 10 },
+	["ColdDamagePercent:FLAT"]             = { "dmg_frost", div = 10 },
+	["LightningDamagePercent:FLAT"]        = { "dmg_nature", div = 10 },
+	["AddHpPerHit:FLAT"]                   = { "hph", flat = 0.9 },
+	["AddHpPerKill:FLAT"]                  = { "hpk", flat = 3 },
+	["DamageReduction:FLAT"]               = { "dr", div = 10 },
+	["DamageAbsorption:FLAT"]              = { "absorb", flat = 0.75 },
+	["CastSpeed:ADDITIVE"]                 = { "cast", div = 10 },
+	["IncreaseAreaOfEffectDamage:ADDITIVE"] = { "dmg_all", div = 20 },
+	["IncreaseMeleeDamage:ADDITIVE"]       = { "dmg_all", div = 20 },
+	["IncreaseProjectileDamage:ADDITIVE"]  = { "dmg_all", div = 20 },
+	["IncreaseSummonDamage:ADDITIVE"]      = { "dmg_all", div = 20 },
+	["SkillDurationIncrease:ADDITIVE"]     = { "cdr", div = 30 },
+	["SkillHealIncrease:ADDITIVE"]         = { "heal", div = 10 },
+}
+
+-- Our stat and its value for a TBH stat mod rolled at a tier (raw: TBH's
+-- number in that tier's range).
+function ns.SocketStat(modKey, tier, raw)
+	local mod = ns.TBH.STAT_MODS[modKey]
+	local d = ns.SOCKET_STAT[mod.stat .. ":" .. mod.mod]
+	if d.fixed then return d[1], d.fixed end
+	if d.flat then
+		local r = mod[tier]
+		local a = ns.AFFIX[d[1]]
+		return d[1], d.flat * ns.Scale[a.s](ns.SOCKET_TIER_LEVEL[tier]) * raw / ((r[1] + r[2]) / 2)
+	end
+	return d[1], raw / (d.div or 1)
+end
 
 ------------------------------------------------------------------------
 -- Materials (stackable; kept in the reagent bag, not the main bag).
@@ -228,35 +280,132 @@ mat("cloth2", "cloth", 2, "양모 옷감", "INV_Fabric_Wool_01")
 mat("cloth3", "cloth", 3, "비단 옷감", "INV_Fabric_Silk_01")
 mat("cloth4", "cloth", 4, "마법 옷감", "INV_Fabric_Mageweave_01")
 mat("cloth5", "cloth", 5, "룬무늬 옷감", "INV_Fabric_PurpleFire_01")
-mat("gem1", "gem", 1, "공작석", "INV_Misc_Gem_Emerald_03")
-mat("gem2", "gem", 2, "그림자석", "INV_Misc_Gem_Amethyst_01")
-mat("gem3", "gem", 3, "황수정", "INV_Misc_Gem_Opal_02")
-mat("gem4", "gem", 4, "별루비", "INV_Misc_Gem_Ruby_02")
-mat("gem5", "gem", 5, "아제로스 다이아몬드", "INV_Misc_Gem_Diamond_01")
-mat("gem6", "gem", 6, "신비한 수정", "INV_Misc_Gem_Crystal_02")
-mat("dust1", "dust", 1, "이상한 가루", "INV_Enchant_DustStrange")
-mat("dust2", "dust", 2, "영혼 가루", "INV_Enchant_DustSoul")
-mat("dust3", "dust", 3, "환상 가루", "INV_Enchant_DustVision")
-mat("dust4", "dust", 4, "꿈 가루", "INV_Enchant_DustDream")
-mat("dust5", "dust", 5, "환영 가루", "INV_Enchant_DustIllusion")
-mat("dust6", "dust", 6, "눈부신 큰 결정", "INV_Enchant_ShardBrilliantLarge")
-mat("scroll1", "scroll", 1, "희미한 룬 주문서", "INV_Scroll_01")
-mat("scroll2", "scroll", 2, "선명한 룬 주문서", "INV_Scroll_02")
-mat("scroll3", "scroll", 3, "정교한 룬 주문서", "INV_Scroll_03")
-mat("scroll4", "scroll", 4, "고대 룬 주문서", "INV_Scroll_04")
-mat("scroll5", "scroll", 5, "용의 룬 주문서", "INV_Scroll_05")
-mat("scroll6", "scroll", 6, "티탄 룬 주문서", "INV_Scroll_06")
+-- Socket materials: TBH's, one for one (Data/TBH.lua SOCKET_MATS), under
+-- the names of the game's gems, enchanting reagents and rune scrolls.
+local SOCKET_MAT = {
+	-- 보석 (장식)
+	[110001] = { "호안석", "INV_Misc_Gem_Topaz_02" },
+	[110002] = { "하급 월장석", "INV_Misc_Gem_Pearl_03" },
+	[110003] = { "공작석", "INV_Misc_Gem_Emerald_03" },
+	[110004] = { "이끼 마노", "INV_Misc_Gem_Emerald_02" },
+	[110005] = { "그림자석", "INV_Misc_Gem_Amethyst_01" },
+	[111001] = { "흑요석 조각", "INV_Misc_Gem_Variety_01" },
+	[111002] = { "작고 빛나는 진주", "INV_Misc_Gem_Pearl_01" },
+	[111003] = { "비취", "INV_Misc_Gem_Emerald_01" },
+	[111004] = { "황수정", "INV_Misc_Gem_Opal_02" },
+	[112001] = { "별루비", "INV_Misc_Gem_Ruby_02" },
+	[112002] = { "푸른 사파이어", "INV_Misc_Gem_Sapphire_02" },
+	[112003] = { "큰 오팔", "INV_Misc_Gem_Opal_01" },
+	[112004] = { "거대한 에메랄드", "INV_Misc_Gem_Variety_02" },
+	[112005] = { "그림자 드레나이트", "INV_Misc_Gem_Amethyst_02" },
+	[113001] = { "신비한 수정", "INV_Misc_Gem_Crystal_02" },
+	[113002] = { "검은 진주", "INV_Misc_Gem_Pearl_02" },
+	[113003] = { "남옥", "INV_Misc_Gem_Crystal_01" },
+	[113004] = { "피의 석류석", "INV_Misc_Gem_Bloodstone_01" },
+	[114001] = { "아제로스 다이아몬드", "INV_Misc_Gem_Diamond_01" },
+	[114002] = { "새벽의 돌", "INV_Misc_Gem_Topaz_01" },
+	[114003] = { "엘룬의 별", "INV_Misc_Gem_Sapphire_01" },
+	[114004] = { "무지갯빛 진주", "INV_Misc_Gem_Pearl_03" },
+	[115001] = { "밤눈", "INV_Misc_Gem_Amethyst_03" },
+	[115002] = { "고귀한 토파즈", "INV_Misc_Gem_Topaz_03" },
+	[115003] = { "살아있는 루비", "INV_Misc_Gem_Ruby_01" },
+	[115004] = { "하늘빛 사파이어", "INV_Misc_Gem_Sapphire_03" },
+	[116001] = { "사자의 눈", "INV_Misc_Gem_Opal_03" },
+	[116002] = { "검은 다이아몬드", "INV_Misc_Gem_Diamond_02" },
+	[116003] = { "바다물보라 에메랄드", "INV_Misc_Gem_Emerald_02" },
+	[116004] = { "어둠노래 자수정", "INV_Misc_Gem_Amethyst_02" },
+	[117001] = { "황금 진주", "INV_Misc_Gem_Pearl_01" },
+	[117002] = { "용의 눈", "INV_Misc_Gem_Bloodstone_02" },
+	[118001] = { "악몽의 눈물", "INV_Misc_Gem_Crystal_03" },
+	[118002] = { "산의 피", "INV_Misc_Gem_Bloodstone_03" },
+	[119001] = { "대지폭풍 다이아몬드", "INV_Misc_Gem_Diamond_01" },
+	[119002] = { "하늘불꽃 다이아몬드", "INV_Misc_Gem_Diamond_02" },
+	-- 마법부여 재료 (세공)
+	[120001] = { "이상한 가루", "INV_Enchant_DustStrange" },
+	[120002] = { "하급 마법 정수", "INV_Enchant_EssenceMagicSmall" },
+	[120003] = { "작은 빛나는 결정", "INV_Enchant_ShardGlimmeringSmall" },
+	[121001] = { "영혼 가루", "INV_Enchant_DustSoul" },
+	[121002] = { "상급 마법 정수", "INV_Enchant_EssenceMagicLarge" },
+	[121003] = { "하급 별의 정수", "INV_Enchant_EssenceAstralSmall" },
+	[121004] = { "큰 빛나는 결정", "INV_Enchant_ShardGlimmeringLarge" },
+	[122001] = { "환상 가루", "INV_Enchant_DustVision" },
+	[122002] = { "상급 별의 정수", "INV_Enchant_EssenceAstralLarge" },
+	[122003] = { "하급 신비의 정수", "INV_Enchant_EssenceMysticalSmall" },
+	[122004] = { "작은 광채 결정", "INV_Enchant_ShardGlowingSmall" },
+	[123001] = { "꿈 가루", "INV_Enchant_DustDream" },
+	[123002] = { "상급 신비의 정수", "INV_Enchant_EssenceMysticalLarge" },
+	[123003] = { "하급 황천의 정수", "INV_Enchant_EssenceNetherSmall" },
+	[123004] = { "큰 광채 결정", "INV_Enchant_ShardGlowingLarge" },
+	[124001] = { "환영 가루", "INV_Enchant_DustIllusion" },
+	[124002] = { "상급 황천의 정수", "INV_Enchant_EssenceNetherLarge" },
+	[124003] = { "하급 영원의 정수", "INV_Enchant_EssenceEternalSmall" },
+	[124004] = { "작은 찬란한 결정", "INV_Enchant_ShardRadientSmall" },
+	[125001] = { "상급 영원의 정수", "INV_Enchant_EssenceEternalLarge" },
+	[125002] = { "큰 찬란한 결정", "INV_Enchant_ShardRadientLarge" },
+	[125003] = { "작은 눈부신 결정", "INV_Enchant_ShardBrilliantSmall" },
+	[125004] = { "큰 눈부신 결정", "INV_Enchant_ShardBrilliantLarge" },
+	[126001] = { "연결의 결정", "INV_Enchant_ShardNexusLarge" },
+	[126002] = { "신비한 가루", "INV_Enchant_DustIllusion" },
+	[126003] = { "하급 세계의 정수", "INV_Enchant_EssenceEternalSmall" },
+	[126004] = { "상급 세계의 정수", "INV_Enchant_EssenceEternalLarge" },
+	[127001] = { "공허 결정", "INV_Enchant_ShardNexusLarge" },
+	[127002] = { "큰 프리즘 조각", "INV_Enchant_ShardBrilliantLarge" },
+	[128001] = { "무한의 가루", "INV_Enchant_DustDream" },
+	[128002] = { "우주의 정수", "INV_Enchant_EssenceMysticalLarge" },
+	[129001] = { "심연의 결정", "INV_Enchant_ShardNexusLarge" },
+	[129002] = { "천상의 조각", "INV_Enchant_ShardBrilliantLarge" },
+	-- 룬 주문서 (각인)
+	[130001] = { "희미한 룬 주문서", "INV_Scroll_01" },
+	[131001] = { "선명한 룬 주문서", "INV_Scroll_02" },
+	[132001] = { "정교한 룬 주문서", "INV_Scroll_03" },
+	[133001] = { "고대 룬 주문서", "INV_Scroll_04" },
+	[134001] = { "용의 룬 주문서", "INV_Scroll_05" },
+	[135001] = { "티탄 룬 주문서", "INV_Scroll_06" },
+	[136001] = { "별빛 룬 주문서", "INV_Scroll_05" },
+	[137001] = { "천상의 룬 주문서", "INV_Scroll_06" },
+	[138001] = { "신성한 룬 주문서", "INV_Scroll_04" },
+	[139001] = { "태초의 룬 주문서", "INV_Scroll_03" },
+}
+-- id = kind .. TBH id (gem110001); tier = the TBH grade, which is also its colour
+ns.SOCKET_MATS_BY = { gem = {}, dust = {}, scroll = {} } -- [kind][grade] = { id, ... }
+do
+	local keys = {}
+	for k in pairs(ns.TBH.SOCKET_MATS) do keys[#keys + 1] = k end
+	table.sort(keys, function(a, b)
+		local ma, mb = ns.TBH.SOCKET_MATS[a], ns.TBH.SOCKET_MATS[b]
+		if ma.kind ~= mb.kind then return ma.kind < mb.kind end
+		if ma.grade ~= mb.grade then return ma.grade < mb.grade end
+		return a < b
+	end)
+	for _, k in ipairs(keys) do
+		local sm = ns.TBH.SOCKET_MATS[k]
+		local nm = SOCKET_MAT[k] or { "?", "INV_Misc_QuestionMark" }
+		local id = sm.kind .. k
+		mat(id, sm.kind, sm.grade, nm[1], nm[2])
+		ns.MATS[id].q = sm.grade
+		ns.MATS[id].tbh = k
+		local by = ns.SOCKET_MATS_BY[sm.kind]
+		by[sm.grade] = by[sm.grade] or {}
+		table.insert(by[sm.grade], id)
+	end
+end
 mat("seal1", "seal", 1, "낡은 행운의 인장", "INV_Misc_Coin_05")
 mat("seal2", "seal", 2, "용사의 인장", "INV_Misc_Coin_03")
 mat("seal3", "seal", 3, "운명의 인장", "INV_Misc_Coin_02")
 mat("seal4", "seal", 4, "티탄의 인장", "INV_Misc_Coin_01")
+
+-- the n-th socket material of a kind and grade (gem 3 -> "gem112001")
+function ns.SocketMat(kind, grade, n)
+	local list = ns.SOCKET_MATS_BY[kind][grade]
+	return list and list[n or 1]
+end
 
 ns.MAT_KIND_NAME = {
 	bar = "주괴", leather = "가죽", cloth = "옷감",
 	gem = "보석", dust = "마법부여 재료", scroll = "룬 주문서",
 	seal = "행운의 인장",
 }
-ns.MAT_MAX_TIER = { bar = 5, leather = 5, cloth = 5, gem = 6, dust = 6, scroll = 6, seal = 4 }
+ns.MAT_MAX_TIER = { bar = 5, leather = 5, cloth = 5, gem = 10, dust = 10, scroll = 10, seal = 4 }
 
 -- Gold / forge experience a material is worth.
 function ns.MatValue(id)

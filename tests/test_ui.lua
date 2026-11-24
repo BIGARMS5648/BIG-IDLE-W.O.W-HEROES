@@ -154,7 +154,7 @@ local function enrich(round)
 	if #db.bag < 12 then
 		for i = 1, 20 do ns.Items.AddToBag(ns.Items.New(ns.SLOTS[(i % #ns.SLOTS) + 1], 10 + i, 1 + (i + round) % ns.MAX_QUALITY)) end
 	end
-	if ns.MatCount("gem1") < 5 then
+	if ns.MatCount(ns.SocketMat("gem", 1)) < 5 then
 		for _, id in ipairs(ns.MAT_ORDER) do ns.AddMat(id, 30) end
 	end
 	if db.forge.level < 70 then db.forge.level = 70 end
@@ -533,13 +533,14 @@ do
 	try("currency pill", pill.__scripts.OnMouseUp, pill, "LeftButton")
 	if not (Main.Current() == "forge" and ep.func == "mats" and ep.matTab == pill.def.tab) then fail("a currency in the title bar should open its materials tab") end
 	-- auto-fuse in one tab leaves the other tabs' materials alone
-	ns.AddMat("gem1", 20)
+	local GEM1 = ns.SocketMat("gem", 1)
+	ns.AddMat(GEM1, 20)
 	ns.AddMat("bar1", 20)
 	Main.ShowTab("forge", { sub = "mats", tab = "mat_gem" })
 	local barsBefore = ns.MatCount("bar1")
 	press("auto fuse gems", ep.autoFuse)
 	confirmYes("auto fuse gems")
-	if ns.MatCount("gem1") >= 9 then fail("auto-fuse in the gem tab should fuse the gems") end
+	if ns.MatCount(GEM1) >= 9 then fail("auto-fuse in the gem tab should fuse the gems") end
 	if ns.MatCount("bar1") ~= barsBefore then fail("auto-fuse in the gem tab must not touch crafting materials") end
 	Main.ShowTab("forge", { sub = "mats", tab = "mat_craft" })
 	local r = rowOf("bar1")
@@ -635,7 +636,8 @@ do
 	-- sockets: the item, then the material, then the button
 	local epic = ns.Items.New("chest", 30, 6)
 	ns.Items.AddToBag(epic)
-	for _, step in ipairs({ { "gem", "gem2", "g" }, { "ench", "dust2", "e" }, { "insc", "scroll2", "i" } }) do
+	-- (the best grades come first: a top one is on the first page)
+	for _, step in ipairs({ { "gem", ns.SocketMat("gem", 10), "g" }, { "ench", ns.SocketMat("dust", 10), "e" }, { "insc", ns.SocketMat("scroll", 10), "i" } }) do
 		press(step[1] .. " tab", ep.tabs:Get(step[1]))
 		local sp = ep.forge[step[1]]
 		click("target", function(b) return b.data == epic end)
@@ -645,6 +647,22 @@ do
 		press("apply " .. step[1], sp.go)
 		if not epic[step[3]] or #epic[step[3]] ~= 1 then fail(step[1] .. " did not add a stat") end
 		hoverAll()
+	end
+	-- more materials than fit: the best grades on the first page, the rest
+	-- one page on
+	do
+		press("gem tab", ep.tabs:Get("gem"))
+		local sp = ep.forge.gem
+		local function shown(id)
+			for _, b in ipairs(sp.mats) do if b.__shown ~= false and b.matId == id then return true end end
+			return false
+		end
+		local low = ns.SocketMat("gem", 1)
+		if not sp.next.__shown then fail("with every gem at hand the gem tab should page its materials") end
+		if shown(low) then fail("a common gem should not be on the first page when better ones are at hand") end
+		press("next materials", sp.next)
+		if not shown(low) then fail("the next page should show the common gems") end
+		press("previous materials", sp.prev)
 	end
 	-- the "부여됨" line belongs to the piece it was set in: another piece
 	-- picked, it goes; back on that piece, it is there again

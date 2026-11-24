@@ -526,7 +526,8 @@ function MatsView.Refresh(page)
 		if id then
 			local m = ns.MATS[id]
 			local count = ns.MatCount(id)
-			local top = m.tier >= ns.MAT_MAX_TIER[m.kind]
+			local nextList = ns.Forge.NextMat(id)
+			local top = nextList == nil
 			r.icon.data = id
 			r.icon:SetIconName(m.icon)
 			r.icon:SetQuality(m.q)
@@ -563,8 +564,10 @@ function MatsView.Refresh(page)
 			elseif top then
 				r.sub:SetText("가장 높은 단계 (융합 없음)")
 			else
-				local nextM = ns.MATS[m.kind .. (m.tier + 1)]
-				r.sub:SetText(string.format("%d개 → %s 1개", ns.Forge.FUSE_COUNT, nextM and ns.N(nextM.name) or "다음 단계"))
+				local nextM = ns.MATS[nextList[1]]
+				local what = #nextList > 1 and (ns.N(ns.QUALITY[nextM.q].name) .. " 등급 " .. ns.N(ns.MAT_KIND_NAME[m.kind]) .. " 중 하나")
+					or ns.N(nextM.name)
+				r.sub:SetText(string.format("%d개 → %s 1개", ns.Forge.FUSE_COUNT, what))
 				r.one:SetOff(count < ns.Forge.FUSE_COUNT)
 				r.all:SetOff(count < ns.Forge.FUSE_COUNT)
 			end

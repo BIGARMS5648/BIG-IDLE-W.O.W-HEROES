@@ -306,50 +306,70 @@ function Items.RandomSlot(level, cat)
 	return U.weighted(choices).slot
 end
 
--- Rolls a socket stat for an item; returns the entry that was added.
--- A socket stat is rolled between the pool entry's two numbers times this:
--- flat stats follow the material tier's level, the rest a tier multiplier.
-local function socketScale(key, tier)
-	local a = ns.AFFIX[key]
-	if a and a.s then return ns.Scale[a.s](ns.SOCKET_TIER_LEVEL[tier]) end
-	return ns.SOCKET_TIER_MULT[tier]
+-- What a socket material can give an item of this gear group: its TBH
+-- options, { stat mod, lowest tier, highest tier }, one picked evenly.
+function Items.SocketOptions(matId, it)
+	local m = ns.MATS[matId]
+	local sm = m and m.tbh and ns.TBH.SOCKET_MATS[m.tbh]
+	if not sm then return nil end
+	return sm[Items.Cat(it)] or sm.any
 end
 
-function Items.AddSocket(it, kind, tier)
-	local pool = ns.SOCKET[kind][Items.Cat(it)]
-	local e = U.pick(pool)
-	local v
-	if e[1] == "skills" then
-		v = 1
-	else
-		v = U.rnd(e[2], e[3]) * socketScale(e[1], tier)
-	end
-	local entry = { e[1], roundValue(v), tier }
+-- Our stat and its lowest / highest value for one option at one tier.
+local function optionRange(modKey, tier)
+	local r = ns.TBH.STAT_MODS[modKey][tier]
+	local key, lo = ns.SocketStat(modKey, tier, r[1])
+	local _, hi = ns.SocketStat(modKey, tier, r[2])
+	return key, lo, hi
+end
+
+-- Sets a material in a free socket: one of its options for the item's gear
+-- group, a tier in the option's range, a value in the tier's range.
+-- Returns the entry { stat, value, tier, material, stat mod }.
+function Items.AddSocket(it, kind, matId)
+	local opts = Items.SocketOptions(matId, it)
+	if not opts then return nil end
+	local o = U.pick(opts)
+	local tier = random(o[2], o[3])
+	local r = ns.TBH.STAT_MODS[o[1]][tier]
+	local key, v = ns.SocketStat(o[1], tier, random(r[1], r[2]))
+	local entry = { key, roundValue(v), tier, matId, o[1] }
 	local l = Items.SocketList(it, kind, true)
 	l[#l + 1] = entry
 	return entry
 end
 
--- The lowest and highest value a socket stat could have rolled (its kind,
--- the item's category and the material tier), or nil for a fixed one.
+-- The lowest and highest value a socket stat could have rolled (its
+-- material's option at that tier), or nil for a fixed one.
 function Items.SocketRange(it, kind, e)
-	local key, tier = e[1], e[3]
-	local pools = ns.SOCKET[kind]
-	local pool = pools and pools[Items.Cat(it)]
-	if not (pool and tier and ns.SOCKET_TIER_MULT[tier]) then return nil end
-	for _, p in ipairs(pool) do
-		if p[1] == key then
-			if p[2] == p[3] then return nil end
-			local s = socketScale(key, tier)
-			return roundValue(p[2] * s), roundValue(p[3] * s)
-		end
-	end
+	if not (e[5] and ns.TBH.STAT_MODS[e[5]] and e[3]) then return nil end
+	local _, lo, hi = optionRange(e[5], e[3])
+	lo, hi = roundValue(lo), roundValue(hi)
+	if lo == hi then return nil end
+	return lo, hi
 end
 
--- The icon of the material set in a socket of this kind and tier.
-function Items.SocketIcon(kind, tier)
-	local m = ns.SOCKET[kind] and ns.MATS[ns.SOCKET[kind].mat .. (tier or 1)]
-	return m and m.icon
+-- Every stat a material can give an item of this gear group, with its
+-- whole range over the option's tiers: { { key, lo, hi, chance }, ... }.
+function Items.SocketPool(matId, it)
+	local opts = Items.SocketOptions(matId, it)
+	if not opts then return {} end
+	local out = {}
+	for _, o in ipairs(opts) do
+		local key, lo = optionRange(o[1], o[2])
+		local _, _, hi = optionRange(o[1], o[3])
+		out[#out + 1] = { key, roundValue(lo), roundValue(hi), 100 / #opts }
+	end
+	return out
+end
+
+-- The icon of what is set in a socket: its material, else the kind's.
+function Items.SocketIcon(kind, tier, matId)
+	local m = matId and ns.MATS[matId]
+	if m then return m.icon end
+	local by = ns.SOCKET_MATS_BY[ns.SOCKET[kind].mat]
+	local list = by and (by[tier or 1] or by[1])
+	return list and ns.MATS[list[1]].icon
 end
 
 -- "(10.5~21)", or nil for a fixed stat
@@ -608,7 +628,7 @@ function Items.Tooltip(it, heroId)
 				local e = l and l[i]
 				if e then
 					add(Items.SocketText(it, kind, e), nil, 0.4, 0.8, 1)
-					lines[#lines].sockets = { { kind, Items.SocketIcon(kind, e[3]) } }
+					lines[#lines].sockets = { { kind, Items.SocketIcon(kind, e[3], e[4]) } }
 				else
 					empty[#empty + 1] = { kind }
 				end
@@ -660,7 +680,11 @@ function Items.MatTooltip(id)
 	local lines = {}
 	local r, g, b = U.rgb(ns.QUALITY[m.q].hex)
 	lines[#lines + 1] = { ns.N(m.name), nil, r, g, b }
-	lines[#lines + 1] = { ns.N(ns.MAT_KIND_NAME[m.kind]) .. " " .. string.format("%d단계", m.tier), nil, 0.7, 0.7, 0.7 }
+	if m.tbh then
+		lines[#lines + 1] = { ns.N(ns.QUALITY[m.q].name) .. " 등급 " .. ns.N(ns.MAT_KIND_NAME[m.kind]), nil, 0.7, 0.7, 0.7 }
+	else
+		lines[#lines + 1] = { ns.N(ns.MAT_KIND_NAME[m.kind]) .. " " .. string.format("%d단계", m.tier), nil, 0.7, 0.7, 0.7 }
+	end
 	local use
 	if m.kind == "bar" or m.kind == "leather" or m.kind == "cloth" then
 		use = "장비 > 제작 탭에서 장비를 만드는 재료입니다."
@@ -674,8 +698,27 @@ function Items.MatTooltip(id)
 		use = "장비 > 재료 > 행운의 인장 재료에서 [굴리기]로 무작위 장비를 얻습니다."
 	end
 	lines[#lines + 1] = { use, nil, 1, 0.82, 0, true }
-	if m.tier < ns.MAT_MAX_TIER[m.kind] then
-		lines[#lines + 1] = { "9개를 융합하면 다음 단계 1개가 됩니다.", nil, 0.6, 0.8, 1, true }
+	-- what it gives, by gear group (TBH: one stat of the group, evenly)
+	local sm = m.tbh and ns.TBH.SOCKET_MATS[m.tbh]
+	if sm then
+		local GROUP = { { "weapon", "무기" }, { "armor", "방어구" }, { "accessory", "장신구" }, { "any", "모든 장비" } }
+		for _, g in ipairs(GROUP) do
+			local opts = sm[g[1]]
+			if opts then
+				lines[#lines + 1] = { g[2] .. (#opts > 1 and string.format(" (%d가지 중 하나)", #opts) or ""), nil, 0.55, 0.8, 1 }
+				for _, o in ipairs(opts) do
+					local r1, r2 = ns.TBH.STAT_MODS[o[1]][o[2]], ns.TBH.STAT_MODS[o[1]][o[3]]
+					local key, lo = ns.SocketStat(o[1], o[2], r1[1])
+					local _, hi = ns.SocketStat(o[1], o[3], r2[2])
+					local a = ns.AFFIX[key]
+					local f = function(v) return a.f == "pct" and (U.num(v, 1) .. "%") or U.num(v, 1) end
+					lines[#lines + 1] = { "  " .. ns.N(a.n), (lo == hi) and ("+" .. f(lo)) or ("+" .. f(lo) .. "~" .. f(hi)), 0.85, 0.85, 0.85 }
+				end
+			end
+		end
+	end
+	if ns.Forge.NextMat(id) then
+		lines[#lines + 1] = { "9개를 융합하면 다음 등급 1개가 됩니다.", nil, 0.6, 0.8, 1, true }
 	end
 	lines[#lines + 1] = { "분해 가치 (1개)", U.fmt(ns.Forge.MatSmeltGold(id, 1)) .. " G", 1, 0.82, 0 }
 	lines[#lines + 1] = { "보유", tostring(ns.MatCount(id)), 0.8, 0.8, 0.8 }

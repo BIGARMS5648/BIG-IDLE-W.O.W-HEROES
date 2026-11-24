@@ -145,9 +145,13 @@ do
 		if not known(key, account) then bad[#bad + 1] = where .. ": " .. tostring(key) end
 	end
 	for cat, pool in pairs(ns.AFFIX_POOL) do for _, e in ipairs(pool) do need("옵션 " .. cat, e[1]) end end
-	for _, kind in ipairs(ns.SOCKET_KINDS) do
-		for _, cat in ipairs({ "weapon", "armor", "accessory" }) do
-			for _, e in ipairs(ns.SOCKET[kind][cat]) do need(kind .. " " .. cat, e[1]) end
+	for id, sm in pairs(ns.TBH.SOCKET_MATS) do
+		for _, cat in ipairs({ "weapon", "armor", "accessory", "any" }) do
+			for _, o in ipairs(sm[cat] or {}) do
+				local mod = ns.TBH.STAT_MODS[o[1]]
+				local d = ns.SOCKET_STAT[mod.stat .. ":" .. mod.mod]
+				need("홈 재료 " .. id .. " " .. cat, d and d[1])
+			end
 		end
 	end
 	for s, def in pairs(ns.SLOT) do for k in pairs(def.base or {}) do need("부위 " .. s, k) end end
@@ -289,12 +293,14 @@ do
 	for _, kind in ipairs(ns.SOCKET_KINDS) do
 		for _, cat in ipairs({ "weapon", "armor", "accessory" }) do
 			local slot = CAT_SLOT[cat]
-			for tier = 1, #ns.SOCKET_TIER_MULT do
+			for tier = 1, ns.MAT_MAX_TIER[ns.SOCKET[kind].mat] do
+			for _, mat in ipairs(ns.Forge.MatsAt(ns.SOCKET[kind].mat, tier)) do
 				local seen = {}
-				for _ = 1, 120 do
+				local n = #(ns.Items.SocketOptions(mat, ns.Items.New(slot, 1, 1)) or {})
+				for _ = 1, 12 * n do
 					local it = ns.Items.New(slot, 60, ns.MAX_QUALITY)
 					it.a = nil
-					local e = ns.Items.AddSocket(it, kind, tier)
+					local e = ns.Items.AddSocket(it, kind, mat)
 					seen[e[1]] = true
 					tested = tested + 1
 					local lo, hi = ns.Items.SocketRange(it, kind, e)
@@ -304,22 +310,23 @@ do
 					local text = table.concat((function() local t = {} for _, l in ipairs(ns.Items.Tooltip(it)) do t[#t + 1] = l[1] or "" end return t end)(), "\n")
 					if not text:find(ns.Items.SocketText(it, kind, e), 1, true) then tips[#tips + 1] = kind .. " " .. e[1] end
 				end
-				for _, p in ipairs(ns.SOCKET[kind][cat]) do
-					if not seen[p[1]] then unseen[#unseen + 1] = kind .. " " .. cat .. " " .. p[1] end
+				for _, p in ipairs(ns.Items.SocketPool(mat, ns.Items.New(slot, 1, 1))) do
+					if not seen[p[1]] then unseen[#unseen + 1] = kind .. " " .. cat .. " " .. mat .. " " .. p[1] end
 				end
+			end
 			end
 		end
 	end
 	db.heroes[H].gear = {}
-	check(#unseen == 0, "보석·마법부여·룬 각인: 부위마다 모든 종류가 나옴", #unseen > 0 and list(unseen) or nil)
+	check(#unseen == 0, "보석·마법부여·룬 각인: 재료마다 부위별로 붙을 수 있는 능력치가 모두 나옴", #unseen > 0 and list(unseen) or nil)
 	check(#range == 0, "나온 수치가 툴팁의 범위 안 (" .. tested .. "번)", #range > 0 and list(range) or nil)
-	check(#bad == 0, "박은 능력치가 그 숫자 그대로 영웅 능력치에 들어감 (보석 " .. #ns.SOCKET_TIER_MULT .. "등급 × 부위 3종 × 3종류)", #bad > 0 and list(bad, 4) or nil)
+	check(#bad == 0, "박은 능력치가 그 숫자 그대로 영웅 능력치에 들어감 (재료 79종 × 부위 3종)", #bad > 0 and list(bad, 4) or nil)
 	check(#tips == 0, "툴팁에 박은 능력치가 그 숫자로 적혀 있음", #tips > 0 and list(tips) or nil)
 	-- a worn item with every kind of socket filled, enhanced, with random stats
 	local it = ns.Items.New("neck", 60, ns.MAX_QUALITY)
 	it.up = 12
 	for _, kind in ipairs(ns.SOCKET_KINDS) do
-		for _ = 1, ns.Items.SocketCount(it, kind) do ns.Items.AddSocket(it, kind, 6) end
+		for _ = 1, ns.Items.SocketCount(it, kind) do ns.Items.AddSocket(it, kind, ns.SocketMat(ns.SOCKET[kind].mat, 6)) end
 	end
 	local d = wearCheck(H, it)
 	db.heroes[H].gear = {}
@@ -526,7 +533,7 @@ do
 	for _, kind in ipairs(ns.SOCKET_KINDS) do
 		db.forge.ops[kind] = true
 		if ns.Items.FreeSockets(it, kind) > 0 then
-			local mat = ns.SOCKET[kind].mat .. "4"
+			local mat = ns.SocketMat(ns.SOCKET[kind].mat, 4)
 			ns.AddMat(mat, 1)
 			check(ns.Forge.Socket(it, kind, mat, H), ns.N(ns.SOCKET[kind].name) .. ": 낀 장비에 박음")
 			s = live(ns.N(ns.SOCKET[kind].name) .. " → 다음 순간 전투 능력치와 영웅 화면에", s)
@@ -541,7 +548,7 @@ do
 		ns.Forge.RemoveSocket(it, kind, 1, H)
 		s = live("추출 → 다음 순간 전투 능력치와 영웅 화면에", s)
 	end
-	local mat = ns.SOCKET[kind].mat .. "6"
+	local mat = ns.SocketMat(ns.SOCKET[kind].mat, 6)
 	ns.AddMat(mat, 1)
 	check(ns.Forge.Socket(it, kind, mat, other), "다른 영웅 이름으로 박음")
 	s = live("다른 영웅 이름으로 박아도 실제로 낀 영웅의 전투 능력치와 영웅 화면에", s)

@@ -41,12 +41,20 @@ function Loot.BoxLevels(key)
 end
 
 -- A material of a TBH kind and grade as ours: 장식 → gem, 세공 → dust,
--- 각인 → scroll, crafting → bar / leather / cloth, coins and soulstones →
--- seals (their tier by their number).
+-- 각인 → scroll (one of that kind and grade, evenly, as TBH's "<grade>
+-- Material" groups hold every one of them), crafting → bar / leather /
+-- cloth, coins and soulstones → seals (their tier by their number).
 function Loot.MatFor(kind, grade)
 	if kind == "seal" or kind == "soul" then
 		local tier = kind == "soul" and grade or math.ceil(grade / 2.5)
 		return "seal" .. U.clamp(tier, 1, ns.MAT_MAX_TIER.seal), 1
+	end
+	local by = ns.SOCKET_MATS_BY[kind]
+	if by then
+		local g = U.clamp(grade, 1, ns.MAT_MAX_TIER[kind])
+		while g > 1 and not by[g] do g = g - 1 end
+		local list = by[g]
+		return list[random(#list)], 1
 	end
 	local k = kind == "craft" and CRAFT[random(#CRAFT)] or kind
 	local n = kind == "craft" and random(1, 3) or 1

@@ -1,7 +1,7 @@
 -- Saved data: defaults, migration, repair of missing fields and the gold purse.
 local _, ns = ...
 
-local DB_VERSION = 5
+local DB_VERSION = 6
 
 -- skills that became other classic spells (version 4): old id -> new id
 local OLD_SKILL = {
@@ -231,6 +231,21 @@ function ns.InitDB()
 		for _, h in pairs(db.heroes) do
 			if type(h) == "table" and type(h.gear) == "table" then
 				for _, it in pairs(h.gear) do snap(it) end
+			end
+		end
+	end
+	if from < 6 and type(db.mats) == "table" then
+		-- socket materials by tier become TBH's materials of that grade,
+		-- shared out over the grade's kinds
+		for _, kind in ipairs({ "gem", "dust", "scroll" }) do
+			for tier = 1, 6 do
+				local n = tonumber(db.mats[kind .. tier]) or 0
+				db.mats[kind .. tier] = nil
+				local list = ns.SOCKET_MATS_BY[kind][tier]
+				for i = 1, n do
+					local id = list[(i - 1) % #list + 1]
+					db.mats[id] = (db.mats[id] or 0) + 1
+				end
 			end
 		end
 	end

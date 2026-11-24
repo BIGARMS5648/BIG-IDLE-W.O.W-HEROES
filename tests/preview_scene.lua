@@ -45,8 +45,8 @@ end
 do
 	local it = ns.Items.New("chest", 30, 6)
 	ns.Items.AddToBag(it)
-	ns.Forge.Socket(it, "gem", "gem2")
-	ns.Forge.Socket(it, "ench", "dust2")
+	ns.Forge.Socket(it, "gem", ns.SocketMat("gem", 2))
+	ns.Forge.Socket(it, "ench", ns.SocketMat("dust", 2))
 end
 db.prog = { 30, 14, 0, 0 }
 db.stage = { diff = 1, idx = 26 }
@@ -221,9 +221,9 @@ local function stressRing()
 	for _, kind in ipairs(ns.SOCKET_KINDS) do
 		local l = ns.Items.SocketList(stress, kind, true)
 		for _ = 1, ns.Items.SocketCount(stress, kind) do
-			local e = { "cdr", 0, #ns.SOCKET_TIER_MULT }
-			local _, hi = ns.Items.SocketRange(stress, kind, e)
-			e[2] = hi
+			-- 재사용 대기시간 감소 at TBH's top tier
+			local _, hi = ns.SocketStat(100701, 10, ns.TBH.STAT_MODS[100701][10][2])
+			local e = { "cdr", hi, 10, nil, 100701 }
 			l[#l + 1] = e
 		end
 	end
@@ -235,8 +235,8 @@ local mixed
 local function mixedItem()
 	if mixed then return mixed end
 	mixed = ns.Items.New("chest", 58, ns.MAX_QUALITY)
-	ns.Items.AddSocket(mixed, "gem", 4)
-	ns.Items.AddSocket(mixed, "insc", 6)
+	ns.Items.AddSocket(mixed, "gem", ns.SocketMat("gem", 4))
+	ns.Items.AddSocket(mixed, "insc", ns.SocketMat("scroll", 6))
 	table.insert(db.bag, 2, mixed)
 	return mixed
 end

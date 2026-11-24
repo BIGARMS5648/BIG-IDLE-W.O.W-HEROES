@@ -18,6 +18,7 @@ ns.ForgeView = ForgeView
 
 local W, H = UI.K.EQUIP_BODY_W, 456
 local CELL, STEP = 46, 52
+local MAT_COLS, MAT_SLOTS = 10, 20 -- the socket screens' material grid
 local OP_ICON = {
 	fuse = "Spell_Nature_WispSplode", smelt = "Spell_Fire_Fire", craft = "Trade_BlackSmithing", gem = "INV_Misc_Gem_Ruby_02",
 	remove = "INV_Hammer_20", ench = "Trade_Engraving", seal = "INV_Misc_Coin_02", insc = "INV_Scroll_03",
@@ -460,19 +461,22 @@ local function buildSocket(kind)
 		p.empty:SetWidth(W - 40)
 		p.empty:SetJustifyH("CENTER")
 		UI.Color(p.empty, UI.C.sub)
-		-- the material to set
+		-- the material to set: the ones you have, the best grades first,
+		-- two rows of ten (more on further pages)
 		p.matHead = UI.Section(f, W, "쓸 재료")
 		p.matHead:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -214)
+		p.matPage = 1
+		p.prev = p.matHead:AddTool(UI.Button(f, 30, 22, "<", function() p.matPage = p.matPage - 1 Main.Refresh() end, "dark"))
+		p.next = p.matHead:AddTool(UI.Button(f, 30, 22, ">", function() p.matPage = p.matPage + 1 Main.Refresh() end, "dark"))
 		p.mats = {}
-		for i = 1, ns.MAT_MAX_TIER[matKind] do
+		for i = 1, MAT_SLOTS do
 			local b = UI.IconButton(f, CELL, function(self) p.mat = self.matId Main.Refresh() end)
-			b.matId = matKind .. i
-			b:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * STEP, -240)
-			UI.Tip(b, function(self) return ns.Items.MatTooltip(self.matId) end, "TOP")
+			b:SetPoint("TOPLEFT", f, "TOPLEFT", ((i - 1) % MAT_COLS) * STEP, -240 - math.floor((i - 1) / MAT_COLS) * STEP)
+			UI.Tip(b, function(self) return self.matId and ns.Items.MatTooltip(self.matId) or nil end, "TOP")
 			p.mats[i] = b
 		end
 		p.matText = UI.Text(f, 11)
-		p.matText:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -296)
+		p.matText:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -348)
 		p.matText:SetWidth(W)
 		p.matText:SetWordWrap(false)
 		UI.Color(p.matText, UI.C.sub)
@@ -509,21 +513,34 @@ local function buildSocket(kind)
 		p.refresh = function()
 			local t, th = ForgeView.Target()
 			if t and p.accepts(t) then p.picked, p.pickedHero = t, th else p.picked, p.pickedHero = nil, nil end
-			-- materials: keep a usable one picked
-			if not p.mat or ns.MatCount(p.mat) <= 0 then
-				p.mat = nil
-				for i = ns.MAT_MAX_TIER[matKind], 1, -1 do
-					if not p.mat and ns.MatCount(matKind .. i) > 0 then p.mat = matKind .. i end
+			-- materials: the ones you have, best grade first; keep a usable
+			-- one picked
+			local owned = {}
+			for i = ns.MAT_MAX_TIER[matKind], 1, -1 do
+				for _, id in ipairs(ns.Forge.MatsAt(matKind, i)) do
+					if ns.MatCount(id) > 0 then owned[#owned + 1] = id end
 				end
 			end
-			for _, b in ipairs(p.mats) do
-				local count = ns.MatCount(b.matId)
+			if not p.mat or ns.MatCount(p.mat) <= 0 then p.mat = owned[1] end
+			local pages = math.max(1, math.ceil(#owned / MAT_SLOTS))
+			p.matPage = U.clamp(p.matPage, 1, pages)
+			p.prev:SetShown(pages > 1)
+			p.next:SetShown(pages > 1)
+			p.prev:SetOff(p.matPage <= 1)
+			p.next:SetOff(p.matPage >= pages)
+			for i, b in ipairs(p.mats) do
+				local id = owned[(p.matPage - 1) * MAT_SLOTS + i]
+				b.matId = id
 				b:Clear()
-				b:SetIconName(ns.MATS[b.matId].icon)
-				b:SetQuality(ns.MATS[b.matId].q)
-				b:SetCount(count > 0 and tostring(count) or "")
-				b:SetDim(count == 0)
-				b:SetSelected(p.mat == b.matId)
+				if id then
+					b:SetIconName(ns.MATS[id].icon)
+					b:SetQuality(ns.MATS[id].q)
+					b:SetCount(tostring(ns.MatCount(id)))
+					b:SetSelected(p.mat == id)
+					b:Show()
+				else
+					b:Hide()
+				end
 			end
 			p.matText:SetText(p.mat and (ns.N(ns.MATS[p.mat].name) .. "  ·  " .. ns.MatCount(p.mat) .. "개") or "가진 재료가 없습니다.")
 			local it = p.picked
@@ -558,7 +575,7 @@ local function buildSocket(kind)
 				r.remove:SetShown(e ~= nil and e ~= false)
 				if has then
 					if e then
-						r.socket:Set(kind, ns.Items.SocketIcon(kind, e[3]))
+						r.socket:Set(kind, ns.Items.SocketIcon(kind, e[3], e[4]))
 						r.text:SetText(U.col("66ccff", ns.Items.SocketText(it, kind, e)))
 						if ns.Forge.Unlocked("remove") then
 							r.remove:SetStyle("red")
@@ -576,9 +593,23 @@ local function buildSocket(kind)
 					end
 				end
 			end
-			local pool = {}
-			for _, e in ipairs(ns.SOCKET[kind][ns.Items.Cat(it)]) do pool[#pool + 1] = ns.N(ns.AFFIX[e[1]].n) end
-			c.pool:SetText("나올 수 있는 능력치(무작위): " .. table.concat(pool, ", "))
+			-- what the picked material gives this piece
+			if p.mat then
+				local pool = ns.Items.SocketPool(p.mat, it)
+				local parts = {}
+				for _, e in ipairs(pool) do
+					local a = ns.AFFIX[e[1]]
+					local f = function(v) return a.f == "pct" and (U.num(v, 1) .. "%") or U.num(v, 1) end
+					parts[#parts + 1] = ns.N(a.n) .. " +" .. ((e[2] == e[3]) and f(e[2]) or (f(e[2]) .. "~" .. f(e[3])))
+				end
+				if #parts > 3 then
+					c.pool:SetText(string.format("%s: %d가지 능력치 중 하나 (재료에 마우스를 올리면 목록)", ns.N(ns.MATS[p.mat].name), #parts))
+				else
+					c.pool:SetText(ns.N(ns.MATS[p.mat].name) .. ": " .. table.concat(parts, #parts > 1 and " 또는 " or ""))
+				end
+			else
+				c.pool:SetText("")
+			end
 			local can, why = false, "재료가 없습니다. 상자에서 얻을 수 있습니다."
 			if p.mat then can, why = ns.Forge.CanSocket(it, kind, p.mat) end
 			p.go:SetOff(not can)
