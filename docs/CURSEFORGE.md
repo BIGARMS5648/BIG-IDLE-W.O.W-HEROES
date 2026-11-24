@@ -60,7 +60,8 @@ Build a party of five heroes, send them along a route through the original game'
 ### The world: 120 stages
 - A route through **the original game's zones, dungeons and raids in recommended-level order**: Elwynn Forest, Dun Morogh, the Deadmines, Scarlet Monastery, Uldaman, Blackrock Depths, Scholomance, Stratholme, Zul'Gurub, Ahn'Qiraj, and on to Molten Core, Onyxia's Lair, Blackwing Lair, the Temple of Ahn'Qiraj and **Naxxramas**.
 - **Four difficulty tiers** (Normal, Heroic, Mythic, Mythic+), each with 30 stages in three acts.
-- Every stage is a run of monster waves ending in a boss. Raid bosses have their own abilities.
+- Every stage is a long run of monster waves ending in a boss, with stage levels from 1 to 95. The last stage of each act is its raid boss alone, with its own abilities.
+- A long climb: about 60 hours to clear Normal, about 110 hours to reach the last act of Mythic+, and around 300 hours to clear everything and reach level 100 with the auto-play the add-on was tuned with.
 
 ### A living battle window
 - Heroes, monsters, bosses, summons and companions are **the game's own 3D models**, animated: they stand, walk, attack, cast, get hit and die.
@@ -76,7 +77,8 @@ Build a party of five heroes, send them along a route through the original game'
 - **Drag** the window anywhere, **resize** it from its corner, or switch to a compact view.
 
 ### Loot and progression
-- **Gear in 8 quality tiers** from monsters and chests.
+- **Gear in 10 grades**, from Common to Cosmic, in fixed item levels (1, 5, 10, 15, 20, 30, 40, 50, 65, 80, 100). A hero wears an item from its own level, so gear above your heroes waits in the bag until they catch up.
+- **Three kinds of chests**: monster chests, boss chests and act boss chests. Each stage has its own chests, drop chances and contents, shown on the stage screen.
 - **The Forge**, a screen of its own: every function in a list on the left (fuse, craft, gems, enchant, engrave runes, enhance, salvage, lucky seals, materials), the work in the middle, and on the right the hero and item you work on plus a log of the latest results. Bags fill up, so auto-salvage helps keep them clear.
 - **Enhancement** (+1 to +20) once Mythic+ is cleared: every step raises an item's base stats; steps past +10 can fail (only the gold is lost), and enhancement can be moved to a new item of the same slot for gold. Item icons show their +N.
 - **Rune tree**: account-wide bonuses that open more party slots, skill slots and more.
