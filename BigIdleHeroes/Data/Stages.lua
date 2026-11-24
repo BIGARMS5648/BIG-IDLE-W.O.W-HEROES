@@ -458,8 +458,34 @@ function ns.MobMight(l)
 	end
 	return k[#k][2]
 end
-function ns.MobHP(base, l)   return base * (1 + 0.25 * (l - 1)) * 1.07 ^ (l - 1) * ns.MobMight(l) end
-function ns.MobAtk(base, l)  return base * (1 + 0.12 * (l - 1)) * 1.05 ^ (l - 1) * ns.MobMight(l) end
+-- The gear level a party has at stage level l: boxes give gear in TBH's
+-- steps (1, 5, 10, ... 100), and the first stages of a step are fought with
+-- the step before's gear, so it climbs from that step to this one.
+function ns.GearAt(l)
+	local L = ns.TBH.ITEM_LEVELS
+	for i = 2, #L do
+		if l < L[i] then
+			local lo, hi, prev = L[i - 1], L[i], L[i - 2] or L[1]
+			return prev + (lo - prev) * (l - lo) / (hi - lo)
+		end
+	end
+	return L[#L]
+end
+-- Monsters grow with that gear level, and a little (MOB_BAND) with the
+-- stage level past it, which the heroes' own levels make up for.
+ns.MOB_BAND = 0.3
+function ns.MobLevel(l)
+	local g = ns.GearAt(l)
+	return g + ns.MOB_BAND * (l - g)
+end
+function ns.MobHP(base, l)
+	local m = ns.MobLevel(l)
+	return base * (1 + 0.25 * (m - 1)) * 1.07 ^ (m - 1) * ns.MobMight(l)
+end
+function ns.MobAtk(base, l)
+	local m = ns.MobLevel(l)
+	return base * (1 + 0.12 * (m - 1)) * 1.05 ^ (m - 1) * ns.MobMight(l)
+end
 function ns.MobGold(base, l) return base * (1 + 0.15 * (l - 1)) * 1.04 ^ (l - 1) end
 -- experience grows with the stage level as TBH's (Data/TBH.lua)
 function ns.MobExp(base, l)  return ns.EXP_RATE * base * ns.TBH.MULT[math.max(1, math.min(100, l))][4] end
