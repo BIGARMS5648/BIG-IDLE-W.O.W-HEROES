@@ -98,9 +98,12 @@ local function forge()
 	end
 	if ns.Items.BagFree() < 10 then
 		local top = ns.Items.SnapLevel(ns.Heroes.PartyTopLevel())
+		-- (gear taken off with filled sockets too: it would clog the bag)
 		local list = {}
 		for _, it in ipairs(ns.db.bag) do
-			if fodder(it) then list[#list + 1] = it end
+			if not it.lock and not it.up and not ns.Items.PartyUpgrade(it) and not ns.Items.FutureUpgrade(it) then
+				list[#list + 1] = it
+			end
 		end
 		-- older levels first, then the lowest grades
 		table.sort(list, function(a, b)
