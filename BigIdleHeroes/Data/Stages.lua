@@ -12,16 +12,16 @@
 local _, ns = ...
 
 ns.DIFFS = {
-	{ name = "일반",   hex = "e8e8e8", base = 1,  step = 1.00, mobs = 1, bossHP = 1.0,
+	{ name = "일반",   hex = "e8e8e8",
 		world = "모험의 시작",
 		acts = { "불모의 땅", "그림자송곳니 성채", "붉은십자군 수도원" } },
-	{ name = "영웅",   hex = "3ddc5a", base = 32, step = 0.80, mobs = 3, bossHP = 1.5,
+	{ name = "영웅",   hex = "3ddc5a",
 		world = "넓어지는 세계",
 		acts = { "울다만", "아탈학카르 신전", "검은바위 첨탑 하층" } },
-	{ name = "신화",   hex = "b266ff", base = 57, step = 0.70, mobs = 4, bossHP = 2.0,
+	{ name = "신화",   hex = "b266ff",
 		world = "깨어나는 위협",
 		acts = { "검은바위 첨탑 상층", "줄구룹", "세계의 우두머리" } },
-	{ name = "신화+", hex = "ff9326", base = 79, step = 0.73, mobs = 5, bossHP = 2.6,
+	{ name = "신화+", hex = "ff9326",
 		world = "최후의 결전",
 		acts = { "화산 심장부", "검은날개와 안퀴라즈", "낙스라마스" } },
 }
@@ -440,6 +440,32 @@ function ns.StageWaves(diff, idx)
 	local per = ns.MobsPerWave(diff, idx)
 	local kills = ns.StageKills(diff, idx)
 	return (per > 0 and math.ceil(kills / per) or 0) + 1
+end
+
+-- Every stage's monsters on one footing: their average health and attack,
+-- and the boss's, come to the same base, so how hard a stage is comes from
+-- its level (TBH's) alone; each monster keeps its build next to the others.
+local NORM = { hp = 65.7, dps = 7.07, bossHP = 750, bossAtk = 12.5 }
+function ns.StageNorm(diff, idx)
+	local stg = ns.STAGES[diff] and ns.STAGES[diff][idx]
+	if not stg then return nil end
+	if not stg.norm then
+		local hp, dps, w = 0, 0, 0
+		for _, e in ipairs(stg.mobs) do
+			local m = ns.MONSTERS[e[1]]
+			hp = hp + m.hp * e[2]
+			dps = dps + m.atk * (m.aspd or 1) * e[2]
+			w = w + e[2]
+		end
+		local b = stg.boss
+		local k = b.build and BUILD[b.build]
+		stg.norm = {
+			hp = NORM.hp * w / hp, atk = NORM.dps * w / dps,
+			bossHP = NORM.bossHP * (k and k.hp or 1) * (stg.raid and 2 or 1) / b.hp,
+			bossAtk = NORM.bossAtk * (k and k.atk or 1) / b.atk,
+		}
+	end
+	return stg.norm
 end
 
 -- Monster strength on top of the base growth, by stage level: { level,

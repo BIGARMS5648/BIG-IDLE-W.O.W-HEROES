@@ -417,13 +417,17 @@ end
 ------------------------------------------------------------------------
 local function newMob(def, isBoss, index, summoned)
 	local l = st.level
-	local hp = ns.MobHP(def.hp, l)
-	if isBoss then hp = hp * ns.DIFFS[st.diff].bossHP end
-	if st.raid and not isBoss and not summoned then hp = hp * 1.5 end
+	local hp, atk = ns.MobHP(def.hp, l), ns.MobAtk(def.atk, l)
+	-- a stage of the game (not a test's): its monsters on one footing
+	local norm = not summoned and ns.Stage(st.diff, st.idx) == ns.STAGES[st.diff][st.idx] and ns.StageNorm(st.diff, st.idx)
+	if norm then
+		hp = hp * (isBoss and norm.bossHP or norm.hp)
+		atk = atk * (isBoss and norm.bossAtk or norm.atk)
+	end
 	hp = floor(hp + 0.5)
 	local m = {
 		mob = true, def = def, name = def.name, icon = def.icon, type = def.type, boss = isBoss, summoned = summoned,
-		hp = hp, maxhp = hp, atk = ns.MobAtk(def.atk, l), aspd = def.aspd, range = def.range,
+		hp = hp, maxhp = hp, atk = atk, aspd = def.aspd, range = def.range,
 		school = def.school, move = def.move, res = def.res, status = def.status,
 		gold = ns.MobGold(1 + def.hp / 14, l), exp = ns.MobExp(1 + def.hp / 10, l),
 		x = LANE + (index - 1) * 45 + random(0, 20), off = ((index - 1) % 4) * 12,
