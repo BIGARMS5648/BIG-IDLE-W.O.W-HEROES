@@ -668,5 +668,84 @@ do
 	check(kills > 500 and clears > 0, "실전이 진행됨", string.format("처치 %d · 공략 %d · 전멸 %d", kills, clears, wipes))
 end
 
+------------------------------------------------------------------------
+section("규칙: 지속 피해 · 보호막 · 흡수 · 재사용 대기시간 · 공격 간격")
+------------------------------------------------------------------------
+do -- a weak damage over time is not raised to 1 a tick
+	local u, log = lab({ heroes = { { spec = "WARLOCK_AFF", skills = { "corruption" }, stats = { atk = 1, aspd = 0.01 } } }, hp = 1e12, seconds = 30 })
+	local ticks = {}
+	for _, e in ipairs(log.mob) do if e.dot and e.src == u[1] then ticks[#ticks + 1] = e.out end end
+	local want = ns.SkillValue("corruption", 1) / 100 * 0.1
+	check(#ticks > 0 and near(mean(ticks), want, 0.02), "1보다 약한 지속 피해를 1로 올리지 않음 (0.1초마다)",
+		f(mean(ticks), 4) .. " (설명대로 " .. f(want, 4) .. ")")
+	L.endLab()
+end
+do -- of two damages over time the stronger stays, and so does its caster
+	local units = lab({ heroes = { { spec = "WARLOCK_AFF", stats = { atk = 100 } }, { spec = "WARLOCK_DEMO", stats = { atk = 10 } } }, hp = 1e12, seconds = 0 })
+	local strong, weak = units[1], units[2]
+	local m = { st = {}, x = 0 }
+	local key = ns.SKILLS.corruption.status
+	L.ORIG.applyStatus(m, key, nil, 45, 9, "shadow", strong)
+	L.ORIG.applyStatus(m, key, nil, 4.5, 9, "shadow", weak)
+	check(m.st[key].dps == 45 and m.st[key].src == strong, "약한 지속 피해가 강한 쪽의 피해와 기록을 가져가지 않음")
+	L.ORIG.applyStatus(m, key, nil, 60, 9, "shadow", weak)
+	check(m.st[key].dps == 60 and m.st[key].src == weak, "더 강한 지속 피해는 바뀌고 그 영웅에게 기록됨")
+	L.endLab()
+end
+do -- a weaker shield leaves the stronger one, its time and its caster
+	local units = lab({ heroes = { { spec = "WARRIOR_PROT", stats = { hp = 100000 } }, { spec = "PRIEST_DISC", skills = { "pw_shield" }, stats = { hp = 100000 } } },
+		hp = 1e12, seconds = 0 })
+	local tank, priest = units[1], units[2]
+	tank.hp = tank.maxhp * 0.5
+	tank.shield, tank.shieldT, tank.shieldSrc = 1e9, 5, tank
+	L.ORIG.cast(priest, "pw_shield", nil)
+	check(tank.shield == 1e9 and tank.shieldT == 5 and tank.shieldSrc == tank, "약한 보호막이 강한 보호막의 시간과 기록을 바꾸지 않음")
+	tank.shield, tank.shieldT, tank.shieldSrc = 1, 1, tank
+	L.ORIG.cast(priest, "pw_shield", nil)
+	check(tank.shield > 1 and tank.shieldSrc == priest, "더 강한 보호막은 바뀌고 그 영웅에게 기록됨")
+	L.endLab()
+end
+do -- life drain heals by what landed, not by the overkill
+	local u, log = lab({ heroes = { { spec = "WARLOCK_AFF", skills = { "drain_life" }, stats = { atk = 1e5, hp = 1e6, aspd = 0.01 } } }, hp = 50, seconds = 30,
+		each = function(_, units) units[1].hp = 1 end })
+	local over = 0
+	local n = 0
+	for _, e in ipairs(log.heal) do
+		if e.cast == "drain_life" and e.tgt == u[1] then n = n + 1 if e.out > 50 + 1e-6 then over = over + 1 end end
+	end
+	check(n > 0 and over == 0, "생명력 흡수는 실제로 준 피해만큼만 회복 (남은 생명력 50인 적)", n .. "번 중 넘친 회복 " .. over .. "번")
+	L.endLab()
+end
+do -- every cooldown runs down, even in the step another skill is used
+	local missed, seen = 0, 0
+	local prev
+	local u, log = lab({ heroes = { { spec = "MAGE_FIRE", skills = { "fireball", "fire_blast" }, stats = { atk = 100, aspd = 0.01 } } }, hp = 1e12, seconds = 60,
+		each = function(_, units)
+			local me = units[1]
+			local casts = L.LOGF().cast
+			local last = casts[#casts]
+			if prev and last and last.sid == "fireball" and last.t == L.st.time and prev > 0.2 then
+				seen = seen + 1
+				if not (me.cd.fire_blast < prev - 1e-9) then missed = missed + 1 end
+			end
+			prev = me.cd.fire_blast
+		end })
+	check(seen > 0 and missed == 0, "앞 기술이 발동한 순간에도 뒷 기술의 재사용 대기시간이 줄어듦", seen .. "번 중 멈춤 " .. missed .. "번")
+	L.endLab()
+end
+do -- a monster walking in swings once, not twice at once
+	local u, log = lab({ heroes = { { spec = "WARRIOR_PROT", stats = { hp = 1e12, atk = 1 } } }, hp = 1e12, atk = 100, mob = { aspd = 2, move = 80 }, seconds = 30 })
+	local hits = mobHits(log, u[1])
+	local by = {}
+	local tooClose = 0
+	for _, e in ipairs(hits) do
+		local last = by[e.src]
+		if last and e.t - last < 0.45 then tooClose = tooClose + 1 end
+		by[e.src] = e.t
+	end
+	check(#hits > 4 and tooClose == 0, "다가온 몬스터가 첫 공격 직후 한 번 더 치지 않음 (공격 간격 0.5초)", #hits .. "회 중 몰린 공격 " .. tooClose .. "번")
+	L.endLab()
+end
+
 print(string.format("\n  결과: %d개 통과, %d개 실패", L.R.pass, L.R.fail))
 return L.R.fail == 0

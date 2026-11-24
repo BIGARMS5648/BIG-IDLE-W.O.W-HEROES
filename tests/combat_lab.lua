@@ -71,13 +71,13 @@ local casting, curMult
 local function bad(msg) if #LOG.bad < 20 then LOG.bad[#LOG.bad + 1] = msg end end
 local function finite(x) return type(x) == "number" and x == x and x > -1e300 and x < 1e300 end
 
-hook("damageMob", function(orig) return function(src, m, amount, school, crit, quiet)
+hook("damageMob", function(orig) return function(src, m, amount, school, crit, quiet, dot)
 	local alive = not m.dead
 	if not finite(amount) or amount < 0 then bad("damageMob amount " .. tostring(amount)) end
 	if alive and src and src.hero and not quiet and (src.st.stun or src.st.freeze) and casting == nil and curMult then
 		bad("a stunned hero hit a monster")
 	end
-	local r, r2 = orig(src, m, amount, school, crit, quiet)
+	local r, r2 = orig(src, m, amount, school, crit, quiet, dot)
 	if alive then
 		LOG.mob[#LOG.mob + 1] = { t = st.time, src = src, m = m, a = amount, school = school, crit = crit, out = r,
 			dot = quiet, cast = casting, mult = curMult, srcDead = src and src.dead }
@@ -120,8 +120,8 @@ hook("cast", function(orig) return function(u, sid, target)
 	end
 	return ok
 end end)
-hook("applyStatus", function(orig) return function(tgt, kind, hit, power, dur, school)
-	local r = orig(tgt, kind, hit, power, dur, school)
+hook("applyStatus", function(orig) return function(tgt, kind, hit, power, dur, school, src)
+	local r = orig(tgt, kind, hit, power, dur, school, src)
 	LOG.status[#LOG.status + 1] = { t = st.time, tgt = tgt, kind = kind, hit = hit, power = power, dur = dur, cast = casting }
 	return r
 end end)

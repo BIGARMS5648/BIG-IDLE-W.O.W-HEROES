@@ -234,7 +234,9 @@ end
 ------------------------------------------------------------------------
 -- Status ailments (both sides)
 ------------------------------------------------------------------------
-local function applyStatus(tgt, kind, hit, power, dur, school)
+-- src: who applied it. A damage over time keeps the stronger of the old and
+-- the new; whoever's that is gets the damage it deals.
+local function applyStatus(tgt, kind, hit, power, dur, school, src)
 	if tgt.dead then return end
 	local def = ns.STATUS[kind]
 	if not def then return end
@@ -252,12 +254,13 @@ local function applyStatus(tgt, kind, hit, power, dur, school)
 	end
 	e.t = max(e.t or 0, dur)
 	local k = def.kind
-	if k == "hitdot" then
-		e.dps = max(e.dps or 0, (hit or 0) * def.power / 100)
-		e.school = def.school
-	elseif k == "dot" then
-		e.dps = max(e.dps or 0, power or ((hit or 0) * 0.2))
-		e.school = school or def.school
+	if k == "hitdot" or k == "dot" then
+		local dps = k == "hitdot" and (hit or 0) * def.power / 100 or (power or ((hit or 0) * 0.2))
+		if dps >= (e.dps or 0) then
+			e.dps = dps
+			e.school = k == "hitdot" and def.school or (school or def.school)
+			e.src = src
+		end
 	elseif k == "slow" then
 		e.v = def.power
 	elseif k == "vuln" or k == "weak" then
@@ -322,15 +325,19 @@ end
 ------------------------------------------------------------------------
 -- Damage
 ------------------------------------------------------------------------
-local function damageMob(src, m, amount, school, crit, quiet)
+-- dot: a damage-over-time tick (no floor of 1: that would add up every tick)
+local function damageMob(src, m, amount, school, crit, quiet, dot)
 	if m.dead then return 0 end
 	local res = m.res and m.res[school]
 	if res then amount = amount * (1 - res / 100) end
 	if m.st.shock then amount = amount * (1 + m.st.shock.v / 100) end
 	if m.st.curse then amount = amount * (1 + m.st.curse.v / 100) end
 	if (m.drT or 0) > 0 then amount = amount * (1 - m.dr / 100) end
-	amount = max(1, amount)
-	if src and src.hero then meter(src, "dmg", min(amount, m.hp)) end
+	if not dot then amount = max(1, amount) end
+	-- what landed (not past the monster's health): the meter, life drain and
+	-- leech all go by this
+	local landed = min(amount, m.hp)
+	if src and src.hero then meter(src, "dmg", landed) end
 	m.hp = m.hp - amount
 	m.flash = 0.12
 	if not quiet then
@@ -349,7 +356,7 @@ local function damageMob(src, m, amount, school, crit, quiet)
 		m.fade = 0.4
 		killReward(m, src)
 	end
-	return amount
+	return landed
 end
 
 local function damageHero(h, amount, school, src, isDot)
@@ -373,8 +380,10 @@ local function damageHero(h, amount, school, src, isDot)
 	end
 	amount = amount * (1 - s.dr / 100)
 	if h.st.shock then amount = amount * (1 + h.st.shock.v / 100) end
-	if not isDot then amount = amount - s.absorb end
-	if amount < 1 then amount = 1 end
+	if not isDot then
+		amount = amount - s.absorb
+		if amount < 1 then amount = 1 end
+	end
 	if h.shield > 0 then
 		local a = min(h.shield, amount)
 		h.shield = h.shield - a
@@ -566,15 +575,18 @@ local function stepMob(m)
 		if e.t < -EPS then
 			m.st[kind] = nil
 		elseif e.dps then
-			local dealt = damageMob(e.src, m, e.dps * STEP, e.school or "phys", false, true)
+			local dealt = damageMob(e.src, m, e.dps * STEP, e.school or "phys", false, true, true)
 			e.acc = (e.acc or 0) + dealt
 			e.show = (e.show or 1) - STEP
 			if e.show <= EPS then
 				e.show = 1
-				local c = ns.SCHOOL[e.school or "phys"]
-				local r, g, b = U.rgb(c.hex)
-				fx(m.x, U.fmt(e.acc), r, g, b, false, "mob")
-				e.acc = 0
+				-- (under 1 a second it keeps adding up until there is a number)
+				if e.acc >= 1 then
+					local c = ns.SCHOOL[e.school or "phys"]
+					local r, g, b = U.rgb(c.hex)
+					fx(m.x, U.fmt(e.acc), r, g, b, false, "mob")
+					e.acc = 0
+				end
 			end
 			if m.dead then return end
 		end
@@ -616,8 +628,14 @@ local function stepMob(m)
 	else
 		inReach = m.x <= stopX + 25
 	end
+	-- out of reach, a ready swing waits instead of piling up time (else two
+	-- would land at once on arrival)
+	if not inReach and m.atkT < 0 then m.atkT, m.waited = 0, true end
 	if m.atkT <= EPS and inReach then
-		m.atkT = m.atkT + 1 / m.aspd -- keep the remainder (else a slowed monster loses time each swing)
+		-- keep the remainder (else a slowed monster loses time each swing);
+		-- after waiting there is none
+		m.atkT = (m.waited and 0 or m.atkT) + 1 / m.aspd
+		m.waited = nil
 		if m.atkT < 0 then m.atkT = 0 end
 		local t = front
 		if m.range then
@@ -707,8 +725,7 @@ local function cast(u, sid, target)
 				local dealt = heroHit(u, m, mult, sk.school, sk.critBonus)
 				if dealt > 0 then
 					if sk.status and random() < sk.status[2] then
-						applyStatus(m, sk.status[1], dealt)
-						if m.st[sk.status[1]] then m.st[sk.status[1]].src = u end
+						applyStatus(m, sk.status[1], dealt, nil, nil, nil, u)
 					end
 					if sk.drain and not u.dead then
 						heal(u, u, min(dealt * sk.drain / 100, u.maxhp * 0.3))
@@ -735,8 +752,7 @@ local function cast(u, sid, target)
 		local dps = u.s.atk * v / 100 * schoolMult(u.s, sk.school)
 		for _, m in ipairs(list) do
 			to[#to + 1] = m
-			applyStatus(m, sk.status, nil, dps, sk.dur, sk.school)
-			if m.st[sk.status] then m.st[sk.status].src = u end
+			applyStatus(m, sk.status, nil, dps, sk.dur, sk.school, u)
 		end
 	elseif kind == "field" and sk.heal then
 		if lowestAlly(sk.when and sk.when.ally or 1) == nil then return false end
@@ -750,7 +766,7 @@ local function cast(u, sid, target)
 		local list = pickTargets(target, sk.targets or 1)
 		for _, m in ipairs(list) do
 			to[#to + 1] = m
-			applyStatus(m, sk.status, nil, v, sk.dur)
+			applyStatus(m, sk.status, nil, v, sk.dur, nil, u)
 		end
 	elseif kind == "heal" then
 		-- one application: instant, or a heal over time keyed by the skill
@@ -783,9 +799,13 @@ local function cast(u, sid, target)
 		local function shield(t)
 			if not t.dead then
 				to[#to + 1] = t
-				t.shield = max(t.shield, t.maxhp * v / 100 * (1 + (u.s.heal or 0) / 100) * (u.s.healMult or 1))
-				t.shieldT = sk.dur
-				t.shieldSrc = u
+				-- the stronger shield stays, with its own time and caster
+				local amount = t.maxhp * v / 100 * (1 + (u.s.heal or 0) / 100) * (u.s.healMult or 1)
+				if amount >= t.shield then
+					t.shield = amount
+					t.shieldT = sk.dur
+					t.shieldSrc = u
+				end
 			end
 		end
 		if sk.target == "all" then
@@ -914,7 +934,9 @@ local function stepHero(u)
 				limit = min(limit, front.x - 40)
 			end
 			if u.x < limit then
-				u.x = min(limit, u.x + heroSpeed(u) * STEP)
+				-- (a chill slows a hero's steps as it does a monster's)
+				local chill = u.st.chill and (1 - u.st.chill.v / 100) or 1
+				u.x = min(limit, u.x + heroSpeed(u) * chill * STEP)
 			end
 		end
 	end
@@ -940,19 +962,21 @@ local function stepHero(u)
 	end
 
 	-- cooldown skills (support skills work without an enemy in range)
+	-- every cooldown runs down each step; then the first ready one is used
+	-- (one cast a step)
 	local castSpeed = 1 + s.cast / 100
 	for _, sid in ipairs(u.skills) do
+		if ns.SKILLS[sid].act == "cd" then u.cd[sid] = u.cd[sid] - STEP * castSpeed end
+	end
+	for _, sid in ipairs(u.skills) do
 		local sk = ns.SKILLS[sid]
-		if sk.act == "cd" then
-			u.cd[sid] = u.cd[sid] - STEP * castSpeed
-			if u.cd[sid] <= EPS then
-				local t = inRange and target or nil
-				if cast(u, sid, t) then
-					u.cd[sid] = ns.SkillCooldown(sid, u.slv[sid]) * (1 - s.cdr / 100)
-					break
-				else
-					u.cd[sid] = 0.3 -- try again shortly
-				end
+		if sk.act == "cd" and u.cd[sid] <= EPS then
+			local t = inRange and target or nil
+			if cast(u, sid, t) then
+				u.cd[sid] = ns.SkillCooldown(sid, u.slv[sid]) * (1 - s.cdr / 100)
+				break
+			else
+				u.cd[sid] = 0.3 -- try again shortly
 			end
 		end
 	end
@@ -961,8 +985,11 @@ local function stepHero(u)
 	-- basic attack
 	local slow = u.st.chill and (1 - u.st.chill.v / 100) or 1
 	u.atkT = u.atkT - STEP * slow
+	-- (out of range a ready swing waits; it does not pile up)
+	if not (target and inRange and not target.dead) and u.atkT < 0 then u.atkT, u.waited = 0, true end
 	if u.atkT <= EPS and target and inRange and not target.dead then
-		u.atkT = u.atkT + 1 / s.aspd
+		u.atkT = (u.waited and 0 or u.atkT) + 1 / s.aspd
+		u.waited = nil
 		if u.atkT < 0 then u.atkT = 0 end
 		u.anim = 0.15
 		if u.ranged then
@@ -1009,8 +1036,7 @@ local function stepFields()
 				for _, m in ipairs(list) do
 					local dealt = heroHit(u, m, f.mult, f.sk.school)
 					if dealt > 0 and f.sk.status and random() < f.sk.status[2] then
-						applyStatus(m, f.sk.status[1], dealt)
-						if m.st[f.sk.status[1]] then m.st[f.sk.status[1]].src = u end
+						applyStatus(m, f.sk.status[1], dealt, nil, nil, nil, u)
 					end
 				end
 			end

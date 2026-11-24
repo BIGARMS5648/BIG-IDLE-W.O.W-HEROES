@@ -305,7 +305,7 @@ S("blast_wave", "화염 폭풍", "Spell_Holy_Excorcism_02",
 	cd(12, { kind = "dmg", school = "fire", v = { 300, 30 }, targets = 3 }))
 -- Fire
 S("fireball", "화염구", "Spell_Fire_FlameBolt",
-	cd(4, { kind = "dmg", school = "fire", v = { 220, 22 }, targets = 3, status = { "ignite", 0.4 } }))
+	cd(5, { kind = "dmg", school = "fire", v = { 220, 22 }, targets = 3, status = { "ignite", 0.4 } }))
 S("scorch", "불태우기", "Spell_Fire_SoulBurn",
 	count(2, { kind = "dmg", school = "fire", v = { 160, 15 }, targets = 1, status = { "ignite", 0.5 } }))
 S("fire_blast", "화염 작열", "Spell_Fire_Fireball",
@@ -514,7 +514,11 @@ local function whenText(sk)
 	if w.self then
 		return string.format("자신의 생명력이 %d%% 아래일 때: ", w.self * 100)
 	end
-	if w.ally and sk.kind ~= "heal" and sk.kind ~= "shield" then
+	if w.ally and (sk.kind == "heal" or sk.kind == "shield") then
+		-- (it is only used then)
+		return string.format("아군 생명력이 %d%% 아래일 때: ", w.ally * 100)
+	end
+	if w.ally then
 		return string.format("아군 생명력이 %d%% 아래로 떨어지면: ", w.ally * 100)
 	end
 	return ""
@@ -540,7 +544,10 @@ function ns.SkillDesc(id, lvl)
 		end
 		if sk.critBonus then s = s .. string.format(" 치명타 확률 +%d%%.", sk.critBonus) end
 		if sk.exec then s = s .. string.format(" 생명력 %d%% 이하의 적에게는 %d배.", sk.exec[1], sk.exec[2]) end
-		if sk.drain then s = s .. " 준 피해만큼 자신의 생명력을 회복합니다." end
+		if sk.drain then
+			s = s .. (sk.drain >= 100 and " 준 피해만큼" or string.format(" 준 피해의 %d%%만큼", sk.drain))
+				.. " 자신의 생명력을 회복합니다 (한 번에 최대 생명력의 30%까지)."
+		end
 		if sk.selfHeal then s = s .. string.format(" 자신의 최대 생명력 %s%% 회복.", num(at(sk.selfHeal, lvl))) end
 		if sk.healAll then s = s .. string.format(" 파티 전원이 최대 생명력의 %s%% 회복.", num(at(sk.healAll, lvl))) end
 		if sk.atone then s = s .. string.format(" 가장 다친 아군이 최대 생명력의 %s%% 회복.", num(at(sk.atone, lvl))) end
