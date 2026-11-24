@@ -91,14 +91,24 @@ end
 ------------------------------------------------------------------------
 -- Smelt: items -> gold + forge experience
 ------------------------------------------------------------------------
--- items: array of item tables that are currently in the bag
-function Forge.Smelt(items)
+-- items: array of item tables that are currently in the bag. Every piece
+-- is checked again here: a protected one is never broken down, and an
+-- enhanced, socketed or still useful one only when opts.manual (the player
+-- picked that one piece and confirmed). opts.checked: the caller picked the
+-- list this very moment with the same rules (skips the slow checks).
+function Forge.Smelt(items, opts)
 	local ok, why = needOp("smelt")
 	if not ok then return false, why end
+	opts = opts or {}
 	local gold, xp, n = 0, 0, 0
+	local done, keptWhy = {}, nil
 	for i = 1, #items do
-		local idx = ns.Items.IndexInBag(items[i])
-		if idx then
+		local it = items[i]
+		local idx = ns.Items.IndexInBag(it)
+		local why2 = idx and not done[it] and (it.lock and "보호한 장비입니다." or (not opts.checked and ns.Items.KeepReason(it, opts.manual)))
+		if why2 then keptWhy = why2 idx = nil end
+		if idx and not done[it] then
+			done[it] = true
 			local g = ns.Items.Value(items[i])
 			gold = gold + g
 			xp = xp + Forge.ItemXP(items[i])
@@ -106,7 +116,7 @@ function Forge.Smelt(items)
 			n = n + 1
 		end
 	end
-	if n == 0 then return false, "분해할 아이템이 없습니다." end
+	if n == 0 then return false, keptWhy or "분해할 아이템이 없습니다." end
 	gold = floor(gold * (1 + ns.Bonus("smeltGold") / 100))
 	ns.AddGold(gold)
 	Forge.AddXP(xp)
@@ -119,9 +129,10 @@ end
 -- Also returns how many matching items were kept back as upgrades.
 function Forge.PickByQuality(maxQuality)
 	local out, kept = {}, 0
+	local heroes = ns.Items.KeptHeroes()
 	for _, it in ipairs(ns.db.bag) do
 		if not it.lock and not it.up and it.q <= maxQuality and not ns.Items.HasSockets(it) then
-			if ns.Items.PartyUpgrade(it) or ns.Items.FutureUpgrade(it) then
+			if ns.Items.PartyUpgrade(it, heroes) or ns.Items.FutureUpgrade(it, heroes) then
 				kept = kept + 1
 			else
 				out[#out + 1] = it
@@ -156,7 +167,7 @@ function Forge.AutoSmelt()
 	if q <= 0 or not Forge.Unlocked("smelt") then return false end
 	local list = Forge.PickByQuality(q)
 	if #list == 0 then return false end
-	local ok, gold, n = Forge.Smelt(list)
+	local ok, gold, n = Forge.Smelt(list, { checked = true })
 	if ok then
 		ns.Log(string.format("자동 분해: %d개 → %s 골드", n, U.fmt(gold)))
 	end
@@ -188,6 +199,16 @@ end
 function Forge.Fuse(items)
 	local ok, why = Forge.CanFuse(items)
 	if not ok then return false, why end
+	-- every piece again, right before it goes: in the bag, once only, and
+	-- nothing that must be kept
+	local seen = {}
+	for i = 1, #items do
+		local it = items[i]
+		if seen[it] then return false, "같은 장비가 두 번 들어 있습니다." end
+		seen[it] = true
+		local block = Forge.FuseBlock(it)
+		if block then return false, block end
+	end
 	local q, cat = items[1].q, ns.Items.FuseCat(items[1])
 	local levelSum, xp = 0, 0
 	for i = 1, #items do
@@ -218,8 +239,9 @@ function Forge.FuseBlock(it)
 	if it.lock then return "보호한 장비는 쓰지 않습니다." end
 	if it.up then return "강화한 장비는 쓰지 않습니다." end
 	if ns.Items.HasSockets(it) then return "보석·마법부여·각인이 붙은 장비는 쓰지 않습니다." end
-	if ns.Items.PartyUpgrade(it) then return "파티에게 더 좋은 장비라 쓰지 않습니다." end
-	if ns.Items.FutureUpgrade(it) then return "영웅이 레벨을 올리면 낄 더 좋은 장비라 쓰지 않습니다." end
+	local heroes = ns.Items.KeptHeroes()
+	if ns.Items.PartyUpgrade(it, heroes) then return "영웅에게 더 좋은 장비라 쓰지 않습니다." end
+	if ns.Items.FutureUpgrade(it, heroes) then return "영웅이 레벨을 올리면 낄 더 좋은 장비라 쓰지 않습니다." end
 	return nil
 end
 

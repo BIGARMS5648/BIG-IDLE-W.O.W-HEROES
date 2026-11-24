@@ -37,11 +37,7 @@ local TABS = { { "bag", "가방" }, { "bank", "창고" } }
 local function heroOf() return Main.SelectedHero() end
 
 local function equipAllParty()
-	local n = 0
-	for i = 1, ns.PARTY_SIZE do
-		local pid = ns.db.party[i]
-		if pid then n = n + ns.Items.AutoEquip(pid) end
-	end
+	local n = ns.Items.AutoEquipParty()
 	ns.Toast(n > 0 and string.format("파티 전원: 장비 %d개를 바꿨습니다.", n) or "가방에 더 좋은 장비가 없습니다.")
 end
 

@@ -1342,17 +1342,26 @@ function Combat.Step()
 end
 
 -- Called every frame with real elapsed seconds.
+-- Fight time is not dropped after a long frame (a loading screen, the game
+-- busy for a moment): at most PER_FRAME seconds of it run in one frame and
+-- the rest waits for the next frames. Beyond BACKLOG seconds the rest goes
+-- (a long absence is what the offline reward is for).
 local acc = 0
+local PER_FRAME, BACKLOG = 3, 120
+Combat.PER_FRAME, Combat.BACKLOG = PER_FRAME, BACKLOG
 function Combat.Update(elapsed)
 	local speed = ns.GameSpeed()
 	stepReal = STEP / speed
 	acc = acc + elapsed * speed
-	if acc > 3 then acc = 3 end
-	while acc >= STEP do
+	if acc > BACKLOG then acc = BACKLOG end
+	local n = 0
+	while acc >= STEP and n < PER_FRAME / STEP do
 		acc = acc - STEP
+		n = n + 1
 		Combat.Step()
 	end
 end
+function Combat.Backlog() return acc end
 
 ------------------------------------------------------------------------
 -- React to changes made in the UI

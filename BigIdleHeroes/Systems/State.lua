@@ -66,7 +66,7 @@ local DEFAULTS = {
 	prog = { 0, 0, 0, 0 },       -- stages cleared per difficulty
 	kills = {},                  -- [monsterType] = count
 	pets = {},                   -- [petId] = true
-	opt = { auto = true, retreat = true, retry = true, druidForm = true, scenery = true },
+	opt = { auto = true, retreat = true, retry = true, druidForm = true, scenery = true, keepBench = false },
 	ui = { scale = 1, locked = false, shown = true, sound = true },
 	stat = { kills = 0, gold = 0, clears = 0, wipes = 0, time = 0, chests = 0 },
 	rate = { gold = 0, xp = 0 }, -- smoothed income per second, used for offline rewards
@@ -273,6 +273,81 @@ function ns.InitDB()
 			for _, it in pairs(h.gear) do retype(it) end
 		end
 	end
+	-- every item checked: values put back in range, broken stats dropped;
+	-- one that cannot be read (no known slot) is set aside, not deleted
+	local repaired, setAside = 0, 0
+	local function fixItem(it)
+		if type(it) ~= "table" or not ns.SLOT[it.s] then return false end
+		local changed = false
+		local function set(k, v) if it[k] ~= v then it[k] = v changed = true end end
+		set("q", ns.U.clamp(math.floor(tonumber(it.q) or 1), 1, ns.MAX_QUALITY))
+		set("l", ns.Items.SnapLevel(ns.U.clamp(math.floor(tonumber(it.l) or 1), 1, ns.HERO_MAX_LEVEL)))
+		local up = math.floor(tonumber(it.up) or 0)
+		set("up", up > 0 and math.min(up, ns.Upgrade and ns.Upgrade.MAX or 20) or nil)
+		if it.lock ~= nil and it.lock ~= true then set("lock", it.lock and true or nil) end
+		if it.a ~= nil then
+			if type(it.a) ~= "table" then
+				set("a", nil)
+			else
+				for i = #it.a, 1, -1 do
+					local a = it.a[i]
+					if type(a) ~= "table" or not ns.AFFIX[a[1]] or type(a[2]) ~= "number" or a[2] ~= a[2] then
+						table.remove(it.a, i)
+						changed = true
+					end
+				end
+			end
+		end
+		for kind, f in pairs(ns.SOCKET_FIELD) do
+			local l = it[f]
+			if l ~= nil then
+				if type(l) ~= "table" then
+					set(f, nil)
+				else
+					for i = #l, 1, -1 do
+						local e = l[i]
+						if type(e) ~= "table" or not ns.AFFIX[e[1]] or type(e[2]) ~= "number" or i > ns.Items.SocketCount(it, kind) then
+							table.remove(l, i)
+							changed = true
+						end
+					end
+				end
+			end
+		end
+		if changed then repaired = repaired + 1 end
+		return true
+	end
+	db.setAside = type(db.setAside) == "table" and db.setAside or {}
+	for _, list in ipairs({ db.bag, db.bank }) do
+		for i = #list, 1, -1 do
+			if not fixItem(list[i]) then
+				if type(list[i]) == "table" then db.setAside[#db.setAside + 1] = list[i] end
+				table.remove(list, i)
+				setAside = setAside + 1
+			end
+		end
+	end
+	local misplaced = {}
+	for _, h in pairs(db.heroes) do
+		if type(h) == "table" and type(h.gear) == "table" then
+			for slot, it in pairs(h.gear) do
+				if not fixItem(it) then
+					if type(it) == "table" then db.setAside[#db.setAside + 1] = it end
+					h.gear[slot] = nil
+					setAside = setAside + 1
+				elseif it.s ~= slot then
+					-- worn in a slot it does not belong to: back to the bag
+					h.gear[slot] = nil
+					misplaced[#misplaced + 1] = it
+				end
+			end
+		end
+	end
+	if #db.setAside == 0 then db.setAside = nil end
+	if repaired + setAside > 0 then
+		ns.loadNote = string.format("저장된 장비 중 %d개의 잘못된 값을 고쳤습니다.%s", repaired,
+			setAside > 0 and string.format(" 읽을 수 없는 장비 %d개는 따로 보관했습니다.", setAside) or "")
+	end
 	-- drop references to data that no longer exists; a dropped hero's gear
 	-- is kept (put in the bag below)
 	local orphans = {}
@@ -329,6 +404,7 @@ function ns.InitDB()
 	ns.db = db
 	-- gear of dropped heroes: the bag, the bank once the bag is full (the bag
 	-- past its size when both are)
+	for _, it in ipairs(misplaced) do orphans[#orphans + 1] = it end
 	if #orphans > 0 and ns.Runes then ns.Runes.Invalidate() end
 	for _, it in ipairs(orphans) do
 		local to = (#db.bag >= ns.BagSize() and #db.bank < ns.BankSize()) and db.bank or db.bag

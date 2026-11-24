@@ -115,7 +115,7 @@ local function forge()
 		local out = {}
 		local need = 20 - ns.Items.BagFree()
 		for i = 1, math.min(need, #list) do out[i] = list[i] end
-		if #out > 0 then F.Smelt(out) end
+		if #out > 0 then F.Smelt(out, { manual = true }) end -- (the player's own pick)
 	end
 end
 

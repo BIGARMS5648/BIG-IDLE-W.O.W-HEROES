@@ -796,7 +796,9 @@ check(not F.Unlock("craft"), "craft needs forge level 5")
 local it = ns.Items.New("chest", 10, 3)
 ns.Items.AddToBag(it)
 local g0 = db.gold
-local ok, gold = F.Smelt({ it })
+-- (a piece better than what the party wears: only when the player picks it)
+check(not F.Smelt({ it }) or not ns.Items.PartyUpgrade(it), "a better piece is not broken down in a batch")
+local ok, gold = F.Smelt({ it }, { manual = true })
 check(ok and gold > 0 and db.gold == g0 + gold and #db.bag == 0, "smelting pays gold and removes the item")
 check(db.forge.xp > 0 or db.forge.level > 1, "smelting grants forge experience")
 db.bag = {}
@@ -1221,6 +1223,167 @@ do
 end
 
 ------------------------------------------------------------------------
+section("gear score and protection")
+do
+	local I = ns.Items
+	local U = ns.U
+	local savedParty, savedStage = db.party, db.stage
+	db.bag = {}
+	db.stage = { diff = 1, idx = 5 }
+	local mage = bySpec.MAGE_FIRE
+	db.party = { false, mage, false, false, false }
+	local h = db.heroes[mage]
+	h.gear = {}
+	h.skills = skillsOf("MAGE_FIRE", 1, 2, 3)
+	local base = I.New("chest", 40, 3)
+	base.a = {}
+	h.gear.chest = base
+	ns.Stats.Invalidate()
+	local function with(a)
+		local it = U.copy(base)
+		it.a = a
+		return it
+	end
+	-- every combat stat counts
+	for _, a in ipairs({ { "leech", 30 }, { "regen", 500 }, { "allres", 50 }, { "hph", 100 }, { "absorb", 100 }, { "thorns", 50 }, { "hpk", 300 } }) do
+		local r = I.Compare(mage, with({ a }))
+		check(r and r > 1, "the gear score counts " .. a[1] .. ": " .. tostring(r))
+	end
+	check(I.Compare(mage, with({ { "leech", 30 }, { "regen", 500 }, { "allres", 50 }, { "hph", 100 }, { "absorb", 100 } })) > I.UPGRADE,
+		"lifesteal, regeneration, resistances and absorb together make an upgrade")
+	-- +1 to all skills
+	check(I.Compare(mage, with({ { "skills", 1 } })) > I.UPGRADE, "+1 to all skills makes an upgrade")
+	-- resistances count by the element of the monsters being fought
+	do
+		local fireStage
+		for d = 1, #ns.DIFFS do
+			for i = 1, ns.STAGE_COUNT do
+				local stg = ns.Stage(d, i)
+				if not fireStage and stg.boss.school == "fire" then fireStage = { diff = d, idx = i } end
+			end
+		end
+		local frostOnly = with({ { "res_frost", 60 } })
+		local fireOnly = with({ { "res_fire", 60 } })
+		db.stage = fireStage
+		check(I.Compare(mage, fireOnly) > I.Compare(mage, frostOnly), "fire resistance is worth more against a fire boss")
+		db.stage = { diff = 1, idx = 5 }
+	end
+	-- element damage counts for the elements of the equipped skills
+	do
+		local found
+		for _, sid in ipairs(ns.SPEC_ORDER) do
+			local sp = ns.SPECS[sid]
+			for _, sk in ipairs(sp.skills) do
+				local d = ns.SKILLS[sk]
+				if not found and d.school and d.school ~= sp.school and (d.kind == "dmg" or d.kind == "dot") then found = { sid, sk, d.school } end
+			end
+		end
+		if found then
+			local hid = bySpec[found[1]]
+			local hh = db.heroes[hid]
+			hh.gear = {}
+			hh.sk[found[2]] = math.max(1, hh.sk[found[2]] or 0)
+			hh.skills = { found[2] }
+			ns.Stats.Invalidate(hid)
+			local it = I.New("ring", 40, 3)
+			it.a = { { "dmg_" .. found[3], 20 } }
+			local r = I.Compare(hid, it, true)
+			check(r and r > 1, "damage of an equipped skill's element counts (" .. found[2] .. ", " .. found[3] .. "): " .. tostring(r))
+		end
+	end
+	-- multistrike stops at 100%
+	h.gear.chest = with({ { "multi", 180 } })
+	ns.Stats.Invalidate(mage)
+	check(ns.Stats.Get(mage).multi == 100, "multistrike is capped at 100%")
+	h.gear.chest = base
+	ns.Stats.Invalidate(mage)
+
+	-- every step up on the way is kept for a low hero
+	local low = ns.Heroes.NewRecord("WARRIOR_PROT")
+	low.level = 1
+	db.party = { low.id, false, false, false, false }
+	ns.Stats.Invalidate()
+	db.bag = {}
+	local h10 = I.New("head", 10, 3)
+	local h100 = I.New("head", 100, ns.MAX_QUALITY)
+	I.AddToBag(h10) I.AddToBag(h100)
+	check(I.FutureUpgrade(h100), "the top piece for later is kept")
+	check(I.FutureUpgrade(h10), "the level 10 piece is kept too, for the levels before the top one")
+	local worse10 = I.New("head", 10, 1)
+	I.AddToBag(worse10)
+	check(not I.FutureUpgrade(worse10) or I.Compare(low.id, worse10, true) > I.Compare(low.id, h10, true), "a weaker piece of the same step is not kept")
+
+	-- breaking down and fusion check every piece themselves
+	db.party = { false, false, false, false, false }
+	db.bag = {}
+	local locked = I.New("feet", 20, 2)
+	locked.lock = true
+	I.AddToBag(locked)
+	check(not F.Smelt({ locked }) and I.IndexInBag(locked), "a protected piece is never broken down")
+	check(not F.Smelt({ locked }, { manual = true }) and I.IndexInBag(locked), "not even when picked by hand")
+	local nine = { locked }
+	for _ = 1, 8 do local x = I.New("feet", 20, 2) I.AddToBag(x) nine[#nine + 1] = x end
+	check(not F.Fuse(nine) and I.IndexInBag(locked), "a protected piece is never fused")
+	local up = I.New("feet", 20, 2)
+	up.up = 3
+	I.AddToBag(up)
+	check(not F.Smelt({ up }) and I.IndexInBag(up), "an enhanced piece is not broken down in a batch")
+	check(F.Smelt({ up }, { manual = true }) and not I.IndexInBag(up), "an enhanced piece goes when the player picks it")
+	local twice = {}
+	for i = 2, 9 do twice[#twice + 1] = nine[i] end
+	twice[9] = nine[2]
+	check(not F.Fuse(twice), "the same piece twice is not fused")
+
+	-- the party's auto-equip gives a piece to whom it helps most
+	local tank, arms = bySpec.WARRIOR_PROT, bySpec.WARRIOR_ARMS
+	db.party = { tank, arms, false, false, false }
+	db.heroes[tank].gear = { chest = I.New("chest", 40, 3) }
+	db.heroes[arms].gear = {}
+	ns.Stats.Invalidate()
+	db.bag = {}
+	local better = I.New("chest", 40, 4)
+	I.AddToBag(better)
+	local rt, ra = I.Compare(tank, better), I.Compare(arms, better)
+	I.AutoEquipParty()
+	check(db.heroes[arms].gear.chest == better or (rt and ra and rt > ra), "the piece goes to the hero it helps most")
+
+	-- heroes waiting outside the party: their gear kept when the option is on
+	local bench = bySpec.PRIEST_HOLY
+	db.party = { false, false, false, false, false }
+	db.heroes[bench].gear = {}
+	ns.Stats.Invalidate()
+	db.bag = {}
+	local forBench = I.New("chest", 40, 3)
+	I.AddToBag(forBench)
+	F.Unlock("smelt")
+	db.opt.keepBench = false
+	local picked = F.PickByQuality(ns.MAX_QUALITY)
+	check(#picked == 1, "without the option a bench hero's upgrade may be broken down")
+	db.opt.keepBench = true
+	picked = F.PickByQuality(ns.MAX_QUALITY)
+	check(#picked == 0 and I.KeepReason(forBench), "with the option it is kept")
+	check(F.FuseBlock(forBench), "and kept out of fusion")
+	db.opt.keepBench = false
+
+	-- a long frame: the fight catches up over the next frames
+	local C2 = ns.Combat
+	db.party = savedParty
+	ns.Stats.Invalidate()
+	C2.Update(0)
+	local before = C2.Backlog()
+	local steps = 0
+	local step = C2.Step
+	C2.Step = function() steps = steps + 1 end
+	C2.Update(10)
+	local afterOne = steps
+	for _ = 1, 10 do C2.Update(0) end
+	C2.Step = step
+	check(afterOne <= 31 and steps >= 99 + math.floor(before / 0.1), "a 10 second frame runs 3 seconds at once and the rest after: " .. afterOne .. " then " .. steps)
+	db.stage = savedStage
+	db.bag = {}
+end
+
+------------------------------------------------------------------------
 section("save repair and migration")
 -- saves from before the renames (the old file copied to BigIdleHeroes.lua)
 BigWowIdleDB, BigWowHeroesDB = nil, nil
@@ -1384,6 +1547,28 @@ do
 	ns.ResetDB()
 	check(ns.BagSize() == bag0 and ns.PartyLimit() == party0, "after a reset the bag and party are back to their base size")
 end
+-- broken items are mended or set aside, never stop the game
+BigWowIdleDB = { v = 6, heroes = { h1 = { spec = "MAGE_FIRE", level = 30, name = "가 나",
+	gear = { head = { s = "chest", l = 20, q = 2 }, chest = { s = "nowhere", l = 5, q = 1 } } } },
+	party = { false, "h1", false, false, false },
+	bag = { { s = "head", l = "x", q = 99, a = { { "atk", 5 }, { "bogus", 3 }, "junk", { "hp", "lots" } }, g = "x", up = 50 },
+		{ s = "nowhere", l = 10, q = 2 }, 17 } }
+ns.InitDB()
+do
+	local d = ns.db
+	local it
+	for _, x in ipairs(d.bag) do if x.s == "head" then it = x end end
+	check(it and it.q == ns.MAX_QUALITY and it.l == 1 and #it.a == 1 and it.g == nil and it.up == ns.Upgrade.MAX, "a broken item's values are put back in range")
+	check(it and pcall(ns.Items.Tooltip, it) and pcall(ns.Items.Value, it), "a mended item shows and sells")
+	check(d.setAside and #d.setAside == 2, "items of no known slot are set aside: " .. tostring(d.setAside and #d.setAside))
+	local moved = false
+	for _, x in ipairs(d.bag) do if x.s == "chest" then moved = true end end
+	check(moved and d.heroes.h1.gear.head == nil, "a piece worn in the wrong slot goes back to the bag")
+	check(ns.loadNote ~= nil, "the player is told what was mended")
+	ns.loadNote = nil
+end
+BigWowIdleDB = { v = 6, heroes = {}, party = { false, false, false, false, false } }
+ns.InitDB()
 -- no recruiting before a side is chosen
 ns.db.faction = nil
 ns.db.gold = 1e9

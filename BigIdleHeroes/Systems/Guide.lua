@@ -145,7 +145,7 @@ local function candidates()
 	if Guide.UpgradeCount() > 0 then
 		add({ text = "더 좋은 장비가 있어요: 일괄 장착",
 			act = function()
-				for _, id in ipairs(partyHeroes()) do ns.Items.AutoEquip(id) end
+				ns.Items.AutoEquipParty()
 			end })
 	end
 	if not ns.Forge.Unlocked("smelt") then

@@ -192,7 +192,7 @@ local function buildFuse(page, f)
 	p.all:SetPoint("LEFT", p.one, "RIGHT", 8, 0)
 	p.all.clickWhenOff = true
 	p.result = addResult(f, 372, -326)
-	p.note = note(f, -384, "같은 등급 장비 9개 → 장비 1개. 가장 낮은 레벨부터 쓰고, 보호한 장비(가방에서 Alt+클릭), 보석·마법부여·각인이 붙은 장비, 파티에게 지금 또는 레벨을 올리면 더 좋은 장비는 쓰지 않습니다. 결과의 레벨은 재료의 평균 부근, 부위는 같은 종류 안에서 무작위입니다.")
+	p.note = note(f, -384, "같은 등급 장비 9개 → 장비 1개. 가장 낮은 레벨부터 쓰고, 보호한 장비(가방에서 Alt+클릭), 보석·마법부여·각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올리면 더 좋은 장비는 쓰지 않습니다. 결과의 레벨은 재료의 평균 부근, 부위는 같은 종류 안에서 무작위입니다.")
 	p.refresh = function()
 		p.pick:Refresh()
 		p.kinds:Select(p.cat)
@@ -826,7 +826,7 @@ local function buildSmelt(page, f)
 		end)
 		p.cells[i] = b
 	end
-	p.note = note(f, -70 - SMELT_ROWS * STEP - 8, "보호한 장비, 강화한 장비, 보석·마법부여·각인이 붙은 장비, 파티에게 지금 장비보다 더 좋은 장비는 남깁니다.")
+	p.note = note(f, -70 - SMELT_ROWS * STEP - 8, "보호한 장비, 강화한 장비, 보석·마법부여·각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 남깁니다.")
 	p.go = UI.Button(f, 220, 36, "일괄 분해", function()
 		local picked, kept = ns.Forge.PickByQuality(smeltQ())
 		if #picked == 0 then
@@ -856,7 +856,7 @@ local function buildSmelt(page, f)
 		p.auto:Refresh() -- (the bag's 자동 분해 sets the same option)
 		local picked, kept = ns.Forge.PickByQuality(smeltQ())
 		local total = ns.Items.SmeltGoldOf(picked)
-		p.head:Set("분해할 장비", string.format("%d개%s", #picked, kept > 0 and string.format(" · 파티에게 더 좋은 장비 %d개는 남김", kept) or ""))
+		p.head:Set("분해할 장비", string.format("%d개%s", #picked, kept > 0 and string.format(" · 영웅에게 더 좋은 장비 %d개는 남김", kept) or ""))
 		for i, b in ipairs(p.cells) do
 			local it = picked[i]
 			b:Clear()

@@ -61,7 +61,7 @@ local driver = CreateFrame("Frame")
 
 local function onUpdate(_, elapsed)
 	if not ready then return end
-	if elapsed > 5 then elapsed = 5 end
+	if elapsed > 120 then elapsed = 120 end -- (the fight catches up a few seconds a frame)
 	ns.Combat.Update(elapsed)
 	ns.Loot.Tick(elapsed)
 	local db = ns.db
@@ -121,6 +121,10 @@ local function onLogin()
 		ns.Print("환영합니다! 첫 영웅은 무료입니다. 직업과 전문화를 골라 모집해 보세요. (/bih 로 메뉴를 엽니다)")
 	else
 		ns.Print("불러왔습니다. /bih 로 메뉴를 엽니다.")
+	end
+	if ns.loadNote then
+		ns.Print(ns.loadNote)
+		ns.loadNote = nil
 	end
 end
 

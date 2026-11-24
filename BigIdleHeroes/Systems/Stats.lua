@@ -46,7 +46,8 @@ local PLAIN = {
 	"res_fire", "res_frost", "res_nature", "res_shadow",
 }
 
-local CAPS = { dodge = 60, block = 75, dr = 75, cdr = 60, res_fire = 75, res_frost = 75, res_nature = 75, res_shadow = 75, allres = 75, skills = 5 }
+-- multi: the chance of one extra half hit, so nothing past 100% does more
+local CAPS = { dodge = 60, block = 75, dr = 75, cdr = 60, res_fire = 75, res_frost = 75, res_nature = 75, res_shadow = 75, allres = 75, skills = 5, multi = 100 }
 
 -- extra: optional array of { affixKey, value } (auras / buffs)
 -- gear:  optional replacement gear table (used to preview upgrades)
@@ -170,16 +171,140 @@ function Stats.CombatPower(s)
 	return math.sqrt(offense * ehp) * skill * heal
 end
 
+------------------------------------------------------------------------
+-- Gear score (auto-equip, the upgrade marks, protection from breaking down)
+------------------------------------------------------------------------
+-- About half of what a hero does comes from its equipped skills, the rest
+-- from basic attacks (the specs are tuned around that, Data/Classes.lua).
+local SKILL_SHARE = 0.5
+-- seconds of fighting the hero's own healing is counted over, how many
+-- blows it takes a second (melee, for thorns), how big one blow is (a share
+-- of its health, for flat absorb) and how many kills it lands a second
+local SUSTAIN_T = 10
+local HITS = { TANK = 1.2, DPS = 0.3, HEALER = 0.3 }
+local BLOW = 0.06
+local KILLS = 0.1
+
+-- Where the damage of the stage being fought comes from: { [school] = share }
+-- (its monsters by how often they come, the boss for a third), with a
+-- little of every element on top: the next stages hit with other ones.
+local ELEMENTS = { "fire", "frost", "nature", "shadow" }
+local ELEMENT_BASE = 0.12
+local threatKey, threatMix
+function Stats.ThreatMix()
+	local st = ns.db and ns.db.stage
+	if not (st and ns.Stage) then return { phys = 1 } end
+	local key = st.diff .. "-" .. st.idx
+	if key == threatKey then return threatMix end
+	local mix, total = {}, 0
+	local stg = ns.Stage(st.diff, st.idx)
+	for _, e in ipairs(stg.mobs or {}) do
+		local m = ns.MONSTERS[e[1]]
+		if m then
+			local w = e[2] or 1
+			mix[m.school or "phys"] = (mix[m.school or "phys"] or 0) + w
+			total = total + w
+		end
+	end
+	local out = {}
+	local share = (total > 0) and 2 / 3 or 0
+	for k, v in pairs(mix) do out[k] = v / total * share end
+	local bs = stg.boss and stg.boss.school or "phys"
+	out[bs] = (out[bs] or 0) + (1 - share)
+	for k, v in pairs(out) do out[k] = v * (1 - ELEMENT_BASE) end
+	for _, e in ipairs(ELEMENTS) do out[e] = (out[e] or 0) + ELEMENT_BASE / #ELEMENTS end
+	threatKey, threatMix = key, out
+	return out
+end
+
+-- Damage taken, as a share, against that mix (armor against physical blows,
+-- each element's resistance against its own), dodge, block, reduction and
+-- flat absorb included.
+local function takenShare(s)
+	local mix = Stats.ThreatMix()
+	local stage = ns.db and ns.db.stage
+	local level = stage and ns.StageLevel(stage.diff, stage.idx) or s.level
+	local by = 0
+	for school, w in pairs(mix) do
+		local t
+		if school == "phys" then
+			t = 1 - Stats.ArmorDR(s.armor, level)
+		else
+			local res = min(CAPS.allres, (s["res_" .. school] or 0) + (s.allres or 0))
+			t = 1 - res / 100
+		end
+		by = by + w * t
+	end
+	local taken = by * (1 - s.dr / 100) * (1 - s.dodge / 100) * (1 - s.block / 200)
+	-- a flat amount off every blow
+	local blow = max(1, s.hp * BLOW)
+	taken = taken * (1 - min(0.8, (s.absorb or 0) / blow))
+	return max(0.05, taken)
+end
+
+-- Damage bonus by element: basic attacks in the spec's element, the rest in
+-- the elements of the equipped damage skills.
+local DMG_KIND = { dmg = true, dot = true, field = true, pet = true }
+local function elementFactor(s, skills)
+	local function f(school) return 1 + ((s["dmg_" .. school] or 0) + s.dmg_all) / 100 end
+	local list = {}
+	for _, sid in ipairs(skills or {}) do
+		local sk = ns.SKILLS[sid]
+		if sk and DMG_KIND[sk.kind] and sk.school then list[#list + 1] = sk.school end
+	end
+	if #list == 0 then return f(s.school) end
+	local total = (1 - SKILL_SHARE) * f(s.school)
+	for _, school in ipairs(list) do total = total + SKILL_SHARE / #list * f(school) end
+	return total
+end
+
+-- What "+N to all skills" adds: the equipped skills at their higher ranks.
+local function skillFactor(s, h)
+	local extra = s.skills or 0
+	if extra <= 0 or not h then return 1 end
+	local sum, n = 0, 0
+	for _, sid in ipairs(h.skills or {}) do
+		local learned = h.sk and h.sk[sid] or 0
+		if learned > 0 and ns.SKILLS[sid] then
+			local base = ns.SkillValue(sid, learned)
+			if base > 0 then
+				sum = sum + ns.SkillValue(sid, min(ns.SKILL_CAP, learned + extra)) / base
+				n = n + 1
+			end
+		end
+	end
+	if n == 0 then return 1 end
+	return 1 + SKILL_SHARE * (sum / n - 1)
+end
+
+-- Damage a second and effective health as gear changes them: every combat
+-- stat counts (moving speed, gold and experience do not fight).
+function Stats.GearValues(s, h)
+	local skills = h and h.skills
+	local base = Stats.DPS(s) / (1 + ((s["dmg_" .. s.school] or 0) + s.dmg_all) / 100)
+	local dps = base * elementFactor(s, skills) * skillFactor(s, h)
+	-- thorns: a share of attack back at every melee blow taken
+	dps = dps + s.atk * (s.thorns or 0) / 100 * (HITS[s.role] or 0.3) * (1 + ((s.dmg_nature or 0) + s.dmg_all) / 100)
+	-- the hero's own healing over a stretch of fighting counts as health
+	local hps = (s.regen or 0) + s.hp * (s.regenPct or 0) / 100
+		+ dps * (s.leech or 0) / 100
+		+ (s.hph or 0) * s.aspd
+		+ ((s.hpk or 0) + s.hp * (s.hpkPct or 0) / 100) * KILLS
+	local ehp = (s.hp + hps * SUSTAIN_T) / takenShare(s)
+	return dps, ehp
+end
+
 -- One number used to compare gear FOR ONE HERO (is this item better for
 -- them?); the weights depend on the role, so it is not for comparing heroes.
 function Stats.Power(heroId, gear)
 	local s = gear and Stats.Compute(heroId, nil, gear) or Stats.Get(heroId)
+	local h = ns.db.heroes[heroId]
 	local role = s.role
-	local dps, ehp = Stats.DPS(s), Stats.EHP(s)
+	local dps, ehp = Stats.GearValues(s, h)
 	if role == "TANK" then
 		return dps ^ 0.35 * ehp ^ 0.65
 	elseif role == "HEALER" then
-		local healing = (1 + s.heal / 100) * (1 + s.cast / 100) / max(0.4, 1 - s.cdr / 100)
+		local healing = (1 + s.heal / 100) * (1 + s.cast / 100) / max(0.4, 1 - s.cdr / 100) * skillFactor(s, h)
 		return dps ^ 0.25 * ehp ^ 0.5 * healing ^ 0.6 * 3
 	end
 	local cool = (1 + s.cast / 200) / max(0.4, 1 - s.cdr / 200)

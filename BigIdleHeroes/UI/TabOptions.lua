@@ -115,16 +115,22 @@ local function build(page)
 	gm.factionText = note(gm, K.PAD + 50, -128, "")
 	gm.head4 = section(gm, -176, "진행 방식")
 	gm.flow = note(gm, K.PAD, -204, "자동 진행, 전멸 시 물러나기, 다시 도전은 '스테이지' 화면 아래에서 바꿉니다.")
-	gm.head5 = section(gm, -240, "통계")
+	gm.keepBench = UI.Check(gm, "대기 중인 영웅에게 좋은 장비도 분해·융합에서 지키기",
+		function() return ns.db.opt.keepBench end, function(v) ns.db.opt.keepBench = v and true or false ns.Fire("BAG") end)
+	gm.keepBench:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD, -222)
+	UI.Tip(gm.keepBench, function()
+		return UI.SimpleTip("대기 영웅의 장비 지키기", "켜면 파티 밖에서 기다리는 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비도 일괄 분해·자동 분해·융합에 쓰지 않습니다. 가방이 더 빨리 찰 수 있습니다.")
+	end, "TOP")
+	gm.head5 = section(gm, -258, "통계")
 	gm.rows = {}
 	local half = (W - 24) / 2
 	for i = 1, 6 do
 		local r = UI.StatRow(gm, half)
 		local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
-		r:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD + col * (half + 24), -268 - row * 24)
+		r:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD + col * (half + 24), -284 - row * 24)
 		gm.rows[i] = r
 	end
-	gm.head6 = section(gm, -354, "저장 데이터")
+	gm.head6 = section(gm, -366, "저장 데이터")
 	gm.reset = gm.head6:AddTool(UI.Button(gm, 150, 22, "모든 진행 상황 초기화", function()
 		UI.Confirm({ title = "모든 진행 상황 초기화", ok = "초기화", style = "red",
 			text = "모든 진행 상황을 초기화하시겠습니까?\n영웅, 장비, 골드, 룬, 진행도가 모두 사라지며 되돌릴 수 없습니다.",
@@ -136,7 +142,7 @@ local function build(page)
 				ns.PickFaction(function() Main.ShowTab("hero", { create = true }) end)
 			end })
 	end, "red"))
-	gm.resetNote = note(gm, K.PAD, -382, "처음부터 다시 시작하려면 모든 진행 상황을 지웁니다. " ..
+	gm.resetNote = note(gm, K.PAD, -394, "처음부터 다시 시작하려면 모든 진행 상황을 지웁니다. " ..
 		U.col("ff9a7a", "영웅, 장비, 골드, 룬, 진행도가 모두 사라지며 되돌릴 수 없습니다."))
 end
 
@@ -156,6 +162,7 @@ local function refresh(page)
 		math.floor(ns.Offline.Efficiency() * 100 + 0.5), U.time(ns.Offline.Cap())))
 
 	gm.sound:Refresh()
+	gm.keepBench:Refresh()
 	local fid = ns.Faction() or "ALLIANCE"
 	local f = ns.FACTIONS[fid]
 	gm.factionIcon:SetIconName(f.icon)

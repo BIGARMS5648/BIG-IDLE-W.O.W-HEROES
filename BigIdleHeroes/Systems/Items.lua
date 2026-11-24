@@ -547,42 +547,83 @@ end
 -- and fusion, and the hints all use this one number.
 Items.UPGRADE = 1.01
 
--- The party hero this bag item would improve the most, if any.
-function Items.PartyUpgrade(it)
-	local best, bestR
+-- The heroes whose gear is kept from breaking down and fusion: the party,
+-- and the heroes waiting outside it too when the option is on.
+function Items.KeptHeroes()
+	local db = ns.db
+	local out, seen = {}, {}
 	for i = 1, ns.PARTY_SIZE do
-		local id = ns.db.party[i]
-		if id and ns.db.heroes[id] then
-			local r = Items.Compare(id, it)
-			if r and r > Items.UPGRADE and (not bestR or r > bestR) then best, bestR = id, r end
+		local id = db.party[i]
+		if id and db.heroes[id] and not seen[id] then out[#out + 1] = id seen[id] = true end
+	end
+	if db.opt.keepBench then
+		for id in pairs(db.heroes) do
+			if not seen[id] then out[#out + 1] = id seen[id] = true end
 		end
+	end
+	return out
+end
+
+-- The hero this bag item would improve the most, if any (the party, or
+-- the heroes given).
+function Items.PartyUpgrade(it, heroes)
+	local best, bestR
+	local list = heroes
+	if not list then
+		list = {}
+		for i = 1, ns.PARTY_SIZE do
+			local id = ns.db.party[i]
+			if id and ns.db.heroes[id] then list[#list + 1] = id end
+		end
+	end
+	for _, id in ipairs(list) do
+		local r = Items.Compare(id, it)
+		if r and r > Items.UPGRADE and (not bestR or r > bestR) then best, bestR = id, r end
 	end
 	return best, bestR
 end
 
--- Gear kept for later (TBH's way): a piece a party hero cannot wear yet
--- (its level is above theirs) that would be better than what they wear,
--- and the best such piece in the bag for that hero and slot. Breaking down
--- and fusion leave it alone.
-function Items.FutureUpgrade(it)
+-- Gear kept for later (TBH's way): a piece a hero cannot wear yet (its
+-- level is above theirs) that would be better than what they wear, and that
+-- no other piece in the bag for that hero and slot beats while being
+-- wearable as soon or sooner. So every step up on the way is kept (the
+-- level 10 helm for a level 1 hero even with a level 100 one in the bag).
+function Items.FutureUpgrade(it, heroes)
 	local bag = ns.db.bag
-	for i = 1, ns.PARTY_SIZE do
-		local id = ns.db.party[i]
-		local h = id and ns.db.heroes[id]
-		if h and h.level < Items.ReqLevel(it) and Items.CanUse(id, it) then
+	local req = Items.ReqLevel(it)
+	for _, id in ipairs(heroes or Items.KeptHeroes()) do
+		local h = ns.db.heroes[id]
+		if h and h.level < req and Items.CanUse(id, it) then
 			local r = Items.Compare(id, it, true)
 			if r and r > Items.UPGRADE then
-				local better = false
+				local beaten = false
 				for _, o in ipairs(bag) do
-					if o ~= it and o.s == it.s and h.level < Items.ReqLevel(o) and Items.CanUse(id, o) then
+					if o ~= it and o.s == it.s and Items.ReqLevel(o) <= req and Items.CanUse(id, o) then
 						local ro = Items.Compare(id, o, true)
-						if ro and (ro > r or (ro == r and tostring(o) < tostring(it))) then better = true break end
+						if ro and (ro > r or (ro == r and (Items.ReqLevel(o) < req or tostring(o) < tostring(it)))) then
+							beaten = true
+							break
+						end
 					end
 				end
-				if not better then return id, r end
+				if not beaten then return id, r end
 			end
 		end
 	end
+	return nil
+end
+
+-- Why a bag item must not be broken down or fused, or nil. manual: the
+-- player picked this one piece and confirmed (enhanced, socketed and better
+-- gear may go then; a protected piece never).
+function Items.KeepReason(it, manual)
+	if it.lock then return "보호한 장비입니다." end
+	if manual then return nil end
+	if it.up then return "강화한 장비입니다." end
+	if Items.HasSockets(it) then return "보석·마법부여·각인이 붙은 장비입니다." end
+	local heroes = Items.KeptHeroes()
+	if Items.PartyUpgrade(it, heroes) then return "영웅에게 지금보다 더 좋은 장비입니다." end
+	if Items.FutureUpgrade(it, heroes) then return "영웅이 레벨을 올리면 낄 더 좋은 장비입니다." end
 	return nil
 end
 
@@ -601,6 +642,32 @@ function Items.Compare(heroId, it, anyLevel)
 	gear[it.s] = it
 	local new = ns.Stats.Power(heroId, gear)
 	return new / max(0.0001, cur)
+end
+
+-- The whole party at once: each time the bag piece with the biggest gain
+-- for any party hero goes to that hero, until no piece is an upgrade for
+-- anyone. Returns how many changed.
+function Items.AutoEquipParty()
+	local db = ns.db
+	local ids = {}
+	for i = 1, ns.PARTY_SIZE do
+		local id = db.party[i]
+		if id and db.heroes[id] then ids[#ids + 1] = id end
+	end
+	local changed = 0
+	for _ = 1, #db.bag + #ids * #ns.SLOTS do
+		local bestId, bestIndex, bestRatio = nil, nil, Items.UPGRADE
+		for _, id in ipairs(ids) do
+			for i = 1, #db.bag do
+				local r = Items.Compare(id, db.bag[i])
+				if r and r > bestRatio then bestId, bestIndex, bestRatio = id, i, r end
+			end
+		end
+		if not bestId then break end
+		Items.Equip(bestId, bestIndex)
+		changed = changed + 1
+	end
+	return changed
 end
 
 -- Puts the best usable bag item into every slot. Returns how many changed.
@@ -699,11 +766,15 @@ function Items.Tooltip(it, heroId)
 		if r then
 			local pct = (r - 1) * 100
 			local name = ns.Heroes.Name(heroId)
-			-- the role-weighted gear score auto-equip uses, not the 전투력 on screen
-			if pct > 0.2 then
+			-- the role-weighted gear score auto-equip uses, not the 전투력 on screen;
+			-- green and red from the same step auto-equip and the marks use
+			local step = (Items.UPGRADE - 1) * 100
+			if pct > step then
 				add(string.format("%s 기준 장비 점수 +%s%%", name, U.num(pct, 1)), nil, 0.2, 1, 0.2)
-			elseif pct < -0.2 then
+			elseif pct < -step then
 				add(string.format("%s 기준 장비 점수 %s%%", name, U.num(pct, 1)), nil, 1, 0.3, 0.3)
+			elseif math.abs(pct) >= 0.05 then
+				add(string.format("%s 기준 장비 점수 %s%s%% (거의 같음)", name, pct > 0 and "+" or "", U.num(pct, 1)), nil, 0.7, 0.7, 0.7)
 			else
 				add(string.format("%s 기준 장비 점수 변화 없음", name), nil, 0.7, 0.7, 0.7)
 			end
