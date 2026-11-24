@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.0
+BIG IDLE HEROES v1.2.0
 ```
 
 ---
@@ -138,22 +138,36 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.0)
+## Changelog for this release (v1.2.0)
 
 ```
-- Loot works like Task Bar Hero now: item levels 1, 5, 10, 15, 20, 30, 40, 50, 65, 80 and 100,
-  a hero wears an item from its own level, and better gear waits in the bag until a hero
-  reaches it (it is kept by salvage and fusion).
-- Ten grades, from Common to Cosmic.
-- Every stage has Task Bar Hero's level (1 to 95), monster count, chests, drop chances and
-  chest contents: monster chests, boss chests and act boss chests. The stage screen shows
-  them.
-- The experience table is Task Bar Hero's, and heroes far above a stage still get its full
-  experience.
-- At most 4/5/6/7 monsters at once by difficulty; a stage keeps its full monster count in
-  more waves. The last stage of each act is its boss alone.
-- Monster strength and experience were tuned with long play runs for Task Bar Hero's pace:
-  Normal in about 64 hours, Mythic+ act 3 by about 115, everything around 330 (the middle
-  of eight parties that cover every specialization).
-- Saved gear moves to the new item levels.
+- Gems, enchanting and rune inscription work like Task Bar Hero's cube: 79 materials with
+  WoW-style names (36 gems, 33 enchanting reagents, 10 rune scrolls), each with its own
+  stats for weapons, armor and accessories at tiers 1 to 10. Nine of one material fuse
+  into a random one of the next grade. Materials you already have become materials of
+  the same grade.
+- Forge: the item you work on stays with the hero you picked; salvage pays what its
+  confirmation showed; Unequip all needs room for everything; crafting shows the real
+  item levels; fusion counts only the pieces it would use; one 1% rule for "better gear"
+  everywhere; screens with a gold cost update when your gold changes.
+- Combat: damage over time deals exactly what its tooltip says; the stronger DoT and
+  the stronger shield keep their caster; life-draining skills heal by the damage dealt
+  (at most 30% of maximum health per hit); chill slows heroes too; cooldowns keep running when
+  an earlier skill fires; no double basic attack on coming into range; Fireball's
+  cooldown is 5 s; heal and shield tooltips say when they trigger.
+- Retrying after a retreat follows the current setting.
+- Lost first-clear chests are counted; companions join on the kill that completes them.
+- Offline rewards: income is measured in real time (game speed included) from every
+  kill, also before the first win; the report shows the experience heroes actually got;
+  a clock set back no longer pays the same time twice.
+- The stage screen shows chest chances with your chest bonus and no monsters on
+  boss-only stages.
+- A full reset also removes rune bonuses and waits for your first hero; a faction must
+  be chosen before recruiting.
+- Older and damaged saves load safely (saves without a version number, broken values,
+  a hero in two party slots, skill ranks above the top, old gear stats outside their
+  range).
+- The Settings statistics and companion progress update while the screen is open.
+- With 3D models off, summons show as icons. Fixes for older model frames and loading
+  screens that fail to load.
 ```
