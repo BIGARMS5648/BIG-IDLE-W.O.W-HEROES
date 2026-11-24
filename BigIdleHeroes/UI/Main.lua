@@ -432,6 +432,8 @@ function Main.Create()
 	frame:SetScript("OnUpdate", onUpdate)
 	frame:SetScript("OnShow", function()
 		if current then Main.ShowTab(current) end
+		-- no side chosen yet: the choice comes before anything else
+		if ns.db and not ns.Faction() and ns.PickFaction then ns.PickFaction() end
 	end)
 	frame:SetScript("OnHide", function()
 		UI.HideTip()

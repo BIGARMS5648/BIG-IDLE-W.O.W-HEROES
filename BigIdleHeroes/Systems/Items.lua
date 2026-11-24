@@ -222,6 +222,25 @@ function Items.AffixRange(it, key)
 	end
 end
 
+-- A piece whose level changed (an old save): each random stat keeps where it
+-- sat in its range, scaled to the new level, and stays inside the new range.
+function Items.FitAffixes(it, oldLevel)
+	if type(it) ~= "table" or type(it.a) ~= "table" or not ns.QUALITY[it.q] then return end
+	for _, a in ipairs(it.a) do
+		local key, v = a[1], a[2]
+		if ns.AFFIX[key] and type(v) == "number" then
+			local lo, hi = Items.AffixRange(it, key)
+			if lo then
+				if oldLevel and oldLevel ~= it.l then
+					local was = affixMult(key, oldLevel, it.q)
+					if was > 0 then v = v * affixMult(key, it.l, it.q) / was end
+				end
+				a[2] = roundValue(U.clamp(v, lo, hi))
+			end
+		end
+	end
+end
+
 -- "+9.6% 공격력 (6.2~12.4)": the stat and the range it could have rolled in.
 function Items.AffixText(it, a)
 	local text = ns.Stats.ModText(a[1], a[2])

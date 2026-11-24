@@ -74,6 +74,13 @@ if Main.Current() ~= "hero" then fail("a new player should land on the hero scre
 if ns.db.faction then fail("a new player has no faction yet") end
 if ns.Bar.IsShown() then fail("a new player should see no battle window before the first hero, only the choice of side") end
 if not find(function(b) return label(b) == "호드로 시작" end) then fail("a new player should be asked to choose a side straight away") end
+-- closing and reopening the menu brings the choice back, and no hero can be
+-- made without a side
+SlashCmdList.BIGIDLEHEROES("")
+SlashCmdList.BIGIDLEHEROES("")
+if not Main.IsShown() then fail("/bih should open the menu again") end
+if not find(function(b) return label(b) == "호드로 시작" end) then fail("reopening the menu before choosing a side should ask for the side again") end
+if H.Create("MAGE_FIRE") or H.Count() ~= 0 then fail("no hero should be made before a side is chosen") end
 click("choose Horde", labelIs("호드로 시작"))
 if ns.Bar.IsShown() then fail("the battle window should still wait while the first hero is being made") end
 if ns.db.faction ~= "HORDE" then fail("the faction choice was not saved") end
@@ -1181,6 +1188,8 @@ do
 		if not sawMissile then fail("a skill with a missile should fly it from the caster to the target") end
 		local known = false
 		for _, e in pairs(ns.SKILL_FX) do if e.missile and e.missile == ns.Bar.fxStats.lastMissile then known = true end end
+		-- or a hunter's arrow or bullet
+		for _, e in pairs(ns.MODEL.SHOT) do if e.missile and e.missile == ns.Bar.fxStats.lastMissile then known = true end end
 		if sawMissile and not known then fail("a flying missile should be its spell's missile model") end
 		-- a hunter shoots: its bow or crossbow animation for an attack, and an
 		-- arrow (a bullet from a gun) flies to the target a moment later
@@ -2220,6 +2229,20 @@ frames(10)
 local st = ns.db.stat
 print(string.format("  after the run: %d kills, %d clears, %d chests opened, forge level %d, %d heroes",
 	st.kills, st.clears, st.chests, ns.db.forge.level, H.Count()))
+
+-- a reset: the runes' room goes, no battle window until the first hero, and
+-- the side is chosen again
+Main.Toggle(true)
+Main.ShowTab("options")
+click("reset", labelIs("모든 진행 상황 초기화"))
+click("confirm reset", labelIs("초기화"))
+if H.Count() ~= 0 then fail("a reset should leave no hero") end
+if ns.BagSize() ~= 30 or ns.PartyLimit() ~= 1 then fail("a reset should take the rune bonuses: bag " .. ns.BagSize() .. ", party " .. ns.PartyLimit()) end
+if ns.Bar.IsShown() then fail("after a reset the battle window should wait for the first hero") end
+if not find(function(b) return label(b) == "얼라이언스로 시작" end) then fail("after a reset the side should be chosen again") end
+click("choose Alliance", labelIs("얼라이언스로 시작"))
+if not H.Create("MAGE_FIRE") then fail("the first hero after a reset could not be made") end
+if not ns.Bar.IsShown() then fail("the battle window should come back with the first hero after a reset") end
 
 -- every texture path must be well-formed; addon textures must exist on disk
 for path in pairs(Mock.textures) do

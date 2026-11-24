@@ -159,6 +159,7 @@ end
 function Heroes.Create(specId, sex, name)
 	local sp = ns.SPECS[specId]
 	if not sp then return false end
+	if not ns.Faction() then return false, "먼저 진영을 고르세요." end
 	if name and takenNames()[name] then name = nil end
 	if Heroes.Count() >= ns.ROSTER_MAX then
 		return false, string.format("영웅은 최대 %d명까지 보유할 수 있습니다.", ns.ROSTER_MAX)
@@ -613,12 +614,14 @@ function Heroes.ValidateParty()
 	local db = ns.db
 	local limit = ns.PartyLimit()
 	local n = 0
+	local seated = {}
 	for i = 1, ns.PARTY_SIZE do
 		local id = db.party[i]
 		if id then
-			if not db.heroes[id] or Heroes.Role(id) ~= ns.PARTY_ROLES[i] or n >= limit then
+			if not db.heroes[id] or seated[id] or Heroes.Role(id) ~= ns.PARTY_ROLES[i] or n >= limit then
 				db.party[i] = false
 			else
+				seated[id] = true
 				n = n + 1
 			end
 		end

@@ -257,10 +257,13 @@ local function buildFaction()
 	end
 end
 
--- done(first): called after a choice (first = true on the very first pick)
+-- done(first): called after a choice (first = true on the very first pick).
+-- Without one, a roster with no hero goes on to making the first.
 function ns.PickFaction(done)
 	if not faction.frame then buildFaction() end
-	faction.done = done
+	faction.done = done or faction.done or function()
+		if H.Count() == 0 then Main.ShowTab("hero", { create = true }) end
+	end
 	Main.ShowModal(faction.frame)
 end
 

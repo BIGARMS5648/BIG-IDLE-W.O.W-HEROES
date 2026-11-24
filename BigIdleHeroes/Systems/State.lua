@@ -37,7 +37,9 @@ local OLD_WTYPE = { gun = "bow", gadget = "orb" }
 
 local function fill(t, defaults)
 	for k, v in pairs(defaults) do
-		if t[k] == nil then
+		-- a missing value, or a damaged one of the wrong kind (a number or a
+		-- table where one belongs), takes the default
+		if t[k] == nil or ((type(v) == "table" or type(v) == "number") and type(t[k]) ~= type(v)) then
 			t[k] = ns.U.copy(v)
 		elseif type(v) == "table" and type(t[k]) == "table" then
 			-- only recurse into plain option tables, never into arrays of game data
@@ -102,8 +104,9 @@ local function clampHero(h)
 	-- talent nodes that no longer exist, or more talent points than levels
 	local spent = 0
 	for key, v in pairs(h.tree) do
-		local t, n = math.floor(key / 10), key % 10
-		if not (sp.tree[t] and sp.tree[t][n]) or type(v) ~= "number" or v <= 0 then
+		local t, n
+		if type(key) == "number" then t, n = math.floor(key / 10), key % 10 end
+		if not (t and sp.tree[t] and sp.tree[t][n]) or type(v) ~= "number" or v <= 0 then
 			h.tree[key] = nil
 		else
 			h.tree[key] = math.min(v, sp.tree[t][n].max)
@@ -115,7 +118,11 @@ local function clampHero(h)
 	local own = {}
 	for i, sid in ipairs(sp.skills) do own[sid] = i end
 	for sid, v in pairs(h.sk) do
-		if not own[sid] or type(v) ~= "number" or v <= 0 or h.level < ns.SKILL_UNLOCK[own[sid]] then h.sk[sid] = nil end
+		if not own[sid] or type(v) ~= "number" or v <= 0 or h.level < ns.SKILL_UNLOCK[own[sid]] then
+			h.sk[sid] = nil
+		else
+			h.sk[sid] = math.min(math.floor(v), ns.SKILL_MAX) -- learned ranks stop at the skill's top
+		end
 	end
 	h.sk[sp.skills[1]] = math.max(1, h.sk[sp.skills[1]] or 0)
 	local budget = 1 + math.floor(h.level / 4)
@@ -192,7 +199,17 @@ function ns.InitDB()
 	end
 	BigWowHeroesDB, BigIdleWoWHeroesDB = nil, nil
 	local db = BigWowIdleDB
-	local from = db.v or DB_VERSION
+	local from = tonumber(db.v)
+	if not from then
+		-- no version number: the first saves kept one hero per class, keyed
+		-- by the class; anything else is taken as current
+		from = DB_VERSION
+		if type(db.heroes) == "table" then
+			for _, classId in ipairs({ "WARRIOR", "DRUID", "HUNTER", "MAGE", "ROGUE", "WARLOCK", "SHAMAN", "PRIEST", "PALADIN" }) do
+				if type(db.heroes[classId]) == "table" then from = 1 break end
+			end
+		end
+	end
 	if from < 2 and type(db.heroes) == "table" then
 		migrateV1(db)
 	end
@@ -222,7 +239,9 @@ function ns.InitDB()
 	if from < 5 then
 		local function snap(it)
 			if type(it) == "table" and type(it.l) == "number" then
+				local was = it.l
 				it.l = ns.Items.SnapLevel(math.max(1, it.l - 2))
+				ns.Items.FitAffixes(it, was)
 			end
 		end
 		for _, list in ipairs({ db.bag, db.bank }) do
@@ -267,11 +286,12 @@ function ns.InitDB()
 			db.heroes[id] = nil
 		else
 			h.id = id
-			h.level = h.level or 1
-			h.xp = h.xp or 0
-			h.tree = h.tree or {}
-			h.skills = h.skills or {}
-			h.gear = h.gear or {}
+			h.level = ns.U.clamp(math.floor(tonumber(h.level) or 1), 1, ns.HERO_MAX_LEVEL)
+			h.xp = math.max(0, tonumber(h.xp) or 0)
+			if type(h.tree) ~= "table" then h.tree = {} end
+			if type(h.skills) ~= "table" then h.skills = {} end
+			if type(h.gear) ~= "table" then h.gear = {} end
+			if h.sk ~= nil and type(h.sk) ~= "table" then h.sk = nil end
 			if from < 3 then migrateV2Hero(h) end
 			if from < 4 then renameSkills(h) end
 			h.sk = h.sk or {}
@@ -281,8 +301,9 @@ function ns.InitDB()
 			if type(h.name) ~= "string" or h.name == "" then
 				h.name = nil -- named below, once every other name is known
 			elseif not h.name:find(" ") then -- before 2.1 heroes had no family name
-				local race = ns.RACES[ns.ClassRace(ns.SPECS[h.spec].class, db.faction)]
-				h.name = h.name .. " " .. ns.Names.Family(ns.NAME_POOLS[race.names])
+				local race = ns.RACES[ns.ClassRace(ns.SPECS[h.spec].class, ns.FACTIONS[db.faction] and db.faction or nil)]
+				local pool = race and ns.NAME_POOLS[race.names]
+				if pool then h.name = h.name .. " " .. ns.Names.Family(pool) end
 			end
 			local n = tonumber(tostring(id):sub(2)) or 0
 			if n > db.heroSeq then db.heroSeq = n end
@@ -293,9 +314,12 @@ function ns.InitDB()
 	for _, h in pairs(db.heroes) do
 		if not h.name then h.name = ns.Heroes.RollName(h.spec) end
 	end
+	-- party slots: heroes that exist, each in one slot only
+	local seated = {}
 	for i = 1, ns.PARTY_SIZE do
 		local id = db.party[i]
-		if id and not db.heroes[id] then db.party[i] = false end
+		if id and (type(id) ~= "string" or not db.heroes[id] or seated[id]) then db.party[i] = false end
+		if db.party[i] then seated[db.party[i]] = true end
 	end
 	for id in pairs(db.mats) do
 		if not ns.MATS[id] then db.mats[id] = nil end
@@ -318,6 +342,8 @@ function ns.ResetDB()
 	BigWowIdleDB = {}
 	local db = ns.InitDB()
 	if ui then db.ui = ui end -- keeps window settings; the faction is chosen again
+	-- the old runes' bonuses (bag and party size ...) go with them
+	if ns.Runes then ns.Runes.Invalidate() end
 	ns.Fire("RESET")
 end
 

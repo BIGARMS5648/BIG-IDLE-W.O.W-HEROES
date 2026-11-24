@@ -339,6 +339,7 @@ end
 
 ------------------------------------------------------------------------
 section("hero creation, names and party roles")
+db.faction = "ALLIANCE"
 check(ns.Heroes.CreateCost() == 0, "first hero is free")
 local okc, firstId = ns.Heroes.Create("HUNTER_MM")
 check(okc and db.heroes[firstId], "create starter")
@@ -1329,6 +1330,66 @@ do
 	check(ns.Heroes.PointsFree("h1") == 22 - 10, "talent points not used by passives are free again")
 	for _, sid in ipairs(h.skills) do check(h.sk[sid], "equipped skills are learned") end
 end
+
+-- a first-generation save without its version number (heroes keyed by class)
+BigWowIdleDB = { gold = 3, heroes = { WARRIOR = { level = 20, xp = 0, tree = {}, skills = {},
+	gear = { head = { s = "head", l = 18, q = 2 } } } }, party = { "WARRIOR", false, false, false, false } }
+ns.InitDB()
+check(ns.Heroes.Count() == 1 and ns.db.v == 6, "a save without a version number, heroes keyed by class, is read as the first version")
+-- damaged values do not stop the load
+BigWowIdleDB = { v = 6, faction = "PIRATES", heroes = { h1 = { spec = "MAGE_FIRE", level = 30, name = "외자" } }, party = { false, "h1", false, false, false } }
+check(pcall(ns.InitDB) and ns.db.faction == nil and type(ns.db.heroes.h1.name) == "string", "an unknown faction with a one-word name loads")
+BigWowIdleDB = { v = 6, heroes = { h1 = { spec = "MAGE_FIRE", level = 30, name = "가 나", tree = { abc = 2, [11] = 1 } } }, party = { false, "h1", false, false, false } }
+check(pcall(ns.InitDB) and ns.db.heroes.h1.tree.abc == nil and ns.db.heroes.h1.tree[11] == 1, "a talent key that is not a number is dropped")
+BigWowIdleDB = { v = 6, heroes = {}, party = true, stage = "x", gold = "lots" }
+check(pcall(ns.InitDB) and type(ns.db.party) == "table" and ns.db.party[1] == false and ns.db.stage.idx == 1 and ns.db.gold == 0,
+	"a party, stage or gold of the wrong kind takes the default")
+-- the same hero twice in the party sits once
+BigWowIdleDB = { v = 6, heroes = { h1 = { spec = "MAGE_FIRE", level = 30, name = "가 나" } }, party = { false, "h1", "h1", false, false } }
+ns.InitDB()
+do
+	local n = 0
+	for i = 1, ns.PARTY_SIZE do if ns.db.party[i] == "h1" then n = n + 1 end end
+	check(n == 1, "a hero saved in two party slots keeps one")
+	ns.db.party[3] = "h1"
+	ns.Heroes.ValidateParty()
+	n = 0
+	for i = 1, ns.PARTY_SIZE do if ns.db.party[i] == "h1" then n = n + 1 end end
+	check(n == 1, "party validation drops a repeated hero")
+end
+-- learned skill ranks stop at the top rank
+BigWowIdleDB = { v = 6, heroes = { h1 = { spec = "MAGE_FIRE", level = 100, name = "가 나",
+	sk = { [ns.SPECS.MAGE_FIRE.skills[1]] = 20 }, skills = { ns.SPECS.MAGE_FIRE.skills[1] } } }, party = { false, "h1", false, false, false } }
+ns.InitDB()
+check(ns.db.heroes.h1.sk[ns.SPECS.MAGE_FIRE.skills[1]] == ns.SKILL_MAX, "a saved skill rank above the top is brought down")
+-- an old piece moved to a lower level keeps its stats inside the new range
+BigWowIdleDB = { v = 4, heroes = {}, party = { false, false, false, false, false },
+	bag = { { s = "head", l = 100, q = 5, a = { { "hp", 112345 } } } } }
+ns.InitDB()
+do
+	local it = ns.db.bag[1]
+	local lo, hi = ns.Items.AffixRange(it, "hp")
+	check(it.l < 100 and lo and it.a[1][2] >= lo and it.a[1][2] <= hi, "migrated stats sit inside the range shown: " .. tostring(it.a[1][2]) .. " in " .. tostring(lo) .. "~" .. tostring(hi))
+end
+-- a reset takes the runes' bonuses with it
+BigWowIdleDB = { v = 6, heroes = {}, party = { false, false, false, false, false } }
+ns.InitDB()
+do
+	local bag0, party0 = ns.BagSize(), ns.PartyLimit()
+	for id, r in pairs(ns.Runes.byId) do
+		if r.stat == "bag" or r.stat == "party" then ns.db.runes[id] = r.max or 1 end
+	end
+	ns.Runes.Invalidate()
+	check(ns.BagSize() > bag0 or ns.PartyLimit() > party0, "the bag and party runes add room")
+	ns.ResetDB()
+	check(ns.BagSize() == bag0 and ns.PartyLimit() == party0, "after a reset the bag and party are back to their base size")
+end
+-- no recruiting before a side is chosen
+ns.db.faction = nil
+ns.db.gold = 1e9
+check(not ns.Heroes.Create("MAGE_FIRE") and ns.Heroes.Count() == 0, "no hero is made before the faction is chosen")
+ns.db.faction = "ALLIANCE"
+check(ns.Heroes.Create("MAGE_FIRE") and ns.Heroes.Count() == 1, "with a faction the first hero is made")
 
 if failures == 0 then print("  systems: all checks passed") end
 return failures == 0
