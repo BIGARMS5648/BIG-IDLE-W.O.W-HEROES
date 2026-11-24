@@ -142,7 +142,7 @@ end end)
 ------------------------------------------------------------------------
 local real = {
 	Stage = ns.Stage, MobsPerWave = ns.MobsPerWave, MobAtk = ns.MobAtk, MobHP = ns.MobHP,
-	Compute = ns.Stats.Compute, AddXP = ns.Heroes.AddXP, WAVES = ns.WAVES,
+	Compute = ns.Stats.Compute, AddXP = ns.Heroes.AddXP, StageWaves = ns.StageWaves, StageKills = ns.StageKills,
 }
 local LAB
 local OVR = {}
@@ -154,6 +154,9 @@ ns.Stats.Compute = function(id, extra, gear)
 end
 ns.Stage = function(d, i) if LAB then return LAB.stage end return real.Stage(d, i) end
 ns.MobsPerWave = function(d, i) if LAB then return LAB.n end return real.MobsPerWave(d, i) end
+-- a lab stage: nine waves of LAB.n, then the boss (o.boss: the boss alone)
+ns.StageWaves = function(d, i) if LAB then return LAB.boss and 1 or 10 end return real.StageWaves(d, i) end
+ns.StageKills = function(d, i) if LAB then return LAB.boss and 0 or 9 * LAB.n end return real.StageKills(d, i) end
 ns.MobAtk = function(b, l) if LAB and LAB.atk then return LAB.atk end return real.MobAtk(b, l) end
 ns.MobHP = function(b, l) if LAB and LAB.hp then return LAB.hp end return real.MobHP(b, l) end
 ns.Heroes.AddXP = function(id, amount)
@@ -230,9 +233,8 @@ local function lab(o)
 	stage.mobs = { { "__dummy", 1 } }
 	stage.boss = o.boss and dummy(o.boss) or dummy({ boss = true })
 	stage.raid = false
-	LAB = { stage = stage, n = o.n or 1, atk = o.atk, hp = o.hp }
+	LAB = { stage = stage, n = o.n or 1, atk = o.atk, hp = o.hp, boss = o.boss and true }
 	if o.realStage then LAB = nil end -- a real stage of the game
-	ns.WAVES = o.boss and 1 or real.WAVES
 	db.stage = { diff = o.diff or 1, idx = o.idx or 10 }
 	clearLog()
 	C.StartStage()
@@ -248,7 +250,6 @@ local function lab(o)
 end
 local function endLab()
 	LAB = nil
-	ns.WAVES = real.WAVES
 	ns.MONSTERS.__dummy = nil
 	for k in pairs(OVR) do OVR[k] = nil end
 end

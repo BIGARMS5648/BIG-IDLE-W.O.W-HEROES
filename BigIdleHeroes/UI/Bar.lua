@@ -28,6 +28,8 @@ local SUMMON_PACE = 140 -- how fast the companion walks to its place behind the 
 local MAX_MOBS = 12
 local MAX_FLOATS = 28
 local MAX_PIPS = 10
+-- the zone banner's widest (it stays clear of the wave dots and boss bar)
+local BANNER_MAX = 250
 
 local frame
 local held = false -- hidden until the first hero is made (Bar.Hold)
@@ -543,8 +545,17 @@ local function drawPips(now)
 		for i = 1, MAX_PIPS do pips[i]:Hide() end
 		return
 	end
-	local n = max(1, min(MAX_PIPS, st.waves or 10))
-	local wave = st.wave or 0
+	local waves = st.waves or 10
+	local n = max(1, min(MAX_PIPS, waves))
+	-- more waves than pips: each monster pip stands for a run of waves, the
+	-- last pip is always the boss
+	local function pipOf(w)
+		if waves <= MAX_PIPS or w <= 0 then return w end
+		if w >= waves then return n end
+		return math.ceil(w * (n - 1) / (waves - 1))
+	end
+	local wave = pipOf(st.wave or 0)
+	local runDone = (st.wave or 0) < waves and pipOf((st.wave or 0) + 1) > wave
 	local x0 = 418 - (n - 1) * 8 -- centred between the zone banner and the gold
 	for i = 1, MAX_PIPS do
 		local p = pips[i]
@@ -554,7 +565,7 @@ local function drawPips(now)
 			local isBoss = i == n
 			p.dot:SetTexture(UI.Tex(isBoss and "skull" or "circle"))
 			local size = isBoss and 16 or 9
-			if i < wave or (i == wave and st.phase ~= "fight") then
+			if i < wave or (i == wave and st.phase ~= "fight" and (runDone or waves <= MAX_PIPS or i == n)) then
 				p.dot:SetVertexColor(1, 0.80, 0.28) -- cleared
 			elseif i == wave then
 				local k = 0.75 + 0.25 * sin(now * 6)
@@ -623,12 +634,18 @@ local function updateInfo()
 	local act, n = ns.StageAct(idx)
 	local zone = string.format("%d-%d %s", act, n, ns.N(stg.name))
 	if stg.raid then zone = zone .. "  " .. U.col("ff9326", "공격대") end
-	frame.zone:SetText(zone)
 	frame.zoneLv:SetText("Lv " .. ns.StageLevel(diff, idx))
-	-- the banner never reaches the wave dots: long names are cut short
-	local room = 250 - 70 - frame.zoneLv:GetStringWidth()
+	-- the banner never reaches the wave dots or the boss bar: a long name
+	-- takes a smaller font first, and only then is cut short
+	local room = BANNER_MAX - 70 - frame.zoneLv:GetStringWidth()
+	for size = 12, 10, -1 do
+		local font, _, flags = frame.zone:GetFont()
+		frame.zone:SetFont(font or ns.FONT, size, flags)
+		frame.zone:SetText(zone)
+		if frame.zone:GetStringWidth() + 2 <= room then break end
+	end
 	frame.zone:SetWidth(min(room, frame.zone:GetStringWidth() + 2))
-	frame.banner:SetWidth(min(250, frame.zone:GetWidth() + frame.zoneLv:GetStringWidth() + 80))
+	frame.banner:SetWidth(min(BANNER_MAX, frame.zone:GetWidth() + frame.zoneLv:GetStringWidth() + 80))
 
 
 	frame.gold:SetLabel(U.fmt(db.gold))

@@ -8,80 +8,71 @@ local Loot = {}
 ns.Loot = Loot
 
 ------------------------------------------------------------------------
--- Rolling rewards
+-- TBH boxes (Data/TBH.lua): each opening rolls one reward by weight
 ------------------------------------------------------------------------
--- weights: 8 numbers (one per quality). Higher difficulties and the luck
--- bonus push weight toward the better qualities.
-function Loot.RollQuality(weights, diff)
-	local shift = 1.4 ^ ((diff or 1) - 1) * (1 + ns.Bonus("luck") / 100)
-	local w = {}
-	for q = 1, ns.MAX_QUALITY do
-		local v = weights[q] or 0
-		if q > 2 and v > 0 then
-			v = v * shift ^ (q - 2)
+local ARMOR = { "head", "chest", "hands", "feet" }
+local CRAFT = { "bar", "leather", "cloth" }
+
+-- The box of a kind ("monster", "boss", "act") for a level: the one of
+-- the highest level at or below it (a chest kept from before boxes).
+function Loot.BoxFor(kind, level)
+	local best, bestLv
+	for key, b in pairs(ns.TBH.BOXES) do
+		if b.kind == kind and b.lv <= (level or 1) and (not bestLv or b.lv > bestLv or (b.lv == bestLv and key < best)) then
+			best, bestLv = key, b.lv
 		end
-		w[q] = v
 	end
-	return U.weightedIndex(w)
-end
-
--- Gear from a chest is never above what the party's highest hero can wear:
--- its level is the stage's, but at most that hero's level + Items.REQ_GAP.
-Loot.CAP = true
-function Loot.GearLevel(level)
-	if not Loot.CAP then return level end
-	local top = ns.Heroes.PartyTopLevel()
-	return min(level, top + ns.Items.REQ_GAP)
-end
-
-function Loot.RollGear(level, weights, diff, slot)
-	level = Loot.GearLevel(level)
-	slot = slot or ns.Items.RandomSlot(level)
-	local q = Loot.RollQuality(weights, diff)
-	local l = max(1, level - random(0, 2))
-	return ns.Items.New(slot, l, q)
-end
-
-local function tierForLevel(level, breaks)
-	local t = 1
-	for i = 1, #breaks do
-		if level >= breaks[i] then t = i + 1 end
+	if best then return best end
+	for key, b in pairs(ns.TBH.BOXES) do
+		if b.kind == kind and (not bestLv or b.lv < bestLv) then best, bestLv = key, b.lv end
 	end
-	return t
+	return best
 end
 
-function Loot.CraftTier(level)
-	return tierForLevel(level, { 15, 30, 50, 70 })
-end
-
-function Loot.SocketTier(level)
-	return tierForLevel(level, { 12, 25, 40, 58, 78 })
-end
-
--- Returns matId, count
-function Loot.RollMaterial(level)
-	local kinds = { { k = "bar", w = 22 }, { k = "leather", w = 20 }, { k = "cloth", w = 20 }, { k = "gem", w = 22 } }
-	if level >= 15 then kinds[#kinds + 1] = { k = "dust", w = 12 } end
-	if level >= 30 then kinds[#kinds + 1] = { k = "scroll", w = 6 } end
-	local kind = U.weighted(kinds).k
-	local tier
-	if kind == "gem" or kind == "dust" or kind == "scroll" then
-		tier = Loot.SocketTier(level)
-	else
-		tier = Loot.CraftTier(level)
+-- The lowest and highest item level of the gear a box can hold.
+function Loot.BoxLevels(key)
+	local lo, hi
+	for _, e in ipairs(ns.TBH.BOXES[key].e) do
+		if e[1] == "gear" then
+			lo, hi = math.min(lo or e[4], e[4]), math.max(hi or e[4], e[4])
+		end
 	end
-	-- a small chance of the neighbouring tiers
-	local r = random()
-	if r < 0.15 then tier = tier - 1 elseif r > 0.93 then tier = tier + 1 end
-	tier = U.clamp(tier, 1, ns.MAT_MAX_TIER[kind])
-	local n = (kind == "bar" or kind == "leather" or kind == "cloth") and random(1, 3) or 1
-	return kind .. tier, n
+	return lo or 1, hi or 1
 end
 
-function Loot.RollSeal(level)
-	local tier = tierForLevel(level, { 30, 60, 85 })
-	if tier > 1 and random() < 0.5 then tier = tier - 1 end
-	return "seal" .. tier, 1
+-- A material of a TBH kind and grade as ours: 장식 → gem, 세공 → dust,
+-- 각인 → scroll, crafting → bar / leather / cloth, coins and soulstones →
+-- seals (their tier by their number).
+function Loot.MatFor(kind, grade)
+	if kind == "seal" or kind == "soul" then
+		local tier = kind == "soul" and grade or math.ceil(grade / 2.5)
+		return "seal" .. U.clamp(tier, 1, ns.MAT_MAX_TIER.seal), 1
+	end
+	local k = kind == "craft" and CRAFT[random(#CRAFT)] or kind
+	local n = kind == "craft" and random(1, 3) or 1
+	return k .. U.clamp(grade, 1, ns.MAT_MAX_TIER[k]), n
+end
+
+-- One opening of a box: an item (its family's slot, the grade and level of
+-- the entry) or a material. Returns { item = it } or { mat = id, n = n }.
+function Loot.RollBox(key)
+	local b = ns.TBH.BOXES[key]
+	-- the luck bonus weighs gear of the better grades up (more the better)
+	local luck = 1 + ns.Bonus("luck") / 100
+	local list = {}
+	for _, e in ipairs(b.e) do
+		local w = e[#e]
+		if e[1] == "gear" and e[3] > 2 then w = w * luck ^ (e[3] - 2) end
+		list[#list + 1] = { e = e, w = w }
+	end
+	local e = U.weighted(list).e
+	if e[1] == "gear" then
+		local fam = e[2]
+		local slot = fam == "armor" and ARMOR[random(#ARMOR)] or (fam == "weapon" and "mh") or (fam == "offhand" and "oh") or fam
+		return { item = ns.Items.New(slot, e[4], e[3]) }
+	end
+	local id, n = Loot.MatFor(e[2], e[3])
+	return { mat = id, n = n }
 end
 
 ------------------------------------------------------------------------
@@ -109,12 +100,12 @@ function Loot.Lost(chestType)
 	end
 end
 
-function Loot.AddChest(chestType, level, diff)
+function Loot.AddChest(chestType, level, diff, box)
 	if Loot.Count(chestType) >= ns.ChestCap(chestType) then
 		return false
 	end
 	local list = ns.db.chests
-	list[#list + 1] = { t = chestType, l = level, d = diff }
+	list[#list + 1] = { t = chestType, l = level, d = diff, box = box }
 	ns.Fire("CHESTS")
 	return true
 end
@@ -131,20 +122,13 @@ local function openAt(index)
 	if ns.Items.BagFree() <= 0 and not (ns.Forge and ns.Forge.AutoSmelt()) then
 		return nil, "full"
 	end
-	local kind = U.weighted({ { k = "gear", w = def.gear }, { k = "mat", w = def.mat }, { k = "seal", w = def.seal } }).k
-	local result
-	if kind == "gear" then
-		local it = Loot.RollGear(ch.l, def.q, ch.d)
-		ns.Items.AddToBag(it)
-		result = { item = it }
-	elseif kind == "mat" then
-		local id, n = Loot.RollMaterial(ch.l)
-		ns.AddMat(id, n)
-		result = { mat = id, n = n }
+	-- its TBH box (a chest kept from before: the box of its kind and level)
+	local box = ch.box and ns.TBH.BOXES[ch.box] and ch.box or Loot.BoxFor(def.box, ch.l)
+	local result = Loot.RollBox(box)
+	if result.item then
+		ns.Items.AddToBag(result.item)
 	else
-		local id, n = Loot.RollSeal(ch.l)
-		ns.AddMat(id, n)
-		result = { mat = id, n = n }
+		ns.AddMat(result.mat, result.n)
 	end
 	table.remove(db.chests, index)
 	db.stat.chests = db.stat.chests + 1

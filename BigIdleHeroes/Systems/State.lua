@@ -1,7 +1,7 @@
 -- Saved data: defaults, migration, repair of missing fields and the gold purse.
 local _, ns = ...
 
-local DB_VERSION = 4
+local DB_VERSION = 5
 
 -- skills that became other classic spells (version 4): old id -> new id
 local OLD_SKILL = {
@@ -215,6 +215,24 @@ function ns.InitDB()
 	end
 	for _, list in ipairs({ db.bag, db.bank }) do
 		for _, it in ipairs(list) do retype(it) end
+	end
+	-- version 5: gear comes in TBH's item levels and is worn from its own
+	-- level; an older piece takes the item level at or below the level it
+	-- was worn from (so it stays wearable by whoever wears it)
+	if from < 5 then
+		local function snap(it)
+			if type(it) == "table" and type(it.l) == "number" then
+				it.l = ns.Items.SnapLevel(math.max(1, it.l - 2))
+			end
+		end
+		for _, list in ipairs({ db.bag, db.bank }) do
+			for _, it in ipairs(list) do snap(it) end
+		end
+		for _, h in pairs(db.heroes) do
+			if type(h) == "table" and type(h.gear) == "table" then
+				for _, it in pairs(h.gear) do snap(it) end
+			end
+		end
 	end
 	for _, h in pairs(db.heroes) do
 		if type(h) == "table" and type(h.gear) == "table" then

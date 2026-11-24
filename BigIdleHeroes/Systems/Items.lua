@@ -56,11 +56,21 @@ function Items.Icon(it)
 	return icons[min(#icons, floor((Items.Tier(it) + 1) / 2))]
 end
 
--- An item can be worn this many levels below its item level (chest gear
--- never goes above the party's highest level + this, Systems/Loot.lua).
-Items.REQ_GAP = 2
+-- An item is worn from its own level (TBH): gear comes only in the item
+-- levels of ns.TBH.ITEM_LEVELS.
+Items.REQ_GAP = 0
 function Items.ReqLevel(it)
 	return max(1, it.l - Items.REQ_GAP)
+end
+
+-- The item level gear of level `l` comes in: the highest of TBH's item
+-- levels at or below it.
+function Items.SnapLevel(l)
+	local best = 1
+	for _, v in ipairs(ns.TBH.ITEM_LEVELS) do
+		if v <= l then best = v end
+	end
+	return best
 end
 
 -- Base stats are derived from type, level, quality and enhancement (never
@@ -251,7 +261,7 @@ function Items.RandomType(slot)
 end
 
 function Items.New(slot, level, quality, wtype)
-	level = U.clamp(floor(level + 0.5), 1, ns.HERO_MAX_LEVEL)
+	level = Items.SnapLevel(U.clamp(floor(level + 0.5), 1, ns.HERO_MAX_LEVEL))
 	quality = U.clamp(quality, 1, ns.MAX_QUALITY)
 	local it = { s = slot, l = level, q = quality }
 	if slot == "mh" or slot == "oh" then
@@ -491,9 +501,40 @@ function Items.PartyUpgrade(it)
 	return best, bestR
 end
 
--- Would this bag item be an upgrade for the hero? Returns the power ratio.
-function Items.Compare(heroId, it)
-	if not Items.CanEquip(heroId, it) then return nil end
+-- Gear kept for later (TBH's way): a piece a party hero cannot wear yet
+-- (its level is above theirs) that would be better than what they wear,
+-- and the best such piece in the bag for that hero and slot. Breaking down
+-- and fusion leave it alone.
+function Items.FutureUpgrade(it)
+	local bag = ns.db.bag
+	for i = 1, ns.PARTY_SIZE do
+		local id = ns.db.party[i]
+		local h = id and ns.db.heroes[id]
+		if h and h.level < Items.ReqLevel(it) and Items.CanUse(id, it) then
+			local r = Items.Compare(id, it, true)
+			if r and r > 1.01 then
+				local better = false
+				for _, o in ipairs(bag) do
+					if o ~= it and o.s == it.s and h.level < Items.ReqLevel(o) and Items.CanUse(id, o) then
+						local ro = Items.Compare(id, o, true)
+						if ro and (ro > r or (ro == r and tostring(o) < tostring(it))) then better = true break end
+					end
+				end
+				if not better then return id, r end
+			end
+		end
+	end
+	return nil
+end
+
+-- Would this bag item be an upgrade for the hero? Returns the power ratio
+-- (anyLevel: as if the hero could wear it already).
+function Items.Compare(heroId, it, anyLevel)
+	if anyLevel then
+		if not Items.CanUse(heroId, it) then return nil end
+	elseif not Items.CanEquip(heroId, it) then
+		return nil
+	end
 	local h = ns.db.heroes[heroId]
 	local cur = ns.Stats.Power(heroId)
 	local gear = {}

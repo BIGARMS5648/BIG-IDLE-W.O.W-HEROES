@@ -2,19 +2,18 @@
 local _, ns = ...
 
 ------------------------------------------------------------------------
--- Qualities: how many inherent affixes and socket slots each one carries,
--- its stat multiplier and what it is worth in the Titan Forge.
+-- Grades (TBH's ten, Data/TBH.lua): how many random stats and sockets
+-- (보석 = 장식, 마법부여 = 세공, 룬 각인 = 각인) each carries, what breaking one
+-- down gives (gold, forge experience), its colour and its stat multiplier.
 ------------------------------------------------------------------------
-ns.QUALITY = {
-	{ key = "poor",      name = "하급",      hex = "9d9d9d", affix = 0, gem = 0, ench = 0, insc = 0, gold = 4,    fxp = 2,    mult = 0.85 },
-	{ key = "common",    name = "일반",    hex = "ffffff", affix = 1, gem = 0, ench = 0, insc = 0, gold = 10,   fxp = 6,    mult = 1.00 },
-	{ key = "uncommon",  name = "고급",  hex = "1eff00", affix = 1, gem = 1, ench = 0, insc = 0, gold = 26,   fxp = 18,   mult = 1.15 },
-	{ key = "rare",      name = "희귀",      hex = "0070dd", affix = 2, gem = 2, ench = 0, insc = 0, gold = 65,   fxp = 54,   mult = 1.32 },
-	{ key = "epic",      name = "영웅",      hex = "a335ee", affix = 2, gem = 2, ench = 1, insc = 0, gold = 160,  fxp = 160,  mult = 1.52 },
-	{ key = "legendary", name = "전설", hex = "ff8000", affix = 3, gem = 2, ench = 1, insc = 1, gold = 400,  fxp = 500,  mult = 1.75 },
-	{ key = "artifact",  name = "유물",  hex = "e6cc80", affix = 3, gem = 2, ench = 2, insc = 1, gold = 1000, fxp = 1600, mult = 2.02 },
-	{ key = "mythic",    name = "신화",    hex = "ff3b5c", affix = 3, gem = 2, ench = 2, insc = 2, gold = 2500, fxp = 5400, mult = 2.35 },
-}
+local GRADE_NAME = { "일반", "고급", "희귀", "전설", "불멸", "아르카나", "초월", "천상", "신성", "우주" }
+local GRADE_HEX = { "e4e4e4", "54fc0c", "0c6cfc", "fc9c0c", "fc2424", "b40cfc", "fc246c", "6ccce4", "fce454", "fcfcfc" }
+local GRADE_MULT = { 0.85, 1.00, 1.15, 1.32, 1.52, 1.75, 2.02, 2.35, 2.70, 3.10 }
+ns.QUALITY = {}
+for i, g in ipairs(ns.TBH.GRADES) do
+	ns.QUALITY[i] = { key = g.key, name = GRADE_NAME[i], hex = GRADE_HEX[i], affix = g.affix, gem = g.gem, ench = g.ench,
+		insc = g.insc, gold = g.gold, fxp = g.cube, mult = GRADE_MULT[i], fuse = g.fuse }
+end
 ns.MAX_QUALITY = #ns.QUALITY
 
 ------------------------------------------------------------------------
@@ -272,22 +271,20 @@ end
 -- Bonus-roll seals: gold fee and the quality odds of the item they roll.
 ------------------------------------------------------------------------
 ns.SEAL = {
-	{ mat = "seal1", gold = 200,    q = { 0, 10, 35, 35, 17, 3, 0, 0 } },
-	{ mat = "seal2", gold = 2500,   q = { 0, 0, 12, 38, 34, 13, 3, 0 } },
-	{ mat = "seal3", gold = 30000,  q = { 0, 0, 0, 20, 40, 28, 10, 2 } },
-	{ mat = "seal4", gold = 250000, q = { 0, 0, 0, 0, 30, 40, 22, 8 } },
+	{ mat = "seal1", gold = 200,    q = { 0, 10, 35, 35, 17, 3, 0, 0, 0, 0 } },
+	{ mat = "seal2", gold = 2500,   q = { 0, 0, 12, 38, 34, 13, 3, 0, 0, 0 } },
+	{ mat = "seal3", gold = 30000,  q = { 0, 0, 0, 20, 40, 28, 10, 2, 0, 0 } },
+	{ mat = "seal4", gold = 250000, q = { 0, 0, 0, 0, 30, 40, 22, 7.5, 0.5, 0 } },
 }
 
 ------------------------------------------------------------------------
--- Chests dropped by stages.
+-- Chests dropped by stages: kept by kind (monster, boss, act boss); what
+-- each one holds is its stage's TBH box (Data/TBH.lua, Systems/Loot.lua).
 ------------------------------------------------------------------------
 ns.CHEST = {
-	{ key = "common", name = "낡은 상자",   icon = "INV_Box_01", cap = 20, auto = 300,
-		q = { 30, 45, 20, 4.5, 0.5, 0.02, 0.002, 0.0002 }, gear = 78, mat = 20, seal = 2 },
-	{ key = "boss",   name = "우두머리의 궤짝", icon = "INV_Box_03", cap = 10, auto = 600,
-		q = { 0, 30, 42, 22, 5.4, 0.6, 0.03, 0.002 }, gear = 72, mat = 22, seal = 6 },
-	{ key = "raid",   name = "공격대 보물 상자", icon = "INV_Box_04", cap = 5, auto = 600,
-		q = { 0, 0, 25, 45, 24, 5.5, 0.5, 0.03 }, gear = 66, mat = 24, seal = 10 },
+	{ key = "common", name = "몬스터 상자",   icon = "INV_Box_01", cap = 20, auto = 300, box = "monster" },
+	{ key = "boss",   name = "우두머리 상자", icon = "INV_Box_03", cap = 10, auto = 600, box = "boss" },
+	{ key = "raid",   name = "막 우두머리 상자", icon = "INV_Box_04", cap = 5, auto = 600, box = "act" },
 }
 
 ------------------------------------------------------------------------
@@ -304,11 +301,11 @@ ns.CRAFT_GROUPS = {
 }
 
 ns.CRAFT_TIERS = {
-	{ lo = 1,  hi = 15,  forge = 5,  gold = 60,    q = { 0, 45, 40, 13, 2, 0, 0, 0 } },
-	{ lo = 15, hi = 30,  forge = 15, gold = 500,   q = { 0, 25, 48, 22, 4.5, 0.5, 0, 0 } },
-	{ lo = 30, hi = 50,  forge = 30, gold = 4000,  q = { 0, 0, 50, 35, 12, 2.7, 0.3, 0 } },
-	{ lo = 50, hi = 70,  forge = 45, gold = 30000, q = { 0, 0, 30, 45, 19, 5, 1, 0 } },
-	{ lo = 70, hi = 100, forge = 60, gold = 200000, q = { 0, 0, 0, 55, 30, 11, 3.5, 0.5 } },
+	{ lo = 1,  hi = 15,  forge = 5,  gold = 60,    q = { 0, 45, 40, 13, 2, 0, 0, 0, 0, 0 } },
+	{ lo = 15, hi = 30,  forge = 15, gold = 500,   q = { 0, 25, 48, 22, 4.5, 0.5, 0, 0, 0, 0 } },
+	{ lo = 30, hi = 50,  forge = 30, gold = 4000,  q = { 0, 0, 50, 35, 12, 2.7, 0.3, 0, 0, 0 } },
+	{ lo = 50, hi = 70,  forge = 45, gold = 30000, q = { 0, 0, 30, 45, 19, 5, 1, 0, 0, 0 } },
+	{ lo = 70, hi = 100, forge = 60, gold = 200000, q = { 0, 0, 0, 55, 30, 11, 3.5, 0.5, 0, 0 } },
 }
 
 ------------------------------------------------------------------------
@@ -316,7 +313,7 @@ ns.CRAFT_TIERS = {
 ------------------------------------------------------------------------
 ns.FORGE_OPS = {
 	{ key = "fuse",   name = "융합",          level = 1,  cost = 0, short = "장비 9개 → 1개",
-		desc = "같은 등급 장비 9개를 합쳐 장비 1개를 만듭니다. 보통 한 등급 위가 나오고, 영웅 등급부터는 같은 등급에 머물 수도 있습니다." },
+		desc = "같은 등급 장비 9개를 합쳐 장비 1개를 만듭니다. 보통 한 등급 위가 나오고, 불멸 등급부터는 같은 등급에 머물 수도 있습니다." },
 	{ key = "smelt",  name = "분해",           level = 1,  cost = 10, short = "장비 → 골드, 경험치",
 		desc = "아이템을 녹여 골드와 용광로 경험치를 얻습니다. 해금하면 가방에서 분해할 수 있습니다." },
 	{ key = "craft",  name = "제작",           level = 5,  cost = 100, short = "원하는 부위 만들기",

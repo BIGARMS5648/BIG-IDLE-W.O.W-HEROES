@@ -294,15 +294,21 @@ local function killReward(m, killer)
 	db.kills[m.type] = (db.kills[m.type] or 0) + 1
 	db.stat.kills = db.stat.kills + 1
 
+	-- the stage's TBH boxes: the monster box at its rate each kill (more with
+	-- the chest bonus), the boss box at its rate (an act boss always drops
+	-- its box), and a second boss box by the bonus
+	local tb = ns.TBH.STAGES[st.diff][st.idx]
 	if m.boss then
 		local chest = st.raid and 3 or 2
-		if not ns.Loot.AddChest(chest, st.level, st.diff) then ns.Loot.Lost(chest) end
-		if random() * 100 < ns.Bonus("bossChest") then
-			if not ns.Loot.AddChest(2, st.level, st.diff) then ns.Loot.Lost(2) end
+		if random() * 1000 < tb.brate then
+			if not ns.Loot.AddChest(chest, st.level, st.diff, tb.bbox) then ns.Loot.Lost(chest) end
 		end
-	elseif not m.summoned then
-		if random() * 100 < 12 + ns.Bonus("chestChance") then
-			if not ns.Loot.AddChest(1, st.level, st.diff) then ns.Loot.Lost(1) end
+		if random() * 100 < ns.Bonus("bossChest") then
+			if not ns.Loot.AddChest(chest, st.level, st.diff, tb.bbox) then ns.Loot.Lost(chest) end
+		end
+	elseif not m.summoned and tb.mbox then
+		if random() * 1000 < tb.mrate * (1 + ns.Bonus("chestChance") / 100) then
+			if not ns.Loot.AddChest(1, st.level, st.diff, tb.mbox) then ns.Loot.Lost(1) end
 		end
 	end
 
@@ -442,10 +448,15 @@ local function spawnWave()
 	local isBossWave = st.wave == st.waves
 	local index = 1
 	if isBossWave then
+		-- the boss alone (its stage's monsters all came in the waves before)
 		mobs[#mobs + 1] = newMob(stage.boss, true, index)
 		index = index + 1
-		n = floor(n / 2)
+		n = 0
 		if st.raid then ns.Sound("boss") end
+	else
+		-- the last of the waves takes what is left of the stage's monsters
+		local left = ns.StageKills(st.diff, st.idx) - (st.wave - 1) * n
+		n = max(0, min(n, left))
 	end
 	local pool = {}
 	for _, e in ipairs(stage.mobs) do
@@ -1071,7 +1082,7 @@ function Combat.StartStage()
 	st.idx = db.stage.idx
 	st.level = ns.StageLevel(st.diff, st.idx)
 	st.raid = ns.Stage(st.diff, st.idx).raid or false
-	st.waves = st.raid and 4 or ns.WAVES
+	st.waves = ns.StageWaves(st.diff, st.idx)
 	st.wave = 0
 	st.phase = "travel"
 	st.timer = 0.8
@@ -1141,7 +1152,8 @@ local function victory()
 		db.prog[st.diff] = st.idx
 		local bonus = floor(ns.MobGold(40, st.level))
 		ns.AddGold(bonus)
-		local got = ns.Loot.AddChest(2, st.level, st.diff)
+		local tb = ns.TBH.STAGES[st.diff][st.idx]
+		local got = ns.Loot.AddChest(st.raid and 3 or 2, st.level, st.diff, tb.bbox)
 		ns.Toast(string.format("첫 공략! %s (+%s 골드, %s)",
 			ns.StageLabel(st.diff, st.idx), U.fmt(bonus), got and "궤짝 1개" or "궤짝 보관함이 가득 차 궤짝을 받지 못함"))
 		if st.idx == ns.STAGE_COUNT and st.diff < #ns.DIFFS then
@@ -1170,10 +1182,10 @@ local function defeat()
 		end
 		if db.opt.retry then
 			db.retry = 8
-			ns.Toast(string.format("%s 공략 실패. 이전 스테이지에서 힘을 기른 뒤 다시 도전합니다.", label))
+			ns.Toast(string.format("%s 공략 실패. 힘을 기른 뒤 다시 도전합니다.", label))
 		else
 			db.opt.auto = false
-			ns.Toast(string.format("%s 공략 실패. 이전 스테이지를 반복합니다.", label))
+			ns.Toast(string.format("%s 공략 실패. 앞 스테이지를 반복합니다.", label))
 		end
 	else
 		ns.Toast(string.format("%s 공략 실패. 다시 도전합니다.", label))

@@ -9,6 +9,7 @@
 Core\Core.lua
 
 
+Data\TBH.lua
 Data\Items.lua
 Data\Skills.lua
 Data\Classes.lua

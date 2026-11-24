@@ -6,7 +6,7 @@ local _, ns = ...
 
 ns.PETS = {
 	{ id = "cat", name = "얼룩 고양이", icon = "INV_Box_PetCarrier_01",
-		unlock = { type = "beast", n = 19000 }, bonus = { exp = 15, chestChance = 1.5 } },
+		unlock = { type = "beast", n = 19000 }, bonus = { exp = 15, chestChance = 12 } },
 	{ id = "chicken", name = "기계 닭", icon = "INV_Gizmo_03",
 		unlock = { type = "humanoid", n = 5000 }, bonus = { gold = 15 } },
 	{ id = "skull", name = "떠도는 해골", icon = "INV_Misc_Bone_HumanSkull_01",
@@ -14,7 +14,7 @@ ns.PETS = {
 	{ id = "ember", name = "꼬마 불씨", icon = "Spell_Fire_Fire",
 		unlock = { type = "elemental", n = 3500 }, bonus = { forgeExp = 15, smeltGold = 10 } },
 	{ id = "imp", name = "말썽쟁이 임프", icon = "Spell_Shadow_SummonImp",
-		unlock = { type = "demon", n = 1200 }, bonus = { chestChance = 2 } },
+		unlock = { type = "demon", n = 1200 }, bonus = { chestChance = 16 } },
 	{ id = "whelp", name = "진홍 새끼용", icon = "INV_Misc_Head_Dragon_Red",
 		unlock = { type = "dragonkin", n = 1500 }, bonus = { gold = 15, exp = 20 } },
 	{ id = "squirrel", name = "기계 다람쥐", icon = "INV_Gizmo_01",

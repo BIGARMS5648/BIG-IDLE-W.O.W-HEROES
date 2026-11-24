@@ -13,15 +13,21 @@ Forge.FUSE_COUNT = 9
 
 -- Fusion odds by input quality: { resultQuality, weight }.
 -- From Epic upward a fusion can fail and return the same quality.
-Forge.FUSE_ODDS = {
-	{ { 2, 94 }, { 3, 6 } },
-	{ { 3, 95 }, { 4, 5 } },
-	{ { 4, 96 }, { 5, 4 } },
-	{ { 5, 97.5 }, { 6, 2.5 } },
-	{ { 5, 55 }, { 6, 44 }, { 7, 1 } },
-	{ { 6, 68 }, { 7, 31.7 }, { 8, 0.3 } },
-	{ { 7, 80 }, { 8, 20 } },
-}
+-- Fusion of nine of a grade: the grade it gives, by weight (TBH's
+-- synthesis: two grades lower .. two grades higher, ns.QUALITY[q].fuse).
+Forge.FUSE_ODDS = {}
+for q = 1, ns.MAX_QUALITY - 1 do
+	local odds, total = {}, 0
+	for d = -2, 2 do
+		local w = ns.QUALITY[q].fuse[d + 3] or 0
+		if w > 0 and q + d >= 1 and q + d <= ns.MAX_QUALITY then
+			odds[#odds + 1] = { q + d, w }
+			total = total + w
+		end
+	end
+	for _, o in ipairs(odds) do o[2] = o[2] / total * 100 end
+	Forge.FUSE_ODDS[q] = odds
+end
 
 local REMOVE_BASE = { gem = 100, ench = 200, insc = 400 }
 
@@ -117,7 +123,7 @@ function Forge.PickByQuality(maxQuality)
 	local out, kept = {}, 0
 	for _, it in ipairs(ns.db.bag) do
 		if not it.lock and not it.up and it.q <= maxQuality and not ns.Items.HasSockets(it) then
-			if ns.Items.PartyUpgrade(it) then
+			if ns.Items.PartyUpgrade(it) or ns.Items.FutureUpgrade(it) then
 				kept = kept + 1
 			else
 				out[#out + 1] = it
@@ -197,7 +203,7 @@ function Forge.Fuse(items)
 		table.remove(ns.db.bag, ns.Items.IndexInBag(items[i]))
 	end
 	local pick = U.weighted(Forge.FUSE_ODDS[q], 2)
-	local level = U.clamp(floor(levelSum / #items + 0.5) + random(-1, 1), 1, ns.HERO_MAX_LEVEL)
+	local level = U.clamp(floor(levelSum / #items + 0.5), 1, ns.HERO_MAX_LEVEL)
 	local it = ns.Items.New(ns.Items.RandomSlot(level, cat), level, pick[1])
 	ns.Items.AddToBag(it)
 	Forge.AddXP(xp)
@@ -212,7 +218,7 @@ function Forge.PickForFusion(quality, cat)
 	local pool = {}
 	for _, it in ipairs(ns.db.bag) do
 		if not it.lock and not it.up and it.q == quality and ns.Items.FuseCat(it) == cat and not ns.Items.HasSockets(it)
-			and not ns.Items.PartyUpgrade(it) then
+			and not ns.Items.PartyUpgrade(it) and not ns.Items.FutureUpgrade(it) then
 			pool[#pool + 1] = it
 		end
 	end
@@ -429,16 +435,15 @@ function Forge.BonusRoll(tier)
 	end
 	local _, fxp = ns.MatValue(d.mat)
 	ns.AddMat(d.mat, -1)
-	-- item level follows your furthest progress, as far as the party's
-	-- highest hero can wear (like chest gear)
+	-- item level follows your furthest progress (like chest gear, it may
+	-- wait in the bag until a hero reaches it)
 	local best = 1
 	for diff = 1, #ns.DIFFS do
 		local p = ns.db.prog[diff] or 0
 		if p > 0 then best = max(best, ns.StageLevel(diff, min(ns.STAGE_COUNT, p))) end
 	end
-	best = ns.Loot.GearLevel(best)
 	local q = U.weightedIndex(d.q)
-	local it = ns.Items.New(ns.Items.RandomSlot(best), max(1, best - random(0, 3)), q)
+	local it = ns.Items.New(ns.Items.RandomSlot(best), best, q)
 	ns.Items.AddToBag(it)
 	Forge.AddXP(fxp)
 	return true, it

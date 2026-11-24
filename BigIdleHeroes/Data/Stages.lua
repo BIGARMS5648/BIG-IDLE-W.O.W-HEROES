@@ -28,7 +28,6 @@ ns.DIFFS = {
 
 ns.STAGES_PER_ACT = 10
 ns.STAGE_COUNT = 30
-ns.WAVES = 10
 
 -- Scenery behind the battle: shape of the backdrop image and its tint.
 ns.THEMES = {
@@ -409,10 +408,10 @@ function ns.Stage(diff, idx)
 	return ns.STAGES[diff][idx]
 end
 
--- idx: 1..30 (act and stage folded into one running index)
+-- idx: 1..30 (act and stage folded into one running index); TBH's stage
+-- levels (Data/TBH.lua)
 function ns.StageLevel(diff, idx)
-	local d = ns.DIFFS[diff]
-	return math.min(100, math.floor(d.base + (idx - 1) * d.step))
+	return ns.TBH.STAGES[diff][idx].lv
 end
 
 function ns.StageAct(idx)
@@ -424,18 +423,44 @@ function ns.StageLabel(diff, idx)
 	return string.format("%d-%d %s", act, n, ns.N(ns.STAGES[diff][idx].name))
 end
 
+-- A stage's monsters are TBH's (waves x per wave): as many in all, at most
+-- MAX_WAVE_MOBS at once (the battle's room), then the boss alone.
+ns.MAX_WAVE_MOBS = 12
+function ns.StageKills(diff, idx)
+	local t = ns.TBH.STAGES[diff][idx]
+	return t.waves * t.per
+end
 function ns.MobsPerWave(diff, idx)
-	return ns.DIFFS[diff].mobs + math.floor((idx - 1) / (ns.STAGE_COUNT - 1) * 2.5)
+	return math.min(ns.MAX_WAVE_MOBS, ns.TBH.STAGES[diff][idx].per)
+end
+-- every wave, the boss's last
+function ns.StageWaves(diff, idx)
+	local per = ns.MobsPerWave(diff, idx)
+	local kills = ns.StageKills(diff, idx)
+	return (per > 0 and math.ceil(kills / per) or 0) + 1
 end
 
--- Monsters past level MIGHT.from grow a little faster than the gear the
--- party can wear (chest gear follows the party's level, Systems/Loot.lua).
-ns.MIGHT = { from = 25, rate = 0.035 }
-function ns.MobMight(l) return math.exp(ns.MIGHT.rate * math.max(0, l - ns.MIGHT.from)) end
+-- Monster strength on top of the base growth, by stage level: { level,
+-- times } points, followed in a straight line on a log scale between them.
+-- It sets how long each part of the climb takes (tests/pace: TBH's hours).
+ns.MIGHT = { { 1, 1 }, { 25, 1 }, { 100, 13.8 } }
+function ns.MobMight(l)
+	local k = ns.MIGHT
+	if l <= k[1][1] then return k[1][2] end
+	for i = 2, #k do
+		local a, b = k[i - 1], k[i]
+		if l <= b[1] then
+			local f = (l - a[1]) / (b[1] - a[1])
+			return a[2] * (b[2] / a[2]) ^ f
+		end
+	end
+	return k[#k][2]
+end
 function ns.MobHP(base, l)   return base * (1 + 0.25 * (l - 1)) * 1.07 ^ (l - 1) * ns.MobMight(l) end
 function ns.MobAtk(base, l)  return base * (1 + 0.12 * (l - 1)) * 1.05 ^ (l - 1) * ns.MobMight(l) end
 function ns.MobGold(base, l) return base * (1 + 0.15 * (l - 1)) * 1.04 ^ (l - 1) end
-function ns.MobExp(base, l)  return ns.EXP_RATE * base * (1 + 0.20 * (l - 1)) * 1.045 ^ (l - 1) end
+-- experience grows with the stage level as TBH's (Data/TBH.lua)
+function ns.MobExp(base, l)  return ns.EXP_RATE * base * ns.TBH.MULT[math.max(1, math.min(100, l))][4] end
 ns.EXP_RATE = 1.2 -- every monster's experience
 
 -- Physical mitigation threshold: armor equal to this halves physical damage.

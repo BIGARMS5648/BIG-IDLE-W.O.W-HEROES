@@ -346,9 +346,9 @@ local function refresh(page)
 	local title = (stg.place and stg.place ~= stg.name and (ns.N(stg.place) .. "  ·  ") or "") .. ns.N(stg.name)
 	d.name:SetText(stg.raid and U.col("ff9326", title) or title)
 	local level = ns.StageLevel(page.diff, page.idx)
-	local waves = stg.raid and 4 or ns.WAVES
+	local kills = ns.StageKills(page.diff, page.idx)
 	d.info:SetText(U.col(ns.DIFFS[page.diff].hex, ns.N(ns.DIFFS[page.diff].name)) .. "  ·  Lv " .. level .. "  ·  " ..
-		string.format("웨이브 %d · 웨이브당 %d마리", waves, ns.MobsPerWave(page.diff, page.idx)))
+		(kills > 0 and string.format("몬스터 %d마리 · 한 번에 %d마리", kills, ns.MobsPerWave(page.diff, page.idx)) or "우두머리만"))
 	local b = stg.boss
 	d.boss:SetIconName(b.icon)
 	d.boss:SetBorderRGB(stg.raid and 1 or 0.85, stg.raid and 0.6 or 0.25, stg.raid and 0.15 or 0.2)
@@ -368,12 +368,22 @@ local function refresh(page)
 			m:Hide()
 		end
 	end
-	local chest = stg.raid and ns.CHEST[3] or ns.CHEST[2]
-	-- the gear its chests give now (never above what the party's highest hero can wear)
-	local gl = ns.Loot.GearLevel(level)
-	d.loot:SetText("보상" .. "\n" .. U.col("ffffff", ns.N(ns.CHEST[1].name)) .. "\n" .. U.col("ffd24a", ns.N(chest.name)) ..
-		"\n" .. string.format("장비 Lv %d~%d", max(1, gl - 2), gl)
-		.. "\n" .. U.col("aab3c8", string.format("착용 Lv %d~%d", max(1, gl - 2 - ns.Items.REQ_GAP), max(1, gl - ns.Items.REQ_GAP))))
+	-- its boxes (TBH's): the monster box at its chance each kill, the boss's
+	-- box at its chance, and the gear levels they hold (worn from that level)
+	local tb = ns.TBH.STAGES[page.diff][page.idx]
+	local lines = { "보상" }
+	local function pct(v) return (v >= 100 and "%d%%" or (v >= 10 and "%.0f%%" or "%.1f%%")):format(v) end
+	if tb.mbox then
+		lines[#lines + 1] = U.col("ffffff", string.format("Lv %d %s %s", ns.TBH.BOXES[tb.mbox].lv, ns.N(ns.CHEST[1].name), pct(tb.mrate / 10)))
+	end
+	lines[#lines + 1] = U.col("ffd24a", string.format("Lv %d %s %s", ns.TBH.BOXES[tb.bbox].lv, ns.N((stg.raid and ns.CHEST[3] or ns.CHEST[2]).name), pct(tb.brate / 10)))
+	local lo, hi = ns.Loot.BoxLevels(tb.bbox)
+	if tb.mbox then
+		local mlo, mhi = ns.Loot.BoxLevels(tb.mbox)
+		lo, hi = math.min(lo, mlo), math.max(hi, mhi)
+	end
+	lines[#lines + 1] = U.col("aab3c8", lo == hi and string.format("장비 Lv %d", hi) or string.format("장비 Lv %d~%d", lo, hi))
+	d.loot:SetText(table.concat(lines, "\n"))
 	local can = ns.Combat.CanTravel(page.diff, page.idx)
 	local here = db.stage.diff == page.diff and db.stage.idx == page.idx
 	if here then

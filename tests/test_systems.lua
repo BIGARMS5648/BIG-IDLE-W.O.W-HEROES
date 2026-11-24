@@ -299,7 +299,27 @@ for _, pet in ipairs(ns.PETS) do
 	for k in pairs(pet.bonus) do check(ns.BONUS_TEXT[k] or ns.AFFIX[k], "pet " .. pet.id .. ": unknown bonus " .. k) end
 	check(type(ns.PetUnlockText(pet)) == "string", "pet unlock text")
 end
-check(ns.StageLevel(1, 1) == 1 and ns.StageLevel(4, 30) == 100, "stage levels should span 1..100")
+check(ns.StageLevel(1, 1) == 1 and ns.StageLevel(#ns.DIFFS, ns.STAGE_COUNT) == 95, "stage levels are TBH's: 1..95")
+do
+	local up, kills, act = true, true, true
+	for d = 1, #ns.DIFFS do
+		for i = 1, ns.STAGE_COUNT do
+			local t = ns.TBH.STAGES[d][i]
+			if i > 1 and ns.StageLevel(d, i) < ns.StageLevel(d, i - 1) then up = false end
+			if t.act then
+				if ns.StageKills(d, i) ~= 0 or ns.StageWaves(d, i) ~= 1 or t.brate ~= 1000 then act = false end
+			elseif ns.StageKills(d, i) < 1 or ns.MobsPerWave(d, i) > ns.MAX_WAVE_MOBS
+				or ns.StageWaves(d, i) ~= math.ceil(ns.StageKills(d, i) / ns.MobsPerWave(d, i)) + 1 then
+				kills = false
+			end
+		end
+		check(ns.TBH.STAGES[d][10].act and ns.TBH.STAGES[d][20].act and ns.TBH.STAGES[d][30].act, "every act ends in an act-boss stage")
+	end
+	check(up, "stage levels never go down within a difficulty")
+	check(kills, "a stage's monsters come in waves of at most MAX_WAVE_MOBS, then the boss")
+	check(act, "an act-boss stage is the boss alone and its box always drops")
+	check(ns.XPForLevel(1) == ns.TBH.XP[1] and ns.XPForLevel(99) == ns.TBH.XP[99], "experience table is TBH's")
+end
 
 ------------------------------------------------------------------------
 section("hero creation, names and party roles")
@@ -531,7 +551,17 @@ do
 	check(not ns.Items.CanEquip(M, bow), "mage cannot equip a bow")
 	local staff = ns.Items.New("mh", 50, 5, "staff")
 	check(not ns.Items.CanEquip(M, staff), "level requirement applies")
-	check(ns.Items.ReqLevel(staff) == 50 - ns.Items.REQ_GAP and ns.Items.ReqLevel(ns.Items.New("mh", 3, 1, "staff")) == 1, "required level: item level - REQ_GAP, at least 1")
+	check(ns.Items.ReqLevel(staff) == 50 and ns.Items.ReqLevel(ns.Items.New("mh", 3, 1, "staff")) == 1, "required level is the item's level")
+	do
+		local snapped = true
+		for l = 1, 100 do
+			local it = ns.Items.New("head", l, 2)
+			local want = 1
+			for _, v in ipairs(ns.TBH.ITEM_LEVELS) do if v <= l then want = v end end
+			if it.l ~= want then snapped = false end
+		end
+		check(snapped, "item levels are TBH's wear levels (1, 5, 10, 15, 20, 30, 40, 50, 65, 80, 100)")
+	end
 	db.heroes[M].level = 60
 	ns.Stats.Invalidate(M)
 	db.bag = {}
@@ -664,31 +694,78 @@ db.opt.autoSmelt = 0
 sum = ns.Loot.OpenAll()
 check(sum.opened == 0 and sum.full, "a full bag keeps chests closed")
 do
-	-- chest gear is never above what the party's highest hero can wear
-	local top = ns.Heroes.PartyTopLevel()
-	local worst, fromLow = 0, true
-	for _ = 1, 300 do
-		local it = ns.Loot.RollGear(top + 40, ns.CHEST[2].q, 1)
-		worst = math.max(worst, ns.Items.ReqLevel(it) - top)
-		local low = ns.Loot.RollGear(math.max(3, top - 5), ns.CHEST[2].q, 1)
-		if low.l > math.max(3, top - 5) then fromLow = false end
+	-- a box's gear is the box's own level (TBH): no cap by the party's level
+	local key = ns.Loot.BoxFor("monster", 95)
+	local lo, hi = ns.Loot.BoxLevels(key)
+	check(lo >= 80 and hi <= 100 and lo <= hi, "a level 95 monster box holds level 80~100 gear: " .. lo .. "~" .. hi)
+	local fromBox, gear, mats = true, 0, 0
+	for _ = 1, 600 do
+		local r = ns.Loot.RollBox(key)
+		if r.item then
+			gear = gear + 1
+			if r.item.l < lo or r.item.l > hi then fromBox = false end
+		else
+			mats = mats + 1
+			check(ns.MATS[r.mat] ~= nil, "box material is known: " .. tostring(r.mat))
+		end
 	end
-	check(worst <= 0, "gear from a stage far above the party can be worn by its highest hero (" .. worst .. " levels short at most)")
-	check(fromLow, "gear from a stage below the party keeps the stage's level")
+	check(fromBox, "box gear keeps the box's levels whatever the party's level")
+	check(gear > 0 and mats > 0, "boxes hold gear and materials: " .. gear .. " / " .. mats)
+	-- every box rolls to something real
+	local bad = 0
+	for k in pairs(ns.TBH.BOXES) do
+		for _ = 1, 30 do
+			local r = ns.Loot.RollBox(k)
+			if not (r.item and ns.Items.Name(r.item)) and not (r.mat and r.n and r.n > 0) then bad = bad + 1 end
+		end
+	end
+	check(bad == 0, "every TBH box opens to an item or materials")
+	-- each stage's boxes are TBH's
+	local missing = 0
+	for d = 1, #ns.DIFFS do
+		for i = 1, ns.STAGE_COUNT do
+			local t = ns.TBH.STAGES[d][i]
+			if not ns.TBH.BOXES[t.bbox] or (t.mbox and not ns.TBH.BOXES[t.mbox]) then missing = missing + 1 end
+		end
+	end
+	check(missing == 0, "every stage's boxes exist")
+	-- a chest kept from before (no box) opens as the box of its kind and level
+	check(ns.TBH.BOXES[ns.Loot.BoxFor("boss", 37)].lv <= 37 and ns.TBH.BOXES[ns.Loot.BoxFor("act", 1)], "an old chest finds its box")
 end
 do
+	-- grade odds follow the box's table: common is likelier than rare
+	local key = ns.TBH.STAGES[1][1].mbox
 	local counts = {}
 	for _ = 1, 4000 do
-		local q = ns.Loot.RollQuality(ns.CHEST[1].q, 1)
-		counts[q] = (counts[q] or 0) + 1
+		local r = ns.Loot.RollBox(key)
+		if r.item then counts[r.item.q] = (counts[r.item.q] or 0) + 1 end
 	end
-	check((counts[2] or 0) > (counts[4] or 0), "common is likelier than rare from a battered chest")
-	local hi1, hi4 = 0, 0
-	for _ = 1, 4000 do
-		if ns.Loot.RollQuality(ns.CHEST[1].q, 1) >= 4 then hi1 = hi1 + 1 end
-		if ns.Loot.RollQuality(ns.CHEST[1].q, 4) >= 4 then hi4 = hi4 + 1 end
+	check((counts[1] or 0) + (counts[2] or 0) > (counts[4] or 0), "low grades are likelier than rare from the first box")
+	-- the luck bonus raises the better grades
+	local function rare(luck)
+		local was = ns.Bonus
+		ns.Bonus = function(k) if k == "luck" then return luck end return was(k) end
+		local n = 0
+		local box = ns.TBH.STAGES[4][29].bbox
+		for _ = 1, 4000 do
+			local r = ns.Loot.RollBox(box)
+			if r.item and r.item.q >= 5 then n = n + 1 end
+		end
+		ns.Bonus = was
+		return n
 	end
-	check(hi4 > hi1 * 2, "higher difficulty improves quality")
+	check(rare(200) > rare(0), "luck makes the better grades likelier")
+end
+-- a piece above every hero's level is kept as a future upgrade
+do
+	db.bag = {}
+	local top = ns.Heroes.PartyTopLevel()
+	local future = ns.Items.New("mh", 100, 4)
+	ns.Items.AddToBag(future)
+	if top < 100 then
+		check(ns.Items.FutureUpgrade(future), "a level 100 weapon waits in the bag for a hero to reach it")
+	end
+	db.bag = {}
 end
 
 ------------------------------------------------------------------------
@@ -719,7 +796,7 @@ for _ = 1, 8 do ns.Items.AddToBag(ns.Items.New("head", 12, 2)) end
 ns.Items.AddToBag(ns.Items.New("ring", 12, 2))
 check(not F.Fuse(db.bag), "armor and accessories do not mix")
 db.bag = {}
-for _ = 1, 9 do ns.Items.AddToBag(ns.Items.New("head", 12, 8)) end
+for _ = 1, 9 do ns.Items.AddToBag(ns.Items.New("head", 12, ns.MAX_QUALITY)) end
 check(not F.Fuse(db.bag), "the top quality cannot be fused")
 do
 	local same, up = 0, 0
@@ -1039,7 +1116,7 @@ BigWowIdleDB = {
 }
 ns.InitDB()
 db = ns.db
-check(db.v == 4 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
+check(db.v == 5 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
 do
 	local m, w = hero("MAGE_FIRE"), hero("WARRIOR_PROT")
 	check(m and w, "old heroes become heroes of the matching specialization")
@@ -1085,7 +1162,8 @@ do
 	for _, it in ipairs(d.bag) do if it.t then types[#types + 1] = it.t end end
 	table.sort(types)
 	check(table.concat(types, ",") == "bow,orb", "a gun becomes a bow, a gadget an orb: " .. table.concat(types, ","))
-	check(d.heroes.h2.gear.mh.t == "bow" and d.heroes.h2.gear.mh.l == 19, "worn guns become bows too")
+	check(d.heroes.h2.gear.mh.t == "bow", "worn guns become bows too")
+	check(d.heroes.h2.gear.mh.l == 15 and d.bag[1].l == 1, "old item levels move to the TBH level a hero of the same level wears")
 	for _, it in ipairs(d.bag) do check(ns.Items.Def(it), "every kept item has a definition") end
 end
 -- version 2.0 stored names as { korean, english }, without family names

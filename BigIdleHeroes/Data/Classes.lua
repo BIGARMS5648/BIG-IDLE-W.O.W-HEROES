@@ -412,9 +412,9 @@ function ns.SpecTune(specId, what)
 	return t and t[what] or 1
 end
 
--- Experience needed to go from level L to L+1.
+-- Experience needed to go from level L to L+1 (TBH's table).
 function ns.XPForLevel(l)
-	return math.floor(78 * l * l * 1.0812 ^ l + 20)
+	return ns.TBH.XP[math.max(1, math.min(100, l))]
 end
 
 -- Level-based growth of the base stats.
