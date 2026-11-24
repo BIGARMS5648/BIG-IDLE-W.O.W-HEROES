@@ -116,6 +116,35 @@ local function forge()
 	end
 end
 
+-- Fill every empty gem, enchant and rune socket on the party's gear with
+-- the best material at hand, first making better materials out of nine.
+local function sockets()
+	local F = ns.Forge
+	for _, kind in ipairs(ns.SOCKET_KINDS) do
+		local mk = ns.SOCKET[kind].mat
+		for t = 1, ns.MAT_MAX_TIER[mk] - 1 do
+			while ns.MatCount(mk .. t) >= F.FUSE_COUNT and F.FuseMat(mk .. t) do end
+		end
+	end
+	for i = 1, ns.PARTY_SIZE do
+		local id = ns.db.party[i]
+		if id then
+			for _, it in pairs(ns.db.heroes[id].gear) do
+				for _, kind in ipairs(ns.SOCKET_KINDS) do
+					local mk = ns.SOCKET[kind].mat
+					while F.Unlocked(kind) and ns.Items.FreeSockets(it, kind) > 0 do
+						local best
+						for t = ns.MAT_MAX_TIER[mk], 1, -1 do
+							if ns.MatCount(mk .. t) > 0 then best = mk .. t break end
+						end
+						if not best or not F.Socket(it, kind, best, id) then break end
+					end
+				end
+			end
+		end
+	end
+end
+
 function Bot.Tick()
 	ns.Loot.OpenAll()
 	for i = 1, ns.PARTY_SIZE do
@@ -126,6 +155,7 @@ function Bot.Tick()
 		end
 	end
 	forge()
+	sockets()
 	recruit()
 	buyRunes()
 end
