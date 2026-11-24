@@ -57,6 +57,15 @@ local function recruit()
 	end
 end
 
+-- What a player does with the bag: fuse nine of a grade, kind and level
+-- (the best level first, lower grades first so results can fuse again),
+-- and when the bag is nearly full, break down gear of older levels and the
+-- lowest grades first, keeping what can still be fused.
+local function fodder(it)
+	return not it.lock and not it.up and not ns.Items.HasSockets(it)
+		and not ns.Items.PartyUpgrade(it) and not ns.Items.FutureUpgrade(it)
+end
+
 local function forge()
 	local F = ns.Forge
 	for _, op in ipairs(ns.FORGE_OPS) do
@@ -65,17 +74,45 @@ local function forge()
 		end
 	end
 	if not F.Unlocked("smelt") then return end
-	-- fuse what can be fused, smelt the rest
-	for q = 1, ns.MAX_QUALITY - 1 do
-		for _, cat in ipairs({ "gear", "accessory" }) do
-			local list = F.PickForFusion(q, cat)
-			if list and q <= 3 and ns.Items.BagFree() < 6 then
-				F.Fuse(list)
+	do -- (Forge.Fuse says no while fusing is locked)
+		for q = 1, ns.MAX_QUALITY - 1 do
+			for _, cat in ipairs({ "gear", "accessory" }) do
+				local groups, levels = {}, {}
+				for _, it in ipairs(ns.db.bag) do
+					if it.q == q and ns.Items.FuseCat(it) == cat and fodder(it) then
+						if not groups[it.l] then groups[it.l] = {} levels[#levels + 1] = it.l end
+						table.insert(groups[it.l], it)
+					end
+				end
+				table.sort(levels, function(a, b) return a > b end)
+				for _, l in ipairs(levels) do
+					local list = groups[l]
+					while #list >= F.FUSE_COUNT do
+						local nine = {}
+						for i = 1, F.FUSE_COUNT do nine[i] = table.remove(list) end
+						if not F.Fuse(nine) then break end
+					end
+				end
 			end
 		end
 	end
-	if ns.Items.BagFree() < 6 then
-		F.Smelt(F.PickByQuality(ns.MAX_QUALITY))
+	if ns.Items.BagFree() < 10 then
+		local top = ns.Items.SnapLevel(ns.Heroes.PartyTopLevel())
+		local list = {}
+		for _, it in ipairs(ns.db.bag) do
+			if fodder(it) then list[#list + 1] = it end
+		end
+		-- older levels first, then the lowest grades
+		table.sort(list, function(a, b)
+			local oa, ob = a.l < top and 0 or 1, b.l < top and 0 or 1
+			if oa ~= ob then return oa < ob end
+			if a.q ~= b.q then return a.q < b.q end
+			return a.l < b.l
+		end)
+		local out = {}
+		local need = 20 - ns.Items.BagFree()
+		for i = 1, math.min(need, #list) do out[i] = list[i] end
+		if #out > 0 then F.Smelt(out) end
 	end
 end
 
