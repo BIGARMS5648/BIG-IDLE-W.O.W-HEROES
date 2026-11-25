@@ -63,10 +63,12 @@ end
 
 -- One opening of a box: an item (its family's slot, the grade and level of
 -- the entry) or a material. Returns { item = it } or { mat = id, n = n }.
-function Loot.RollBox(key)
+-- level: the gear's item level instead of the entry's (the tower's chests);
+-- luck: better grades weighed up more (times this per grade above 2).
+function Loot.RollBox(key, level, luck)
 	local b = ns.TBH.BOXES[key]
 	-- the luck bonus weighs gear of the better grades up (more the better)
-	local luck = 1 + ns.Bonus("luck") / 100
+	luck = (1 + ns.Bonus("luck") / 100) * (luck or 1)
 	local list = {}
 	for _, e in ipairs(b.e) do
 		local w = e[#e]
@@ -77,7 +79,7 @@ function Loot.RollBox(key)
 	if e[1] == "gear" then
 		local fam = e[2]
 		local slot = fam == "armor" and ARMOR[random(#ARMOR)] or (fam == "weapon" and "mh") or (fam == "offhand" and "oh") or fam
-		return { item = ns.Items.New(slot, e[4], e[3]) }
+		return { item = ns.Items.New(slot, level or e[4], e[3]) }
 	end
 	local id, n = Loot.MatFor(e[2], e[3])
 	return { mat = id, n = n }
@@ -109,12 +111,14 @@ function Loot.Lost(chestType, quiet)
 	end
 end
 
-function Loot.AddChest(chestType, level, diff, box)
+-- towerFloor: a chest of the endless tower (its gear of the tower's item
+-- level, the better grades by the floor).
+function Loot.AddChest(chestType, level, diff, box, towerFloor)
 	if Loot.Count(chestType) >= ns.ChestCap(chestType) then
 		return false
 	end
 	local list = ns.db.chests
-	list[#list + 1] = { t = chestType, l = level, d = diff, box = box }
+	list[#list + 1] = { t = chestType, l = level, d = diff, box = box, tf = towerFloor }
 	ns.Fire("CHESTS")
 	return true
 end
@@ -133,7 +137,8 @@ local function openAt(index)
 	end
 	-- its TBH box (a chest kept from before: the box of its kind and level)
 	local box = ch.box and ns.TBH.BOXES[ch.box] and ch.box or Loot.BoxFor(def.box, ch.l)
-	local result = Loot.RollBox(box)
+	local tf = tonumber(ch.tf)
+	local result = tf and Loot.RollBox(box, ns.Tower.ITEM_LEVEL, ns.Tower.Luck(tf)) or Loot.RollBox(box)
 	if result.item then
 		ns.Items.AddToBag(result.item)
 	else

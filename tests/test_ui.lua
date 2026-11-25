@@ -917,6 +917,42 @@ do
 	if ns.db.stage.idx ~= 3 or ns.db.stage.diff ~= 1 then fail("travelling from the stage screen did not work") end
 	click("world Outland", function(b) return b.d == 2 end)
 	hoverAll()
+	-- the endless tower: closed, then open; pick a floor, go, come back
+	do
+		local pg = Main.Page("map")
+		local was = { ns.db.prog[1], ns.db.prog[2], ns.db.prog[3], ns.db.prog[4] }
+		local wasT = { on = ns.db.tower.on, floor = ns.db.tower.floor, best = ns.db.tower.best }
+		ns.db.prog = { 30, 30, 30, 29 }
+		click("tower card", function(b) return b == pg.towerCard end)
+		if not pg.tower or not pg.towerView:IsShown() or pg.nodes[1]:IsShown() then fail("the tower card should show the tower instead of a world's stages") end
+		if not pg.detail.go.off then fail("a closed tower cannot be entered") end
+		ns.db.prog = { 30, 30, 30, 30 }
+		ns.db.tower.best = 7
+		click("tower card (open)", function(b) return b == pg.towerCard end)
+		if pg.floor ~= 8 then fail("the tower should show the floor after the best: " .. tostring(pg.floor)) end
+		press("floor down", pg.towerView.prev)
+		if pg.floor ~= 7 then fail("the left button should go down a floor") end
+		press("floor up", pg.towerView.next)
+		press("floor up (top)", pg.towerView.next)
+		if pg.floor ~= 8 then fail("floors past the one after the best cannot be picked") end
+		local on = 0
+		for i, r in ipairs(pg.towerView.rows) do if not r.icon.__desat then on = i end end
+		if on ~= 1 then fail("floor 8 should show one affix lit: " .. on) end
+		click("climb", labelIs("8층 도전"))
+		if not ns.db.tower.on or ns.db.tower.floor ~= 8 or ns.Combat.state.tower ~= 8 then fail("the button should send the party to the floor") end
+		if not (pg.detail.go.off and pg.detail.go.label:GetText() == "지금 싸우는 곳") then fail("the floor being fought should say so") end
+		hoverAll()
+		Main.ShowTab("hero")
+		Main.ShowTab("map")
+		if not pg.tower then fail("the stage screen should open on the tower while the party is there") end
+		click("world Azeroth (from the tower)", function(b) return b.d == 1 end)
+		click("travel back", labelIs("이 스테이지로 이동"))
+		if ns.db.tower.on then fail("travelling to a stage should leave the tower") end
+		ns.db.prog = { was[1], was[2], was[3], was[4] }
+		ns.db.tower.on, ns.db.tower.floor, ns.db.tower.best = wasT.on, wasT.floor, wasT.best
+		ns.Combat.StartStage()
+		Main.ShowTab("map")
+	end
 	-- the banner shows the loading screen of the stage's place: Forever's for
 	-- the outdoor places (the original one when the client lacks it), the
 	-- original game's for dungeons and raids

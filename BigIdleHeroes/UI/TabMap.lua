@@ -1,6 +1,8 @@
--- Stages screen (스테이지): four worlds (one per difficulty) as picture cards on
--- top, the three acts as tabs, the act's ten stages as a path, and a card
--- for the chosen stage on the right.
+-- Stages screen (스테이지): four worlds (one per difficulty) and the endless
+-- tower (무한의 탑) as picture cards on top. A world: the three acts as tabs,
+-- the act's ten stages as a path, and a card for the chosen stage on the
+-- right. The tower: the floor to go to, the affixes (one more every fifth
+-- floor) and a card for that floor.
 local _, ns = ...
 
 local floor, max, min = math.floor, math.max, math.min
@@ -35,6 +37,9 @@ local function themeRGB(theme)
 	return th, th.rgb[1], th.rgb[2], th.rgb[3]
 end
 
+local TOWER_HEX = "b48cff"
+local AFFIX_ROW = 34
+
 ------------------------------------------------------------------------
 -- Screen
 ------------------------------------------------------------------------
@@ -43,11 +48,12 @@ local function build(page)
 	page.idx = ns.db.stage.idx
 	page.act = ns.StageAct(page.idx)
 
-	-- worlds
+	-- worlds, and the tower after them
 	page.worlds = {}
+	local cards = #ns.DIFFS + 1
+	local ww = floor((Main.PAGE_W - 8 * (cards - 1)) / cards)
 	for d = 1, #ns.DIFFS do
 		local w = CreateFrame("Button", nil, page)
-		local ww = floor((Main.PAGE_W - 8 * (#ns.DIFFS - 1)) / #ns.DIFFS)
 		w:SetSize(ww, 66)
 		w:SetPoint("TOPLEFT", page, "TOPLEFT", (d - 1) * (ww + 8), 0)
 		w.scene = w:CreateTexture(nil, "BACKGROUND")
@@ -83,6 +89,7 @@ local function build(page)
 		w:RegisterForClicks("LeftButtonUp")
 		w:SetScript("OnClick", function(self)
 			ns.Sound("click")
+			page.tower = false
 			page.diff = self.d
 			page.act = 1
 			page.idx = 1
@@ -100,6 +107,55 @@ local function build(page)
 		end, "TOP")
 		page.worlds[d] = w
 	end
+	page.towerCard = (function()
+		local w = CreateFrame("Button", nil, page)
+		w:SetSize(ww, 66)
+		w:SetPoint("TOPLEFT", page, "TOPLEFT", #ns.DIFFS * (ww + 8), 0)
+		w.scene = w:CreateTexture(nil, "BACKGROUND")
+		w.scene:SetPoint("TOPLEFT", w, "TOPLEFT", 3, -3)
+		w.scene:SetPoint("BOTTOMRIGHT", w, "BOTTOMRIGHT", -3, 3)
+		if not UI.SetLoadingScreen(w.scene, ns.StageLoadingScreen(#ns.DIFFS, ns.STAGE_COUNT), (ww - 6) / 60) then
+			local th, r, g, b = themeRGB(ns.STAGES[#ns.DIFFS][ns.STAGE_COUNT].theme)
+			w.scene:SetTexture(UI.Tex(th.art))
+			w.scene:SetTexCoord(0.2, 0.6, 0.15, 0.85)
+			w.scene:SetVertexColor(r * 0.7, g * 0.7, b * 0.7)
+		end
+		w.shade = UI.Art(w, "grad_h", "BORDER", 0, 0, 0, 0.75)
+		w.shade:SetPoint("TOPLEFT", w, "TOPLEFT", 3, -3)
+		w.shade:SetPoint("BOTTOMLEFT", w, "BOTTOMLEFT", 3, 3)
+		w.shade:SetWidth(150)
+		w.edge = UI.Slice(w, "frame", "OVERLAY", 11)
+		w.diffChip = UI.Pill(w, 56, 18)
+		local r, g, b = U.rgb(TOWER_HEX)
+		w.diffChip:SetColor(r, g, b, 1)
+		w.diffChip:SetPoint("TOPLEFT", w, "TOPLEFT", 8, -8)
+		w.diffChip:SetLabel("도전")
+		w.diffChip.text:SetTextColor(0.08, 0.08, 0.1)
+		w.diffChip.text:SetShadowOffset(0, 0)
+		w.name = UI.Text(w, 14, "무한의 탑")
+		w.name:SetPoint("TOPLEFT", w, "TOPLEFT", 10, -30)
+		w.prog = UI.Text(w, 10)
+		w.prog:SetPoint("BOTTOMLEFT", w, "BOTTOMLEFT", 10, 8)
+		w.lockG = UI.Glyph(w, "lock", 22, 0.85, 0.75, 0.55)
+		w.lockG:SetPoint("RIGHT", w, "RIGHT", -12, 0)
+		w:RegisterForClicks("LeftButtonUp")
+		w:SetScript("OnClick", function()
+			ns.Sound("click")
+			page.tower = true
+			page.floor = ns.db.tower.on and ns.db.tower.floor or ns.Tower.Top()
+			Main.Refresh()
+		end)
+		UI.Tip(w, function()
+			local lines = { { "무한의 탑", nil, U.rgb(TOWER_HEX) } }
+			lines[#lines + 1] = { "층마다 다른 장소의 몬스터와 우두머리가 나오고, 10층마다 공격대 우두머리가 기다립니다.", nil, 1, 1, 1, true }
+			lines[#lines + 1] = { "5층마다 신화+ 속성이 하나씩 더해집니다. 탑의 상자에서는 아이템 레벨 100 장비가 나옵니다.", nil, 0.8, 0.8, 0.8, true }
+			if not ns.Tower.Open() then
+				lines[#lines + 1] = { string.format("%s의 30개 스테이지를 모두 깨면 열립니다.", ns.N(ns.DIFFS[#ns.DIFFS].world)), nil, 1, 0.35, 0.3 }
+			end
+			return lines
+		end, "TOP")
+		return w
+	end)()
 
 	page.acts = {}
 	for a = 1, 3 do
@@ -209,6 +265,82 @@ local function build(page)
 	page.rate:SetPoint("TOPLEFT", page, "TOPLEFT", 4, optY - 78)
 	page.rate:SetWidth(500)
 	UI.Color(page.rate, UI.C.sub)
+	-- what belongs to a world (hidden while the tower is shown)
+	page.stageParts = { page.rate }
+	for _, c in ipairs(page.acts) do page.stageParts[#page.stageParts + 1] = c end
+	for _, b in ipairs(page.nodes) do page.stageParts[#page.stageParts + 1] = b end
+	for _, l in pairs(page.links) do
+		page.stageParts[#page.stageParts + 1] = l
+		for _, t in ipairs(l.parts or {}) do page.stageParts[#page.stageParts + 1] = t end
+	end
+	for _, c in ipairs(page.checks) do page.stageParts[#page.stageParts + 1] = c end
+
+	-- the tower: the floor to go to, its affixes, the options
+	local tv = CreateFrame("Frame", nil, page)
+	tv:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -76)
+	tv:SetSize(DETAIL_X - 12, Main.PAGE_H - 76)
+	page.towerView = tv
+	tv.prev = UI.Button(tv, 34, 30, "◀", function()
+		page.floor = math.max(1, (page.floor or 1) - 1)
+		Main.Refresh()
+	end, "dark")
+	tv.prev:SetPoint("TOPLEFT", tv, "TOPLEFT", 0, 0)
+	tv.floorPill = UI.Pill(tv, 104, 30, 0.2, 0.14, 0.32, 0.95)
+	tv.floorPill:SetPoint("LEFT", tv.prev, "RIGHT", 6, 0)
+	tv.next = UI.Button(tv, 34, 30, "▶", function()
+		page.floor = math.min(ns.Tower.Top(), (page.floor or 1) + 1)
+		Main.Refresh()
+	end, "dark")
+	tv.next:SetPoint("LEFT", tv.floorPill, "RIGHT", 6, 0)
+	tv.top = UI.Button(tv, 96, 30, "최고 층으로", function()
+		page.floor = ns.Tower.Top()
+		Main.Refresh()
+	end, "dark")
+	tv.top:SetPoint("LEFT", tv.next, "RIGHT", 6, 0)
+	tv.record = UI.Text(tv, 11)
+	tv.record:SetPoint("LEFT", tv.top, "RIGHT", 12, 0)
+	tv.record:SetWidth(DETAIL_X - 12 - (34 + 6 + 104 + 6 + 34 + 6 + 96 + 12))
+	tv.record:SetWordWrap(false)
+	tv.head = UI.Section(tv, DETAIL_X - 16, "속성")
+	tv.head:SetPoint("TOPLEFT", tv, "TOPLEFT", 0, -40)
+	tv.rows = {}
+	for i, a in ipairs(ns.TOWER_AFFIXES) do
+		local r = CreateFrame("Frame", nil, tv)
+		r:SetSize(DETAIL_X - 16, AFFIX_ROW - 2)
+		r:SetPoint("TOPLEFT", tv, "TOPLEFT", 0, -64 - (i - 1) * AFFIX_ROW)
+		r.icon = r:CreateTexture(nil, "ARTWORK")
+		r.icon:SetSize(24, 24)
+		r.icon:SetPoint("LEFT", r, "LEFT", 2, 0)
+		UI.SetIcon(r.icon, a.icon)
+		r.name = UI.Text(r, 12, ns.N(a.name))
+		r.name:SetPoint("TOPLEFT", r, "TOPLEFT", 34, -1)
+		r.name:SetWidth(64)
+		r.name:SetWordWrap(false)
+		r.from = UI.Text(r, 10, string.format("%d층부터", ns.Tower.AffixFloor(i)))
+		r.from:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -1)
+		r.from:SetWidth(64)
+		r.text = UI.Text(r, 10, ns.N(a.text))
+		r.text:SetPoint("LEFT", r, "LEFT", 104, 0)
+		r.text:SetWidth(DETAIL_X - 16 - 108)
+		tv.rows[i] = r
+	end
+	local ty = -64 - #ns.TOWER_AFFIXES * AFFIX_ROW - 6
+	tv.checks = {
+		UI.Check(tv, "자동 진행 - 깨면 다음 층으로",
+			function() return ns.db.opt.auto end, function(v) ns.db.opt.auto = v ns.db.retry = 0 ns.Fire("OPTIONS") end),
+		UI.Check(tv, "전멸해 한 층 내려간 뒤 8번 깨면 다시 도전",
+			function() return ns.db.opt.retry end, function(v)
+				ns.db.opt.retry = v
+				if not v and (ns.db.retry or 0) > 0 then
+					ns.db.retry = 0
+					ns.db.opt.auto = false
+				end
+				ns.Fire("OPTIONS")
+			end),
+	}
+	for i, c in ipairs(tv.checks) do
+		c:SetPoint("TOPLEFT", tv, "TOPLEFT", 4, ty - (i - 1) * 24)
+	end
 
 	-- detail card
 	local d = UI.Panel(page, Main.PAGE_W - DETAIL_X, Main.PAGE_H - 76 - 30, "card")
@@ -238,6 +370,11 @@ local function build(page)
 	d.bossSkills:SetWidth(240)
 	d.bossSkills:SetJustifyV("TOP")
 	UI.Color(d.bossSkills, UI.C.sub)
+	d.towerNote = UI.Text(d, 11)
+	d.towerNote:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -92)
+	d.towerNote:SetWidth(Main.PAGE_W - DETAIL_X - 24)
+	d.towerNote:SetJustifyV("TOP")
+	d.towerNote:Hide()
 	d.mobTitle = UI.Text(d, 10, "등장 몬스터")
 	d.mobTitle:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -176)
 	UI.Color(d.mobTitle, UI.C.sub)
@@ -268,27 +405,47 @@ local function build(page)
 	d.loot:SetJustifyV("TOP")
 	UI.Color(d.loot, UI.C.sub)
 	d.go = UI.Button(d, Main.PAGE_W - DETAIL_X - 24, 40, "", function()
-		UI.Try(ns.Combat.Travel(page.diff, page.idx))
+		if page.tower then
+			UI.Try(ns.Combat.EnterTower(page.floor))
+		else
+			UI.Try(ns.Combat.Travel(page.diff, page.idx))
+		end
 		Main.Refresh()
 	end, "primary")
 	d.go:SetPoint("BOTTOM", d, "BOTTOM", 0, 12)
 end
 
+local refreshTower
+
 local function refresh(page)
 	local db = ns.db
+	local inTower = db.tower.on
 	for d, w in ipairs(page.worlds) do
 		local open = worldOpen(d)
 		local p = db.prog[d] or 0
 		w.prog:SetText(open and string.format("진행 %d / 30", p) or "잠김")
 		w.lockG:SetShown(not open)
 		w.scene:SetDesaturated(not open)
-		if d == page.diff then w.edge:SetColor(1, 0.82, 0.3, 1) else w.edge:SetColor(0.22, 0.27, 0.4, 1) end
-		if d == db.stage.diff then
+		if d == page.diff and not page.tower then w.edge:SetColor(1, 0.82, 0.3, 1) else w.edge:SetColor(0.22, 0.27, 0.4, 1) end
+		if d == db.stage.diff and not inTower then
 			w.name:SetText(ns.N(ns.DIFFS[d].world) .. "  " .. U.col("6af07a", "●"))
 		else
 			w.name:SetText(ns.N(ns.DIFFS[d].world))
 		end
 	end
+	do
+		local w = page.towerCard
+		local open = ns.Tower.Open()
+		w.prog:SetText(open and string.format("최고 %d층", db.tower.best or 0) or "잠김")
+		w.lockG:SetShown(not open)
+		w.scene:SetDesaturated(not open)
+		if page.tower then w.edge:SetColor(1, 0.82, 0.3, 1) else w.edge:SetColor(0.22, 0.27, 0.4, 1) end
+		w.name:SetText(inTower and ("무한의 탑  " .. U.col("6af07a", "●")) or "무한의 탑")
+	end
+	for _, part in ipairs(page.stageParts) do part:SetShown(not page.tower) end
+	page.towerView:SetShown(page.tower and true or false)
+	if page.tower then return refreshTower(page) end
+
 	local acts = ns.DIFFS[page.diff].acts
 	for a, c in ipairs(page.acts) do
 		c:SetLabel(string.format("%d막  %s", a, ns.N(acts[a])))
@@ -301,7 +458,7 @@ local function refresh(page)
 		local stg = ns.Stage(page.diff, idx)
 		local cleared = (db.prog[page.diff] or 0) >= idx
 		local reachable = ns.Combat.CanTravel(page.diff, idx)
-		local here = db.stage.diff == page.diff and db.stage.idx == idx
+		local here = not inTower and db.stage.diff == page.diff and db.stage.idx == idx
 		UI.SetIcon(b.icon, stg.boss.icon)
 		b.icon:SetDesaturated(not reachable)
 		b.icon:SetAlpha(reachable and 1 or 0.45)
@@ -358,6 +515,13 @@ local function refresh(page)
 	d.info:SetText(U.col(ns.DIFFS[page.diff].hex, ns.N(ns.DIFFS[page.diff].name)) .. "  ·  Lv " .. level .. "  ·  " ..
 		(kills > 0 and string.format("몬스터 %d마리 · 한 번에 %d마리", kills, ns.MobsPerWave(page.diff, page.idx)) or "우두머리만"))
 	local b = stg.boss
+	d.towerNote:Hide()
+	d.loot:ClearAllPoints()
+	d.loot:SetPoint("TOPLEFT", d, "TOPLEFT", 190, -178)
+	d.loot:SetWidth(120)
+	d.boss:Show()
+	d.bossName:Show()
+	d.bossSkills:Show()
 	d.boss:SetIconName(b.icon)
 	d.boss:SetBorderRGB(stg.raid and 1 or 0.85, stg.raid and 0.6 or 0.25, stg.raid and 0.15 or 0.2)
 	d.bossName:SetText((stg.raid and "공격대 우두머리  " or "우두머리  ") .. U.col("ff8a5a", ns.N(b.name)))
@@ -401,7 +565,7 @@ local function refresh(page)
 	lines[#lines + 1] = U.col("aab3c8", lo == hi and string.format("장비 Lv %d", hi) or string.format("장비 Lv %d~%d", lo, hi))
 	d.loot:SetText(table.concat(lines, "\n"))
 	local can = ns.Combat.CanTravel(page.diff, page.idx)
-	local here = db.stage.diff == page.diff and db.stage.idx == page.idx
+	local here = not inTower and db.stage.diff == page.diff and db.stage.idx == page.idx
 	if here then
 		d.go:SetLabel("지금 싸우는 곳")
 		d.go:SetOff(true)
@@ -422,15 +586,99 @@ local function refresh(page)
 	end
 end
 
-local function open(page)
-	-- show where the party is
+-- The tower shown: the floor picked, its affixes, and its card (the place,
+-- monsters and boss it borrows, its chests and first-clear reward).
+refreshTower = function(page)
+	local db = ns.db
+	local T = ns.Tower
+	local top = T.Top()
+	page.floor = U.clamp(page.floor or top, 1, top)
+	local f = page.floor
+	local tv = page.towerView
+	tv.floorPill:SetLabel(string.format("%d층", f))
+	tv.prev:SetOff(f <= 1)
+	tv.next:SetOff(f >= top)
+	tv.top:SetOff(f >= top)
+	tv.record:SetText(string.format("최고 기록 %s", U.col("ffd24a", (db.tower.best or 0) .. "층")) ..
+		(db.tower.on and ("  ·  지금 " .. U.col("6af07a", db.tower.floor .. "층")) or ""))
+	local active = T.Affixes(f)
+	tv.head:Set("속성", string.format("%d층: %d개", f, #active))
+	for i, r in ipairs(tv.rows) do
+		local on = i <= #active
+		r.icon:SetDesaturated(not on)
+		r.icon:SetAlpha(on and 1 or 0.45)
+		r.name:SetTextColor(on and 1 or 0.55, on and 0.82 or 0.57, on and 0.3 or 0.62)
+		UI.Color(r.from, on and UI.C.sub or UI.C.dim)
+		r.text:SetTextColor(on and 0.92 or 0.5, on and 0.94 or 0.52, on and 0.98 or 0.58)
+	end
+	for _, c in ipairs(tv.checks) do c:Refresh() end
+
+	-- the floor's card: what is known before it starts (its place, monsters
+	-- and boss are rolled when it does)
+	local d = page.detail
+	local raid = T.IsRaid(f)
+	local last = ns.STAGES[#ns.DIFFS][ns.STAGE_COUNT]
+	if not UI.SetLoadingScreen(d.banner, ns.StageLoadingScreen(#ns.DIFFS, ns.STAGE_COUNT), (Main.PAGE_W - DETAIL_X - 8) / 76) then
+		local th, r, g, bl = themeRGB(last.theme)
+		d.banner:SetTexture(UI.Tex(th.art))
+		d.banner:SetTexCoord(0, 0.6, 0.1, 0.85)
+		d.banner:SetVertexColor(r * 0.9, g * 0.9, bl * 0.9)
+	end
+	local title = T.Label(f) .. (raid and "  ·  공격대" or "")
+	d.name:SetText(raid and U.col("ff9326", title) or title)
+	local kills = T.Kills(f)
+	d.info:SetText(U.col(TOWER_HEX, "도전") .. "  ·  Lv " .. T.LEVEL .. "  ·  " ..
+		(kills > 0 and string.format("몬스터 %d마리 · 한 번에 %d마리", kills, T.MobsPerWave()) or "공격대 우두머리만"))
+	d.boss:Hide()
+	d.bossName:Hide()
+	d.bossSkills:Hide()
+	d.mobTitle:Hide()
+	for _, m in ipairs(d.mobs) do m.data = nil m:Hide() end
+	local notes = { "도전할 때마다 장소, 몬스터, 우두머리가 무작위로 정해집니다." }
+	notes[#notes + 1] = raid and "이 층에는 공격대 우두머리가 홀로 기다립니다." or
+		string.format("%d층마다 공격대 우두머리가 기다립니다.", T.RAID_EVERY)
+	notes[#notes + 1] = string.format("몬스터 강함: 생명력 x%s · 공격력 x%s", U.num(T.HPMult(f), 2), U.num(T.AtkMult(f), 2))
+	d.towerNote:SetText(table.concat(notes, "\n"))
+	d.towerNote:Show()
+	d.loot:ClearAllPoints()
+	d.loot:SetPoint("TOPLEFT", d.towerNote, "BOTTOMLEFT", 0, -14)
+	d.loot:SetWidth(Main.PAGE_W - DETAIL_X - 24)
+	local function pct(v) v = math.min(100, v) return (v >= 100 and "%d%%" or (v >= 10 and "%.0f%%" or "%.1f%%")):format(v) end
+	local lines = { "보상" }
+	if kills > 0 then
+		lines[#lines + 1] = U.col("ffffff", string.format("%s %s", ns.N(ns.CHEST[1].name), pct(T.MRATE / 10 * (1 + ns.Bonus("chestChance") / 100))))
+	end
+	lines[#lines + 1] = U.col("ffd24a", string.format("%s %s", ns.N((raid and ns.CHEST[3] or ns.CHEST[2]).name), pct(T.BRATE / 10)))
+	lines[#lines + 1] = U.col("aab3c8", string.format("장비 Lv %d", T.ITEM_LEVEL))
+	if f > (db.tower.best or 0) then
+		lines[#lines + 1] = U.col("6af07a", string.format("첫 공략: %s G", U.fmt(T.FirstGold(f))))
+		lines[#lines + 1] = U.col("6af07a", "+ 상자 1개")
+	end
+	d.loot:SetText(table.concat(lines, "\n"))
+	local here = db.tower.on and db.tower.floor == f
+	if not T.Open() then
+		d.go:SetLabel("아직 잠겨 있습니다")
+		d.go:SetOff(true)
+	elseif here then
+		d.go:SetLabel("지금 싸우는 곳")
+		d.go:SetOff(true)
+	else
+		d.go:SetLabel(string.format("%d층 도전", f))
+		d.go:SetOff(false)
+	end
+end
+
+local function open(page, opts)
+	-- show where the party is (the tower when sent there)
 	page.diff = ns.db.stage.diff
 	page.idx = ns.db.stage.idx
 	page.act = ns.StageAct(page.idx)
+	page.tower = (ns.db.tower.on or (opts and opts.tower)) and true or false
+	page.floor = ns.db.tower.on and ns.db.tower.floor or ns.Tower.Top()
 end
 
 Main.RegisterTab({
-	key = "map", title = "스테이지", sub = "네 개의 세계, 120개 지역",
+	key = "map", title = "스테이지", sub = "네 개의 세계, 120개 지역, 무한의 탑",
 	icon = "INV_Misc_Map_01", art = "icon_map", build = build, refresh = refresh, open = open,
 	events = { "STAGE", "PROGRESS", "RESULT", "OPTIONS", "RESET" },
 })

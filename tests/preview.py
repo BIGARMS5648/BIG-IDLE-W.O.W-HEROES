@@ -29,7 +29,7 @@ SCENES = [
     "mats", "mats_gem", "mats_seal", "mats_seal_some", "mats_page2", "mats_seal_locked", "gem_remove_locked", "bag_smelt_locked",
     "party", "party_open",
     "runes", "runes_locked", "runes_far", "runes_full", "runes_full_end",
-    "map", "map_heroic", "map_raid", "map_locked",
+    "map", "map_heroic", "map_raid", "map_locked", "map_tower_locked", "map_tower", "map_tower_raid", "bar_tower",
     "pets", "pets_locked",
     "options", "options_reset", "model_check", "model_check_battle", "model_check_dress", "model_check_fx",
     "new_hero", "new_equip", "new_mats", "new_party", "new_create", "new_one", "new_one_skills", "new_one_equip", "new_one_party",

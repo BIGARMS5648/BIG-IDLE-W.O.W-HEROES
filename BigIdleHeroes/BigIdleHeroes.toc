@@ -30,6 +30,7 @@ Systems\Stats.lua
 Systems\Items.lua
 Systems\Heroes.lua
 Systems\Loot.lua
+Systems\Tower.lua
 Systems\Forge.lua
 Systems\Upgrade.lua
 Systems\Combat.lua

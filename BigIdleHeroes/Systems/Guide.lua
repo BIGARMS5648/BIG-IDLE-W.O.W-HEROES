@@ -194,6 +194,14 @@ local function candidates()
 	if rid and ns.CanAfford(rcost) then
 		add({ text = "룬 배우기: " .. ns.N(ns.Runes.byId[rid].name), tab = "runes", rune = rid })
 	end
+	-- the endless tower, once open: go there, then climb it
+	if ns.Tower.Open() and not db.tower.on then
+		add({ text = "무한의 탑 도전하기", tab = "map", tower = true })
+	end
+	if db.tower.on then
+		add({ text = string.format("무한의 탑 %d층 공략 중 (최고 %d층)", db.tower.floor, db.tower.best or 0), tab = "map", done = true })
+		return out
+	end
 	local stg = ns.Stage(db.stage.diff, db.stage.idx)
 	if stg.raid then
 		add({ text = "공격대 우두머리 처치: " .. ns.N(stg.boss.name), tab = "map", done = true })

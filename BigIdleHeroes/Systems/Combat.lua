@@ -312,18 +312,21 @@ local function killReward(m, killer)
 	-- the stage's TBH boxes: the monster box at its rate each kill and the
 	-- boss box at its rate (an act boss always drops its box), both raised by
 	-- their runes, and a second boss box by the companions' bonus
-	local tb = ns.TBH.STAGES[st.diff][st.idx]
+	-- (a floor of the endless tower: its own chests, gear of the tower's level)
+	local tf = st.tower
+	local tb = tf and ns.Tower.Drops(tf) or ns.TBH.STAGES[st.diff][st.idx]
+	local lvl = tf and ns.Tower.ITEM_LEVEL or st.level
 	if m.boss then
 		local chest = st.raid and 3 or 2
 		if random() * 1000 < tb.brate * (1 + ns.Bonus("bossRate") / 100) then
-			if not ns.Loot.AddChest(chest, st.level, st.diff, tb.bbox) then ns.Loot.Lost(chest) end
+			if not ns.Loot.AddChest(chest, lvl, st.diff, tb.bbox, tf) then ns.Loot.Lost(chest) end
 		end
 		if random() * 100 < ns.Bonus("bossChest") then
-			if not ns.Loot.AddChest(chest, st.level, st.diff, tb.bbox) then ns.Loot.Lost(chest) end
+			if not ns.Loot.AddChest(chest, lvl, st.diff, tb.bbox, tf) then ns.Loot.Lost(chest) end
 		end
 	elseif not m.summoned and tb.mbox then
 		if random() * 1000 < tb.mrate * (1 + ns.Bonus("chestChance") / 100) then
-			if not ns.Loot.AddChest(1, st.level, st.diff, tb.mbox) then ns.Loot.Lost(1) end
+			if not ns.Loot.AddChest(1, lvl, st.diff, tb.mbox, tf) then ns.Loot.Lost(1) end
 		end
 	end
 
@@ -337,6 +340,8 @@ end
 ------------------------------------------------------------------------
 -- Damage
 ------------------------------------------------------------------------
+local towerDeath -- (below: the tower's affixes when a monster dies)
+
 -- dot: a damage-over-time tick (no floor of 1: that would add up every tick)
 local function damageMob(src, m, amount, school, crit, quiet, dot)
 	if m.dead then return 0 end
@@ -352,6 +357,13 @@ local function damageMob(src, m, amount, school, crit, quiet, dot)
 	if src and src.hero then meter(src, "dmg", landed) end
 	m.hp = m.hp - amount
 	m.flash = 0.12
+	-- the tower's 분노: a monster low on health rages
+	local a = st.affix
+	if a and a.raging and not m.boss and not m.raged and m.hp > 0 and m.hp < m.maxhp * ns.Tower.FX.raging.below then
+		m.raged = true
+		m.atk = m.atk * ns.Tower.FX.raging.atk
+		fx(m.x, "격노!", 1, 0.3, 0.2, false, "mob")
+	end
 	if not quiet then
 		if crit then
 			fx(m.x, U.fmt(amount) .. "!", 1, 0.9, 0.2, true, "mob")
@@ -367,6 +379,7 @@ local function damageMob(src, m, amount, school, crit, quiet, dot)
 		m.dead = true
 		m.fade = 0.4
 		killReward(m, src)
+		if st.affix then towerDeath(m) end
 	end
 	return landed
 end
@@ -383,14 +396,15 @@ local function damageHero(h, amount, school, src, isDot)
 			amount = amount * 0.5
 		end
 	end
+	-- "pure": a share of health (the tower's affixes), past armor and resistances
 	if school == "phys" then
 		amount = amount * (1 - ns.Stats.ArmorDR(s.armor, st.level))
-	else
+	elseif school ~= "pure" then
 		local res = (s["res_" .. school] or 0) + s.allres
 		if res > 75 then res = 75 end
 		amount = amount * (1 - res / 100)
 	end
-	amount = amount * (1 - s.dr / 100)
+	if school ~= "pure" then amount = amount * (1 - s.dr / 100) end
 	if h.st.shock then amount = amount * (1 + h.st.shock.v / 100) end
 	if not isDot then
 		amount = amount - s.absorb
@@ -424,6 +438,76 @@ local function damageHero(h, amount, school, src, isDot)
 	return amount
 end
 
+------------------------------------------------------------------------
+-- The endless tower's affixes (ns.TOWER_AFFIXES; their numbers in
+-- ns.Tower.FX)
+------------------------------------------------------------------------
+-- a monster died: 피웅덩이 heals the others, 강화 makes the other monsters
+-- stronger, 파열 hurts every hero
+towerDeath = function(m)
+	local a = st.affix
+	if m.boss then return end
+	local T = ns.Tower.FX
+	if a.sanguine or a.bolstering then
+		for i = 1, #mobs do
+			local o = mobs[i]
+			if o ~= m and not o.dead then
+				if a.sanguine then o.hp = min(o.maxhp, o.hp + o.maxhp * T.sanguine.share) end
+				if a.bolstering and not o.boss then
+					o.maxhp = o.maxhp * T.bolstering.mult
+					o.hp = o.hp * T.bolstering.mult
+					o.atk = o.atk * T.bolstering.mult
+				end
+			end
+		end
+	end
+	if a.bursting then
+		for i = 1, #heroes do
+			local h = heroes[i]
+			if not h.dead then damageHero(h, h.maxhp * T.bursting.share, "pure", nil, true) end
+		end
+	end
+end
+
+-- every step of a fight: 치명상 on hurt heroes, 화산 under one hero, 전율 on all
+local function towerTick()
+	local a = st.affix
+	if not a then return end
+	local T, t = ns.Tower.FX, st.affT
+	local function due(key, every)
+		t[key] = (t[key] or 0) + STEP
+		if t[key] >= every - EPS then
+			t[key] = t[key] - every
+			return true
+		end
+	end
+	if a.grievous and due("grievous", T.grievous.every) then
+		for i = 1, #heroes do
+			local h = heroes[i]
+			if not h.dead and h.hp < h.maxhp * T.grievous.below then damageHero(h, h.maxhp * T.grievous.share, "pure", nil, true) end
+		end
+	end
+	if a.volcanic and due("volcanic", T.volcanic.every) then
+		local alive = {}
+		for i = 1, #heroes do if not heroes[i].dead then alive[#alive + 1] = heroes[i] end end
+		local h = alive[1] and alive[random(#alive)]
+		if h then
+			fx(h.x, "화산", 1, 0.45, 0.1, false, "hero")
+			damageHero(h, h.maxhp * T.volcanic.share, "fire", nil, true)
+		end
+	end
+	if a.quaking and due("quaking", T.quaking.every) then
+		local first = true
+		for i = 1, #heroes do
+			local h = heroes[i]
+			if not h.dead then
+				if first then fx(h.x, "전율", 0.85, 0.7, 0.45, false, "hero") first = false end
+				damageHero(h, h.maxhp * T.quaking.share, "pure", nil, true)
+			end
+		end
+	end
+end
+
 local function revive(h, ratio)
 	h.dead = false
 	h.hp = max(1, floor(h.maxhp * ratio))
@@ -436,14 +520,35 @@ end
 ------------------------------------------------------------------------
 -- Monsters
 ------------------------------------------------------------------------
+-- The stage the monsters, or the boss, come from: the stage fought, or on a
+-- floor of the tower the stage rolled for them.
+local function sourceOf(isBoss)
+	local s2 = st.tower and (isBoss and st.bossStage or st.mobStage)
+	if s2 then return s2[1], s2[2] end
+	return st.diff, st.idx
+end
+Combat.SourceOf = sourceOf
+
 local function newMob(def, isBoss, index, summoned)
 	local l = st.level
 	local hp, atk = ns.MobHP(def.hp, l), ns.MobAtk(def.atk, l)
 	-- a stage of the game (not a test's): its monsters on one footing
-	local norm = not summoned and ns.Stage(st.diff, st.idx) == ns.STAGES[st.diff][st.idx] and ns.StageNorm(st.diff, st.idx)
+	local sd, si = sourceOf(isBoss)
+	local norm = not summoned and ns.Stage(sd, si) == ns.STAGES[sd][si] and ns.StageNorm(sd, si)
 	if norm then
 		hp = hp * (isBoss and norm.bossHP or norm.hp)
 		atk = atk * (isBoss and norm.bossAtk or norm.atk)
+	end
+	-- a floor of the endless tower: stronger every floor, and 폭군 / 경화
+	local tf = st.tower
+	if tf then
+		hp, atk = hp * ns.Tower.HPMult(tf), atk * ns.Tower.AtkMult(tf)
+		local T = ns.Tower.FX
+		if isBoss then
+			if st.affix.tyrannical then hp, atk = hp * T.tyrannical.hp, atk * T.tyrannical.atk end
+		elseif st.affix.fortified then
+			hp, atk = hp * T.fortified.hp, atk * T.fortified.atk
+		end
 	end
 	hp = floor(hp + 0.5)
 	local m = {
@@ -458,6 +563,7 @@ local function newMob(def, isBoss, index, summoned)
 		m.gold = m.gold * 0.25
 		m.exp = m.exp * 0.25
 	end
+	if tf then m.gold = m.gold * ns.Tower.GoldMult(tf) end
 	if def.skills then
 		m.sk = {}
 		for i, sk in ipairs(def.skills) do
@@ -468,19 +574,21 @@ local function newMob(def, isBoss, index, summoned)
 end
 
 local function spawnWave()
-	local stage = ns.Stage(st.diff, st.idx)
-	local n = ns.MobsPerWave(st.diff, st.idx)
+	local stage = ns.Stage(sourceOf(false))
+	local bossStage = ns.Stage(sourceOf(true))
+	local n = st.tower and ns.Tower.MobsPerWave() or ns.MobsPerWave(st.diff, st.idx)
 	local isBossWave = st.wave == st.waves
 	local index = 1
 	if isBossWave then
 		-- the boss alone (its stage's monsters all came in the waves before)
-		mobs[#mobs + 1] = newMob(stage.boss, true, index)
+		mobs[#mobs + 1] = newMob(bossStage.boss, true, index)
 		index = index + 1
 		n = 0
 		if st.raid then ns.Sound("boss") end
 	else
 		-- the last of the waves takes what is left of the stage's monsters
-		local left = ns.StageKills(st.diff, st.idx) - (st.wave - 1) * n
+		local kills = st.tower and ns.Tower.Kills(st.tower) or ns.StageKills(st.diff, st.idx)
+		local left = kills - (st.wave - 1) * n
 		n = max(0, min(n, left))
 	end
 	local pool = {}
@@ -1120,11 +1228,29 @@ function Combat.StartStage()
 		st.phase = "idle"
 		return
 	end
-	st.diff = db.stage.diff
-	st.idx = db.stage.idx
-	st.level = ns.StageLevel(st.diff, st.idx)
-	st.raid = ns.Stage(st.diff, st.idx).raid or false
-	st.waves = ns.StageWaves(st.diff, st.idx)
+	local tw = db.tower
+	if tw.on and not ns.Tower.Open() then tw.on = false end
+	if tw.on then
+		-- a floor of the endless tower: a place, monsters and a boss rolled
+		-- anew each time, the last stage's level, its affixes
+		local f = U.clamp(tw.floor or 1, 1, ns.Tower.Top())
+		tw.floor = f
+		st.tower, st.affix = f, ns.Tower.Set(f)
+		local roll = ns.Tower.Roll(f)
+		st.diff, st.idx = roll.place[1], roll.place[2]
+		st.mobStage, st.bossStage = roll.mobs, roll.boss
+		st.level = ns.Tower.LEVEL
+		st.raid = ns.Tower.IsRaid(f)
+		st.waves = ns.Tower.Waves(f)
+	else
+		st.tower, st.affix, st.mobStage, st.bossStage = nil, nil, nil, nil
+		st.diff = db.stage.diff
+		st.idx = db.stage.idx
+		st.level = ns.StageLevel(st.diff, st.idx)
+		st.raid = ns.Stage(st.diff, st.idx).raid or false
+		st.waves = ns.StageWaves(st.diff, st.idx)
+	end
+	st.affT = {}
 	st.wave = 0
 	st.phase = "travel"
 	st.timer = 0.8
@@ -1199,6 +1325,10 @@ local function nextAfterVictory()
 		db.retry = db.retry - 1
 		if db.retry > 0 then return end
 	end
+	if st.tower then
+		db.tower.floor = st.tower + 1
+		return
+	end
 	if db.stage.idx < ns.STAGE_COUNT then
 		db.stage.idx = db.stage.idx + 1
 	elseif db.stage.diff < #ns.DIFFS then
@@ -1214,7 +1344,21 @@ local function victory()
 	st.timer = 1.5
 	db.stat.clears = db.stat.clears + 1
 	updateRate()
-	if (db.prog[st.diff] or 0) < st.idx then
+	if st.tower then
+		-- the first clear of a floor: a new best, gold and one more chest
+		local f, tw = st.tower, db.tower
+		if f > (tw.best or 0) then
+			tw.best = f
+			local gold = ns.Tower.FirstGold(f)
+			ns.AddGold(gold)
+			local chest = st.raid and 3 or 2
+			local got = ns.Loot.AddChest(chest, ns.Tower.ITEM_LEVEL, st.diff, ns.Tower.Box(chest), f)
+			if not got then ns.Loot.Lost(chest, true) end
+			ns.Toast(string.format("첫 공략! %s (+%s 골드, %s)", ns.Tower.Label(f), U.fmt(gold),
+				got and "상자 1개" or "상자 보관함이 가득 차 상자를 받지 못함"))
+			ns.Fire("PROGRESS")
+		end
+	elseif (db.prog[st.diff] or 0) < st.idx then
 		db.prog[st.diff] = st.idx
 		local bonus = floor(ns.MobGold(40, st.level))
 		ns.AddGold(bonus)
@@ -1241,6 +1385,25 @@ local function defeat()
 	st.timer = 2.5
 	db.stat.wipes = db.stat.wipes + 1
 	updateRate()
+	if st.tower then
+		-- the tower: one floor down, that floor again (then, with the retry
+		-- option, up again after eight clears)
+		local label = ns.Tower.Label(st.tower)
+		if st.tower > 1 then
+			db.tower.floor = st.tower - 1
+			if db.opt.retry and db.opt.auto then
+				db.retry = 8
+				ns.Toast(string.format("%s 실패. %d층에서 힘을 기릅니다.", label, st.tower - 1))
+			else
+				db.opt.auto = false
+				ns.Toast(string.format("%s 실패. %d층을 반복합니다.", label, st.tower - 1))
+			end
+		else
+			ns.Toast(string.format("%s 실패. 다시 도전합니다.", label))
+		end
+		ns.Fire("RESULT", "lose")
+		return
+	end
 	local label = ns.StageLabel(st.diff, st.idx)
 	if db.opt.retreat and (db.stage.idx > 1 or db.stage.diff > 1) then
 		if db.stage.idx > 1 then
@@ -1276,6 +1439,24 @@ function Combat.Travel(diff, idx)
 	end
 	ns.db.stage.diff = diff
 	ns.db.stage.idx = idx
+	ns.db.tower.on = false
+	ns.db.retry = 0
+	Combat.StartStage()
+	return true
+end
+
+-- Go to a floor of the endless tower (up to one past the best cleared).
+function Combat.EnterTower(f)
+	if not ns.Tower.Open() then
+		return false, string.format("%s의 30개 스테이지를 모두 깨면 열립니다.", ns.N(ns.DIFFS[#ns.DIFFS].world))
+	end
+	local top = ns.Tower.Top()
+	f = math.floor(tonumber(f) or top)
+	if f < 1 or f > top then
+		return false, "아직 갈 수 없는 층입니다."
+	end
+	local tw = ns.db.tower
+	tw.on, tw.floor = true, f
 	ns.db.retry = 0
 	Combat.StartStage()
 	return true
@@ -1323,6 +1504,7 @@ function Combat.Step()
 		for i = 1, #heroes do stepHero(heroes[i]) end
 		for i = 1, #mobs do stepMob(mobs[i]) end
 		stepFields()
+		towerTick()
 		for i = #mobs, 1, -1 do
 			if mobs[i].dead and mobs[i].fade <= 0 then table.remove(mobs, i) end
 		end

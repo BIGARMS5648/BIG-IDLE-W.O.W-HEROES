@@ -172,6 +172,8 @@ function Bot.Tick()
 	sockets()
 	recruit()
 	buyRunes()
+	-- the endless tower once it opens: up from the floor after the best
+	if ns.Tower and ns.Tower.Open() and not ns.db.tower.on then ns.Combat.EnterTower(ns.Tower.Top()) end
 end
 
 return Bot

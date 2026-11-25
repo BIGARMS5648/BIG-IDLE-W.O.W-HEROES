@@ -1264,6 +1264,153 @@ do
 end
 
 ------------------------------------------------------------------------
+section("the endless tower")
+do
+	local T = ns.Tower
+	local st = C.state
+	for slot, sid in ipairs({ "WARRIOR_PROT", "MAGE_FIRE", "ROGUE_OUTLAW", "HUNTER_BM", "PRIEST_HOLY" }) do
+		db.party[slot] = bySpec[sid]
+	end
+	ns.Stats.Invalidate()
+	local savedProg, savedChests = { db.prog[1], db.prog[2], db.prog[3], db.prog[4] }, db.chests
+	db.tower = { on = false, floor = 1, best = 0 }
+	db.prog = { 30, 30, 30, 29 }
+	check(not T.Open() and not C.EnterTower(1), "the tower is closed before the last difficulty is cleared")
+	db.prog = { 30, 30, 30, 30 }
+	check(T.Open() and T.Top() == 1, "it opens with Mythic+ 30, from floor 1")
+	check(not C.EnterTower(2), "a floor past the one after the best cannot be entered")
+	check(C.EnterTower(1) and db.tower.on and st.tower == 1 and st.level == T.LEVEL, "entering the tower fights its first floor")
+	-- a floor's place, monsters and boss: rolled anew each time it starts, each
+	-- on its own; raid bosses on every tenth floor
+	local places, packs, bosses, raidOk, mixed = {}, {}, {}, true, false
+	for k = 1, 200 do
+		local f = (k % 10 == 0) and 20 or 7
+		local r = T.Roll(f)
+		places[r.place[1] .. "-" .. r.place[2]] = true
+		packs[r.mobs[1] .. "-" .. r.mobs[2]] = true
+		bosses[r.boss[1] .. "-" .. r.boss[2]] = true
+		if (ns.Stage(r.boss[1], r.boss[2]).raid and true or false) ~= T.IsRaid(f) then raidOk = false end
+		if ns.Stage(r.mobs[1], r.mobs[2]).raid then raidOk = false end
+		if r.place[1] ~= r.mobs[1] or r.place[2] ~= r.mobs[2] then mixed = true end
+	end
+	local function count(t) local n = 0 for _ in pairs(t) do n = n + 1 end return n end
+	check(raidOk and mixed and count(places) >= 50 and count(packs) >= 50 and count(bosses) >= 50,
+		string.format("places, packs and bosses rolled at random, raid bosses on the tenth floors: %d / %d / %d", count(places), count(packs), count(bosses)))
+	local a = { st.diff, st.idx, st.mobStage[1], st.mobStage[2], st.bossStage[1], st.bossStage[2] }
+	local changed = false
+	for _ = 1, 5 do
+		C.StartStage()
+		local b = { st.diff, st.idx, st.mobStage[1], st.mobStage[2], st.bossStage[1], st.bossStage[2] }
+		for i = 1, 6 do if a[i] ~= b[i] then changed = true end end
+	end
+	check(changed and st.tower == 1, "the same floor started again is rolled anew")
+	do
+		C.StartStage()
+		for _ = 1, 400 do C.Step() if C.state.phase == "fight" then break end end
+		local want = ns.Stage(st.mobStage[1], st.mobStage[2]).mobs
+		local ok = #C.mobs > 0
+		for _, m in ipairs(C.mobs) do
+			local found = false
+			for _, e in ipairs(want) do if e[1] == m.def.id then found = true end end
+			if not found then ok = false end
+		end
+		check(ok, "the monsters come from the pack rolled for the floor")
+	end
+	check(#T.Affixes(4) == 0 and #T.Affixes(5) == 1 and T.Affixes(5)[1].key == "fortified" and #T.Affixes(49) == 9
+		and #T.Affixes(50) == 10 and #T.Affixes(120) == #ns.TOWER_AFFIXES, "one more affix every fifth floor, in order")
+	check(T.Kills(10) == 0 and T.Waves(10) == 1 and T.Kills(1) == T.WAVES * T.MobsPerWave()
+		and T.Kills(41) > T.Kills(39), "a raid floor is its boss alone; 무리 brings more monsters")
+	check(T.HPMult(30) > T.HPMult(29) and T.AtkMult(30) > T.AtkMult(29) and T.GoldMult(30) > T.GoldMult(1), "monsters grow stronger and richer every floor")
+	for _, a in ipairs(ns.TOWER_AFFIXES) do
+		check(T.FX[a.key] and type(a.text) == "string" and a.icon, "affix " .. a.key .. ": its effect, text and icon")
+	end
+
+	-- every chest of the tower holds gear of item level 100, better grades higher up
+	db.chests = {}
+	db.bag = {}
+	local levels, mean = {}, {}
+	for _, f in ipairs({ 1, 80 }) do
+		local sum, k = 0, 0
+		for _ = 1, 3000 do
+			local r = ns.Loot.RollBox(T.Box(2), T.ITEM_LEVEL, T.Luck(f))
+			if r.item then
+				levels[r.item.l] = true
+				sum, k = sum + r.item.q, k + 1
+			end
+		end
+		mean[f] = sum / math.max(1, k)
+	end
+	check(levels[100] and next(levels, next(levels)) == nil, "tower boxes hold item level 100 gear only")
+	check(mean[80] > mean[1] + 0.3, string.format("higher floors give better grades: %.2f -> %.2f", mean[1], mean[80]))
+	ns.Loot.AddChest(2, T.ITEM_LEVEL, 1, T.Box(2), 7)
+	check(db.chests[1].tf == 7, "a tower chest keeps its floor")
+	local opened = 0
+	for _ = 1, 40 do
+		ns.Loot.AddChest(1, T.ITEM_LEVEL, 1, T.Box(1), 7)
+		local sum = ns.Loot.OpenAll(1)
+		opened = opened + sum.opened
+	end
+	local all100 = #db.bag > 0
+	for _, it in ipairs(db.bag) do if it.l ~= 100 then all100 = false end end
+	check(opened == 40 and all100, "opened tower chests give level 100 gear")
+	db.bag, db.chests = {}, {}
+
+	-- a first clear: a new best, its gold and one more chest; then up a floor
+	local hp, atk = T.HPMult, T.AtkMult
+	T.HPMult = function() return 1e-9 end
+	db.opt.auto, db.opt.retry, db.retry = true, true, 0
+	db.tower = { on = true, floor = 1, best = 0 }
+	C.StartStage()
+	local g0, c0 = db.gold, db.stat.clears
+	for _ = 1, 6000 do
+		C.Step()
+		if db.stat.clears > c0 then break end
+	end
+	check(db.stat.clears > c0 and db.tower.best == 1 and db.tower.floor == 2, "a cleared floor is the new best and the next floor comes")
+	check(db.gold - g0 >= T.FirstGold(1), "the first clear pays its gold")
+	local boss = 0
+	for _, ch in ipairs(db.chests) do if ch.t == 2 and ch.tf == 1 then boss = boss + 1 end end
+	check(boss >= 2, "the boss chest and the first clear's chest, both of the tower: " .. boss)
+	-- a floor cleared again pays no first-clear gold
+	db.tower.floor = 1
+	C.StartStage()
+	local best0 = db.tower.best
+	c0 = db.stat.clears
+	for _ = 1, 6000 do C.Step() if db.stat.clears > c0 then break end end
+	check(db.tower.best == best0, "clearing a floor again sets no new best")
+	-- every affix at once runs (floor 60, a raid floor; floor 59 with monsters)
+	db.tower.best = 59
+	for _, f in ipairs({ 59, 60 }) do
+		db.tower.floor = f
+		C.StartStage()
+		c0 = db.stat.clears
+		local ok = pcall(function() for _ = 1, 6000 do C.Step() if db.stat.clears > c0 then break end end end)
+		check(ok and db.stat.clears > c0, "floor " .. f .. " with its affixes is fought to the end")
+	end
+	-- a wipe: one floor down, that floor again (eight clears, then up)
+	T.HPMult, T.AtkMult = function() return 1e6 end, function() return 1e6 end
+	db.tower.floor, db.opt.auto, db.opt.retry, db.retry = 30, true, true, 0
+	C.StartStage()
+	local w0 = db.stat.wipes
+	for _ = 1, 6000 do C.Step() if db.stat.wipes > w0 then break end end
+	check(db.stat.wipes > w0 and db.tower.floor == 29 and db.retry == 8, "a wipe drops one floor and counts eight clears before trying again")
+	db.tower.floor, db.opt.retry, db.retry = 30, false, 0
+	C.StartStage()
+	w0 = db.stat.wipes
+	for _ = 1, 6000 do C.Step() if db.stat.wipes > w0 then break end end
+	check(db.tower.floor == 29 and not db.opt.auto, "without the retry option the floor below is repeated")
+	T.HPMult, T.AtkMult = hp, atk
+	-- a trip to a stage leaves the tower
+	db.opt.auto = true
+	check(C.Travel(1, 1) and not db.tower.on and not st.tower, "travelling to a stage leaves the tower")
+	db.prog = { savedProg[1], savedProg[2], savedProg[3], savedProg[4] }
+	C.StartStage()
+	check(not st.tower and not db.tower.on, "with the tower closed again the stages are fought")
+	db.chests = savedChests
+	db.tower = { on = false, floor = 1, best = 0 }
+end
+
+------------------------------------------------------------------------
 section("gear score and protection")
 do
 	local I = ns.Items

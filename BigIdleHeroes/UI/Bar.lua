@@ -489,7 +489,8 @@ local function drawMobs()
 			if f.mobRef ~= m then f.mobRef, f.glide = m, nil end
 			local px, moved = glide(f, laneX(m.x) - size / 2)
 			local st = ns.Combat.state
-			local bossKey = m.boss and not m.summoned and st.diff and (st.diff .. "-" .. st.idx) or nil
+			local bd, bi = ns.Combat.SourceOf(true) -- (a tower floor's boss comes from its own stage)
+			local bossKey = m.boss and not m.summoned and bd and (bd .. "-" .. bi) or nil
 			local fig = pickFigure(f.model, Figure.ForMonster(m.def and m.def.id, bossKey))
 			if fig then
 				if f.figMob ~= m or f.figIs ~= fig then
@@ -646,17 +647,19 @@ local function updateInfo()
 		drawBackdrop()
 	end
 
-	-- zone banner
-	local r, g, b = U.rgb(d.hex)
+	-- zone banner (a floor of the endless tower: 도전 and the tower's floor)
+	local tf = st.phase ~= "idle" and st.tower
+	local r, g, b = U.rgb(tf and "b48cff" or d.hex)
 	frame.diffChip:SetColor(r * 0.55, g * 0.55, b * 0.55, 0.95)
-	frame.diffChip:SetLabel(ns.N(d.name))
+	frame.diffChip:SetLabel(tf and "도전" or ns.N(d.name))
 	local act, n = ns.StageAct(idx)
-	local zone = string.format("%d-%d %s", act, n, ns.N(stg.name))
+	local zone = tf and ns.Tower.Label(tf) or string.format("%d-%d %s", act, n, ns.N(stg.name))
 	if stg.raid then zone = zone .. "  " .. U.col("ff9326", "공격대") end
-	frame.zoneLv:SetText("Lv " .. ns.StageLevel(diff, idx))
+	frame.zoneLv:SetText("Lv " .. (tf and ns.Tower.LEVEL or ns.StageLevel(diff, idx)))
 	-- the banner never reaches the wave dots or the boss bar: a long name
 	-- takes a smaller font first, and only then is cut short
-	local room = BANNER_MAX - 70 - frame.zoneLv:GetStringWidth()
+	local chipW = frame.diffChip:GetWidth()
+	local room = BANNER_MAX - (chipW + 18) - frame.zoneLv:GetStringWidth()
 	for size = 12, 10, -1 do
 		local font, _, flags = frame.zone:GetFont()
 		frame.zone:SetFont(font or ns.FONT, size, flags)
@@ -664,7 +667,7 @@ local function updateInfo()
 		if frame.zone:GetStringWidth() + 2 <= room then break end
 	end
 	frame.zone:SetWidth(min(room, frame.zone:GetStringWidth() + 2))
-	frame.banner:SetWidth(min(BANNER_MAX, frame.zone:GetWidth() + frame.zoneLv:GetStringWidth() + 80))
+	frame.banner:SetWidth(min(BANNER_MAX, frame.zone:GetWidth() + frame.zoneLv:GetStringWidth() + chipW + 28))
 
 
 	frame.gold:SetLabel(U.fmt(db.gold))

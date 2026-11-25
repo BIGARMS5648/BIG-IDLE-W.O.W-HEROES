@@ -403,6 +403,43 @@ S.map_locked = function()
 	p.diff, p.act, p.idx = 3, 1, 1
 	ns.Main.Refresh()
 end
+-- the endless tower, still closed: its card and the first floor
+S.map_tower_locked = function()
+	local p = show("map")
+	p.tower, p.floor = true, 1
+	ns.Main.Refresh()
+end
+-- the tower open: the best floor 12, fighting on floor 13 (two affixes)
+local function towerOn(best, f)
+	local was = { db.prog[1], db.prog[2], db.prog[3], db.prog[4] }
+	local wasT = { on = db.tower.on, floor = db.tower.floor, best = db.tower.best }
+	db.prog = { 30, 30, 30, 30 }
+	db.tower.best = best
+	ns.Combat.EnterTower(f)
+	return function()
+		db.prog = { was[1], was[2], was[3], was[4] }
+		db.tower.on, db.tower.floor, db.tower.best = wasT.on, wasT.floor, wasT.best
+		ns.Combat.StartStage()
+	end
+end
+S.map_tower = function()
+	local undo = towerOn(12, 13)
+	show("map")
+	S.restore = undo
+end
+-- a raid floor, every affix
+S.map_tower_raid = function()
+	local undo = towerOn(59, 60)
+	show("map")
+	S.restore = undo
+end
+-- the battle window on a floor of the tower
+S.bar_tower = function()
+	local undo = towerOn(12, 13)
+	ns.Main.Toggle(false)
+	for _ = 1, 30 do Mock.Update(0.1) end
+	S.restore = function() undo() ns.Main.Toggle(true) end
+end
 
 -- 동료
 S.pets = function() local p = show("pets") p.sel = nil ns.Main.Refresh() end

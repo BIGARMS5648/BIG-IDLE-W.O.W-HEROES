@@ -100,6 +100,7 @@ local DEFAULTS = {
 	runes = {},                  -- [runeId] = level
 	forge = { level = 1, xp = 0, ops = { fuse = true }, craft = { true } },
 	stage = { diff = 1, idx = 1 },
+	tower = { on = false, floor = 1, best = 0 }, -- the endless tower: fighting there, the floor, the best cleared
 	prog = { 0, 0, 0, 0 },       -- stages cleared per difficulty
 	kills = {},                  -- [monsterType] = count
 	pets = {},                   -- [petId] = true
@@ -449,6 +450,9 @@ function ns.InitDB()
 	end
 	db.stage.diff = ns.U.clamp(db.stage.diff or 1, 1, #ns.DIFFS)
 	db.stage.idx = ns.U.clamp(db.stage.idx or 1, 1, ns.STAGE_COUNT)
+	db.tower.best = math.max(0, math.floor(tonumber(db.tower.best) or 0))
+	db.tower.floor = ns.U.clamp(math.floor(tonumber(db.tower.floor) or 1), 1, db.tower.best + 1)
+	db.tower.on = db.tower.on == true
 	ns.db = db
 	-- gear of dropped heroes: the bag, the bank once the bag is full (the bag
 	-- past its size when both are)
