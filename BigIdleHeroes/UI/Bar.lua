@@ -1604,7 +1604,7 @@ function Bar.Create()
 	frame.gold.text:ClearAllPoints()
 	frame.gold.text:SetPoint("RIGHT", frame.gold, "RIGHT", -10, 0)
 	frame.gold.text:SetJustifyH("RIGHT")
-	UI.Color(frame.gold.text, UI.C.gold)
+	frame.gold.text:SetTextColor(1, 1, 1) -- the gold amount in white
 	local coin = frame.gold:CreateTexture(nil, "OVERLAY")
 	coin:SetSize(16, 16)
 	coin:SetPoint("LEFT", frame.gold, "LEFT", 5, 0)
