@@ -24,24 +24,31 @@ end
 -- chests), its whole way weighed against what it brings.
 local GOAL = { party = 0.15, skillSlot = 0.2, openKind = 0.3, openAll = 0.3, auto1 = 0.3, auto2 = 0.3, auto3 = 0.3, waves = 0.4 }
 local SLOW = { stash = 4, offGold = 4, offExp = 4, offlineOn = 4 }
+-- the rune the bot saves up for next (nil when every rune is learned)
+local function nextRune()
+	local R = ns.Runes
+	local bestId, bestW
+	for id, node in pairs(R.byId) do
+		local cost = R.NextCost(id)
+		if cost then
+			if R.Available(id) then
+				local w = cost * (SLOW[node.stat] or 1)
+				if not bestW or w < bestW then bestId, bestW = id, w end
+			end
+			local f = GOAL[node.stat]
+			if f then
+				local step, total = R.NextStepTo(id)
+				if step and total * f < (bestW or math.huge) then bestId, bestW = step, total * f end
+			end
+		end
+	end
+	return bestId
+end
+
 local function buyRunes()
 	local R = ns.Runes
 	for _ = 1, 200 do
-		local bestId, bestW
-		for id, node in pairs(R.byId) do
-			local cost = R.NextCost(id)
-			if cost then
-				if R.Available(id) then
-					local w = cost * (SLOW[node.stat] or 1)
-					if not bestW or w < bestW then bestId, bestW = id, w end
-				end
-				local f = GOAL[node.stat]
-				if f then
-					local step, total = R.NextStepTo(id)
-					if step and total * f < (bestW or math.huge) then bestId, bestW = step, total * f end
-				end
-			end
-		end
+		local bestId = nextRune()
 		if not bestId then return end
 		local cost = R.NextCost(bestId)
 		if not cost or ns.db.gold < cost then return end
@@ -49,16 +56,11 @@ local function buyRunes()
 	end
 end
 
--- the gold the next rune wants (the cheapest one that can be learned now):
--- kept back from 강화, so runes are still saved up for
+-- the gold the rune the bot saves up for wants: kept back from 강화, so
+-- the runes are still bought first
 local function runeReserve()
-	local R = ns.Runes
-	local low
-	for id in pairs(R.byId) do
-		local cost = R.NextCost(id)
-		if cost and R.Available(id) and (not low or cost < low) then low = cost end
-	end
-	return low or 0
+	local id = nextRune()
+	return id and ns.Runes.NextCost(id) or 0
 end
 
 -- 강화 once it opens: the cheapest next step of the party's gear while the
