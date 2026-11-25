@@ -218,7 +218,15 @@ local function refreshLeft(page)
 		if page.name:GetStringWidth() <= page.nameW then break end
 	end
 	page.name:SetTextColor(1, 0.72, 0.29)
-	page.spec:SetText(string.format("Lv %d %s", h.level, ns.N(sp.name)))
+	-- the level, race and specialization with class (in the class colour), as
+	-- on the hero screen; a size smaller when it does not fit
+	local race = ns.RACES[H.Race(id)]
+	local info = string.format("Lv %d · %s · %s", h.level, race and race.name or "", U.col(ns.CLASSES[sp.class].hex, ns.SpecLabel(h.spec)))
+	for _, sz in ipairs({ 11, 10 }) do
+		page.spec:SetFont(ns.FONT, sz, "")
+		page.spec:SetText(info)
+		if page.spec:GetStringWidth() <= page.nameW then break end
+	end
 	local worn, ups = 0, 0
 	for slot, b in pairs(page.slots) do
 		local it = h.gear[slot]

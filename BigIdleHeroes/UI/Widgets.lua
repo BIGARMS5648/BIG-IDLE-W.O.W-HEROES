@@ -887,9 +887,10 @@ function UI.Chip(parent, w, h, text, onClick)
 			self.label:SetTextColor(1, 1, 1)
 			self.label:SetShadowOffset(1, -1)
 		else
-			local k = self.hover and 0.32 or 0.22
+			-- (dimOff: a list of choices whose unchosen rows sit darker)
+			local k = self.dimOff and (self.hover and 0.24 or 0.15) or (self.hover and 0.32 or 0.22)
 			self.bg:SetColor(k, k * 1.12, k * 1.5, 1)
-			self.label:SetTextColor(0.85, 0.88, 0.95)
+			if self.dimOff then self.label:SetTextColor(0.74, 0.77, 0.85) else self.label:SetTextColor(0.85, 0.88, 0.95) end
 			self.label:SetShadowOffset(1, -1)
 		end
 	end

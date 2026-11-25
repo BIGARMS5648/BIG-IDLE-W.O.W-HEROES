@@ -87,6 +87,7 @@ local function buildLeft(page)
 		b:SetPoint("TOPLEFT", lp, "TOPLEFT", 10, -62 - (i - 1) * FUNC_STEP)
 		b.key = d.key
 		b.isItem = true -- navigation, not an action
+		b.dimOff = true -- the unchosen functions sit a little darker
 		b.icon = b:CreateTexture(nil, "ARTWORK")
 		b.icon:SetSize(22, 22)
 		b.icon:SetPoint("LEFT", b, "LEFT", 8, 0)
@@ -118,7 +119,7 @@ local function buildLeft(page)
 			b:SetOn(b.key == key)
 			-- the white icons: dark on the chosen (gold) one, light on the rest
 			if b.icon.isArt then
-				if b.key == key then b.icon:SetVertexColor(1, 1, 1) else b.icon:SetVertexColor(0.86, 0.89, 0.96) end
+				if b.key == key then b.icon:SetVertexColor(1, 1, 1) else b.icon:SetVertexColor(0.74, 0.77, 0.85) end
 			end
 		end
 	end
@@ -127,7 +128,9 @@ local function buildLeft(page)
 		if b then
 			b.lock:SetShown(v and true or false)
 			b.icon:SetShown(not v)
+			-- a locked function: its lock as faint as its name
 			b.label:SetAlpha(v and 0.6 or 1)
+			b.lock:SetAlpha(v and 0.6 or 1)
 		end
 	end
 	function tabs:SetBadge(key, v) local b = self:Get(key) if b then b:SetBadge(v) end end
