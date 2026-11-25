@@ -1115,6 +1115,34 @@ do
 			ns.db.runes[rid] = was
 			ns.Runes.Invalidate()
 		end
+		-- the boxes' borders are bronze, silver and gold; a light runs round
+		-- a box's border only while its 태엽의 룬 opens it by itself
+		do
+			local rid = 13002
+			local was = ns.db.runes[rid]
+			local cb = bar.chests[1]
+			local c = ns.CHEST[1].rgb
+			if not (c and c[1] > c[3] and ns.CHEST[3].rgb[1] == 1) then fail("the chest borders should run bronze, silver, gold") end
+			local function lit()
+				for _, sp in ipairs(cb.sparks or {}) do if sp:IsShown() then return true end end
+				return false
+			end
+			ns.db.runes[rid] = nil
+			ns.Runes.Invalidate()
+			Mock.Update(0.1)
+			if lit() then fail("a chest that does not open by itself should have no light on its border") end
+			ns.db.runes[rid] = 1
+			ns.Runes.Invalidate()
+			Mock.Update(0.1)
+			if not lit() then fail("a chest that opens by itself should have a light running round its border") end
+			local p1 = { cb.sparks[1]:GetPoint(1) }
+			Mock.Update(0.3)
+			local p2 = { cb.sparks[1]:GetPoint(1) }
+			if p1[4] == p2[4] and p1[5] == p2[5] then fail("the light on a chest's border should move round it") end
+			ns.db.runes[rid] = was
+			ns.Runes.Invalidate()
+			Mock.Update(0.1)
+		end
 		if #bar.menu ~= 7 then fail("the HUD menu should have the seven screens") end
 		for _, mb in ipairs(bar.menu) do
 			try("menu " .. mb.key, mb.Click, mb, "LeftButton")

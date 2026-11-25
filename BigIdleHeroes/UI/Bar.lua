@@ -708,7 +708,8 @@ local function updateInfo()
 		local count = ns.Loot.Count(t)
 		cb:SetCount(count > 0 and tostring(count) or "")
 		cb:SetDim(count == 0)
-		if count >= ns.ChestCap(t) then cb:SetBorderRGB(1, 0.25, 0.2) else cb:SetQuality(t == 1 and 3 or (t == 2 and 6 or 4)) end
+		local c = ns.CHEST[t].rgb
+		if count >= ns.ChestCap(t) then cb:SetBorderRGB(1, 0.25, 0.2) else cb:SetBorderRGB(c[1], c[2], c[3]) end
 	end
 	-- a chest's tooltip, while the mouse is on it, counts down to the auto-open
 	local owner = UI.TipOwner()
@@ -1299,9 +1300,37 @@ end
 function Bar.Scenery() return frame and frame.scenery, frame and frame.units end
 function Bar.Sky() return frame and frame.sky end
 
+-- A chest that opens by itself (its 태엽의 룬 learned): a light runs round
+-- its border, a bright spark with a short fading tail, once every 2 seconds.
+local SPARK = { { 0, 14, 0.7 }, { 0.02, 13, 0.5 }, { 0.04, 12, 0.36 }, { 0.06, 11, 0.25 }, { 0.08, 10, 0.16 }, { 0.10, 9, 0.09 } } -- behind by, size, alpha
+local function drawChestSparks(now)
+	if not frame.chests then return end
+	for t, cb in ipairs(frame.chests) do
+		local on = ns.Loot.AutoOn(t)
+		for i, sp in ipairs(cb.sparks) do
+			if on then
+				local S = cb:GetWidth()
+				local L = S - 4
+				local ph = ((now * 0.5 + t * 0.33 - SPARK[i][1]) % 1) * 4 * L
+				local x, y
+				if ph < L then x, y = 2 + ph, 2
+				elseif ph < 2 * L then x, y = S - 2, 2 + ph - L
+				elseif ph < 3 * L then x, y = S - 2 - (ph - 2 * L), S - 2
+				else x, y = 2, S - 2 - (ph - 3 * L) end
+				sp:ClearAllPoints()
+				sp:SetPoint("CENTER", cb, "TOPLEFT", x, -y)
+				sp:Show()
+			else
+				sp:Hide()
+			end
+		end
+	end
+end
+
 local function onUpdate(self, elapsed)
 	local now = GetTime()
 	dt = elapsed
+	drawChestSparks(now)
 	drawScenery()
 	drawHeroes(now)
 	drawMobs()
@@ -1748,6 +1777,18 @@ function Bar.Create()
 		-- the boxes have no caption: they sit on the dock's middle line
 		cb:SetPoint("TOPLEFT", dock, "TOPLEFT", goal:GetWidth() + 8 + 40 + 8 + (t - 1) * 41, -(DOCK_H - 38) / 2)
 		UI.Tip(cb, chestTip, "TOP")
+		-- the light that runs round the border while it opens by itself
+		local c = ns.CHEST[t].rgb
+		cb.sparks = {}
+		for i, s in ipairs(SPARK) do
+			local sp = UI.Art(cb, "glow", "OVERLAY", (c[1] + 1) / 2, (c[2] + 1) / 2, (c[3] + 1) / 2, s[3])
+			sp:SetDrawLayer("OVERLAY", 6)
+			if sp.SetBlendMode then sp:SetBlendMode("ADD") end
+			sp:SetSize(s[2], s[2])
+			sp.isOverlay = true
+			sp:Hide()
+			cb.sparks[i] = sp
+		end
 		frame.chests[t] = cb
 	end
 

@@ -92,6 +92,20 @@ S.bar = function()
 	Mock.Update(0.05)
 end
 
+-- every chest opening by itself: a light runs round each box's border
+S.bar_chest_auto = function()
+	ns.Main.Toggle(false)
+	local learnt = {}
+	for _, rid in ipairs({ 13002, 15001, 1902001 }) do learnt[rid] = ns.db.runes[rid] ns.db.runes[rid] = 1 end
+	ns.Runes.Invalidate()
+	for _ = 1, 5 do Mock.Update(0.1) end
+	S.restore = function()
+		for rid, v in pairs(learnt) do ns.db.runes[rid] = v end
+		ns.Runes.Invalidate()
+		Mock.Update(0.05)
+	end
+end
+
 -- the act boss chest's tooltip on the battle window
 S.bar_chest_tip = function()
 	ns.Main.Toggle(false)
