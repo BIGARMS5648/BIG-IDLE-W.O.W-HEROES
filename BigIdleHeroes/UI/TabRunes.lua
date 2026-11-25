@@ -161,8 +161,12 @@ local function runeNode(page, node)
 	b.halo:SetPoint("TOPLEFT", b, "TOPLEFT", -12, 12)
 	b.halo:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 12, -12)
 	b.halo:Hide()
+	-- the dark backing, inset like the icon: its corners stay under the
+	-- border's rounded ones (a square one showed past them, over the end of
+	-- a line coming in on the slant)
 	b.bg = b:CreateTexture(nil, "BACKGROUND", nil, 1)
-	b.bg:SetAllPoints(b)
+	b.bg:SetPoint("TOPLEFT", b, "TOPLEFT", 3, -3)
+	b.bg:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -3, 3)
 	UI.Fill(b.bg, 0.04, 0.05, 0.08, 1)
 	b.icon = b:CreateTexture(nil, "ARTWORK")
 	b.icon:SetPoint("TOPLEFT", b, "TOPLEFT", 3, -3)
