@@ -208,9 +208,10 @@ function Main.CloseModal()
 	end
 end
 
--- the wide logo (tools/cut_logo.py): 512 x LOGO_USED of its 512 x 256 texture
+-- the wide logo on its own panel (tools/cut_logo.py --panel): 512 x
+-- LOGO_USED of its 512 x 256 texture
 local LOGO_H = 44
-local LOGO_USED = 157
+local LOGO_USED = 171
 local LOGO_W = math.floor(LOGO_H * 512 / LOGO_USED + 0.5)
 
 local refreshT = 0
@@ -267,9 +268,12 @@ function Main.Create()
 	if UI.ArtUI("ui_header") then UI.Slice(head, "card", "BACKGROUND"):SetArt(UI.ArtUI("ui_header")) end
 	local line = UI.Line(frame, Main.W - 24, 0.55, 0.60, 0.75, 0.35)
 	line:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -59)
-	-- the logo (Media/logo.tga: the wide logo, its background left clear)
+	-- the logo (Media/logo.tga: the wide logo on its dark panel in its
+	-- glowing frame): its left edge on the line of the panels below, halfway
+	-- between the window's top edge and the line under the title bar
 	frame.logo = frame:CreateTexture(nil, "ARTWORK")
 	frame.logo:SetSize(LOGO_W, LOGO_H)
+	frame.logo:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -(31 - LOGO_H / 2))
 	frame.logo:SetTexture(UI.Tex("logo"))
 	frame.logo:SetTexCoord(0, 1, 0, LOGO_USED / 256)
 
@@ -335,12 +339,6 @@ function Main.Create()
 	frame.gold:SetPoint("RIGHT", right, "LEFT", -6, 0)
 	UI.Color(frame.gold.text, UI.C.coin)
 	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 모집하기, 룬, 장비 제작·강화와 기능 해금에 씁니다.") end)
-	-- the logo sits in the middle of the room left of the gold, halfway
-	-- between the window's top edge and the line under the title bar
-	local room = CreateFrame("Frame", nil, frame)
-	room:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
-	room:SetPoint("BOTTOMRIGHT", frame.gold, "BOTTOMLEFT", 0, 0)
-	frame.logo:SetPoint("TOP", room, "TOP", 0, -(28 - LOGO_H / 2))
 
 	-- bottom navigation
 	local navRect = CreateFrame("Frame", nil, frame)
