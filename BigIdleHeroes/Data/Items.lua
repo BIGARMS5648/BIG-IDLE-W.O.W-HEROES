@@ -6,8 +6,8 @@ local _, ns = ...
 -- (보석 = 장식, 마법부여 = 세공, 주문각인 = 각인) each carries, what breaking one
 -- down gives (gold, forge experience), its colour and its stat multiplier.
 ------------------------------------------------------------------------
-local GRADE_NAME = { "일반", "고급", "희귀", "전설", "불멸", "아르카나", "초월", "천상", "신성", "우주" }
-local GRADE_HEX = { "e4e4e4", "54fc0c", "0c6cfc", "fc9c0c", "fc2424", "b40cfc", "fc246c", "6ccce4", "fce454", "fcfcfc" }
+local GRADE_NAME = { "일반", "고급", "희귀", "영웅", "전설", "불멸", "초월", "천상", "신성", "우주" }
+local GRADE_HEX = { "e4e4e4", "54fc0c", "0c6cfc", "b40cfc", "fc9c0c", "fc2424", "fc246c", "6ccce4", "fce454", "fcfcfc" }
 local GRADE_MULT = { 0.85, 1.00, 1.15, 1.32, 1.52, 1.75, 2.02, 2.35, 2.70, 3.10 }
 ns.QUALITY = {}
 for i, g in ipairs(ns.TBH.GRADES) do
@@ -463,7 +463,7 @@ ns.CRAFT_TIERS = {
 ------------------------------------------------------------------------
 ns.FORGE_OPS = {
 	{ key = "fuse",   name = "융합",          level = 1,  cost = 0, short = "장비 9개 → 1개",
-		desc = "같은 등급 장비 9개를 합쳐 장비 1개를 만듭니다. 보통 한 등급 위가 나오고, 불멸 등급부터는 같은 등급에 머물 수도 있습니다." },
+		desc = "같은 등급 장비 9개를 합쳐 장비 1개를 만듭니다. 보통 한 등급 위가 나오고, 전설 등급부터는 같은 등급에 머물 수도 있습니다." },
 	{ key = "smelt",  name = "분해",           level = 1,  cost = 10, short = "장비 → 골드, 경험치",
 		desc = "아이템을 녹여 골드와 용광로 경험치를 얻습니다. 해금하면 가방에서 분해할 수 있습니다." },
 	{ key = "craft",  name = "제작",           level = 5,  cost = 100, short = "원하는 부위 만들기",
@@ -473,10 +473,10 @@ ns.FORGE_OPS = {
 	{ key = "remove", name = "추출",      level = 10, cost = 1000, short = "부여한 능력치 지우기",
 		desc = "부여된 능력치를 제거해 홈을 비웁니다. 재료는 돌려받지 못합니다." },
 	{ key = "ench",   name = "마법부여",     level = 15, cost = 1000, short = "마법 홈 채우기",
-		desc = "불멸 등급 이상 장비에 마법을 부여합니다." },
+		desc = "전설 등급 이상 장비에 마법을 부여합니다." },
 	{ key = "seal",   name = "인장 굴리기", level = 20, cost = 3000, short = "인장으로 장비 얻기",
 		desc = "행운의 인장과 골드를 바쳐 무작위 장비를 얻습니다." },
 	{ key = "insc",   name = "주문각인",  level = 25, cost = 10000, short = "주문각인 홈 채우기",
-		desc = "아르카나 등급 이상 장비의 주문각인 홈에 주문서의 힘을 새깁니다." },
+		desc = "불멸 등급 이상 장비의 주문각인 홈에 주문서의 힘을 새깁니다." },
 }
 ns.FORGE_MAX = 100
