@@ -268,7 +268,7 @@ S.gem = function() mixedItem() ns.ForgeView.SetTarget(mixed) forge("gem") end
 S.gem_stress = function() stressRing() ns.ForgeView.SetTarget(stress) forge("gem") end
 S.ench = function() mixedItem() ns.ForgeView.SetTarget(mixed) forge("ench") end
 S.smelt = function() forge("smelt") end
-S.seal = function() forge("seal") end
+S.seal = function() local p = forge("mats") ns.MatsView.Open(p, { tab = "mat_seal" }) ns.Main.Refresh() end
 S.insc_locked = function() forge("insc") end
 -- 강화: locked before the last difficulty is cleared; open with a piece at +12
 local function setProg(n)

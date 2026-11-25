@@ -591,12 +591,14 @@ do
 		press("roll", s.roll)
 		if #ns.db.bag ~= before + 1 then fail("rolling a seal should add one item") end
 	end
-	-- on 인장 굴리기 the other material tabs can be picked
+	-- seals are rolled on the materials' seal tab: the forge has no list
+	-- entry of its own for it (an old link to it opens that tab)
 	Main.ShowTab("forge", { sub = "seal" })
 	local fp = Main.Page("forge")
-	if fp.matTab ~= "mat_seal" then fail("인장 굴리기 should open on the seals") end
+	if fp.matTab ~= "mat_seal" or fp.func ~= "mats" then fail("a link to 인장 굴리기 should open the materials on the seals: " .. tostring(fp.matTab) .. " " .. tostring(fp.func)) end
+	if fp.tabs:Get("seal") then fail("the forge list should have no 인장 굴리기 entry") end
 	click("craft materials tab", labelIs("제작 재료"))
-	if fp.matTab ~= "mat_craft" or fp.func ~= "mats" then fail("picking another tab on 인장 굴리기 should show those materials: " .. tostring(fp.matTab) .. " " .. tostring(fp.func)) end
+	if fp.matTab ~= "mat_craft" or fp.func ~= "mats" then fail("picking another tab should show those materials: " .. tostring(fp.matTab) .. " " .. tostring(fp.func)) end
 	hoverAll()
 end
 

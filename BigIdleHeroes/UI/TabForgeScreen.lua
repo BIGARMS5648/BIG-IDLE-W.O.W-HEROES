@@ -1,6 +1,7 @@
 -- Forge screen (용광로).
 --   left:   the forge level, then every function (융합 · 제작 · 보석 ·
---           마법부여 · 주문각인 · 강화 · 분해 · 인장 굴리기 · 재료), a lock on
+--           마법부여 · 주문각인 · 강화 · 분해 · 재료; seals are rolled on
+--           the materials' seal tab), a lock on
 --           the ones not open yet.
 --   middle: the chosen function (UI/TabForge.lua; the materials are
 --           UI/TabBag.lua's), what it does on top; a locked one says what
@@ -37,12 +38,11 @@ local FUNCS = {
 	{ key = "insc",  name = "주문각인",    op = "insc",  target = true, desc = "아르카나 등급 이상 장비의 주문각인 홈에 주문서의 힘을 새깁니다." },
 	{ key = "up",    name = "강화",       target = true, desc = "골드로 장비의 기본 능력치를 +20까지 올립니다." },
 	{ key = "smelt", name = "분해",       op = "smelt", desc = "장비를 골드와 용광로 경험치로 바꿉니다." },
-	{ key = "seal",  name = "인장 굴리기", op = "seal",  desc = "행운의 인장과 골드를 바쳐 무작위 장비를 얻습니다." },
 	{ key = "mats",  name = "재료",       desc = "재료를 모아 융합하거나 골드로 바꿉니다." },
 }
 local FUNC_BY = {}
 for _, d in ipairs(FUNCS) do FUNC_BY[d.key] = d end
-local ICON = { up = "INV_Hammer_09", smelt = "Spell_Fire_Fire", seal = "INV_Misc_Coin_02", mats = "INV_Ingot_05" }
+local ICON = { up = "INV_Hammer_09", smelt = "Spell_Fire_Fire", mats = "INV_Ingot_05" }
 
 local function isOpen(key)
 	if key == "up" then return ns.Upgrade.Open() end
@@ -143,6 +143,11 @@ local function refreshLeft(page)
 		-- a red dot: a function that can be unlocked now
 		local op = d.op and ns.Forge.OpDef(d.op)
 		page.tabs:SetBadge(d.key, not open and op and f.level >= op.level and ns.CanAfford(op.cost) and ns.Guide.UnlockUseful(d.op) or false)
+	end
+	-- 인장 굴리기 is on the materials' seal tab
+	local sl = ns.Forge.OpDef("seal")
+	if not ns.Forge.Unlocked("seal") and f.level >= sl.level and ns.CanAfford(sl.cost) and ns.Guide.UnlockUseful("seal") then
+		page.tabs:SetBadge("mats", true)
 	end
 	-- 추출 sits on the gem sockets' lines
 	local rm = ns.Forge.OpDef("remove")
@@ -349,17 +354,7 @@ function refresh(page)
 	if not isOpen(d.key) then
 		page.bodies.locked:Show()
 		page.lockView.refresh(d.key == "up" and "up" or d.op)
-	elseif d.key == "mats" or d.key == "seal" then
-		-- one materials view for both; 인장 굴리기 opens it on the seals
-		if d.key == "seal" then
-			if page.lastFunc ~= "seal" then
-				page.matTab = "mat_seal" page.matPage = 1
-			elseif page.matTab ~= "mat_seal" then
-				-- another kind of material picked here: the materials screen
-				page.func, page.lastFunc = "mats", "mats"
-				return refresh(page)
-			end
-		elseif page.matTab == "mat_seal" and page.lastFunc == "seal" then page.matTab = "mat_craft" page.matPage = 1 end
+	elseif d.key == "mats" then
 		page.bodies.mats:Show()
 		ns.MatsView.Refresh(page)
 	else
@@ -370,13 +365,14 @@ function refresh(page)
 	refreshSide(page)
 end
 
--- opts.sub: a function ("fuse", "gem", "up", "mats" …; "remove" opens 보석);
--- opts.tab: a materials tab
-local OLD_SUB = { remove = "gem" }
+-- opts.sub: a function ("fuse", "gem", "up", "mats" …; "remove" opens 보석,
+-- "seal" the materials on the seals); opts.tab: a materials tab
+local OLD_SUB = { remove = "gem", seal = "mats" }
 local function open(page, opts)
 	if not opts then return end
+	if opts.sub == "seal" and not opts.tab then opts.tab = "mat_seal" end
 	local sub = OLD_SUB[opts.sub] or opts.sub
-	if opts.tab and ns.MatsView.KINDS_OF[opts.tab] and sub ~= "seal" then sub = "mats" end
+	if opts.tab and ns.MatsView.KINDS_OF[opts.tab] then sub = "mats" end
 	if sub and FUNC_BY[sub] then page.func = sub end
 	ns.MatsView.Open(page, opts)
 	if opts.hero then Main.SelectHero(opts.hero) end
