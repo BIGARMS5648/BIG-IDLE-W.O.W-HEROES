@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.4.0
+BIG IDLE HEROES v1.5.0
 ```
 
 ---
@@ -77,7 +77,7 @@ Build a party of five heroes, send them along a route through the original game'
 - **Drag** the window anywhere, **resize** it from its corner, or switch to a compact view.
 
 ### Loot and progression
-- **Gear in 10 grades**, from Common to Cosmic, in fixed item levels (1, 5, 10, 15, 20, 30, 40, 50, 65, 80, 100). A hero wears an item from its own level, so gear above your heroes waits in the bag until they catch up.
+- **Gear in 10 grades**, from Common to Arcana (the top grade's names and item frames run through cyan, periwinkle and orchid), in fixed item levels (1, 5, 10, 15, 20, 30, 40, 50, 65, 80, 100). A hero wears an item from its own level, so gear above your heroes waits in the bag until they catch up.
 - **Three kinds of chests**: monster chests, boss chests and act boss chests. Each stage has its own chests, drop chances and contents, shown on the stage screen.
 - **The Forge**, a screen of its own: every function in a list on the left (fuse, craft, gems, enchant, inscription, enhance, salvage, lucky seals, materials), the work in the middle, and on the right the hero and item you work on plus a log of the latest results. Bags fill up, so auto-salvage helps keep them clear.
 - **Gems, enchanting and inscription** work like Task Bar Hero's cube: 36 gems, 33 enchanting reagents and 10 inscription scrolls, each giving its own stats by gear type (weapon, armor or accessory) at tiers 1 to 10. Better grades give higher tiers; nine of one material fuse into a random one of the next grade.
@@ -137,22 +137,20 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.4.0)
+## Changelog for this release (v1.5.0)
 
 ```
-- 무한의 탑 (the endless tower) opens after Mythic+ 30: a fifth card on the stage
-  screen. Every time a floor starts, its place, monsters and boss are rolled at
-  random; every tenth floor is a raid boss alone. Monsters grow stronger every floor
-  and a Mythic+ affix joins every fifth floor (Fortified, Tyrannical, Raging,
-  Grievous, Volcanic, Sanguine, Bolstering, Teeming, Quaking, Bursting).
-- Every tower chest holds item level 100 gear, better grades the higher the floor.
-  The first clear of a floor pays gold and one more chest; the best floor is kept.
-  A wipe drops one floor (with the retry option on, up again after eight clears).
-- The battle window shows 도전 · 무한의 탑 N층 while in the tower.
-- New icons for the bottom menu, the battle window's menu, the forge's functions
-  and the settings button.
-- The interface takes the logo's colours: electric blue and silver accents and a
-  silver window edge with a blue line; gold amounts and item grade colours stay.
-- The wide BIG IDLE HEROES logo in the main window's top-left corner.
-- The chosen menu tab has no yellow bar over its icon any more.
+- Item grades: 일반, 고급, 희귀, 영웅, 전설, 불멸, 초월, 천상, 신성, 아르카나.
+  영웅 (Epic) takes the old purple; 아르카나 is the top grade, its names written
+  in a cyan-periwinkle-orchid gradient and its item frame painted in the same.
+- Scroll bars, the lines between stages, the role stripes on the hero and party
+  screens and every arrow use new art; the stage lines turn their corners in one
+  piece.
+- New pictures for every lock, the recommendation star and the boss skull on the
+  battle window.
+- The chosen bottom-menu tab is a bright blue face with a white icon and label.
+- Monsters from level 40 up are weaker, so Mythic+ can be cleared to its end and
+  the endless tower opens.
+- Enhancement stays on the item it was made on (no more moving it to another).
+- The /bih model test window is gone.
 ```
