@@ -92,6 +92,149 @@ function UI.SetArtOrIcon(tex, artId, iconName)
 	end
 end
 
+-- The scroll bar sheet's bar (a rounded line, drawn in a colour): a scroll
+-- bar's track, the lines between stages, the role stripes.
+function UI.SetBar(tex, vertical, r, g, b, a)
+	local art = UI.ArtIcon(vertical and "sb_bar_v" or "sb_bar_h")
+	if art then
+		tex:SetTexture(art)
+		tex:SetTexCoord(0, 1, 0, 1)
+		tex:SetVertexColor(r, g, b, a or 1)
+	else
+		UI.Fill(tex, r, g, b, a)
+	end
+end
+
+-- A rounded line of the scroll bar sheet in three pieces (a round cap at
+-- each end and the middle), so its ends stay round at any length.
+-- line:Place(rel, relPoint, vertical, x, y, len, thick, squareA, squareB):
+-- from (x, y) off rel's relPoint (a vertical line's top middle, a horizontal
+-- one's left middle), len long, thick wide; squareA / squareB: that end
+-- (top or left / bottom or right) cut square, to meet a bend (UI.Bend).
+-- line:SetColor(r, g, b, a), line:SetShown(v).
+local LINE_CAP = 0.017 -- the share of the bar picture's length one round end takes
+-- the scroll bar sheet's two bars: its dark one and its blue one
+UI.BAR_DARK = { 0.27, 0.33, 0.39 }
+UI.BAR_BLUE = { 0.46, 0.62, 0.76 }
+function UI.Line3(parent, layer, sub)
+	local o = { t = {}, shown = true }
+	for i = 1, 3 do o.t[i] = parent:CreateTexture(nil, layer or "BORDER", nil, sub) end
+	function o:Place(rel, relPoint, vertical, x, y, len, thick, squareA, squareB)
+		local art = UI.ArtIcon(vertical and "sb_bar_v" or "sb_bar_h")
+		self.art = art
+		local cap = math.min(thick / 2, len / 2)
+		local ca, cb = squareA and 0 or cap, squareB and 0 or cap
+		local mid = math.max(0, len - ca - cb)
+		self.mid, self.ca, self.cb = mid, ca, cb
+		local a, m, b = self.t[1], self.t[2], self.t[3]
+		for _, t in ipairs(self.t) do
+			t:ClearAllPoints()
+			if art then t:SetTexture(art) end
+		end
+		if vertical then
+			a:SetSize(thick, math.max(1, ca))
+			a:SetPoint("TOPLEFT", rel, relPoint, x - thick / 2, y)
+			m:SetSize(thick, math.max(1, mid))
+			m:SetPoint("TOPLEFT", rel, relPoint, x - thick / 2, y - ca)
+			b:SetSize(thick, math.max(1, cb))
+			b:SetPoint("TOPLEFT", rel, relPoint, x - thick / 2, y - ca - mid)
+			if art then
+				a:SetTexCoord(0, 1, 0, LINE_CAP)
+				m:SetTexCoord(0, 1, LINE_CAP, 1 - LINE_CAP)
+				b:SetTexCoord(0, 1, 1 - LINE_CAP, 1)
+			end
+		else
+			a:SetSize(math.max(1, ca), thick)
+			a:SetPoint("TOPLEFT", rel, relPoint, x, y + thick / 2)
+			m:SetSize(math.max(1, mid), thick)
+			m:SetPoint("TOPLEFT", rel, relPoint, x + ca, y + thick / 2)
+			b:SetSize(math.max(1, cb), thick)
+			b:SetPoint("TOPLEFT", rel, relPoint, x + ca + mid, y + thick / 2)
+			if art then
+				a:SetTexCoord(0, LINE_CAP, 0, 1)
+				m:SetTexCoord(LINE_CAP, 1 - LINE_CAP, 0, 1)
+				b:SetTexCoord(1 - LINE_CAP, 1, 0, 1)
+			end
+		end
+		if self.rgba then self:SetColor(unpack(self.rgba)) end
+		self:SetShown(self.shown)
+	end
+	function o:SetColor(r, g, b, a)
+		self.rgba = { r, g, b, a or 1 }
+		for _, t in ipairs(self.t) do
+			if self.art then t:SetVertexColor(r, g, b, a or 1) else t:SetColorTexture(r, g, b, a or 1) end
+		end
+	end
+	function o:SetShown(v)
+		self.shown = v and true or false
+		self.t[1]:SetShown(self.shown and (self.ca or 1) > 0)
+		self.t[2]:SetShown(self.shown and (self.mid or 0) > 0)
+		self.t[3]:SetShown(self.shown and (self.cb or 1) > 0)
+	end
+	function o:Show() self:SetShown(true) end
+	function o:Hide() self:SetShown(false) end
+	return o
+end
+
+-- Where a line of the scroll bar sheet turns: the bar bent a quarter round,
+-- between two square-ended lines (UI.Line3). bend:Place(rel, relPoint, x, y,
+-- thick, down): its middle at (x, y) off rel's relPoint; from the left, then
+-- down (┐), or with up (┘) from above, then to the left. Same SetColor,
+-- SetShown as a line.
+function UI.Bend(parent, layer, sub)
+	local o = { t = parent:CreateTexture(nil, layer or "BORDER", nil, sub), shown = true }
+	function o:Place(rel, relPoint, x, y, thick, up)
+		local art = UI.ArtIcon("sb_bend")
+		self.art = art
+		local t = self.t
+		t:ClearAllPoints()
+		t:SetSize(thick, thick)
+		t:SetPoint("TOPLEFT", rel, relPoint, x - thick / 2, y + thick / 2)
+		if art then
+			t:SetTexture(art)
+			if up then t:SetTexCoord(0, 1, 1, 0) else t:SetTexCoord(0, 1, 0, 1) end
+		end
+		if self.rgba then self:SetColor(unpack(self.rgba)) end
+		self:SetShown(self.shown)
+	end
+	function o:SetColor(r, g, b, a)
+		self.rgba = { r, g, b, a or 1 }
+		if self.art then self.t:SetVertexColor(r, g, b, a or 1) else self.t:SetColorTexture(r, g, b, a or 1) end
+	end
+	function o:SetShown(v)
+		self.shown = v and true or false
+		self.t:SetShown(self.shown)
+	end
+	function o:Show() self:SetShown(true) end
+	function o:Hide() self:SetShown(false) end
+	return o
+end
+
+-- An arrow of the scroll bar sheet ("left", "right", "up", "down") on a
+-- texture, in a colour. Returns false when the picture is missing.
+function UI.SetArrow(tex, dir, r, g, b, a)
+	local art = UI.ArtIcon("sb_arrow_" .. dir)
+	if not art then return false end
+	tex:SetTexture(art)
+	tex:SetTexCoord(0, 1, 0, 1)
+	tex:SetVertexColor(r or 1, g or 1, b or 1, a or 1)
+	return true
+end
+
+-- A scroll bar's grip: silver, blue while in use (hot); its length goes
+-- with how much of the list shows, within these bounds.
+UI.GRIP_MIN, UI.GRIP_MAX = 24, 72
+function UI.SetGrip(tex, hot)
+	local art = UI.ArtIcon(hot and "sb_grip_v_hot" or "sb_grip_v")
+	if art then
+		tex:SetTexture(art)
+		tex:SetTexCoord(0, 1, 0, 1)
+		tex:SetVertexColor(1, 1, 1, 1)
+	else
+		UI.Fill(tex, 0.42, 0.70, 1, hot and 0.95 or 0.7)
+	end
+end
+
 -- Hero face: the class circle.
 function UI.SetHeroIcon(tex, heroId)
 	local h = ns.db and ns.db.heroes[heroId]
@@ -610,6 +753,11 @@ local function paint(b)
 	if b.ring then
 		if b.on then b.ring:Show() else b.ring:Hide() end
 	end
+	if b.arrow then
+		if b.off then b.arrow:SetVertexColor(0.45, 0.48, 0.55)
+		elseif b.hover then b.arrow:SetVertexColor(0.55, 0.80, 1)
+		else b.arrow:SetVertexColor(0.86, 0.89, 0.96) end
+	end
 	if b.glyph then
 		local a = b.off and 0.45 or 1
 		b.glyph:SetVertexColor(a, a, a, 1)
@@ -655,6 +803,23 @@ function UI.Button(parent, w, h, text, onClick, style)
 		self.badge:Set(v)
 	end
 	paint(b)
+	return b
+end
+
+-- A page button: the scroll bar sheet's arrow ("left" / "right") instead of
+-- a label (the label keeps < or > for whoever reads it).
+function UI.PageButton(parent, w, h, dir, onClick)
+	local b = UI.Button(parent, w, h, dir == "left" and "<" or ">", onClick, "dark")
+	local art = UI.ArtIcon(dir == "left" and "sb_arrow_left" or "sb_arrow_right")
+	if art then
+		b.label:SetAlpha(0)
+		b.arrow = b:CreateTexture(nil, "OVERLAY")
+		b.arrow:SetTexture(art)
+		local ah = math.floor(h * 0.44 + 0.5)
+		b.arrow:SetSize(math.floor(ah / 2 + 0.5), ah)
+		b.arrow:SetPoint("CENTER", b, "CENTER", 0, 0)
+		b:SetOff(b.off)
+	end
 	return b
 end
 

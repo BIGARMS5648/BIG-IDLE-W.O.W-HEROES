@@ -1605,7 +1605,7 @@ BigWowIdleDB = { v = 6, gold = 1000, heroes = {}, party = { false, false, false,
 ns.loadNote = nil
 ns.InitDB()
 check(ns.db.gold == 1000 + 50 + 100 + 160 + 300 and next(ns.db.runes) == nil, "old runes are taken back, their gold returned: " .. ns.db.gold)
-check(ns.loadNote and ns.loadNote:find("610", 1, true), "the player is told how much: " .. tostring(ns.loadNote))
+check(ns.loadNote == nil, "the refund comes without a chat message: " .. tostring(ns.loadNote))
 ns.loadNote = nil
 BigWowIdleDB = { v = 7, gold = 5, heroes = {}, party = { false, false, false, false, false }, runes = { [1] = 9, [10] = 2, [999999] = 1 } }
 ns.InitDB()

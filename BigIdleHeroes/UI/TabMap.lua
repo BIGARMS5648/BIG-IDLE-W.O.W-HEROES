@@ -215,27 +215,37 @@ local function build(page)
 		if n > 1 then
 			local prevCol = ((n - 2) % 5)
 			local prevRow = floor((n - 2) / 5)
-			local link = page:CreateTexture(nil, "BACKGROUND")
+			-- (a rounded line from just clear of one stage's ring to the next;
+			-- the disc's middle: its column's middle, 28 below its row's top)
+			local link = { lines = {} }
+			local cy = PATH_Y - row * (NODE_H + 8) - 28
+			local T = 6
+			local GAP = 28 -- from a ring's middle: just clear of the ring and its shadow
+			local function line(vertical, x, y, len, squareA, squareB)
+				local l = UI.Line3(page, "BACKGROUND")
+				l:Place(page, "TOPLEFT", vertical, x, y, len, T, squareA, squareB)
+				link.lines[#link.lines + 1] = l
+			end
+			local function bend(x, y, up)
+				local l = UI.Bend(page, "BACKGROUND")
+				l:Place(page, "TOPLEFT", x, y, T, up)
+				link.lines[#link.lines + 1] = l
+			end
 			if prevRow == row then
 				local c1 = (row == 1) and (4 - prevCol) or prevCol
-				local x1 = math.min(c1, col) * (NODE_W + 8) + NODE_W / 2 + 26
-				link:SetSize(NODE_W + 8 - 52, 3)
-				link:SetPoint("TOPLEFT", page, "TOPLEFT", x1, PATH_Y - row * (NODE_H + 8) - 27)
+				local cx1 = math.min(c1, col) * (NODE_W + 8) + NODE_W / 2
+				line(false, cx1 + GAP, cy, NODE_W + 8 - 2 * GAP)
 			else
 				-- from stage 5 down to stage 6: a bracket to the right of the column,
-				-- clear of stage 5's name
+				-- clear of stage 5's name; square ends meet a bend at each corner
 				local cx = 4 * (NODE_W + 8) + NODE_W / 2
 				local y1, y2 = PATH_Y - 28, PATH_Y - (NODE_H + 8) - 28
-				local bx = 4 * (NODE_W + 8) + NODE_W + 4
-				link:SetSize(3, y1 - y2)
-				link:SetPoint("TOPLEFT", page, "TOPLEFT", bx, y1)
-				local top = page:CreateTexture(nil, "BACKGROUND")
-				top:SetSize(bx - cx - 26 + 3, 3)
-				top:SetPoint("TOPLEFT", page, "TOPLEFT", cx + 26, y1 + 1)
-				local bot = page:CreateTexture(nil, "BACKGROUND")
-				bot:SetSize(bx - cx - 26 + 3, 3)
-				bot:SetPoint("TOPLEFT", page, "TOPLEFT", cx + 26, y2 + 1)
-				link.parts = { top, bot }
+				local bx = 4 * (NODE_W + 8) + NODE_W + 6
+				line(false, cx + GAP, y1, bx - T / 2 - (cx + GAP), false, true)
+				bend(bx, y1)
+				line(true, bx, y1 - T / 2, y1 - y2 - T, true, true)
+				bend(bx, y2, true)
+				line(false, cx + GAP, y2, bx - T / 2 - (cx + GAP), false, true)
 			end
 			page.links[n] = link
 		end
@@ -271,8 +281,7 @@ local function build(page)
 	for _, c in ipairs(page.acts) do page.stageParts[#page.stageParts + 1] = c end
 	for _, b in ipairs(page.nodes) do page.stageParts[#page.stageParts + 1] = b end
 	for _, l in pairs(page.links) do
-		page.stageParts[#page.stageParts + 1] = l
-		for _, t in ipairs(l.parts or {}) do page.stageParts[#page.stageParts + 1] = t end
+		for _, ln in ipairs(l.lines) do page.stageParts[#page.stageParts + 1] = ln end
 	end
 	for _, c in ipairs(page.checks) do page.stageParts[#page.stageParts + 1] = c end
 
@@ -281,17 +290,17 @@ local function build(page)
 	tv:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -76)
 	tv:SetSize(DETAIL_X - 12, Main.PAGE_H - 76)
 	page.towerView = tv
-	tv.prev = UI.Button(tv, 34, 30, "◀", function()
+	tv.prev = UI.PageButton(tv, 34, 30, "left", function()
 		page.floor = math.max(1, (page.floor or 1) - 1)
 		Main.Refresh()
-	end, "dark")
+	end)
 	tv.prev:SetPoint("TOPLEFT", tv, "TOPLEFT", 0, 0)
 	tv.floorPill = UI.Pill(tv, 104, 30, 0.2, 0.14, 0.32, 0.95)
 	tv.floorPill:SetPoint("LEFT", tv.prev, "RIGHT", 6, 0)
-	tv.next = UI.Button(tv, 34, 30, "▶", function()
+	tv.next = UI.PageButton(tv, 34, 30, "right", function()
 		page.floor = math.min(ns.Tower.Top(), (page.floor or 1) + 1)
 		Main.Refresh()
-	end, "dark")
+	end)
 	tv.next:SetPoint("LEFT", tv.floorPill, "RIGHT", 6, 0)
 	tv.top = UI.Button(tv, 96, 30, "최고 층으로", function()
 		page.floor = ns.Tower.Top()
@@ -489,10 +498,10 @@ local function refresh(page)
 		b.name:SetTextColor(reachable and 0.92 or 0.5, reachable and 0.94 or 0.52, reachable and 0.98 or 0.58)
 		local link = page.links[n]
 		if link then
-			local parts = { link }
-			for _, t in ipairs(link.parts or {}) do parts[#parts + 1] = t end
-			for _, t in ipairs(parts) do
-				if cleared then UI.Fill(t, 0.40, 0.66, 1, 0.9) else UI.Fill(t, 0.3, 0.33, 0.42, 0.8) end
+			-- (the scroll bar sheet's bar: blue once cleared)
+			for _, ln in ipairs(link.lines) do
+				local c = cleared and UI.BAR_BLUE or UI.BAR_DARK
+				ln:SetColor(c[1], c[2], c[3], 1)
 			end
 		end
 	end

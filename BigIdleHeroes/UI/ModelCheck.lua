@@ -837,13 +837,13 @@ function dress.build(win)
 	f:Hide()
 	dress.frame = f
 	-- which class and race: ◀ [label] ▶
-	dress.prev = UI.Button(f, 30, 24, "<", function() dress.Pick(dress.i - 1) end, "dark")
+	dress.prev = UI.PageButton(f, 30, 24, "left", function() dress.Pick(dress.i - 1) end)
 	dress.prev:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
 	dress.label = UI.Text(f, 12)
 	dress.label:SetPoint("LEFT", dress.prev, "RIGHT", 10, 0)
 	dress.label:SetWidth(440)
 	dress.label:SetWordWrap(false)
-	dress.next = UI.Button(f, 30, 24, ">", function() dress.Pick(dress.i + 1) end, "dark")
+	dress.next = UI.PageButton(f, 30, 24, "right", function() dress.Pick(dress.i + 1) end)
 	dress.next:SetPoint("LEFT", dress.prev, "RIGHT", 460, 0)
 	-- which look: the clothes for each difficulty cleared (ns.GearTier)
 	dress.tierButtons = {}
@@ -1095,14 +1095,14 @@ local function build()
 		b.anim = a[1]
 		frame.animButtons[i] = b
 	end
-	local prev = UI.Button(frame, 30, 28, "<", function() state.cycle = false setAnim(state.anim - 1) end, "dark")
+	local prev = UI.PageButton(frame, 30, 28, "left", function() state.cycle = false setAnim(state.anim - 1) end)
 	prev:SetPoint("TOPLEFT", frame, "TOPLEFT", bx + #ANIMS * 72 + 8, y)
 	frame.animText = UI.Text(frame, 12)
 	frame.animText:SetPoint("LEFT", prev, "RIGHT", 8, 0)
 	frame.animText:SetWidth(128)
 	frame.animText:SetJustifyH("CENTER")
 	frame.animText:SetWordWrap(false)
-	local nxt = UI.Button(frame, 30, 28, ">", function() state.cycle = false setAnim(state.anim + 1) end, "dark")
+	local nxt = UI.PageButton(frame, 30, 28, "right", function() state.cycle = false setAnim(state.anim + 1) end)
 	nxt:SetPoint("LEFT", frame.animText, "RIGHT", 8, 0)
 
 	-- facing and camera distance; the automatic cycle

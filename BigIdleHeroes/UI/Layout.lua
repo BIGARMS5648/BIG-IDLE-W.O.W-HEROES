@@ -823,9 +823,15 @@ end
 function UI.Dropdown(parent, w, h, items, get, set, prefix)
 	local b = UI.Chip(parent, w, h, "", function(self) openList(self) end)
 	b.items, b.get, b.set, b.prefix = items, get, set, prefix or ""
-	b.caret = UI.Glyph(b, "arrow", 12, 0.85, 0.88, 0.95)
+	b.caret = b:CreateTexture(nil, "OVERLAY")
+	if UI.SetArrow(b.caret, "down", 0.85, 0.88, 0.95) then
+		b.caret:SetSize(11, 6)
+	else
+		UI.SetGlyph(b.caret, "arrow", 0.85, 0.88, 0.95)
+		b.caret:SetSize(12, 12)
+		b.caret:SetTexCoord(0, 1, 1, 1, 0, 0, 1, 0) -- the arrow turned to point down
+	end
 	b.caret:SetPoint("RIGHT", b, "RIGHT", -10, 0)
-	b.caret:SetTexCoord(0, 1, 1, 1, 0, 0, 1, 0) -- the arrow turned to point down
 	b.label:ClearAllPoints()
 	b.label:SetPoint("CENTER", b, "CENTER", -8, 0)
 	function b:Refresh()

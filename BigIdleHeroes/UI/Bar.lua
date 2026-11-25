@@ -1657,7 +1657,13 @@ function Bar.Create()
 		self.head:ClearAllPoints()
 		self.head:SetPoint("TOPLEFT", self, "TOPLEFT", GOAL_TEXT_X, -math.floor((46 - h) / 2))
 	end
-	goal.arrow = UI.Glyph(goal, "arrow", 14, 0.7, 0.75, 0.9)
+	goal.arrow = goal:CreateTexture(nil, "OVERLAY")
+	if UI.SetArrow(goal.arrow, "right", 0.7, 0.75, 0.9) then
+		goal.arrow:SetSize(6, 11)
+	else
+		UI.SetGlyph(goal.arrow, "arrow", 0.7, 0.75, 0.9)
+		goal.arrow:SetSize(14, 14)
+	end
 	goal.arrow:SetPoint("RIGHT", goal, "RIGHT", -8, 0)
 	goal:RegisterForClicks("LeftButtonUp")
 	goal:SetScript("OnClick", function()

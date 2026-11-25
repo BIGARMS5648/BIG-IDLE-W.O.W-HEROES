@@ -15,7 +15,9 @@ local H = ns.Heroes
 local K = UI.K
 
 local LEFT_W, RIGHT_X, RIGHT_W = 270, 280, 640
-local CARD_W, CARD_H, CARD_STEP, LIST_Y, VISIBLE = 246, 56, 62, -36, 7
+local CARD_W, CARD_H, CARD_STEP, LIST_Y, VISIBLE = 232, 56, 62, -36, 7
+local BTN_W = 246 -- the 영웅 모집하기 button under the list
+local SCROLL_X = LEFT_W - 13 -- the middle of the list's scroll bar, clear of the cards
 local NAME_W = CARD_W - 62 - 10 -- the name line of a hero card
 local BODY_X, BODY_Y, BODY_W, BODY_H = 12, -172, 616, 366
 -- which rune opens each skill slot (slot 1 is always open)
@@ -60,9 +62,9 @@ local function buildList(page)
 		c.isItem = true
 		c.bg = UI.Slice(c, "card", "BACKGROUND")
 		c.sel = UI.SelFrame(c)
-		c.stripe = c:CreateTexture(nil, "BORDER")
-		c.stripe:SetSize(4, CARD_H - 12)
-		c.stripe:SetPoint("LEFT", c, "LEFT", 5, 0)
+		-- the role stripe: the scroll bar sheet's bar in the role's colour
+		c.stripe = UI.Line3(c, "BORDER")
+		c.stripe:Place(c, "LEFT", true, 8, (CARD_H - 12) / 2, CARD_H - 12, 6)
 		c.portrait = UI.Portrait(c, 40)
 		c.portrait:SetPoint("LEFT", c, "LEFT", 14, 0)
 		c.portrait:EnableMouse(false)
@@ -79,7 +81,7 @@ local function buildList(page)
 		c.slot:SetJustifyH("RIGHT")
 		c.info = UI.Text(c, 11)
 		c.info:SetPoint("TOPLEFT", c, "TOPLEFT", 62, -27)
-		c.info:SetWidth(NAME_W - 60)
+		c.info:SetWidth(CARD_W - 62 - 10 - 36 - 6) -- up to 출전 n / 대기
 		c.info:SetWordWrap(false)
 		UI.Color(c.info, UI.C.sub)
 		c.xp = UI.Bar(c, 150, 4, 0.55, 0.40, 1)
@@ -99,13 +101,13 @@ local function buildList(page)
 		page.cards[i] = c
 	end
 	-- the scroll bar (when there are more heroes than cards)
-	page.track = list:CreateTexture(nil, "BORDER")
-	page.track:SetPoint("TOPLEFT", list, "TOPLEFT", LEFT_W - 8, LIST_Y)
-	page.track:SetSize(3, VISIBLE * CARD_STEP - 6)
-	UI.Fill(page.track, 1, 1, 1, 0.08)
+	-- (the scroll bar sheet's bar and grip, as the rune screen's list has)
+	page.track = UI.Line3(list, "BORDER")
+	page.track:Place(list, "TOPLEFT", true, SCROLL_X, LIST_Y, VISIBLE * CARD_STEP - 6, 6)
+	page.track:SetColor(UI.BAR_DARK[1], UI.BAR_DARK[2], UI.BAR_DARK[3])
 	page.thumb = list:CreateTexture(nil, "ARTWORK")
-	page.thumb:SetWidth(3)
-	UI.Fill(page.thumb, 0.42, 0.70, 1, 0.7)
+	page.thumb:SetWidth(10)
+	UI.SetGrip(page.thumb)
 	list:EnableMouseWheel(true)
 	list:SetScript("OnMouseWheel", function(_, delta)
 		local n = #UI.HeroOrder()
@@ -113,7 +115,7 @@ local function buildList(page)
 		Main.Refresh()
 	end)
 	-- a new hero
-	page.create = UI.Button(list, CARD_W, 56, "영웅 모집하기", function()
+	page.create = UI.Button(list, BTN_W, 56, "영웅 모집하기", function()
 		if page.createWhy then UI.Try(false, page.createWhy) return end
 		if ns.OpenCreate then ns.OpenCreate() end
 	end, "primary")
@@ -149,14 +151,17 @@ local function refreshList(page)
 		if id and db.heroes[id] then
 			local h = db.heroes[id]
 			local sp = ns.SPECS[h.spec]
-			UI.Fill(c.stripe, U.rgb(roleHex(id)))
+			c.stripe:SetColor(U.rgb(roleHex(id)))
 			c.portrait:SetHero(id)
 			UI.SetHeroIcon(c.portrait.icon, id)
 			c.portrait.lvl:Hide()
 			-- the full name; a very long one steps down a size rather than being cut
 			c.name:SetFont(ns.FONT, 13, "")
 			c.name:SetText(U.col(id == sel and "ffb84a" or "ffd27a", H.Name(id)))
-			if c.name:GetStringWidth() > NAME_W then c.name:SetFont(ns.FONT, 12, "") end
+			for _, size in ipairs({ 12, 11 }) do
+				if c.name:GetStringWidth() <= NAME_W then break end
+				c.name:SetFont(ns.FONT, size, "")
+			end
 			local slot = H.PartySlot(id)
 			c.slot:SetText(slot and U.col("ffd24a", "출전 " .. slot) or U.col("8a90a2", "대기"))
 			c.info:SetText(string.format("Lv %d · %s", h.level, ns.SpecLabel(h.spec)))
@@ -172,10 +177,12 @@ local function refreshList(page)
 	page.track:SetShown(scroll)
 	page.thumb:SetShown(scroll)
 	if scroll then
-		local th = (VISIBLE * CARD_STEP - 6) * VISIBLE / n
+		local trackH = VISIBLE * CARD_STEP - 6
+		local th = U.clamp(trackH * VISIBLE / n, UI.GRIP_MIN, UI.GRIP_MAX)
 		page.thumb:SetHeight(th)
 		page.thumb:ClearAllPoints()
-		page.thumb:SetPoint("TOPLEFT", page.track, "TOPLEFT", 0, -((VISIBLE * CARD_STEP - 6 - th) * page.offset / (n - VISIBLE)))
+		page.thumb:SetPoint("TOPLEFT", page.list, "TOPLEFT", SCROLL_X - 5,
+			LIST_Y - (trackH - th) * page.offset / (n - VISIBLE))
 	end
 	local cost = H.CreateCost()
 	local full = n >= ns.ROSTER_MAX

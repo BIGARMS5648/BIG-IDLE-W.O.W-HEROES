@@ -370,7 +370,7 @@ function draw(scene, title) {
 // Layout check: problems a player would see. Every visible item of a scene is
 // tested; tests/layout_check.js prints the list and fails on any problem.
 // ---------------------------------------------------------------------------
-const SEE_THROUGH = new Set(['icon_lock','frame_arcana','glow','ring','frame','corners','fade_down','fade_up','shadow','grad_h','grad_v','check','lock','star','crown','arrow','plus',
+const SEE_THROUGH = new Set(['icon_lock','frame_arcana','sb_bar_v','sb_bar_h','sb_bend','sb_grip_v','sb_grip_v_hot','glow','ring','frame','corners','fade_down','fade_up','shadow','grad_h','grad_v','check','lock','star','crown','arrow','plus',
   'close','auto','skull','role_tank','role_dps','role_heal','circle','bar']);
 const SLICES = new Set(['panel','card','inset','button','pill','slot','menu']);
 function texName(e) { return e.tex ? String(e.tex).split('\\').pop().replace(/\.tga$/i, '') : null; }
@@ -505,7 +505,7 @@ function lint(scene, title) {
   // are a little wider than the game's, so a gap that passes here is at
   // least as wide in the game.
   const GAP = 6;
-  const SOFT = new Set(['glow', 'shadow', 'grad_h', 'grad_v', 'fade_down', 'fade_up', 'corners', 'bar', 'frame']);
+  const SOFT = new Set(['sb_bar_v','sb_bar_h','sb_bend','sb_grip_v','sb_grip_v_hot','glow', 'shadow', 'grad_h', 'grad_v', 'fade_down', 'fade_up', 'corners', 'bar', 'frame']);
   const units = [];
   {
     const sliceOf = new Map();

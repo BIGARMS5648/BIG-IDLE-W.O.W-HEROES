@@ -255,7 +255,6 @@ function ns.InitDB()
 	fill(db, DEFAULTS)
 	if refund > 0 then
 		db.gold = (tonumber(db.gold) or 0) + refund
-		ns.loadNote = string.format("배운 룬을 모두 거두고, 룬에 쓴 골드 %s를 돌려드렸습니다.", ns.U.fmt(refund))
 	end
 	db.v = DB_VERSION
 	for i = 1, ns.PARTY_SIZE do

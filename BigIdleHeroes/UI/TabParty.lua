@@ -669,11 +669,12 @@ local function buildSlot(page, slot, k)
 	c.bg = UI.Slice(c, "card", "BACKGROUND")
 	c.sel = UI.SelFrame(c)
 	local role = ns.PARTY_ROLES[slot]
-	c.bar = c:CreateTexture(nil, "BORDER")
-	c.bar:SetPoint("TOPLEFT", c, "TOPLEFT", 8, -6)
-	c.bar:SetPoint("TOPRIGHT", c, "TOPRIGHT", -8, -6)
-	c.bar:SetHeight(4)
-	UI.Fill(c.bar, U.rgb(ns.ROLE[role].hex))
+	-- the role bar: the scroll bar sheet's bar, laid flat, in the role's colour
+	c.bar = UI.Line3(c, "BORDER")
+	c.bar:Place(c, "TOPLEFT", false, 8, -9, SLOT_W - 16, 6)
+	do
+		c.bar:SetColor(U.rgb(ns.ROLE[role].hex))
+	end
 	c.label = UI.Text(c, 12, string.format("%d · %s%s", slot, ns.N(ns.ROLE[role].name), slot == 1 and " (맨 앞)" or (slot == 5 and " (맨 뒤)" or "")))
 	c.label:SetPoint("TOPLEFT", c, "TOPLEFT", 10, -16)
 	UI.Color(c.label, UI.C.gold)
@@ -698,15 +699,15 @@ local function buildSlot(page, slot, k)
 	c.duty = line(-156, 11)
 	UI.Color(c.duty, UI.C.sub)
 	c.power = line(-172, 11)
-	c.left = UI.Button(c, 28, 26, "<", function()
+	c.left = UI.PageButton(c, 28, 26, "left", function()
 		local to = neighbour(c.slot, -1)
 		if to and ns.PARTY_ROLES[to] == role then swapSlots(c.slot, to) end
-	end, "dark")
+	end)
 	c.left:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 10, 10)
-	c.right = UI.Button(c, 28, 26, ">", function()
+	c.right = UI.PageButton(c, 28, 26, "right", function()
 		local to = neighbour(c.slot, 1)
 		if to and ns.PARTY_ROLES[to] == role then swapSlots(c.slot, to) end
-	end, "dark")
+	end)
 	c.right:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", -10, 10)
 	c.out = UI.Button(c, 82, 26, "빼기", function()
 		local id = ns.db.party[c.slot]
@@ -756,9 +757,8 @@ local function buildBench(page, i)
 	c:SetPoint("TOPLEFT", p, "TOPLEFT", 14 + col * (BENCH_W + 8), BENCH_Y - row * (BENCH_H + 6))
 	c.isItem = true
 	c.bg = UI.Slice(c, "card", "BACKGROUND")
-	c.stripe = c:CreateTexture(nil, "BORDER")
-	c.stripe:SetSize(4, BENCH_H - 12)
-	c.stripe:SetPoint("LEFT", c, "LEFT", 5, 0)
+	c.stripe = UI.Line3(c, "BORDER")
+	c.stripe:Place(c, "LEFT", true, 8, (BENCH_H - 12) / 2, BENCH_H - 12, 6)
 	c.portrait = UI.Portrait(c, 40)
 	c.portrait:SetPoint("LEFT", c, "LEFT", 14, 0)
 	c.portrait:EnableMouse(false)
@@ -887,7 +887,7 @@ local function refresh(page)
 		if id then
 			local h = db.heroes[id]
 			local sp = ns.SPECS[h.spec]
-			UI.Fill(c.stripe, U.rgb(ns.ROLE[sp.role].hex))
+			c.stripe:SetColor(U.rgb(ns.ROLE[sp.role].hex))
 			c.portrait:SetHero(id)
 			UI.SetHeroIcon(c.portrait.icon, id)
 			c.portrait.lvl:Hide()

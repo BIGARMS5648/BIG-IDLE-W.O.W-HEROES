@@ -463,8 +463,8 @@ local function buildSocket(kind)
 		p.matHead:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -214)
 		p.matPage = 1
 		-- (tools go right to left)
-		p.next = p.matHead:AddTool(UI.Button(f, 30, 22, ">", function() p.matPage = p.matPage + 1 Main.Refresh() end, "dark"))
-		p.prev = p.matHead:AddTool(UI.Button(f, 30, 22, "<", function() p.matPage = p.matPage - 1 Main.Refresh() end, "dark"))
+		p.next = p.matHead:AddTool(UI.PageButton(f, 30, 22, "right", function() p.matPage = p.matPage + 1 Main.Refresh() end))
+		p.prev = p.matHead:AddTool(UI.PageButton(f, 30, 22, "left", function() p.matPage = p.matPage - 1 Main.Refresh() end))
 		p.mats = {}
 		for i = 1, MAT_SLOTS do
 			local b = UI.IconButton(f, CELL, function(self) p.mat = self.matId Main.Refresh() end)
