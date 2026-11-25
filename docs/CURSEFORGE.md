@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.3.0
+BIG IDLE HEROES v1.4.0
 ```
 
 ---
@@ -138,20 +138,22 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.3.0)
+## Changelog for this release (v1.4.0)
 
 ```
-- The rune tree is now TBH's: 197 runes bought with gold, spreading in every direction
-  from the first rune in the middle of a map. The mouse wheel zooms in and out around
-  the cursor; dragging moves the map.
-- A rune's border colour shows its kind (combat, gold, experience, chests, bag, unlocks,
-  forge; a key under the map). Runes that cannot be learned yet are grey; runes at
-  their top level get a green check in the lower right corner.
-- Runes open party seats (3 to start, up to 5), the third skill slot, offline rewards,
-  automatic chest opening per chest kind, opening a whole kind with a right-click or
-  every kind with Shift+click, more bag and stash room, higher chest limits, fewer
-  waves per stage, and gold / experience per kill, per boss and per act boss.
-- Runes learned before this version are taken back and all the gold they cost is
-  returned (a chat note at login says how much).
-- Forge: 강화 (enhancement) is the last entry of the function list.
+- 무한의 탑 (the endless tower) opens after Mythic+ 30: a fifth card on the stage
+  screen. Every time a floor starts, its place, monsters and boss are rolled at
+  random; every tenth floor is a raid boss alone. Monsters grow stronger every floor
+  and a Mythic+ affix joins every fifth floor (Fortified, Tyrannical, Raging,
+  Grievous, Volcanic, Sanguine, Bolstering, Teeming, Quaking, Bursting).
+- Every tower chest holds item level 100 gear, better grades the higher the floor.
+  The first clear of a floor pays gold and one more chest; the best floor is kept.
+  A wipe drops one floor (with the retry option on, up again after eight clears).
+- The battle window shows 도전 · 무한의 탑 N층 while in the tower.
+- New icons for the bottom menu, the battle window's menu, the forge's functions
+  and the settings button.
+- The interface takes the logo's colours: electric blue and silver accents and a
+  silver window edge with a blue line; gold amounts and item grade colours stay.
+- The wide BIG IDLE HEROES logo in the main window's top-left corner.
+- The chosen menu tab has no yellow bar over its icon any more.
 ```
