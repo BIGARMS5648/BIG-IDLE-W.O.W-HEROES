@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.2.2
+BIG IDLE HEROES v1.2.3
 ```
 
 ---
@@ -138,9 +138,10 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.2.2)
+## Changelog for this release (v1.2.3)
 
 ```
+- A new logo in the main window's top-left corner.
 - The druid's cat form no longer comes up small after a reload: a model's size is now
   always read in its standing pose (it stands out of sight for a moment, then shows
   at its size doing what it should). Before, a cat whose model arrived mid-swing was

@@ -205,8 +205,8 @@ function Main.CloseModal()
 	end
 end
 
-local LOGO_H = 50
-local LOGO_W = math.floor(LOGO_H * 1.517 + 0.5)
+local LOGO_H = 56
+local LOGO_W = math.floor(LOGO_H * 1.101 + 0.5) -- the emblem's own proportions
 
 local refreshT = 0
 local function onUpdate(_, elapsed)
@@ -262,12 +262,12 @@ function Main.Create()
 	if UI.ArtUI("ui_header") then UI.Slice(head, "card", "BACKGROUND"):SetArt(UI.ArtUI("ui_header")) end
 	local line = UI.Line(frame, Main.W - 24, 0.55, 0.60, 0.75, 0.35)
 	line:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -59)
-	-- the logo (Media/logo.tga: the sign in the middle of a square picture)
+	-- the logo (Media/logo.tga: the emblem, its edges faded into the header)
 	frame.logo = frame:CreateTexture(nil, "ARTWORK")
 	frame.logo:SetSize(LOGO_W, LOGO_H)
-	frame.logo:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -5)
+	frame.logo:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -2)
 	frame.logo:SetTexture(UI.Tex("logo"))
-	frame.logo:SetTexCoord(0, 1, 0.168, 0.828)
+	frame.logo:SetTexCoord(0, 1, 0, 1)
 
 	frame.close = UI.Button(frame, 30, 30, "", function() Main.Toggle(false) end, "dark")
 	frame.close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -14)
