@@ -575,8 +575,9 @@ end
 section("items")
 do
 	-- the grades, in order; the top one's colours run across its letters
-	local names = { "일반", "고급", "희귀", "영웅", "전설", "불멸", "초월", "천상", "신성", "아르카나" }
+	local names = { "일반", "고급", "희귀", "영웅", "전설", "불멸", "초월", "신성", "천상", "아르카나" }
 	for q, n in ipairs(names) do check(ns.QUALITY[q] and ns.QUALITY[q].name == n, "grade " .. q .. " should be " .. n) end
+	check(ns.QUALITY[8].hex == "fce976" and ns.QUALITY[9].hex == "00ffff", "신성 is a softer yellow, 천상 is cyan")
 	check(ns.MAX_QUALITY == #names, "ten grades")
 	local top = ns.QText(ns.MAX_QUALITY, "아르 카나")
 	local codes = select(2, top:gsub("|cff%x%x%x%x%x%x", ""))

@@ -6,8 +6,8 @@ local _, ns = ...
 -- (보석 = 장식, 마법부여 = 세공, 주문각인 = 각인) each carries, what breaking one
 -- down gives (gold, forge experience), its colour and its stat multiplier.
 ------------------------------------------------------------------------
-local GRADE_NAME = { "일반", "고급", "희귀", "영웅", "전설", "불멸", "초월", "천상", "신성", "아르카나" }
-local GRADE_HEX = { "e4e4e4", "54fc0c", "0c6cfc", "b40cfc", "fc9c0c", "fc2424", "fc246c", "6ccce4", "fce454", "8ea6f2" }
+local GRADE_NAME = { "일반", "고급", "희귀", "영웅", "전설", "불멸", "초월", "신성", "천상", "아르카나" }
+local GRADE_HEX = { "e4e4e4", "54fc0c", "0c6cfc", "b40cfc", "fc9c0c", "fc2424", "fc246c", "fce976", "00ffff", "8ea6f2" }
 -- grad: colours run across the grade's names (cyan, periwinkle, orchid) and
 -- its frame is painted in them (frame: Media/<frame>.tga); hex is their middle
 local GRADE_GRAD = { [10] = { "45e6e6", "8ea6f2", "d89ee0" } }
@@ -376,8 +376,8 @@ local SOCKET_MAT = {
 	[134001] = { "용의 주문서", "INV_Scroll_05" },
 	[135001] = { "티탄 주문서", "INV_Scroll_06" },
 	[136001] = { "별빛 주문서", "INV_Scroll_05" },
-	[137001] = { "천상의 주문서", "INV_Scroll_06" },
-	[138001] = { "신성한 주문서", "INV_Scroll_04" },
+	[137001] = { "신성한 주문서", "INV_Scroll_04" },
+	[138001] = { "천상의 주문서", "INV_Scroll_06" },
 	[139001] = { "태초의 주문서", "INV_Scroll_03" },
 }
 -- id = kind .. TBH id (gem110001); tier = the TBH grade, which is also its colour
