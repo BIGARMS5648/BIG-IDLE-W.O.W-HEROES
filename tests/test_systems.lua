@@ -1028,16 +1028,6 @@ do
 	-- an enhanced piece is kept out of auto salvage and fusion
 	local picks = ns.Forge.PickByQuality(ns.MAX_QUALITY)
 	for _, x in ipairs(picks) do check(x ~= it, "an enhanced piece is not salvaged automatically") end
-	-- 계승: the steps move onto a piece of the same slot for gold
-	local other = ns.Items.New("chest", 100, 6)
-	ns.Items.AddToBag(other)
-	local from = Up.SourceFor(other)
-	check(from == it, "the piece further along is the one to move from")
-	local cost = Up.MoveCost(it, other)
-	local g = db.gold
-	check(cost > 0 and Up.Move(it, other) and Up.Level(other) == Up.MAX and Up.Level(it) == 0 and db.gold == g - cost, "moving the steps costs gold and leaves the old piece at +0")
-	local ring = ns.Items.New("ring", 100, 5)
-	check(not Up.CanMove(other, ring), "steps move only between pieces of the same slot")
 	db.prog[1], db.prog[2], db.prog[3], db.prog[4] = savedProg[1], savedProg[2], savedProg[3], savedProg[4]
 	db.gold, db.bag = savedGold, savedBag
 end
@@ -1355,15 +1345,20 @@ do
 	check(mean[80] > mean[1] + 0.3, string.format("higher floors give better grades: %.2f -> %.2f", mean[1], mean[80]))
 	ns.Loot.AddChest(2, T.ITEM_LEVEL, 1, T.Box(2), 7)
 	check(db.chests[1].tf == 7, "a tower chest keeps its floor")
-	local opened = 0
+	-- (the bag emptied after each one: every chest has room to open)
+	local opened, got, all100 = 0, 0, true
 	for _ = 1, 40 do
+		db.bag = {}
 		ns.Loot.AddChest(1, T.ITEM_LEVEL, 1, T.Box(1), 7)
 		local sum = ns.Loot.OpenAll(1)
 		opened = opened + sum.opened
+		for _, it in ipairs(db.bag) do
+			got = got + 1
+			if it.l ~= 100 then all100 = false end
+		end
 	end
-	local all100 = #db.bag > 0
-	for _, it in ipairs(db.bag) do if it.l ~= 100 then all100 = false end end
-	check(opened == 40 and all100, "opened tower chests give level 100 gear")
+	all100 = all100 and got > 0
+	check(opened == 40 and all100, "opened tower chests give level 100 gear: " .. opened .. " opened")
 	db.bag, db.chests = {}, {}
 
 	-- a first clear: a new best, its gold and one more chest; then up a floor

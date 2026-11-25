@@ -574,14 +574,6 @@ do
 	s = live("강화 → 다음 순간 전투 능력치와 영웅 화면에", s)
 	check(ns.Upgrade.Try(it, other), "다른 영웅 이름으로 강화 시도")
 	s = live("다른 영웅 이름으로 강화해도 실제로 낀 영웅에게", s)
-	-- the steps moved onto a piece in the bag, then that piece worn
-	local it2 = ns.Items.New("mh", 60, ns.MAX_QUALITY, sp.mh[1])
-	it2.a = it.a
-	db.bag[#db.bag + 1] = it2
-	check(ns.Upgrade.Move(it, it2, other, nil), "강화 계승 (다른 영웅 이름으로)")
-	s = live("강화를 빼 간 장비를 낀 영웅에게 바로", s)
-	ns.Items.Equip(H, ns.Items.IndexInBag(it2))
-	s = live("강화 계승한 장비로 바꿔 끼면", s)
 	ns.TowerOpen = wasOpen
 	-- talents, runes, a level, companions
 	check(ns.Heroes.SpendPoint(H, 1, 1), "특성 찍기")

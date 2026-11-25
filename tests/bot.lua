@@ -49,8 +49,8 @@ local function buyRunes()
 	end
 end
 
--- 강화 once the tower opens: steps moved onto newly worn pieces first (계승),
--- then the cheapest next step of the party's gear while the gold lasts
+-- 강화 once the tower opens: the cheapest next step of the party's gear
+-- while the gold lasts
 local function enhance()
 	local U = ns.Upgrade
 	if not (U and U.Open()) then return end
@@ -60,10 +60,6 @@ local function enhance()
 		if id then
 			for _, it in pairs(ns.db.heroes[id].gear) do worn[#worn + 1] = { it, id } end
 		end
-	end
-	for _, w in ipairs(worn) do
-		local src, srcHero = U.SourceFor(w[1])
-		if src and U.CanMove(src, w[1]) then U.Move(src, w[1], srcHero, w[2]) end
 	end
 	for _ = 1, 60 do
 		local best, bestHero, bestCost

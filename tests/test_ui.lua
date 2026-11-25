@@ -766,15 +766,6 @@ do
 	if title ~= "+3 " .. ns.Items.Name(epic) then fail("the tooltip should name the step before the item: " .. title) end
 	local plainTitle = ns.Items.Tooltip(plain and plain.data or ns.Items.New("chest", 30, 2))[1][1]
 	if plainTitle:find("^%+") then fail("a piece at +0 has no step before its name: " .. plainTitle) end
-	-- 계승: a second chest of the same slot takes the steps for gold
-	local other = ns.Items.New("chest", 30, 6)
-	ns.Items.AddToBag(other)
-	Main.ShowTab("forge", { sub = "up" })
-	click("inherit target", function(b) return b.data == other end)
-	if up.picked ~= other then fail("the second chest should be chosen") end
-	press("inherit", up.card.move)
-	confirmYes("inherit")
-	if (other.up or 0) ~= 3 or epic.up then fail("계승 should move the steps to the new piece: " .. tostring(other.up) .. " " .. tostring(epic.up)) end
 	prog[1], prog[2], prog[3], prog[4] = savedProg[1], savedProg[2], savedProg[3], savedProg[4]
 	hoverAll()
 end
