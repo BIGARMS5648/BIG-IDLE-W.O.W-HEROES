@@ -20,7 +20,7 @@ local CURRENCY = {
 	{ key = "craft", kinds = { bar = true, leather = true, cloth = true }, name = "제작 재료", icon = "INV_Ingot_05", tab = "mat_craft" },
 	{ key = "gem", kinds = { gem = true }, name = "보석 세공 재료", icon = "INV_Misc_Gem_Ruby_02", tab = "mat_gem" },
 	{ key = "dust", kinds = { dust = true }, name = "마법부여 재료", icon = "INV_Enchant_DustSoul", tab = "mat_ench" },
-	{ key = "scroll", kinds = { scroll = true }, name = "룬 각인 재료", icon = "INV_Scroll_03", tab = "mat_insc" },
+	{ key = "scroll", kinds = { scroll = true }, name = "주문각인 재료", icon = "INV_Scroll_03", tab = "mat_insc" },
 	{ key = "seal", kinds = { seal = true }, name = "행운의 인장 재료", icon = "INV_Misc_Coin_03", tab = "mat_seal" },
 }
 

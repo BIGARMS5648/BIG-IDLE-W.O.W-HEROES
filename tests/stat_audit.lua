@@ -162,7 +162,7 @@ do
 	for id, node in pairs(ns.Runes.byId) do if node.stat then need("룬 " .. id, node.stat, true) end end
 	for _, pet in ipairs(ns.PETS) do for k in pairs(pet.bonus) do need("동료 " .. pet.id, k, true) end end
 	for sid, sk in pairs(ns.SKILLS) do for _, m in ipairs(sk.mods or {}) do need("기술 " .. sid, m[1]) end end
-	check(#bad == 0, "장비·옵션·보석·마법부여·룬 각인·특성·룬·동료·기술이 주는 능력치 이름이 모두 있는 이름", #bad > 0 and list(bad, 10) or nil)
+	check(#bad == 0, "장비·옵션·보석·마법부여·주문각인·특성·룬·동료·기술이 주는 능력치 이름이 모두 있는 이름", #bad > 0 and list(bad, 10) or nil)
 	-- an account bonus nobody gives is a typo somewhere
 	local given = {}
 	for _, node in pairs(ns.Runes.byId) do if node.stat then given[node.stat] = true end end
@@ -281,7 +281,7 @@ do
 end
 
 ------------------------------------------------------------------------
-section("4. 보석 · 마법부여 · 룬 각인")
+section("4. 보석 · 마법부여 · 주문각인")
 ------------------------------------------------------------------------
 local CAT_SLOT = {}
 for _, slot in ipairs(ns.SLOTS) do
@@ -318,7 +318,7 @@ do
 		end
 	end
 	db.heroes[H].gear = {}
-	check(#unseen == 0, "보석·마법부여·룬 각인: 재료마다 부위별로 붙을 수 있는 능력치가 모두 나옴", #unseen > 0 and list(unseen) or nil)
+	check(#unseen == 0, "보석·마법부여·주문각인: 재료마다 부위별로 붙을 수 있는 능력치가 모두 나옴", #unseen > 0 and list(unseen) or nil)
 	check(#range == 0, "나온 수치가 툴팁의 범위 안 (" .. tested .. "번)", #range > 0 and list(range) or nil)
 	check(#bad == 0, "박은 능력치가 그 숫자 그대로 영웅 능력치에 들어감 (재료 79종 × 부위 3종)", #bad > 0 and list(bad, 4) or nil)
 	check(#tips == 0, "툴팁에 박은 능력치가 그 숫자로 적혀 있음", #tips > 0 and list(tips) or nil)

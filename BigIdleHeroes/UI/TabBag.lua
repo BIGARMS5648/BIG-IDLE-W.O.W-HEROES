@@ -246,7 +246,7 @@ function BagView.Build(page, f)
 		local total = ns.Items.SmeltGoldOf(picked)
 		local q = ns.QUALITY[smeltQ()]
 		UI.Confirm({ title = "일괄 분해", ok = "분해", style = "red",
-			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다. 보호한 장비, 강화한 장비, 보석·마법부여·각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비%s는 남깁니다.",
+			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비%s는 남깁니다.",
 				U.col(q.hex, ns.N(q.name)), #picked, U.fmt(total), kept > 0 and string.format("(%d개)", kept) or ""),
 			onOk = function()
 				local ok, gold, n = ns.Forge.Smelt(picked)
@@ -258,7 +258,7 @@ function BagView.Build(page, f)
 	UI.Tip(page.smeltGo, function()
 		local picked, kept = ns.Forge.PickByQuality(smeltQ())
 		local total = ns.Items.SmeltGoldOf(picked)
-		local body = string.format("분해 등급 이하의 장비 %d개를 골드로 바꿉니다 (+%s 골드). 보호한 장비, 강화한 장비, 보석·마법부여·각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 남깁니다.", #picked, U.fmt(total))
+		local body = string.format("분해 등급 이하의 장비 %d개를 골드로 바꿉니다 (+%s 골드). 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 남깁니다.", #picked, U.fmt(total))
 		if kept > 0 then body = body .. string.format("\n(영웅에게 더 좋은 장비 %d개는 남김)", kept) end
 		return UI.SimpleTip("일괄 분해", body)
 	end, "TOP")
@@ -273,7 +273,7 @@ function BagView.Build(page, f)
 	page.autoSmelt:SetPoint("LEFT", page.smeltGo, "RIGHT", 16, 0)
 	UI.Tip(page.autoSmelt, function()
 		local q = ns.QUALITY[smeltQ()]
-		return UI.SimpleTip("자동 분해", string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다. 보호한 장비, 강화한 장비, 보석·마법부여·각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 남깁니다.", U.col(q.hex, ns.N(q.name))))
+		return UI.SimpleTip("자동 분해", string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 남깁니다.", U.col(q.hex, ns.N(q.name))))
 	end, "TOP")
 end
 
@@ -368,7 +368,7 @@ end
 ------------------------------------------------------------------------
 local MAT_TABS = {
 	{ "mat_craft", "제작 재료" }, { "mat_gem", "보석 세공 재료" }, { "mat_ench", "마법부여 재료" },
-	{ "mat_insc", "룬 각인 재료" }, { "mat_seal", "행운의 인장 재료" },
+	{ "mat_insc", "주문각인 재료" }, { "mat_seal", "행운의 인장 재료" },
 }
 local MAT_KINDS_OF = {
 	mat_craft = { bar = true, leather = true, cloth = true },
@@ -376,7 +376,7 @@ local MAT_KINDS_OF = {
 }
 local MAT_USE = {
 	mat_craft = "장비 '제작'에 씁니다", mat_gem = "장비 '보석'에 씁니다", mat_ench = "장비 '마법부여'에 씁니다",
-	mat_insc = "장비 '룬 각인'에 씁니다", mat_seal = "[굴리기]로 장비 1개",
+	mat_insc = "장비 '주문각인'에 씁니다", mat_seal = "[굴리기]로 장비 1개",
 }
 MatsView.KINDS_OF = MAT_KINDS_OF
 local ROW_H, ROW_STEP, LIST_Y, MAT_ROWS = 54, 58, -70, 6

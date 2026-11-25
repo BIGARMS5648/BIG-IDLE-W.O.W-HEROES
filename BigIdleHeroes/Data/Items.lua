@@ -3,7 +3,7 @@ local _, ns = ...
 
 ------------------------------------------------------------------------
 -- Grades (TBH's ten, Data/TBH.lua): how many random stats and sockets
--- (보석 = 장식, 마법부여 = 세공, 룬 각인 = 각인) each carries, what breaking one
+-- (보석 = 장식, 마법부여 = 세공, 주문각인 = 각인) each carries, what breaking one
 -- down gives (gold, forge experience), its colour and its stat multiplier.
 ------------------------------------------------------------------------
 local GRADE_NAME = { "일반", "고급", "희귀", "전설", "불멸", "아르카나", "초월", "천상", "신성", "우주" }
@@ -175,13 +175,13 @@ ns.AFFIX_POOL = {
 	},
 }
 
--- Sockets (TBH's cube): 보석 세공 = 장식, 마법부여 = 세공, 룬 각인 = 각인.
+-- Sockets (TBH's cube): 보석 세공 = 장식, 마법부여 = 세공, 주문각인 = 각인.
 -- Each material gives what its TBH counterpart gives (Data/TBH.lua
 -- SOCKET_MATS): per gear group, one of its stats at one of its tiers.
 ns.SOCKET = {
 	gem  = { name = "보석 세공", mat = "gem", short = "보석" },
 	ench = { name = "마법부여", mat = "dust", short = "마법부여" },
-	insc = { name = "룬 각인", mat = "scroll", short = "각인" },
+	insc = { name = "주문각인", mat = "scroll", short = "주문각인" },
 }
 ns.SOCKET_KINDS = { "gem", "ench", "insc" }
 ns.SOCKET_FIELD = { gem = "g", ench = "e", insc = "i" }
@@ -354,17 +354,17 @@ local SOCKET_MAT = {
 	[128002] = { "우주의 정수", "INV_Enchant_EssenceMysticalLarge" },
 	[129001] = { "심연의 결정", "INV_Enchant_ShardNexusLarge" },
 	[129002] = { "천상의 조각", "INV_Enchant_ShardBrilliantLarge" },
-	-- 룬 주문서 (각인)
-	[130001] = { "희미한 룬 주문서", "INV_Scroll_01" },
-	[131001] = { "선명한 룬 주문서", "INV_Scroll_02" },
-	[132001] = { "정교한 룬 주문서", "INV_Scroll_03" },
-	[133001] = { "고대 룬 주문서", "INV_Scroll_04" },
-	[134001] = { "용의 룬 주문서", "INV_Scroll_05" },
-	[135001] = { "티탄 룬 주문서", "INV_Scroll_06" },
-	[136001] = { "별빛 룬 주문서", "INV_Scroll_05" },
-	[137001] = { "천상의 룬 주문서", "INV_Scroll_06" },
-	[138001] = { "신성한 룬 주문서", "INV_Scroll_04" },
-	[139001] = { "태초의 룬 주문서", "INV_Scroll_03" },
+	-- 주문서 (주문각인)
+	[130001] = { "희미한 주문서", "INV_Scroll_01" },
+	[131001] = { "선명한 주문서", "INV_Scroll_02" },
+	[132001] = { "정교한 주문서", "INV_Scroll_03" },
+	[133001] = { "고대 주문서", "INV_Scroll_04" },
+	[134001] = { "용의 주문서", "INV_Scroll_05" },
+	[135001] = { "티탄 주문서", "INV_Scroll_06" },
+	[136001] = { "별빛 주문서", "INV_Scroll_05" },
+	[137001] = { "천상의 주문서", "INV_Scroll_06" },
+	[138001] = { "신성한 주문서", "INV_Scroll_04" },
+	[139001] = { "태초의 주문서", "INV_Scroll_03" },
 }
 -- id = kind .. TBH id (gem110001); tier = the TBH grade, which is also its colour
 ns.SOCKET_MATS_BY = { gem = {}, dust = {}, scroll = {} } -- [kind][grade] = { id, ... }
@@ -402,7 +402,7 @@ end
 
 ns.MAT_KIND_NAME = {
 	bar = "주괴", leather = "가죽", cloth = "옷감",
-	gem = "보석", dust = "마법부여 재료", scroll = "룬 주문서",
+	gem = "보석", dust = "마법부여 재료", scroll = "주문서",
 	seal = "행운의 인장",
 }
 ns.MAT_MAX_TIER = { bar = 5, leather = 5, cloth = 5, gem = 10, dust = 10, scroll = 10, seal = 4 }
@@ -476,7 +476,7 @@ ns.FORGE_OPS = {
 		desc = "불멸 등급 이상 장비에 마법을 부여합니다." },
 	{ key = "seal",   name = "인장 굴리기", level = 20, cost = 3000, short = "인장으로 장비 얻기",
 		desc = "행운의 인장과 골드를 바쳐 무작위 장비를 얻습니다." },
-	{ key = "insc",   name = "룬 각인",  level = 25, cost = 10000, short = "룬 홈 채우기",
-		desc = "아르카나 등급 이상 장비에 룬을 새깁니다." },
+	{ key = "insc",   name = "주문각인",  level = 25, cost = 10000, short = "주문각인 홈 채우기",
+		desc = "아르카나 등급 이상 장비의 주문각인 홈에 주문서의 힘을 새깁니다." },
 }
 ns.FORGE_MAX = 100

@@ -183,7 +183,7 @@ local function candidates()
 					wait = not ns.CanAfford(op.cost) })
 			else
 				local where = ({ remove = "보석", seal = "인장 굴리기", fuse = "융합", craft = "제작",
-					gem = "보석", ench = "마법부여", insc = "룬 각인" })[op.key] or ""
+					gem = "보석", ench = "마법부여", insc = "주문각인" })[op.key] or ""
 				add({ text = string.format("'%s' 해금 (용광로 > %s, %s G)", ns.N(op.name), where, ns.U.fmt(op.cost)), tab = "forge",
 					sub = op.key == "remove" and "gem" or op.key, wait = not ns.CanAfford(op.cost) })
 			end

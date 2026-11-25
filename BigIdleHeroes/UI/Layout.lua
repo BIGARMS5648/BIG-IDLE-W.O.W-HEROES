@@ -121,7 +121,7 @@ function UI.StatRow(parent, w, icon, art, split)
 end
 
 -- A socket on an item: a dark round hole with a ring in the colour of its
--- kind (보석 sky blue, 마법부여 purple, 룬 각인 gold) and, when filled, the
+-- kind (보석 sky blue, 마법부여 purple, 주문각인 gold) and, when filled, the
 -- icon of the material set in it.
 UI.SOCKET_RGB = { gem = { 0.40, 0.85, 1.00 }, ench = { 0.80, 0.52, 1.00 }, insc = { 1.00, 0.80, 0.32 } }
 function UI.Socket(parent, size)

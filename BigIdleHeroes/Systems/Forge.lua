@@ -238,7 +238,7 @@ end
 function Forge.FuseBlock(it)
 	if it.lock then return "보호한 장비는 쓰지 않습니다." end
 	if it.up then return "강화한 장비는 쓰지 않습니다." end
-	if ns.Items.HasSockets(it) then return "보석·마법부여·각인이 붙은 장비는 쓰지 않습니다." end
+	if ns.Items.HasSockets(it) then return "보석·마법부여·주문각인이 붙은 장비는 쓰지 않습니다." end
 	local heroes = ns.Items.KeptHeroes()
 	if ns.Items.PartyUpgrade(it, heroes) then return "영웅에게 더 좋은 장비라 쓰지 않습니다." end
 	if ns.Items.FutureUpgrade(it, heroes) then return "영웅이 레벨을 올리면 낄 더 좋은 장비라 쓰지 않습니다." end
