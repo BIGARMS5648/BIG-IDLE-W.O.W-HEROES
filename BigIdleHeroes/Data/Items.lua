@@ -465,7 +465,7 @@ ns.CRAFT_GROUPS = {
 
 ns.CRAFT_TIERS = {
 	-- levels: the item levels a tier makes, one picked evenly
-	{ levels = { 1, 5, 10 },  forge = 5,  gold = 60,    q = { 0, 45, 40, 13, 2, 0, 0, 0, 0, 0 } },
+	{ levels = { 5, 10 },     forge = 5,  gold = 60,    q = { 0, 45, 40, 13, 2, 0, 0, 0, 0, 0 } },
 	{ levels = { 15, 20 },    forge = 15, gold = 500,   q = { 0, 25, 48, 22, 4.5, 0.5, 0, 0, 0, 0 } },
 	{ levels = { 30, 40 },    forge = 30, gold = 4000,  q = { 0, 0, 50, 35, 12, 2.7, 0.3, 0, 0, 0 } },
 	{ levels = { 50, 65 },    forge = 45, gold = 30000, q = { 0, 0, 30, 45, 19, 5, 1, 0, 0, 0 } },
