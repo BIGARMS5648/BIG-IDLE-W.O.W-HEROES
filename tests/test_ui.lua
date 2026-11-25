@@ -446,7 +446,7 @@ do
 	press("창고 tab", ep.tabs:Get("bank"))
 	if ep.tab ~= "bank" then fail("the 창고 tab should open the storage") end
 	if not (ep.bagCount:GetText() or ""):find("창고", 1, true) then fail("the 창고 tab should count the storage, got " .. tostring(ep.bagCount:GetText())) end
-	if ep.viewPick:IsVisible() or ep.open:IsVisible() or ep.smeltGo:IsVisible() then fail("the storage has no view list, chest opener or breaking down") end
+	if ep.viewPick:IsVisible() or ep.smeltGo:IsVisible() then fail("the storage has no view list or breaking down") end
 	click("take out of the storage", function(b) return b.data == junk end)
 	if not ns.Items.IndexInBag(junk) then fail("clicking an item in the storage should take it out") end
 	-- 가방 always opens on 보기: 전체, whatever was picked before and from any tab
@@ -503,7 +503,8 @@ do
 	confirmYes("take everything off")
 	if next(ns.db.heroes[id].gear) and ns.Items.BagFree() > 0 then fail("전체 해제 should take the gear off") end
 	press("auto equip again", ep.auto)
-	click("open chests", function(b) return label(b) and label(b):find("상자 열기", 1, true) end)
+	-- (chests are opened from the battle window, not from the bag)
+	if ep.open then fail("the bag should have no chest opener") end
 	press("sort", ep.sort)
 	hoverAll()
 end
@@ -1872,7 +1873,7 @@ do
 			local raceScale = Fig.RACE_SCALE[ns.Heroes.Race(h.id)] or 1
 			local inForm = Fig.HeroScale(h.id, true)
 			if sid == "DRUID_FERAL" and math.abs(inForm - raceScale * 0.92 / 0.85) > 1e-9 then fail("the cat should stand as tall as before the fighters were made smaller: " .. inForm) end
-			if sid == "DRUID_BALANCE" and math.abs(inForm - Fig.RACE_SCALE.TAUREN * 1.08) > 1e-9 then fail("the moonkin of both factions should be a little taller than the tauren: " .. inForm) end
+			if sid == "DRUID_BALANCE" and math.abs(inForm - Fig.RACE_SCALE.TAUREN * 1.25) > 1e-9 then fail("the moonkin of both factions should be a good deal taller than the tauren: " .. inForm) end
 			if (sid == "DRUID_GUARDIAN" or sid == "DRUID_RESTO") and math.abs(inForm - raceScale) > 1e-9 then fail(sid .. " should keep its size") end
 			-- the cat's health bar under its body, forward of its middle (its tail is long)
 			local shift = Fig.HeroBarShift(h.id, true)
@@ -2390,7 +2391,8 @@ do
 	frames(8, 0.2)
 	local card
 	for _, c in ipairs(pp.cards) do if c.pet == pet then card = c end end
-	local want = ns.U.fmt(pet.unlock.n - 7) .. " / " .. ns.U.fmt(pet.unlock.n)
+	-- (the fight goes on meanwhile: the count shown is the count now)
+	local want = ns.U.fmt(math.min(pet.unlock.n, ns.db.kills.humanoid)) .. " / " .. ns.U.fmt(pet.unlock.n)
 	if not (card and card.bar.text.__text == want) then
 		fail("the companion screen should show the kill count as it moves: " .. tostring(card and card.bar.text.__text) .. " / " .. want)
 	end

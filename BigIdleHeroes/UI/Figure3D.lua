@@ -182,8 +182,8 @@ end
 Figure.RACE_SCALE = { GNOME = 0.78, DWARF = 0.9, TAUREN = 1.12, NIGHTELF = 1.04, TROLL = 1.06 }
 -- In battle a form has its own size: the cat a little taller than the
 -- others (as tall as it stood before every fighter was drawn 15% smaller),
--- the moonkin of both factions a little taller than the tauren.
-Figure.FORM_SCALE = { cat = 0.92 / 0.85, moonkin = 1.08 }
+-- the moonkin of both factions a good deal taller than the tauren.
+Figure.FORM_SCALE = { cat = 0.92 / 0.85, moonkin = 1.25 }
 Figure.FORM_SIZE_OF = { moonkin = "TAUREN" }
 function Figure.HeroScale(heroId, inCombat)
 	local s = Figure.RACE_SCALE[ns.Heroes.Race(heroId)] or 1

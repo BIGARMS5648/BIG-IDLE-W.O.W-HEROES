@@ -1,6 +1,6 @@
 -- The bag, the storage and the materials: tabs of the equipment screen
 -- (UI/TabEquip.lua).
---   가방: "가방 43 / 70" [상자 열기] [보기 ▾] [정리], the grid (pages of 60),
+--   가방: "가방 43 / 70" [보기 ▾] [정리], the grid (pages of 60),
 --         and at the bottom: 분해 등급 [▾] [일괄 분해] [자동 분해].
 --         On an item: click = 장착 (the hero on the left), right-click =
 --         분해, Alt+click = 보호, Shift+click = 창고.
@@ -131,15 +131,8 @@ function BagView.Build(page, f)
 	page.bagCount:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -7)
 	page.bagCount:SetWidth(120)
 	page.bagCount:SetWordWrap(false)
-	-- [상자 열기] [보기 ▾] [정리]: three equal controls across the row
-	local TOP_W = math.floor((W - 126 - 2 * 8) / 3)
-	page.open = UI.Button(f, TOP_W, 28, "", function()
-		ns.Loot.OpenAll()
-		Main.Refresh()
-	end, "blue")
-	page.open:SetPoint("TOPLEFT", f, "TOPLEFT", 126, 0)
-	page.open.clickWhenOff = true
-	UI.Tip(page.open, function() return UI.SimpleTip("상자 모두 열기", "쌓인 상자를 모두 엽니다. 가방이 차면 남은 상자는 그대로 둡니다.") end, "TOP")
+	-- [보기 ▾] [정리]: two equal controls across the row
+	local TOP_W = math.floor((W - 126 - 8) / 2)
 	page.viewPick = UI.Dropdown(f, TOP_W, 28, function()
 		local out = {}
 		for _, v in ipairs(VIEWS) do out[#out + 1] = { v[1], v[2] } end
@@ -149,7 +142,7 @@ function BagView.Build(page, f)
 		page.view = v
 		page.bagPage = 1
 	end, "보기: ")
-	page.viewPick:SetPoint("LEFT", page.open, "RIGHT", 8, 0)
+	page.viewPick:SetPoint("TOPLEFT", f, "TOPLEFT", 126, 0)
 	page.viewPick.tipTitle = "보기"
 	page.viewPick.tipText = "가방의 장비를 종류별로 봅니다. 왼쪽의 장비 칸을 누르면 그 부위만 봅니다."
 	page.sort = UI.Button(f, TOP_W, 28, "정리", function()
@@ -284,11 +277,6 @@ function BagView.Refresh(page)
 	local cap = bank and ns.BankSize() or ns.BagSize()
 	page.bagCount:SetText(string.format("%s  %s", bank and "창고" or "가방",
 		U.col("aab3c8", string.format("%d / %d", bank and #db.bank or #db.bag, cap))))
-	local chests = ns.Loot.Count()
-	page.open:SetLabel(string.format("상자 열기 (%d)", chests))
-	page.open:SetOff(chests == 0)
-	page.open:SetBadge(chests > 0 and chests or nil)
-	page.open:SetShown(not bank)
 	page.viewPick:Refresh()
 	page.viewPick:SetShown(not bank)
 	local filtered = page.view ~= "all" and not bank

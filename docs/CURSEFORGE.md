@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.2.4
+BIG IDLE HEROES v1.2.5
 ```
 
 ---
@@ -138,9 +138,12 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.2.4)
+## Changelog for this release (v1.2.5)
 
 ```
+- The moonkin is clearly taller in battle.
+- The bag has no open-all-chests button; chests open from the battle window.
+- The forge has no separate seal-roll entry; seals are rolled on the materials' seal tab.
 - Item icons show the item level again; the enhancement step goes before the item's
   name in its tooltip (+10 Iron Helm).
 - A new logo in the main window's top-left corner.
