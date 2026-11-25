@@ -1779,6 +1779,10 @@ do
 	local lo, hi = ns.Items.AffixRange(it, "hp")
 	check(it.l < 100 and lo and it.a[1][2] >= lo and it.a[1][2] <= hi, "migrated stats sit inside the range shown: " .. tostring(it.a[1][2]) .. " in " .. tostring(lo) .. "~" .. tostring(hi))
 end
+-- the first rune, at the middle of the map: 시작의 룬 with the hearthstone
+-- (the other 전쟁의 룬 keeps its name)
+check(ns.Runes.byId[1].name == "시작의 룬" and ns.Runes.byId[1].icon == "INV_Misc_Rune_01", "the first rune is 시작의 룬 with the hearthstone")
+check(ns.Runes.byId[4031].name == "전쟁의 룬", "the other 전쟁의 룬 keeps its name")
 -- a reset takes the runes' bonuses with it
 BigWowIdleDB = { v = 6, heroes = {}, party = { false, false, false, false, false } }
 ns.InitDB()

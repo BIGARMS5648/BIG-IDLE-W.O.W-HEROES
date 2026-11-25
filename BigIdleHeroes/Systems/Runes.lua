@@ -128,12 +128,17 @@ Runes.byId = {} -- [key] = { id, name, icon, x, y, max, need, kind (TBH stat), s
 Runes.prev = {} -- [key] = the rune before it
 Runes.kids = {} -- [key] = the runes after it
 
+-- runes with a name or picture of their own (over Data/Runes.lua's): the
+-- first rune, at the middle of the map
+local OWN = { [1] = { name = "시작의 룬", icon = "INV_Misc_Rune_01" } } -- the hearthstone
+
 do
 	for key, r in pairs(ns.RUNES) do
 		local def = ns.RUNE_STAT[r.s]
 		if not def then error("rune " .. key .. ": unknown stat " .. tostring(r.s)) end
+		local own = OWN[key] or {}
 		Runes.byId[key] = {
-			id = key, name = r.n, icon = def.icon, x = r.x, y = r.y, max = r.m, req = r.q,
+			id = key, name = own.name or r.n, icon = own.icon or def.icon, x = r.x, y = r.y, max = r.m, req = r.q,
 			kind = r.s, stat = def.key, def = def, group = def.group, v = r.v, c = r.c,
 		}
 		Runes.prev[key] = r.p
