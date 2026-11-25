@@ -15,7 +15,7 @@ local db = ns.db
 db.faction = "ALLIANCE"
 ns.AddGold(123456789)
 ns.Heroes.Create("PALADIN_PROT")
-for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7", "w1", "w1", "w2", "g1", "m1", "x1", "e1", "e2", "e3" }) do ns.Runes.Buy(id) end
+for _, id in ipairs({ 1, 10, 10, 10, 11, 11, 11, 101, 101, 20, 20, 20, 21, 11001, 11002, 201, 202, 301, 401 }) do ns.Runes.Buy(id) end
 for _, sid in ipairs({ "MAGE_FIRE", "ROGUE_SUB", "HUNTER_MM", "PRIEST_DISC", "DRUID_RESTO", "SHAMAN_ENH", "WARRIOR_PROT", "PALADIN_HOLY" }) do ns.Heroes.Create(sid) end
 for id in pairs(db.heroes) do ns.Heroes.AddXP(id, 2.5e6) end
 -- the longest name the generator can make, to test every place a name is shown
@@ -200,15 +200,17 @@ S.equip_view_list = function() local p = equip("bag") p.viewPick:Click() end
 S.equip_smelt_all = function() local p = equip("bag") p.smeltGo:Click() end
 -- the largest bag: every bag rune, every slot full
 S.equip_max = function()
-	local keep = { c2 = db.runes.c2, c8 = db.runes.c8 }
-	db.runes.c2, db.runes.c8 = 5, 5
+	local keep = {}
+	for id, node in pairs(ns.Runes.byId) do
+		if node.stat == "bag" then keep[id] = db.runes[id] or false db.runes[id] = node.max end
+	end
 	ns.Runes.Invalidate()
 	while #db.bag < ns.BagSize() do ns.Items.AddToBag(ns.Items.New("feet", 30, 2)) end
 	local p = equip("bag")
 	p.bagPage = 2
 	ns.Main.Refresh()
 	S.restore = function()
-		db.runes.c2, db.runes.c8 = keep.c2, keep.c8
+		for id, lv in pairs(keep) do db.runes[id] = lv or nil end
 		ns.Runes.Invalidate()
 		while #db.bag > ns.BagSize() do table.remove(db.bag) end
 	end
@@ -331,8 +333,15 @@ S.party_open = function()
 end
 
 -- 룬
-S.runes = function() show("runes", { rune = "c5" }) end
-S.runes_locked = function() show("runes", { rune = "w9" }) end
+S.runes = function() show("runes", { rune = 11 }) end
+S.runes_locked = function() show("runes", { rune = 12821 }) end
+-- zoomed all the way out: the whole tree in the box
+S.runes_far = function()
+	show("runes")
+	local p = ns.Main.Page("runes")
+	for _ = 1, 30 do p.zoomAt(-1) end
+	S.restore = function() p.cam.z = 1 p.centerOn(ns.RUNE_FIRST) end
+end
 
 -- 스테이지
 -- the 3D model check (/bih model); the models themselves are empty boxes here
@@ -369,7 +378,7 @@ S.runes_full = function()
 	ns.Runes.Invalidate()
 	show("runes")
 	local p = ns.Main.Page("runes")
-	p.scrollTotal(4)
+	p.scrollTotal(S.runesOff or 14)
 	S.restore = function()
 		for id in pairs(db.runes) do db.runes[id] = nil end
 		for id, lv in pairs(saved) do db.runes[id] = lv end
@@ -377,6 +386,7 @@ S.runes_full = function()
 		ns.Runes.Invalidate()
 	end
 end
+S.runes_full_end = function() S.runesOff = 999 S.runes_full() S.runesOff = nil end
 S.map = function() show("map") end
 S.map_heroic = function()
 	local p = show("map")

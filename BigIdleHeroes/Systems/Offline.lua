@@ -1,6 +1,7 @@
 -- Offline rewards: gold and experience for the time spent logged out, based on
--- the income rate measured while playing. Capped at 8 hours (runes add more);
--- an absence of 30 days or longer pays nothing.
+-- the income rate measured while playing, once their rune is learned. Capped
+-- at 8 hours; an absence of 30 days or longer pays nothing. Runes and
+-- companions raise the gold and the experience.
 local _, ns = ...
 
 local floor, max, min = math.floor, math.max, math.min
@@ -16,8 +17,13 @@ function Offline.Cap()
 	return Offline.BASE_CAP + ns.Bonus("offlineCap") * 3600
 end
 
+-- The share of the measured rate paid: gold, then experience.
 function Offline.Efficiency()
-	return Offline.BASE_RATE * (1 + ns.Bonus("offline") / 100)
+	return Offline.BASE_RATE * (1 + (ns.Bonus("offline") + ns.Bonus("offGold")) / 100)
+end
+
+function Offline.ExpEfficiency()
+	return Offline.BASE_RATE * (1 + (ns.Bonus("offline") + ns.Bonus("offExp")) / 100)
 end
 
 -- Returns a summary table, or nil when there is nothing to hand out.
@@ -33,12 +39,12 @@ function Offline.Claim(now)
 	if away >= Offline.MAX_AWAY then
 		return { away = away, expired = true, gold = 0, xp = 0, levels = 0 }
 	end
-	if (db.rate.gold or 0) <= 0 or ns.Heroes.PartyCount() == 0 then return nil end
+	if (db.rate.gold or 0) <= 0 or ns.Heroes.PartyCount() == 0 or not ns.OfflineOn() then return nil end
 
 	local counted = min(away, Offline.Cap())
 	local eff = Offline.Efficiency()
 	local gold = floor(db.rate.gold * counted * eff)
-	local baseXP = db.rate.xp * counted * eff
+	local baseXP = db.rate.xp * counted * Offline.ExpEfficiency()
 	local stageLevel = db.rate.level or ns.StageLevel(db.stage.diff, db.stage.idx)
 
 	local levels, xpTotal = 0, 0

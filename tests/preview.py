@@ -28,7 +28,7 @@ SCENES = [
     "fuse", "fuse_ready", "fuse_list", "fuse_high", "craft", "craft_locked", "craft_far", "gem", "gem_stress", "ench", "insc_locked", "up", "up_locked", "smelt", "seal",
     "mats", "mats_gem", "mats_seal", "mats_seal_some", "mats_page2", "mats_seal_locked", "gem_remove_locked", "bag_smelt_locked",
     "party", "party_open",
-    "runes", "runes_locked", "runes_full",
+    "runes", "runes_locked", "runes_far", "runes_full", "runes_full_end",
     "map", "map_heroic", "map_raid", "map_locked",
     "pets", "pets_locked",
     "options", "options_reset", "model_check", "model_check_battle", "model_check_dress", "model_check_fx",
@@ -192,17 +192,31 @@ function resolve(scene) {
     const y = p.includes('TOP') ? r.t : p.includes('BOTTOM') ? r.b : (r.b + r.t) / 2;
     return [x, y];
   }
+  // a frame's scale (SetScale) multiplies its size, its offsets and its
+  // children's; regions take their frame's
+  function scaleOf(e) {
+    if (e._s != null) return e._s;
+    if (e.id === root) return (e._s = 1);
+    const p = byId[e.parent];
+    return (e._s = (e.kind === 'frame' ? (e.scale || 1) : 1) * (p ? scaleOf(p) : 1));
+  }
+  for (const e of scene.items) {
+    delete e._s;
+    if (e.kind === 'text') { if (e.size0 == null) e.size0 = e.size; }
+  }
+  for (const e of scene.items) if (e.kind === 'text') e.size = e.size0 * scaleOf(e);
   function rect(e) {
     if (e._r) return e._r;
     if (e.id === root) return (e._r = { l:0, b:0, r:W, t:H });
     e._r = { l:0, b:0, r:0, t:0 };
-    let w = e.w, h = e.h;
+    const s = scaleOf(e);
+    let w = e.w * s, h = e.h * s;
     let L, R, T, B, CX, CY, all = null;
     for (const a of e.anchors) {
       const rel = byId[a[1]]; if (!rel) continue;
       const rr = rect(rel);
       if (a[0] === 'ALL') { all = rr; break; }
-      const [ax, ay] = point(rr, a[2]); const x = ax + a[3], y = ay + a[4]; const P = a[0];
+      const [ax, ay] = point(rr, a[2]); const x = ax + a[3] * s, y = ay + a[4] * s; const P = a[0];
       if (P.includes('LEFT')) L = x; else if (P.includes('RIGHT')) R = x; else CX = x;
       if (P.includes('TOP')) T = y; else if (P.includes('BOTTOM')) B = y; else CY = y;
     }
@@ -232,10 +246,17 @@ function resolve(scene) {
   const tops = scene.items.filter(e => e.kind === 'frame' && (e.parent === root)).sort((a, b) => (STRATA[a.strata || 'MEDIUM'] - STRATA[b.strata || 'MEDIUM']) || (a.order - b.order));
   tops.forEach(walk);
   order.forEach((e, i) => { e._i = i; rect(e); });
-  // what a clipping ancestor (SetClipsChildren) lets show
+  // what the clipping ancestors (SetClipsChildren) let show; _gone: nothing
   for (const e of order) {
-    e._clip = null;
-    for (let x = byId[e.parent]; x; x = byId[x.parent]) if (x.clips) { e._clip = x._r; break; }
+    e._clip = null; e._gone = false;
+    for (let x = byId[e.parent]; x; x = byId[x.parent]) if (x.clips) {
+      const c = x._r;
+      e._clip = e._clip ? { l: Math.max(e._clip.l, c.l), r: Math.min(e._clip.r, c.r), t: Math.min(e._clip.t, c.t), b: Math.max(e._clip.b, c.b) } : { ...c };
+    }
+    if (e._clip) {
+      const r = e._r;
+      if (Math.min(r.r, e._clip.r) - Math.max(r.l, e._clip.l) <= 0.5 || Math.min(r.t, e._clip.t) - Math.max(r.b, e._clip.b) <= 0.5) e._gone = true;
+    }
   }
   return { byId, order, rect, root, children };
 }
@@ -254,7 +275,10 @@ function textBox(e) {
   if (l === Infinity) return null;
   // glyphs sit inside the line box: trim the leading so touching lines are not "overlaps"
   const pad = e.size * 0.11;
-  return { l, r: rr, t: top - pad, b: top - t.height + pad };
+  const box = { l, r: rr, t: top - pad, b: top - t.height + pad };
+  if (e._clip) { box.l = Math.max(box.l, e._clip.l); box.r = Math.min(box.r, e._clip.r); box.t = Math.min(box.t, e._clip.t); box.b = Math.max(box.b, e._clip.b);
+    if (box.r - box.l <= 0 || box.t - box.b <= 0) return null; }
+  return box;
 }
 
 function draw(scene, title) {
@@ -262,7 +286,8 @@ function draw(scene, title) {
   const byId = R.byId, order = R.order, rect = R.rect;
   let bx0 = W, by0 = H, bx1 = 0, by1 = 0;
   for (const e of order) {
-    const r = rect(e); if (e._unanchored || r.r - r.l <= 0) continue;
+    let r = rect(e); if (e._unanchored || r.r - r.l <= 0 || e._gone) continue;
+    if (e._clip) r = { l: Math.max(r.l, e._clip.l), r: Math.min(r.r, e._clip.r), t: Math.min(r.t, e._clip.t), b: Math.max(r.b, e._clip.b) };
     bx0 = Math.min(bx0, r.l); bx1 = Math.max(bx1, r.r); by0 = Math.min(by0, r.b); by1 = Math.max(by1, r.t);
   }
   const pad = 16; bx0 = Math.max(0, bx0 - pad); by0 = Math.max(0, by0 - pad); bx1 = Math.min(W, bx1 + pad); by1 = Math.min(H, by1 + pad);
@@ -279,13 +304,20 @@ function draw(scene, title) {
 
   function alphaOf(e) { let a = 1; for (let x = e; x; x = byId[x.parent]) a *= (x.alpha == null ? 1 : x.alpha); return a; }
   for (const e of order) {
-    const r = rect(e); const a = alphaOf(e); if (a <= 0.01) continue;
+    if (e._gone) continue;
+    if (e._clip) { g.save(); g.beginPath(); g.rect(e._clip.l, Y(e._clip.t), e._clip.r - e._clip.l, e._clip.t - e._clip.b); g.clip(); }
+    paint(e);
+    if (e._clip) g.restore();
+  }
+  function paint(e) {
+    const r = rect(e); const a = alphaOf(e); if (a <= 0.01) return;
     g.globalAlpha = a;
     if (e.kind === 'texture') {
-      const x = r.l, y = Y(r.t), w = r.r - r.l, h = r.t - r.b; if (w <= 0 || h <= 0) continue;
+      const x = r.l, y = Y(r.t), w = r.r - r.l, h = r.t - r.b; if (w <= 0 || h <= 0) return;
       if (e.color) {
         g.fillStyle = `rgba(${Math.round(e.color[0]*255)},${Math.round(e.color[1]*255)},${Math.round(e.color[2]*255)},${e.color[3]})`;
-        g.fillRect(x, y, w, h);
+        if (e.rot) { g.save(); g.translate(x + w / 2, y + h / 2); g.rotate(-e.rot); g.fillRect(-w / 2, -h / 2, w, h); g.restore(); }
+        else g.fillRect(x, y, w, h);
       } else if (e.tex) {
         const path = String(e.tex);
         const name = path.split('\\').pop().replace(/\.tga$/i, '');
@@ -345,6 +377,11 @@ function texName(e) { return e.tex ? String(e.tex).split('\\').pop().replace(/\.
 
 function lint(scene, title) {
   const R = resolve(scene); const byId = R.byId, order = R.order, root = R.root;
+  // what a clipping ancestor hides is not there for the player
+  for (const e of order) if (e._clip && e.kind !== 'text') {
+    const r = e._r, c = e._clip;
+    e._r = { l: Math.max(r.l, c.l), r: Math.min(r.r, c.r), t: Math.min(r.t, c.t), b: Math.max(r.b, c.b) };
+  }
   const out = [];
   const alpha = e => { let a = 1; for (let x = e; x; x = byId[x.parent]) a *= (x.alpha == null ? 1 : x.alpha); return a; };
   const topOf = e => { let x = e; while (x && x.parent !== root && byId[x.parent]) x = byId[x.parent]; return x; };
@@ -352,7 +389,7 @@ function lint(scene, title) {
   const area = r => Math.max(0, r.r - r.l) * Math.max(0, r.t - r.b);
   const inter = (a, b) => ({ l: Math.max(a.l, b.l), r: Math.min(a.r, b.r), t: Math.min(a.t, b.t), b: Math.max(a.b, b.b) });
   const contains = (a, b) => a.l <= b.l + 0.5 && a.r >= b.r - 0.5 && a.t >= b.t - 0.5 && a.b <= b.b + 0.5;
-  const vis = e => alpha(e) > 0.05;
+  const vis = e => !e._gone && alpha(e) > 0.05;
   const opaque = e => {
     if (e.kind !== 'texture' || !vis(e)) return false;
     const a = alpha(e);

@@ -191,7 +191,12 @@ local function lab(o)
 	local db = ns.db
 	db.faction = "ALLIANCE"
 	db.gold = 1e12
-	for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7", "c8", "c9" }) do ns.Runes.Buy(id) end
+	-- the party and skill-slot runes, the runes before them first
+	for _, id in ipairs({ 21, 24, ns.Runes.FirstFor("skillSlot") }) do
+		for _ = 1, 100 do
+			if ns.Runes.Level(id) >= ns.Runes.byId[id].max or not ns.Runes.Buy(ns.Runes.NextStepTo(id)) then break end
+		end
+	end
 	db.opt.auto, db.opt.retreat, db.opt.retry = false, false, false
 	db.party = { false, false, false, false, false }
 	for k in pairs(OVR) do OVR[k] = nil end

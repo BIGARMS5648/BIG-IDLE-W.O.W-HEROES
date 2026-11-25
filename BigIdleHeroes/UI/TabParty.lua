@@ -629,11 +629,7 @@ local SLOT_W, SLOT_H, SLOT_Y = 170, 232, -52
 local BENCH_W, BENCH_H, BENCH_Y = 214, 58, -352
 
 local function nextCommandRune()
-	for _, br in ipairs(ns.RUNE_BRANCHES) do
-		for _, node in ipairs(br.nodes) do
-			if node.stat == "party" and ns.Runes.Level(node.id) == 0 then return node.id end
-		end
-	end
+	return ns.Runes.FirstFor("party")
 end
 
 -- the slot next to `slot` in battle order (dir -1 = left, 1 = right)

@@ -158,8 +158,10 @@ local function refresh(page)
 		"• 빨간 점은 지금 할 수 있는 일이 있다는 표시입니다.\n" ..
 		"• 레벨마다 특성 점수(능력치), 4레벨마다 기술 점수(기술)가 생깁니다.\n" ..
 		"• 가방에서 클릭은 장착, 우클릭은 분해, Alt+클릭은 보호, Shift+클릭은 창고 보관입니다.\n" ..
-		"• 게임을 꺼 두어도 오프라인 보상이 쌓입니다 (지금 효율 %d%%, 최대 %s).",
-		math.floor(ns.Offline.Efficiency() * 100 + 0.5), U.time(ns.Offline.Cap())))
+		"%s",
+		ns.OfflineOn() and string.format("• 게임을 꺼 두어도 오프라인 보상이 쌓입니다 (골드 %d%%, 경험치 %d%%, 최대 %s).",
+			math.floor(ns.Offline.Efficiency() * 100 + 0.5), math.floor(ns.Offline.ExpEfficiency() * 100 + 0.5), U.time(ns.Offline.Cap()))
+		or "• 룬 '안식의 룬'을 배우면 게임을 꺼 둔 동안에도 골드와 경험치가 쌓입니다."))
 
 	gm.sound:Refresh()
 	gm.keepBench:Refresh()

@@ -146,11 +146,11 @@ end
 
 -- Opens every stored chest (optionally of one type). Returns a summary:
 --   { opened, items = { [quality] = n }, best = item, mats = { [id] = n }, full }
-function Loot.OpenAll(chestType)
+function Loot.OpenAll(chestType, limit)
 	local db = ns.db
 	local sum = { opened = 0, items = {}, mats = {}, full = false }
 	local i = 1
-	while i <= #db.chests do
+	while i <= #db.chests and (not limit or sum.opened < limit) do
 		local ch = db.chests[i]
 		if not chestType or ch.t == chestType then
 			local r, why = openAt(i)
@@ -214,23 +214,47 @@ function Loot.Announce(sum)
 	end
 end
 
+-- Opening by hand: a click opens one chest; with its runes a right-click
+-- opens every chest of the kind and a Shift+click every chest there is.
+-- how: "one" | "kind" | "all"; chestType nil = any kind.
+function Loot.CanOpen(how)
+	if how == "kind" then return ns.Bonus("openKind") > 0 end
+	if how == "all" then return ns.Bonus("openAll") > 0 end
+	return true
+end
+
+function Loot.OpenByHand(chestType, how)
+	if how == "all" and Loot.CanOpen("all") then return Loot.OpenAll() end
+	if how == "kind" and Loot.CanOpen("kind") then return Loot.OpenAll(chestType) end
+	return Loot.OpenAll(chestType, 1)
+end
+
 ------------------------------------------------------------------------
--- Auto-open (unlocked by a rune): each chest type has its own timer.
+-- Auto-open: each chest kind has its own rune (which sets the wait) and
+-- timer; more runes cut the wait.
 ------------------------------------------------------------------------
+function Loot.AutoOn(chestType)
+	return ns.Bonus("auto" .. chestType) > 0
+end
+
 function Loot.AutoInterval(chestType)
-	return max(30, ns.CHEST[chestType].auto * (1 - min(80, ns.Bonus("autoCd")) / 100))
+	local wait = ns.Bonus("auto" .. chestType) - ns.Bonus("autoCut" .. chestType)
+	return max(10, wait * (1 - min(80, ns.Bonus("autoCd")) / 100))
 end
 
 function Loot.Tick(dt)
-	if ns.Bonus("autoOpen") <= 0 then return end
 	local db = ns.db
 	for t = 1, #ns.CHEST do
+		if not Loot.AutoOn(t) then
+			db.autoT[t] = 0
+		else
 		db.autoT[t] = (db.autoT[t] or 0) + dt
 		if db.autoT[t] >= Loot.AutoInterval(t) then
 			db.autoT[t] = 0
 			if Loot.Count(t) > 0 then
 				Loot.OpenAll(t)
 			end
+		end
 		end
 	end
 end

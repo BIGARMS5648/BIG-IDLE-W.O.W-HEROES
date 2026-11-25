@@ -19,7 +19,10 @@ local CARD_W, CARD_H, CARD_STEP, LIST_Y, VISIBLE = 246, 56, 62, -36, 7
 local NAME_W = CARD_W - 62 - 10 -- the name line of a hero card
 local BODY_X, BODY_Y, BODY_W, BODY_H = 12, -172, 616, 366
 -- which rune opens each skill slot (slot 1 is always open)
-local SLOT_RUNE = { [2] = "c4", [3] = "c9" }
+-- the rune that opens a locked skill slot
+local function slotRune()
+	for id, node in pairs(ns.Runes.byId) do if node.stat == "skillSlot" then return id end end
+end
 
 local function heroOf() return Main.SelectedHero() end
 local function roleHex(id) return ns.ROLE[H.Role(id)].hex end
@@ -383,7 +386,7 @@ local function buildSkills(page, f)
 		local b = UI.IconButton(f, 48, function(self)
 			local id = heroOf()
 			if self.locked then
-				Main.ShowTab("runes", { rune = SLOT_RUNE[i] })
+				Main.ShowTab("runes", { rune = slotRune() })
 			elseif self.sid and id then
 				H.UnequipSkill(id, self.sid)
 				Main.Refresh()
@@ -397,7 +400,7 @@ local function buildSkills(page, f)
 		b.name:SetWordWrap(false)
 		UI.Tip(b, function(self)
 			if self.locked then
-				local rune = ns.Runes.byId[SLOT_RUNE[i]]
+				local rune = ns.Runes.byId[slotRune()]
 				return UI.SimpleTip("잠긴 기술 칸", string.format("'%s'을(를) 배우면 열립니다.\n클릭: 룬 화면에서 보기", ns.N(rune.name)))
 			end
 			if self.sid then

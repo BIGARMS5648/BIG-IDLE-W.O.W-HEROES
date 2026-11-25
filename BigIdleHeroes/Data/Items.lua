@@ -431,9 +431,9 @@ ns.SEAL = {
 -- each one holds is its stage's TBH box (Data/TBH.lua, Systems/Loot.lua).
 ------------------------------------------------------------------------
 ns.CHEST = {
-	{ key = "common", name = "몬스터 상자",   icon = "INV_Box_01", cap = 20, auto = 300, box = "monster" },
-	{ key = "boss",   name = "우두머리 상자", icon = "INV_Box_03", cap = 10, auto = 600, box = "boss" },
-	{ key = "raid",   name = "막 우두머리 상자", icon = "INV_Box_04", cap = 5, auto = 600, box = "act" },
+	{ key = "common", name = "몬스터 상자",   icon = "INV_Box_01", cap = 20, box = "monster" },
+	{ key = "boss",   name = "우두머리 상자", icon = "INV_Box_03", cap = 10, box = "boss" },
+	{ key = "raid",   name = "막 우두머리 상자", icon = "INV_Box_04", cap = 5, box = "act" },
 }
 
 ------------------------------------------------------------------------

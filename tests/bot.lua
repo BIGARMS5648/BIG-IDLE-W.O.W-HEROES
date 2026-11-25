@@ -19,27 +19,33 @@ function Bot.SpendPoints(id)
 	ns.Heroes.AutoSkills(id)
 end
 
+-- Runes as a player would buy them: the cheapest open rune, or the next step
+-- towards a rune worth heading for (party seats, skill slots, opening
+-- chests), its whole way weighed against what it brings.
+local GOAL = { party = 0.15, skillSlot = 0.2, openKind = 0.3, openAll = 0.3, auto1 = 0.3, auto2 = 0.3, auto3 = 0.3, waves = 0.4 }
+local SLOW = { stash = 4, offGold = 4, offExp = 4, offlineOn = 4 }
 local function buyRunes()
-	-- party slots first, then whatever is cheapest
-	for _ = 1, 50 do
-		local bestId, bestCost
-		for id, node in pairs(ns.Runes.byId) do
-			if ns.Runes.Available(id) then
-				local cost = ns.Runes.NextCost(id)
-				if cost then
-					local weight = cost
-					if node.stat == "party" then weight = cost * 0.2 end
-					if node.stat == "bank" or node.stat == "offline" or node.stat == "offlineCap" then weight = cost * 4 end
-					if not bestCost or weight < bestCost then
-						bestId, bestCost = id, weight
-					end
+	local R = ns.Runes
+	for _ = 1, 200 do
+		local bestId, bestW
+		for id, node in pairs(R.byId) do
+			local cost = R.NextCost(id)
+			if cost then
+				if R.Available(id) then
+					local w = cost * (SLOW[node.stat] or 1)
+					if not bestW or w < bestW then bestId, bestW = id, w end
+				end
+				local f = GOAL[node.stat]
+				if f then
+					local step, total = R.NextStepTo(id)
+					if step and total * f < (bestW or math.huge) then bestId, bestW = step, total * f end
 				end
 			end
 		end
 		if not bestId then return end
-		local cost = ns.Runes.NextCost(bestId)
-		if ns.db.gold < cost then return end
-		ns.Runes.Buy(bestId)
+		local cost = R.NextCost(bestId)
+		if not cost or ns.db.gold < cost then return end
+		R.Buy(bestId)
 	end
 end
 

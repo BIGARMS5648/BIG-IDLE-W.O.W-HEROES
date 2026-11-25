@@ -1,7 +1,44 @@
 -- Saved data: defaults, migration, repair of missing fields and the gold purse.
 local _, ns = ...
 
-local DB_VERSION = 6
+local DB_VERSION = 7
+
+-- the runes before version 7: id = { top level, gold of level 1, growth per level }
+local OLD_RUNE = {
+	root = { 1, 50, 1 },
+	w1 = { 5, 100, 1.6 }, w2 = { 5, 300, 1.7 }, w3 = { 5, 800, 1.7 }, w4 = { 5, 3000, 1.8 }, w5 = { 5, 10000, 1.8 },
+	w6 = { 5, 30000, 1.8 }, w7 = { 10, 100000, 1.7 }, w8 = { 10, 400000, 1.7 }, w9 = { 10, 10000000, 1.6 },
+	g1 = { 5, 100, 1.6 }, g2 = { 5, 300, 1.7 }, g3 = { 5, 800, 1.7 }, g4 = { 5, 3000, 1.8 }, g5 = { 5, 10000, 1.8 },
+	g6 = { 5, 30000, 1.8 }, g7 = { 10, 100000, 1.7 }, g8 = { 10, 400000, 1.7 }, g9 = { 10, 10000000, 1.6 },
+	m1 = { 5, 80, 1.6 }, m2 = { 3, 250, 1.7 }, m3 = { 5, 700, 1.7 }, m4 = { 5, 2500, 1.8 }, m5 = { 5, 8000, 1.8 },
+	m6 = { 5, 25000, 1.8 }, m7 = { 10, 90000, 1.7 }, m8 = { 10, 350000, 1.7 }, m9 = { 10, 9000000, 1.6 },
+	x1 = { 5, 80, 1.6 }, x2 = { 3, 300, 1.7 }, x3 = { 5, 700, 1.7 }, x4 = { 5, 2500, 1.8 }, x5 = { 5, 8000, 1.8 },
+	x6 = { 5, 25000, 1.8 }, x7 = { 10, 90000, 1.7 }, x8 = { 4, 200000, 2.0 }, x9 = { 10, 9000000, 1.6 },
+	e1 = { 5, 120, 1.6 }, e2 = { 3, 350, 1.7 }, e3 = { 1, 2000, 1.7 }, e4 = { 5, 4000, 1.8 }, e5 = { 5, 10000, 1.8 },
+	e6 = { 5, 30000, 1.8 }, e7 = { 5, 60000, 1.7 }, e8 = { 10, 250000, 1.7 }, e9 = { 10, 8000000, 1.6 },
+	c1 = { 1, 300, 1.7 }, c2 = { 5, 150, 1.6 }, c3 = { 1, 5000, 1.7 }, c4 = { 1, 20000, 1.7 }, c5 = { 1, 40000, 1.7 },
+	c6 = { 5, 8000, 1.8 }, c7 = { 1, 150000, 1.7 }, c8 = { 5, 60000, 1.7 }, c9 = { 1, 400000, 1.7 }, c10 = { 5, 800000, 2.0 },
+}
+
+-- The gold the runes of a save before version 7 cost (their prices then);
+-- those runes are taken back. Returns the gold.
+local function refundOldRunes(db)
+	if type(db.runes) ~= "table" then return 0 end
+	local gold = 0
+	for id, lvl in pairs(db.runes) do
+		local old = OLD_RUNE[id]
+		lvl = math.floor(tonumber(lvl) or 0)
+		if old then
+			for l = 1, math.min(lvl, old[1]) do
+				local c = old[2] * old[3] ^ (l - 1)
+				if c >= 1000 then c = math.floor(c / 100 + 0.5) * 100 else c = math.floor(c / 10 + 0.5) * 10 end
+				gold = gold + c
+			end
+		end
+	end
+	db.runes = {}
+	return gold
+end
 
 -- skills that became other classic spells (version 4): old id -> new id
 local OLD_SKILL = {
@@ -213,7 +250,12 @@ function ns.InitDB()
 	if from < 2 and type(db.heroes) == "table" then
 		migrateV1(db)
 	end
+	local refund = from < 7 and refundOldRunes(db) or 0
 	fill(db, DEFAULTS)
+	if refund > 0 then
+		db.gold = (tonumber(db.gold) or 0) + refund
+		ns.loadNote = string.format("배운 룬을 모두 거두고, 룬에 쓴 골드 %s를 돌려드렸습니다.", ns.U.fmt(refund))
+	end
 	db.v = DB_VERSION
 	for i = 1, ns.PARTY_SIZE do
 		if db.party[i] == nil then db.party[i] = false end
@@ -345,7 +387,7 @@ function ns.InitDB()
 	end
 	if #db.setAside == 0 then db.setAside = nil end
 	if repaired + setAside > 0 then
-		ns.loadNote = string.format("저장된 장비 중 %d개의 잘못된 값을 고쳤습니다.%s", repaired,
+		ns.loadNote = (ns.loadNote and ns.loadNote .. " " or "") .. string.format("저장된 장비 중 %d개의 잘못된 값을 고쳤습니다.%s", repaired,
 			setAside > 0 and string.format(" 읽을 수 없는 장비 %d개는 따로 보관했습니다.", setAside) or "")
 	end
 	-- drop references to data that no longer exists; a dropped hero's gear
@@ -398,6 +440,12 @@ function ns.InitDB()
 	end
 	for id in pairs(db.mats) do
 		if not ns.MATS[id] then db.mats[id] = nil end
+	end
+	-- runes that exist, at levels they have
+	for id, lvl in pairs(db.runes) do
+		local node = ns.Runes and ns.Runes.byId[id]
+		lvl = math.floor(tonumber(lvl) or 0)
+		if not node or lvl <= 0 then db.runes[id] = nil else db.runes[id] = math.min(lvl, node.max) end
 	end
 	db.stage.diff = ns.U.clamp(db.stage.diff or 1, 1, #ns.DIFFS)
 	db.stage.idx = ns.U.clamp(db.stage.idx or 1, 1, ns.STAGE_COUNT)

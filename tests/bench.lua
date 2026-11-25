@@ -48,7 +48,12 @@ local function fresh()
 	ns.InitDB()
 	local db = ns.db
 	db.gold = 1e13
-	for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7", "c8", "c9" }) do ns.Runes.Buy(id) end
+	-- the party and skill-slot runes, the runes before them first
+	for _, id in ipairs({ 21, 24, ns.Runes.FirstFor("skillSlot") }) do
+		for _ = 1, 100 do
+			if ns.Runes.Level(id) >= ns.Runes.byId[id].max or not ns.Runes.Buy(ns.Runes.NextStepTo(id)) then break end
+		end
+	end
 	db.opt.auto, db.opt.retreat = false, false
 	db.prog = { 30, 30, 30, 30 }
 	ns.Heroes.AddXP = function() return 0 end -- levels stay fixed during a run

@@ -84,11 +84,8 @@ local function cheapestRune()
 end
 
 local function nextCommandRune()
-	for _, br in ipairs(ns.RUNE_BRANCHES) do
-		for _, node in ipairs(br.nodes) do
-			if node.stat == "party" and ns.Runes.Level(node.id) == 0 then return node end
-		end
-	end
+	local id = ns.Runes.FirstFor("party")
+	return id and ns.Runes.byId[id]
 end
 
 -- A role the party still has an open slot for (within the party limit).
@@ -131,7 +128,10 @@ local function candidates()
 	end
 	local chests = ns.Loot.Count()
 	if chests >= 3 and ns.Items.BagFree() > 0 then
-		add({ text = string.format("상자 %d개 열기", chests), tab = "equip", sub = "bag", act = function() ns.Loot.OpenAll() end })
+		-- (all at once with its rune, else one)
+		local all = ns.Loot.CanOpen("all")
+		add({ text = all and string.format("상자 %d개 열기", chests) or "상자 열기", tab = "equip", sub = "bag",
+			act = function() ns.Loot.OpenByHand(nil, all and "all" or "one") end })
 	end
 	if ns.Items.BagFree() <= 3 then
 		if not ns.Forge.Unlocked("smelt") then
@@ -182,7 +182,7 @@ local function candidates()
 				add({ text = string.format("'%s' 해금 (장비 > 가방, %s G)", ns.N(op.name), ns.U.fmt(op.cost)), tab = "equip", sub = "bag",
 					wait = not ns.CanAfford(op.cost) })
 			else
-				local where = ({ remove = "보석", seal = "인장 굴리기", fuse = "융합", craft = "제작",
+				local where = ({ remove = "보석", seal = "재료", fuse = "융합", craft = "제작",
 					gem = "보석", ench = "마법부여", insc = "주문각인" })[op.key] or ""
 				add({ text = string.format("'%s' 해금 (용광로 > %s, %s G)", ns.N(op.name), where, ns.U.fmt(op.cost)), tab = "forge",
 					sub = op.key == "remove" and "gem" or op.key, wait = not ns.CanAfford(op.cost) })

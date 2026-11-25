@@ -123,6 +123,11 @@ function U.rgb(hex)
 	return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
 end
 
+function U.hex(r, g, b)
+	local function c(v) return math.max(0, math.min(255, floor(v * 255 + 0.5))) end
+	return format("%02x%02x%02x", c(r), c(g), c(b))
+end
+
 function U.rnd(a, b)
 	return a + (b - a) * random()
 end

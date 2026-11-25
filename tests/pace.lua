@@ -79,7 +79,8 @@ while t < total do
 		end
 	end
 	if marks[mi] and t >= marks[mi] * 3600 then
-		out[#out + 1] = string.format("[%dh: %d/%d/%d/%d L%d]", marks[mi], db.prog[1], db.prog[2], db.prog[3], db.prog[4], lv())
+		out[#out + 1] = string.format("[%dh: %d/%d/%d/%d L%d G%.3g R%.3g]", marks[mi], db.prog[1], db.prog[2], db.prog[3], db.prog[4], lv(),
+			db.stat.gold, ns.Runes.Spent and ns.Runes.Spent() or 0)
 		mi = mi + 1
 	end
 	if PACE_SAVE and not saved and t >= PACE_SAVE_AT * 3600 then

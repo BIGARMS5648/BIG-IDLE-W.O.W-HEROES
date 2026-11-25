@@ -165,7 +165,8 @@ end
 function Texture:SetBlendMode(m) check(m == "ADD" or m == "BLEND" or m == "DISABLE" or m == "MOD" or m == "ALPHAKEY", "SetBlendMode: bad mode") end
 function Texture:SetDrawLayer(l, sub) check(LAYERS[l], "SetDrawLayer: bad layer") self.__layer = l end
 function Texture:SetDesaturated(v) self.__desat = v and true or nil end
-function Texture:SetRotation(r) check(type(r) == "number", "SetRotation: number expected") end
+function Texture:SetRotation(r) check(type(r) == "number", "SetRotation: number expected") self.__rot = r end
+function Texture:GetRotation() return self.__rot or 0 end
 
 ------------------------------------------------------------------------
 -- FontString
@@ -666,6 +667,7 @@ function Mock.Export()
 			e.tc = w.__tc
 			e.tc8 = w.__tc8
 			e.desat = w.__desat
+			e.rot = w.__rot
 			e.overlay = w.isOverlay or false -- moving scenery under everything
 		elseif kind == "text" then
 			e.layer = w.__layer

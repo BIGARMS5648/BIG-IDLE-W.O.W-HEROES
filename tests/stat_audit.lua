@@ -136,6 +136,17 @@ end
 -- what the code asks the account for (ns.Bonus("..."))
 local ACCOUNT = {}
 for _, text in pairs(SRC) do for k in text:gmatch('ns%.Bonus%("([%w_]+)"%)') do ACCOUNT[k] = true end end
+-- keys the code reads by a built name: ns.Bonus("cap" .. chestType),
+-- ns.Bonus("auto" .. t), ns.Bonus("gold" .. k) ("Boss" / "Act")
+for _, text in pairs(SRC) do
+	for head, tail in text:gmatch('ns%.Bonus%("([%w_]+)" %.%. ([%w_]+)%)') do
+		if tail == "chestType" or tail == "t" then
+			for t = 1, #ns.CHEST do ACCOUNT[head .. t] = true end
+		elseif tail == "k" then
+			ACCOUNT[head .. "Boss"], ACCOUNT[head .. "Act"] = true, true
+		end
+	end
+end
 local function known(key, account)
 	return ns.AFFIX[key] ~= nil or (account and ACCOUNT[key])
 end
@@ -400,7 +411,7 @@ do
 			local before = { ns.Stats.Compute(H), ns.Stats.Compute(H2) }
 			db.runes = { [rid] = node.max }
 			ns.Runes.Invalidate()
-			local v = node.per * node.max
+			local v = ns.Runes.Amount(rid, node.max)
 			tested = tested + 1
 			if math.abs(ns.Bonus(node.stat) - v) > 1e-9 then acct[#acct + 1] = rid .. " " .. node.stat .. " " .. ns.Bonus(node.stat) .. "/" .. v end
 			for i, id in ipairs({ H, H2 }) do
@@ -420,7 +431,7 @@ do
 		end
 	end
 	clean(H) clean(H2)
-	check(#acct == 0, "룬마다 계정 보너스 = 레벨당 수치 × 레벨 (" .. tested .. "개)", #acct > 0 and list(acct) or nil)
+	check(#acct == 0, "룬마다 계정 보너스 = 모든 레벨 수치의 합 (" .. tested .. "개)", #acct > 0 and list(acct) or nil)
 	check(#bad == 0, "전투 능력치 룬은 모든 영웅에게 그만큼, 골드·경험치 룬은 보상에서만 (영웅 능력치엔 없음)", #bad > 0 and list(bad, 4) or nil)
 	-- derived account limits follow their runes
 	local lim = {}
@@ -428,17 +439,18 @@ do
 		for rid, node in pairs(ns.Runes.byId) do
 			if node.stat == rstat then
 				db.runes = { [rid] = node.max } ns.Runes.Invalidate()
-				local want = base + node.per * node.max
+				local want = base + ns.Runes.Amount(rid, node.max)
 				if cap then want = min(cap, want) end
 				if math.abs(fn() - want) > 1e-9 then lim[#lim + 1] = rstat .. " " .. tostring(fn()) .. "/" .. want end
 			end
 		end
 		db.runes = {} ns.Runes.Invalidate()
 	end
-	at("party", ns.PartyLimit, 1, ns.PARTY_SIZE)
-	at("skillSlot", ns.SkillSlots, 1, 3)
+	at("party", ns.PartyLimit, ns.PARTY_BASE, ns.PARTY_SIZE)
+	at("skillSlot", ns.SkillSlots, ns.SKILL_BASE, 3)
 	at("bag", ns.BagSize, 30)
-	at("bank", ns.BankSize or function() return 10 + ns.Bonus("bank") end, 10)
+	at("stash", ns.BankSize, 10)
+	for t = 1, #ns.CHEST do at("cap" .. t, function() return ns.ChestCap(t) end, ns.CHEST[t].cap) end
 	check(#lim == 0, "파티 인원·기술 칸·가방·창고 룬이 그 한도를 올림", #lim > 0 and list(lim) or nil)
 	-- companions
 	local pbad = {}
@@ -579,8 +591,12 @@ do
 		if ns.AFFIX[node.stat] and node.stat ~= "exp" and node.stat ~= "gold" then rune = rid break end
 	end
 	do
-		local prev = ns.Runes.prev[rune]
-		while prev do db.runes[prev] = max(1, db.runes[prev] or 0) prev = ns.Runes.prev[prev] end
+		local c = rune
+		while ns.Runes.prev[c] do
+			local prev = ns.Runes.prev[c]
+			db.runes[prev] = max(ns.Runes.Need(c), db.runes[prev] or 0)
+			c = prev
+		end
 		ns.Runes.Invalidate()
 		s = ns.Stats.Compute(H)
 		check(ns.Runes.Buy(rune), "룬 배우기")

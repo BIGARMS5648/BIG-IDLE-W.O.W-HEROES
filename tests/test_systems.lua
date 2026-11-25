@@ -23,6 +23,19 @@ local function hero(specId)
 	end
 end
 
+-- learns a rune to a level (its top level by default), the runes before it
+-- first, as far as the gold goes
+local function learnRune(id, lvl)
+	local R = ns.Runes
+	lvl = lvl or R.byId[id].max
+	for _ = 1, 1000 do
+		if R.Level(id) >= lvl then return true end
+		local ok = R.Buy(R.NextStepTo(id))
+		if not ok then return false end
+	end
+	return false
+end
+
 ------------------------------------------------------------------------
 section("data integrity")
 do
@@ -305,10 +318,38 @@ do
 	end
 	check(counts.gem == 36 and counts.dust == 33 and counts.scroll == 10, "TBH's 36 decoration, 33 engraving and 10 inscription materials")
 end
-for _, br in ipairs(ns.RUNE_BRANCHES) do
-	for _, node in ipairs(br.nodes) do
-		check(ns.BONUS_TEXT[node.stat] or ns.AFFIX[node.stat], "rune " .. node.id .. ": unknown bonus " .. node.stat)
-		check(type(ns.BonusText(node.stat, node.per)) == "string", "rune text " .. node.id)
+-- TBH's rune tree: every rune on its own cell, joined to the first rune,
+-- each level with a value and a price, every stat read and coloured
+do
+	local R = ns.Runes
+	local n, cells, reach = 0, {}, {}
+	for id, node in pairs(R.byId) do
+		n = n + 1
+		local cell = node.x .. "," .. node.y
+		check(not cells[cell], "rune " .. id .. " shares its cell with rune " .. tostring(cells[cell]))
+		cells[cell] = id
+		check(node.group and node.group.rgb, "rune " .. id .. ": no kind")
+		check(#node.v == node.max and #node.c == node.max, "rune " .. id .. ": a value and a price per level")
+		for l = 1, node.max do
+			check((R.Cost(id, l) or 0) >= 1, "rune " .. id .. " level " .. l .. ": no price")
+			check(type(R.Text(id, R.Amount(id, l))) == "string" and type(R.Text(id, R.Amount(id, l), true)) == "string", "rune " .. id .. ": text")
+		end
+		local prev = R.prev[id]
+		if prev then
+			check(R.Need(id) >= 1 and R.Need(id) <= R.byId[prev].max, "rune " .. id .. ": needs a level its rune before has")
+			check(math.abs(node.x - R.byId[prev].x) <= 1 or node.x == R.byId[prev].x, "rune " .. id .. ": next to the rune before it")
+		else
+			check(id == ns.RUNE_FIRST, "only the first rune has none before it: " .. id)
+		end
+		local c = id
+		while R.prev[c] do c = R.prev[c] end
+		if c == ns.RUNE_FIRST then reach[#reach + 1] = id end
+	end
+	check(n == 197 and #reach == n, "TBH's 197 runes, all reached from the first: " .. n .. " / " .. #reach)
+	check(R.byId[ns.RUNE_FIRST].x == 0 and R.byId[ns.RUNE_FIRST].y == 0, "the first rune stands in the middle")
+	for _, def in pairs(ns.RUNE_STAT) do
+		check(def.flag or def.time or ns.BONUS_TEXT[def.key], "rune stat " .. def.key .. ": no text")
+		if def.flag then check(def.sum, "rune stat " .. def.key .. ": no short line") end
 	end
 end
 for _, pet in ipairs(ns.PETS) do
@@ -349,34 +390,30 @@ check(ns.Heroes.PartySlot(firstId) == 2, "damage dealer goes to slot 2")
 check(ns.Heroes.CreateCost() == ns.HERO_COST[2], "later heroes cost gold")
 check(not ns.Heroes.Create("PRIEST_HOLY"), "cannot create without gold")
 ns.AddGold(5e7)
+check(ns.PartyLimit() == 3, "a party of 3 before the 지휘 runes")
 do
 	local ok2, id2 = ns.Heroes.Create("PRIEST_HOLY")
-	check(ok2 and ns.Heroes.PartySlot(id2) == nil, "party limit is 1 before the Command rune")
+	check(ok2 and ns.Heroes.PartySlot(id2) ~= nil, "a second hero takes a free party seat")
 end
-check(ns.PartyLimit() == 1, "party limit starts at 1")
-for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7" }) do
-	local ok, why = ns.Runes.Buy(id)
-	check(ok, "buy rune " .. id .. ": " .. tostring(why))
-end
-check(ns.PartyLimit() == 5, "four Command runes give a party of 5")
--- the rune tree: root -> branch hub -> two lines, each rune needs the one before it
+-- the rune tree: each rune opens once the rune before it has the level it needs
 do
 	local R = ns.Runes
-	check(R.prev.w1 == "root" and R.prev.w2 == "w1" and R.prev.w3 == "w1", "a branch hub forks into two lines")
-	check(R.prev.w4 == "w2" and R.prev.w5 == "w3", "each line continues from its own rune")
-	local seen = 0
-	for _, br in ipairs(ns.RUNE_BRANCHES) do
-		local onTree = {}
-		for _, line in ipairs(ns.RUNE_TREE[br.key]) do for _, id in ipairs(line) do onTree[id] = (onTree[id] or 0) + 1 end end
-		for i, node in ipairs(br.nodes) do
-			seen = seen + 1
-			if i > 1 then check(onTree[node.id] == 1, "rune " .. node.id .. " sits on exactly one line") end
-		end
-	end
-	check(seen >= 50, "every branch has its runes")
-	check(not R.Available("w8"), "a rune deep in a line is closed before its line is learned")
+	check(R.Available(ns.RUNE_FIRST) and not R.Available(10), "only the first rune is open at the start")
+	local ok, why = R.Buy(21)
+	check(not ok and why:find(ns.N(R.byId[20].name), 1, true) and why:find("3레벨", 1, true), "buying a closed rune names the rune and level it needs: " .. tostring(why))
+	local step, total = R.NextStepTo(21)
+	check(step == ns.RUNE_FIRST and total == R.Cost(1, 1) + R.Cost(20, 1) + R.Cost(20, 2) + R.Cost(20, 3) + R.Cost(21, 1),
+		"the way to a rune: the runes before it to the levels they need, then the rune")
+	local g0 = db.gold
+	check(learnRune(1, 1) and R.Available(20) and not R.Available(21), "the first rune opens the ones after it")
+	check(learnRune(20, 2) and not R.Available(21), "a rune with no level named needs its rune before at the top")
+	check(learnRune(20, 3) and R.Available(21), "... and opens at it")
+	check(g0 - db.gold == R.Spent() and R.Spent() == total - R.Cost(21, 1), "gold spent is what the runes cost")
+	check(R.Text(1, R.Amount(1, 1)):find("+1", 1, true), "a rune reads its amount")
 end
-check(ns.SkillSlots() == 2, "Awakening rune gives a second skill slot")
+check(learnRune(21) and ns.PartyLimit() == 4, "a 지휘 rune adds a party seat")
+check(learnRune(24) and ns.PartyLimit() == 5, "the second 지휘 rune fills the party")
+check(ns.SkillSlots() == 2, "two skill slots from the start")
 check(ns.Heroes.Deploy(hero("PRIEST_HOLY")) and ns.Heroes.PartySlot(hero("PRIEST_HOLY")) == 5, "healer goes to slot 5")
 for _, sid in ipairs({ "WARRIOR_PROT", "DRUID_GUARDIAN", "MAGE_FIRE", "ROGUE_OUTLAW", "WARLOCK_AFF", "SHAMAN_RESTO", "DRUID_FERAL" }) do
 	check(ns.Heroes.Create(sid), "create " .. sid)
@@ -688,9 +725,12 @@ do
 	check(s0.atk > 0 and #ns.Stats.Sheet(R) > 8, "sheet rows")
 	-- account-wide gold / experience bonuses must not be counted once per hero
 	local g, e = ns.Bonus("gold"), ns.Bonus("exp")
-	ns.Runes.Buy("m1")
-	ns.Runes.Buy("x1")
-	check(ns.Bonus("gold") == g + 5 and ns.Bonus("exp") == e + 5, "wealth / growth runes raise the account bonus")
+	local gr, xr = ns.Runes.FirstFor("gold"), ns.Runes.FirstFor("exp")
+	local gl, xl = ns.Runes.Level(gr), ns.Runes.Level(xr)
+	check(learnRune(gr, gl + 1) and learnRune(xr, xl + 1), "learn a gold and an experience rune")
+	check(math.abs(ns.Bonus("gold") - g - (ns.Runes.Amount(gr, gl + 1) - ns.Runes.Amount(gr, gl))) < 1e-9
+		and math.abs(ns.Bonus("exp") - e - (ns.Runes.Amount(xr, xl + 1) - ns.Runes.Amount(xr, xl))) < 1e-9,
+		"gold / experience runes raise the account bonus")
 	local s = ns.Stats.Compute(R)
 	check(s.gold == 0 and s.exp == 0, "account gold / exp bonuses are not folded into hero stats")
 end
@@ -995,9 +1035,7 @@ section("combat: every specialization and every skill")
 db.bag = {}
 db.chests = {}
 db.prog = { 30, 30, 30, 30 }
-ns.Runes.Buy("c8")
-ns.Runes.Buy("c9")
-check(ns.SkillSlots() == 3, "third skill slot")
+check(learnRune(ns.Runes.FirstFor("skillSlot")) and ns.SkillSlots() == 3, "the 각성 rune gives a third skill slot")
 -- a fresh roster with one hero of every specialization
 for _, id in ipairs(ns.Heroes.List()) do db.heroes[id] = nil end
 db.party = { false, false, false, false, false }
@@ -1094,6 +1132,9 @@ check(#C.fx <= 40, "visual event list stays bounded")
 ------------------------------------------------------------------------
 section("offline rewards")
 db.rate = { gold = 10, xp = 5, level = 5 }
+db.lastSeen = 1000
+check(ns.Offline.Claim(1000 + 3600) == nil, "no offline rewards before the 안식 rune")
+check(learnRune(11001) and ns.OfflineOn(), "the 안식 rune turns offline rewards on")
 db.lastSeen = 1000
 local g1 = db.gold
 local r = ns.Offline.Claim(1000 + 3600)
@@ -1400,6 +1441,18 @@ BigWowIdleDB = { v = 2, gold = 11, heroes = {}, party = { false, false, false, f
 BigWowHeroesDB = { v = 2, gold = 22, heroes = {}, party = { false, false, false, false, false } }
 ns.InitDB()
 check(ns.db.gold == 11 and BigWowHeroesDB == nil, "a save under the new name wins over a leftover old one")
+-- a save from before TBH's runes: the runes are taken back and their gold returned
+BigWowIdleDB = { v = 6, gold = 1000, heroes = {}, party = { false, false, false, false, false },
+	runes = { root = 1, w1 = 2, c1 = 1, zz = 3 } }
+ns.loadNote = nil
+ns.InitDB()
+check(ns.db.gold == 1000 + 50 + 100 + 160 + 300 and next(ns.db.runes) == nil, "old runes are taken back, their gold returned: " .. ns.db.gold)
+check(ns.loadNote and ns.loadNote:find("610", 1, true), "the player is told how much: " .. tostring(ns.loadNote))
+ns.loadNote = nil
+BigWowIdleDB = { v = 7, gold = 5, heroes = {}, party = { false, false, false, false, false }, runes = { [1] = 9, [10] = 2, [999999] = 1 } }
+ns.InitDB()
+check(ns.db.gold == 5 and ns.db.runes[1] == 1 and ns.db.runes[10] == 2 and ns.db.runes[999999] == nil and ns.loadNote == nil,
+	"a current save keeps its runes, at most at their top level")
 -- a version 1 save: one hero per class, keyed by class
 BigWowIdleDB = {
 	v = 1, gold = 77,
@@ -1412,7 +1465,7 @@ BigWowIdleDB = {
 }
 ns.InitDB()
 db = ns.db
-check(db.v == 6 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
+check(db.v == 7 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
 do
 	local m, w = hero("MAGE_FIRE"), hero("WARRIOR_PROT")
 	check(m and w, "old heroes become heroes of the matching specialization")
@@ -1498,7 +1551,7 @@ end
 BigWowIdleDB = { gold = 3, heroes = { WARRIOR = { level = 20, xp = 0, tree = {}, skills = {},
 	gear = { head = { s = "head", l = 18, q = 2 } } } }, party = { "WARRIOR", false, false, false, false } }
 ns.InitDB()
-check(ns.Heroes.Count() == 1 and ns.db.v == 6, "a save without a version number, heroes keyed by class, is read as the first version")
+check(ns.Heroes.Count() == 1 and ns.db.v == 7, "a save without a version number, heroes keyed by class, is read as the first version")
 -- damaged values do not stop the load
 BigWowIdleDB = { v = 6, faction = "PIRATES", heroes = { h1 = { spec = "MAGE_FIRE", level = 30, name = "외자" } }, party = { false, "h1", false, false, false } }
 check(pcall(ns.InitDB) and ns.db.faction == nil and type(ns.db.heroes.h1.name) == "string", "an unknown faction with a one-word name loads")

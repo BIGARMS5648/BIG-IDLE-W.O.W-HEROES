@@ -1,167 +1,268 @@
--- Runes (룬): the root rune on top, the six branches as columns underneath
--- (전쟁 · 수호 · 재물 · 성장 · 탐험 · 지휘), each rune with its level and the
--- cost of the next one. Click a rune to see it in the card on the right and
--- learn it there; the card also lists the total of every learned rune
--- (a list that scrolls: mouse wheel, the bar on its right, or dragging the
--- bar's thumb).
--- A branch is its first rune and two lines that fork from it: the first
--- line runs straight down under it, the second follows, joined to the
--- first rune by a line along the column's left edge. So every rune's
--- requirement is the rune it is drawn joined to, above it.
+-- Runes (룬): the rune tree as a map. The first rune stands in the middle and
+-- the tree spreads from it in every direction; each rune is joined by a line
+-- to the rune before it (the one it needs). The map is larger than its box:
+-- the mouse wheel zooms in and out around the cursor, dragging moves it.
+--
+-- A rune's border colour is its kind (전투 · 골드 · 경험치 · 상자 · 가방 · 해금
+-- · 용광로, the key under the map); a rune that cannot be learned yet is
+-- grey; a rune at its top level has a green check in its lower right corner.
+-- Click a rune to see it in the card on the right and learn it there; the
+-- card also lists the total of every learned rune (a list that scrolls).
 -- Another screen can send the player to a rune ("…을(를) 배우면 열립니다 ·
--- 클릭: 룬 화면에서 보기"): that rune gets a red band behind its row, a red
--- glow and thick red rings, all pulsing, until another rune is picked.
+-- 클릭: 룬 화면에서 보기"): the map moves to it and red rings pulse around it
+-- until another rune is picked.
 local _, ns = ...
 
-local floor, max = math.floor, math.max
+local floor, max, min, sqrt, atan2 = math.floor, math.max, math.min, math.sqrt, math.atan2
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
 local R = ns.Runes
 local K = UI.K
 
-local COL_W = 112             -- one branch
-local COL_X = 10              -- room for the second line's joint on the left
-local NODE = 36               -- a rune
-local ROW_H = 45              -- between runes in a column
-local HEAD_Y = -50            -- the branch names
-local TOP = -78               -- the first rune of each branch
-local SIDE_X = COL_X + 6 * COL_W + 6 -- the card on the right
-local SIDE_W = K.W - SIDE_X
-local TEXT_W = COL_W - NODE - 10
+local CELL = 50               -- one step of the tree's grid, at zoom 1
+local NODE = 38               -- a rune
+local LINK_W = 3              -- the line between two runes
+local SIDE_W = 262            -- the card on the right
+local MAP_W = K.W - SIDE_W - 10
+local KEY_H = 26              -- the key under the map
+local MAP_H = K.H - KEY_H - 6
+local ZOOM_MAX, ZOOM_STEP = 1.6, 1.15
+local LEVEL_TEXT_ZOOM = 0.6   -- below this the levels on the runes are hidden
 local TOTAL_ROWS, TOTAL_STEP = 14, 15 -- the 보너스 합계 list
 local BAR_W = 6
+local GREY = { 0.34, 0.36, 0.42 }
 
-local function runeNode(page, node, x, y)
-	local b = CreateFrame("Button", nil, page)
+-- the tree's extent in cells
+local minX, maxX, minY, maxY = 0, 0, 0, 0
+for _, n in pairs(R.byId) do
+	minX, maxX = min(minX, n.x), max(maxX, n.x)
+	minY, maxY = min(minY, n.y), max(maxY, n.y)
+end
+
+------------------------------------------------------------------------
+-- The camera: the tree point at the middle of the map (cx, cy, in tree
+-- pixels at zoom 1) and the zoom.
+------------------------------------------------------------------------
+local function zoomMin()
+	local fit = min(MAP_W / ((maxX - minX + 2) * CELL), MAP_H / ((maxY - minY + 2) * CELL))
+	return max(0.3, min(1, fit))
+end
+
+-- The middle of the view along one axis: the tree (lo..hi, a cell of room
+-- around it) fills the view, or sits in its middle when it is smaller.
+local function clampAxis(c, lo, hi, half)
+	lo, hi = lo - CELL, hi + CELL
+	if hi - lo <= 2 * half then return (lo + hi) / 2 end
+	return U.clamp(c, lo + half, hi - half)
+end
+
+local function applyCamera(page)
+	local cam = page.cam
+	cam.z = U.clamp(cam.z, zoomMin(), ZOOM_MAX)
+	cam.x = clampAxis(cam.x, minX * CELL, maxX * CELL, MAP_W / 2 / cam.z)
+	cam.y = clampAxis(cam.y, minY * CELL, maxY * CELL, MAP_H / 2 / cam.z)
+	local canvas = page.canvas
+	canvas:SetScale(cam.z)
+	canvas:ClearAllPoints()
+	-- offsets are in the canvas's own (zoomed) units
+	canvas:SetPoint("CENTER", page.map, "CENTER", -cam.x, -cam.y)
+	local showLevels = cam.z >= LEVEL_TEXT_ZOOM
+	if page.levelsShown ~= showLevels then
+		page.levelsShown = showLevels
+		for _, b in ipairs(page.nodes) do b.lvl:SetShown(showLevels) end
+	end
+end
+
+-- The cursor, from the middle of the map, in the map's units.
+local function cursorOffset(page)
+	local map = page.map
+	local mx, my = GetCursorPosition()
+	local s = map:GetEffectiveScale()
+	local x, y = map:GetCenter()
+	return mx / s - (x or 0), my / s - (y or 0)
+end
+
+local function zoomAt(page, delta)
+	local cam = page.cam
+	local dx, dy = cursorOffset(page)
+	-- the tree point under the cursor stays under it
+	local tx, ty = cam.x + dx / cam.z, cam.y + dy / cam.z
+	local z = U.clamp(cam.z * ZOOM_STEP ^ delta, zoomMin(), ZOOM_MAX)
+	cam.z = z
+	cam.x, cam.y = tx - dx / z, ty - dy / z
+	applyCamera(page)
+end
+
+local function centerOn(page, id)
+	local n = R.byId[id]
+	if not n then return end
+	page.cam.x, page.cam.y = n.x * CELL, n.y * CELL
+	page.cam.z = max(page.cam.z, 1)
+	applyCamera(page)
+end
+
+-- Dragging: from a press on the map or on a rune; a press that moves more
+-- than a few pixels is a drag, not a click.
+local function beginDrag(page)
+	local dx, dy = cursorOffset(page)
+	page.drag = { mx = dx, my = dy, x = page.cam.x, y = page.cam.y }
+	page.dragged = false
+end
+
+local function followDrag(page)
+	local d = page.drag
+	if not d then return end
+	if IsMouseButtonDown and not IsMouseButtonDown("LeftButton") then page.drag = nil return end
+	local dx, dy = cursorOffset(page)
+	local ox, oy = dx - d.mx, dy - d.my
+	if not page.dragged and ox * ox + oy * oy < 16 then return end
+	page.dragged = true
+	page.cam.x, page.cam.y = d.x - ox / page.cam.z, d.y - oy / page.cam.z
+	applyCamera(page)
+end
+
+------------------------------------------------------------------------
+-- A rune on the map
+------------------------------------------------------------------------
+local function runeTip(self)
+	local n = self.node
+	local id = n.id
+	local lvl, cost = R.Level(id), R.NextCost(id)
+	local g = n.group
+	local lines = { { ns.N(n.name), string.format("%d / %d", lvl, n.max), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
+		{ ns.N(g.name), nil, g.rgb[1], g.rgb[2], g.rgb[3] } }
+	if lvl > 0 then lines[#lines + 1] = { "현재  " .. R.Text(id, R.Amount(id, lvl)), nil, 0.4, 1, 0.45 } end
+	if lvl < n.max then lines[#lines + 1] = { "다음 레벨  " .. R.Text(id, R.Amount(id, lvl + 1)), nil, 1, 1, 1 } end
+	if not R.Available(id) then
+		lines[#lines + 1] = { string.format("먼저 '%s'을(를) %d레벨까지 배워야 합니다", ns.N(R.byId[R.prev[id]].name), R.Need(id)), nil, 1, 0.55, 0.45 }
+	elseif cost then
+		lines[#lines + 1] = { "다음 레벨 비용", U.fmt(cost) .. " G", 0.8, 0.8, 0.85 }
+	end
+	lines[#lines + 1] = { "클릭: 오른쪽에서 보기", nil, 0.45, 0.8, 1 }
+	return lines
+end
+
+local function runeNode(page, node)
+	local canvas = page.canvas
+	local b = CreateFrame("Button", nil, canvas)
 	b:SetSize(NODE, NODE)
-	b:SetPoint("TOPLEFT", page, "TOPLEFT", x, y)
-	-- layers: the marker's band (+1) < runes (+2) < their texts (+3) < the marker's rings (+5)
-	b:SetFrameLevel(page:GetFrameLevel() + 2)
-	b.disc = UI.Art(b, "circle", "BACKGROUND", 0.05, 0.06, 0.1)
-	b.disc:SetAllPoints(b)
+	b:SetPoint("CENTER", canvas, "CENTER", node.x * CELL, node.y * CELL)
+	-- layers: lines (on the canvas) < runes (+2) < the marker's rings (+5)
+	b:SetFrameLevel(canvas:GetFrameLevel() + 2)
+	b.isItem = true
+	b.glow = UI.Art(b, "glow", "BACKGROUND", 1, 0.82, 0.3, 0.85) -- can be learned now
+	b.glow:SetPoint("TOPLEFT", b, "TOPLEFT", -9, 9)
+	b.glow:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 9, -9)
+	b.glow:Hide()
+	b.bg = b:CreateTexture(nil, "BACKGROUND", nil, 1)
+	b.bg:SetAllPoints(b)
+	UI.Fill(b.bg, 0.04, 0.05, 0.08, 1)
 	b.icon = b:CreateTexture(nil, "ARTWORK")
-	b.icon:SetPoint("TOPLEFT", b, "TOPLEFT", 5, -5)
-	b.icon:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -5, 5)
+	b.icon:SetPoint("TOPLEFT", b, "TOPLEFT", 3, -3)
+	b.icon:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -3, 3)
 	UI.SetIcon(b.icon, node.icon)
-	b.ringT = UI.Art(b, "ring", "OVERLAY")
-	b.ringT:SetAllPoints(b)
-	b.hl = UI.Art(b, "glow", "BACKGROUND", 1, 0.85, 0.35, 0.9)
-	b.hl:SetPoint("TOPLEFT", b, "TOPLEFT", -10, 10)
-	b.hl:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 10, -10)
-	b.hl:Hide()
-	b.text = UI.Text(page.textLayer, 11)
-	b.text:SetPoint("LEFT", b, "RIGHT", 6, 0)
-	b.text:SetWidth(TEXT_W)
-	b.text:SetJustifyH("LEFT")
-	b.badge = UI.Badge(b, 14)
+	-- the border, in the rune's colour (twice, for a thicker line)
+	b.border = UI.Art(b, "frame", "OVERLAY")
+	b.border:SetAllPoints(b)
+	b.border2 = UI.Art(b, "frame", "OVERLAY")
+	b.border2:SetPoint("TOPLEFT", b, "TOPLEFT", 1, -1)
+	b.border2:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -1, 1)
+	-- the chosen rune: a gold frame around it
+	b.sel = UI.Art(b, "frame", "OVERLAY", 1, 0.86, 0.35)
+	b.sel:SetPoint("TOPLEFT", b, "TOPLEFT", -4, 4)
+	b.sel:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 4, -4)
+	b.sel:Hide()
+	b.lvl = UI.Text(b, 10, nil, "OUTLINE")
+	b.lvl:SetPoint("BOTTOM", b, "BOTTOM", 0, 4)
+	b.lvl:SetJustifyH("CENTER")
+	b.check = UI.Glyph(b, "check", 18, 0.3, 1, 0.38, "OVERLAY")
+	b.check:SetDrawLayer("OVERLAY", 3)
+	b.check:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 5, -5)
+	b.check:Hide()
 	b.node = node
 	b:RegisterForClicks("LeftButtonUp")
+	b:SetScript("OnMouseDown", function() beginDrag(page) end)
+	b:EnableMouseWheel(true)
+	b:SetScript("OnMouseWheel", function(_, delta) zoomAt(page, delta) end)
 	b:SetScript("OnClick", function(self)
+		if page.dragged then return end -- the end of a drag
 		ns.Sound("click")
 		page.sel = self.node.id
 		if page.focus ~= self.node.id then page.focus = nil end
 		Main.Refresh()
 	end)
-	b.onEnter = function(self) self.hl:Show() end
-	b.onLeave = function(self) if page.sel ~= self.node.id or page.focus == self.node.id then self.hl:Hide() end end
+	b.onEnter = function(self) self.sel:Show() end
+	b.onLeave = function(self) if page.sel ~= self.node.id then self.sel:Hide() end end
 	b:SetScript("OnEnter", function(self) self.onEnter(self) end)
 	b:SetScript("OnLeave", function(self) self.onLeave(self) end)
-	UI.Tip(b, function(self)
-		local n = self.node
-		local lvl, cost = R.Level(n.id), R.NextCost(n.id)
-		local lines = { { ns.N(n.name), string.format("%d / %d", lvl, n.max), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
-			{ "레벨당 " .. ns.BonusText(n.stat, n.per), nil, 1, 1, 1 } }
-		if lvl > 0 then lines[#lines + 1] = { "지금 " .. ns.BonusText(n.stat, n.per * lvl), nil, 0.4, 1, 0.45 } end
-		if not R.Available(n.id) then
-			local step = R.NextStepTo(n.id)
-			local first = step and R.byId[step]
-			lines[#lines + 1] = { first and string.format("먼저 '%s'을(를) 배워야 합니다", ns.N(first.name)) or "먼저 위의 룬을 배워야 합니다", nil, 1, 0.55, 0.45 }
-		elseif cost then
-			lines[#lines + 1] = { "다음 레벨", U.fmt(cost) .. " G", 0.8, 0.8, 0.85 }
-		end
-		lines[#lines + 1] = { "클릭: 오른쪽에서 보기", nil, 0.45, 0.8, 1 }
-		return lines
-	end, "TOP")
+	UI.Tip(b, runeTip, "TOP")
 	return b
 end
 
+-- The line from the rune before (a) to a rune (b), under the runes.
+local function link(canvas, a, b)
+	local dx, dy = (b.x - a.x) * CELL, (b.y - a.y) * CELL
+	local t = canvas:CreateTexture(nil, "BORDER")
+	t:SetPoint("CENTER", canvas, "CENTER", (a.x + b.x) / 2 * CELL, (a.y + b.y) / 2 * CELL)
+	if dx == 0 then
+		t:SetSize(LINK_W, math.abs(dy))
+	elseif dy == 0 then
+		t:SetSize(math.abs(dx), LINK_W)
+	else
+		t:SetSize(sqrt(dx * dx + dy * dy), LINK_W)
+		t:SetRotation(atan2(dy, dx))
+	end
+	return t
+end
+
+------------------------------------------------------------------------
+-- The page
+------------------------------------------------------------------------
 local function build(page)
-	page.sel = "root"
-	page.textLayer = CreateFrame("Frame", nil, page)
-	page.textLayer:SetAllPoints(page)
-	page.textLayer:SetFrameLevel(page:GetFrameLevel() + 3)
-	page.nodes = {}
-	-- the root, over the middle of the branches
-	page.root = runeNode(page, ns.RUNE_ROOT, COL_X + 3 * COL_W - NODE / 2 - 4, -4)
-	page.nodes[1] = page.root
+	page.sel = ns.RUNE_FIRST
+	page.cam = { x = 0, y = 0, z = 1 }
 
-	local function bar(x, y, w, h, r, g, b)
-		local t = page:CreateTexture(nil, "BORDER")
-		t:SetSize(w, h)
-		t:SetPoint("TOPLEFT", page, "TOPLEFT", x, y)
-		UI.Fill(t, r * 0.5, g * 0.5, b * 0.5, 0.9)
-		return t
-	end
-	for ci, br in ipairs(ns.RUNE_BRANCHES) do
-		local x = COL_X + (ci - 1) * COL_W
-		local r, g, b = U.rgb(br.hex)
-		local head = UI.Pill(page, COL_W - 10, 22, r * 0.45, g * 0.45, b * 0.45, 0.95)
-		head:SetLabel(ns.N(br.name))
-		head:SetPoint("TOPLEFT", page, "TOPLEFT", x, HEAD_Y)
-		-- the column: the first rune, its first line, then its second line
-		local hub = br.nodes[1]
-		local lines = ns.RUNE_TREE[br.key]
-		local order = { { node = hub } }
-		for li, line in ipairs(lines) do
-			for k, id in ipairs(line) do order[#order + 1] = { node = R.byId[id], line = li, first = (k == 1) } end
-		end
-		local hubY = TOP
-		for ri, e in ipairs(order) do
-			local y = TOP - (ri - 1) * ROW_H
-			local links
-			if ri > 1 then
-				if e.line == 2 and e.first then
-					-- joined to the first rune along the left edge, past the first line
-					local gx = x - 7
-					links = {
-						bar(gx, hubY - NODE / 2 + 1, 7, 3, r, g, b),
-						bar(gx, hubY - NODE / 2 + 1, 3, (hubY - y) + 3, r, g, b),
-						bar(gx, y - NODE / 2 + 1, 7, 3, r, g, b),
-					}
-				else
-					links = { bar(x + NODE / 2 - 1, y + ROW_H - NODE + 1, 3, ROW_H - NODE + 2, r, g, b) }
-				end
-			end
-			local nb = runeNode(page, e.node, x, y)
-			nb.links = links
-			page.nodes[#page.nodes + 1] = nb
-		end
+	-- the map: a box that shows part of the tree
+	local map = CreateFrame("Frame", nil, page)
+	map:SetSize(MAP_W, MAP_H)
+	map:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
+	map:SetClipsChildren(true)
+	map:EnableMouse(true)
+	map:EnableMouseWheel(true)
+	map.bg = UI.Slice(map, "inset", "BACKGROUND")
+	map:SetScript("OnMouseDown", function() beginDrag(page) end)
+	map:SetScript("OnMouseUp", function() page.drag = nil end)
+	map:SetScript("OnMouseWheel", function(_, delta) zoomAt(page, delta) end)
+	map:SetScript("OnUpdate", function() followDrag(page) end)
+	page.map = map
+
+	local canvas = CreateFrame("Frame", nil, map)
+	canvas:SetSize(1, 1)
+	canvas:SetFrameLevel(map:GetFrameLevel() + 1)
+	page.canvas = canvas
+
+	page.nodes, page.byId = {}, {}
+	local ids = {}
+	for id in pairs(R.byId) do ids[#ids + 1] = id end
+	table.sort(ids)
+	for _, id in ipairs(ids) do
+		local node = R.byId[id]
+		local b = runeNode(page, node)
+		local prev = R.prev[id]
+		if prev then b.link = link(canvas, R.byId[prev], node) end
+		page.nodes[#page.nodes + 1] = b
+		page.byId[id] = b
 	end
 
-	-- the rune another screen sent us to:
-	--   behind the row (under the rune and its text): a red band and a red
-	--   glow, both breathing; over the rune: thick red rings that grow and
-	--   shrink. The icon and the text stay readable.
-	local back = CreateFrame("Frame", nil, page)
-	back:SetSize(COL_W - 4, NODE + 10)
-	back:SetFrameLevel(page:GetFrameLevel() + 1)
-	back.isOverlay = true
-	back.band = UI.Slice(back, "pill", "BACKGROUND", 0)
-	back.band:SetColor(0.85, 0.08, 0.06, 0.5)
-	back.glow = UI.Art(back, "glow", "BORDER", 1, 0.15, 0.1, 1)
-	back.glow:SetSize(NODE + 44, NODE + 44)
-	back.glow:SetPoint("CENTER", back, "LEFT", 4 + NODE / 2, 0)
-	back:Hide()
-	page.focusBack = back
-
-	local fx = CreateFrame("Frame", nil, page)
+	-- the rune another screen sent us to: red rings that grow and shrink
+	-- around it (the icon stays visible inside)
+	local fx = CreateFrame("Frame", nil, canvas)
 	fx:SetSize(NODE + 10, NODE + 10)
-	fx:SetFrameLevel(page:GetFrameLevel() + 5)
+	fx:SetFrameLevel(canvas:GetFrameLevel() + 5)
 	fx.isOverlay = true -- drawn over its rune on purpose
-	-- rings only: the rune's icon stays visible inside
 	fx.rings = {}
 	for i, c in ipairs({ { 1, 0.12, 0.08 }, { 1, 0.3, 0.22 }, { 1, 0.55, 0.45 } }) do
-		local t = UI.Art(fx, "ring", "OVERLAY", c[1], c[2], c[3])
+		local t = UI.Art(fx, "frame", "OVERLAY", c[1], c[2], c[3])
 		t:SetPoint("TOPLEFT", fx, "TOPLEFT", i - 1, -(i - 1))
 		t:SetPoint("BOTTOMRIGHT", fx, "BOTTOMRIGHT", -(i - 1), i - 1)
 		fx.rings[i] = t
@@ -171,14 +272,31 @@ local function build(page)
 		local size = NODE + 8 + 8 * s -- 4 to 8 pixels around the rune
 		self:SetSize(size, size)
 		for _, t in ipairs(self.rings) do t:SetAlpha(0.7 + 0.3 * s) end
-		back:SetAlpha(0.45 + 0.55 * s) -- the band and the glow breathe together
 	end)
 	fx:Hide()
 	page.focusFx = fx
 
+	-- under the map: what the border colours mean, and how to move the map
+	local key = CreateFrame("Frame", nil, page)
+	key:SetSize(MAP_W, KEY_H)
+	key:SetPoint("TOPLEFT", map, "BOTTOMLEFT", 0, -6)
+	local x = 8
+	for _, g in ipairs(ns.RUNE_GROUPS) do
+		local sw = UI.Art(key, "frame", "ARTWORK", g.rgb[1], g.rgb[2], g.rgb[3])
+		sw:SetSize(14, 14)
+		sw:SetPoint("LEFT", key, "LEFT", x, 0)
+		local t = UI.Text(key, 11, ns.N(g.name))
+		t:SetPoint("LEFT", sw, "RIGHT", 6, 0)
+		x = x + 14 + 6 + t:GetStringWidth() + 14
+	end
+	local hint = UI.Text(key, 10, "휠: 확대·축소  ·  끌기: 이동")
+	hint:SetPoint("RIGHT", key, "RIGHT", -8, 0)
+	UI.Color(hint, UI.C.dim)
+	page.key = key
+
 	-- the card on the right
 	local side = UI.Panel(page, SIDE_W, K.H, "card")
-	side:SetPoint("TOPLEFT", page, "TOPLEFT", SIDE_X, 0)
+	side:SetPoint("TOPLEFT", page, "TOPLEFT", MAP_W + 10, 0)
 	page.side = side
 	local IW = SIDE_W - 28
 	side.icon = UI.IconButton(side, 48)
@@ -191,14 +309,14 @@ local function build(page)
 	side.lvl = UI.Text(side, 11)
 	side.lvl:SetPoint("TOPLEFT", side, "TOPLEFT", 72, -42)
 	UI.Color(side.lvl, UI.C.sub)
-	side.per = UI.Text(side, 12)
-	side.per:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -80)
-	side.per:SetWidth(IW)
 	side.now = UI.Text(side, 12)
-	side.now:SetPoint("TOPLEFT", side.per, "BOTTOMLEFT", 0, -6)
+	side.now:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -78)
 	side.now:SetWidth(IW)
+	side.nxt = UI.Text(side, 12)
+	side.nxt:SetPoint("TOPLEFT", side.now, "BOTTOMLEFT", 0, -6)
+	side.nxt:SetWidth(IW)
 	side.req = UI.Text(side, 11)
-	side.req:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -124)
+	side.req:SetPoint("TOPLEFT", side.nxt, "BOTTOMLEFT", 0, -8)
 	side.req:SetWidth(IW)
 	side.req:SetJustifyV("TOP")
 	side.goPrev = UI.Button(side, IW, 26, "먼저 배울 룬 보기", function()
@@ -206,21 +324,22 @@ local function build(page)
 		if step then
 			page.sel = step
 			if page.focus then page.focus = step end -- the marker follows the way there
+			centerOn(page, step)
 		end
 		Main.Refresh()
 	end, "blue")
-	side.goPrev:SetPoint("TOP", side, "TOP", 0, -186)
+	side.goPrev:SetPoint("TOP", side, "TOP", 0, -196)
 	side.buy = UI.Button(side, IW, 40, "", function()
 		UI.Try(R.Buy(page.sel))
 		Main.Refresh()
 	end, "primary")
-	side.buy:SetPoint("TOP", side, "TOP", 0, -220)
+	side.buy:SetPoint("TOP", side, "TOP", 0, -228)
 	side.buy.clickWhenOff = true
 	side.totalHead = UI.Section(side, IW, "보너스 합계")
-	side.totalHead:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -278)
+	side.totalHead:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -284)
 	-- the list: TOTAL_ROWS lines from page.totalOff, and a scroll bar
 	local box = CreateFrame("Frame", nil, side)
-	box:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -304)
+	box:SetPoint("TOPLEFT", side, "TOPLEFT", 14, -310)
 	box:SetSize(IW, TOTAL_ROWS * TOTAL_STEP)
 	box:EnableMouseWheel(true)
 	side.totalBox = box
@@ -282,69 +401,64 @@ local function build(page)
 	side.note:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 14, 12)
 	side.note:SetWidth(IW)
 	UI.Color(side.note, UI.C.dim)
-end
 
-local function nodeState(id)
-	local node = R.byId[id]
-	local lvl = R.Level(id)
-	local cost = R.NextCost(id)
-	return node, lvl, cost, R.Available(id)
+	page.zoomAt = function(delta) zoomAt(page, delta) end
+	page.centerOn = function(id) centerOn(page, id) end
+	applyCamera(page)
 end
 
 local function refresh(page)
 	local focusB
 	for _, b in ipairs(page.nodes) do
-		local node, lvl, cost, available = nodeState(b.node.id)
-		local affordable = cost and available and ns.CanAfford(cost)
-		if lvl >= node.max then
-			b.ringT:SetVertexColor(0.4, 0.95, 0.5)
-		elseif affordable then
-			b.ringT:SetVertexColor(1, 0.82, 0.3)
-		elseif lvl > 0 then
-			b.ringT:SetVertexColor(0.45, 0.7, 1)
-		else
-			b.ringT:SetVertexColor(0.3, 0.33, 0.42)
+		local node = b.node
+		local id = node.id
+		local lvl, cost, open = R.Level(id), R.NextCost(id), R.Available(id)
+		local rgb = open and node.group.rgb or GREY
+		b.border:SetVertexColor(rgb[1], rgb[2], rgb[3])
+		b.border2:SetVertexColor(rgb[1], rgb[2], rgb[3])
+		b.icon:SetDesaturated(not open)
+		b.icon:SetAlpha(open and 1 or 0.45)
+		local full = lvl >= node.max
+		b.check:SetShown(full)
+		b.lvl:SetText(full and "" or (lvl .. "/" .. node.max))
+		b.lvl:SetTextColor(lvl > 0 and 1 or 0.62, lvl > 0 and 1 or 0.65, lvl > 0 and 1 or 0.72)
+		b.glow:SetShown(open and cost ~= nil and ns.CanAfford(cost))
+		if b.link then
+			if open then
+				b.link:SetColorTexture(rgb[1] * 0.8, rgb[2] * 0.8, rgb[3] * 0.8, 0.95)
+			else
+				b.link:SetColorTexture(0.24, 0.26, 0.31, 0.9)
+			end
 		end
-		b.icon:SetDesaturated(not available)
-		b.icon:SetAlpha(available and 1 or 0.45)
-		for _, l in ipairs(b.links or {}) do l:SetAlpha(lvl > 0 and 1 or 0.35) end
-		local line = U.col(lvl >= node.max and "6af07a" or (lvl > 0 and "ffffff" or "8a90a2"), lvl .. "/" .. node.max)
-		if cost then
-			line = line .. "\n" .. U.col(affordable and "ffd24a" or "7a6a40", U.fmt(cost))
-		end
-		b.text:SetText(line)
-		b.badge:Set(affordable and lvl == 0)
-		if page.focus == b.node.id then
-			b.hl:Hide()
-			b.ringT:SetVertexColor(1, 0.25, 0.2) -- its own border turns red too
-			focusB = b
-		elseif page.sel == b.node.id then b.hl:Show() elseif not b:IsMouseOver() then b.hl:Hide() end
+		if page.focus == id then focusB = b end
+		if page.sel == id then b.sel:Show() elseif not b:IsMouseOver() then b.sel:Hide() end
 	end
-	local fx, back = page.focusFx, page.focusBack
+	local fx = page.focusFx
 	if focusB then
 		fx:ClearAllPoints()
 		fx:SetPoint("CENTER", focusB, "CENTER", 0, 0)
 		fx:Show()
-		back:ClearAllPoints()
-		back:SetPoint("LEFT", focusB, "LEFT", -5, 0)
-		back:Show()
 	else
 		fx:Hide()
-		back:Hide()
 	end
 
 	local side = page.side
-	local node, lvl, cost, available = nodeState(page.sel)
+	local id = page.sel
+	local node = R.byId[id]
+	local lvl, cost, open = R.Level(id), R.NextCost(id), R.Available(id)
+	local g = node.group
 	side.icon:SetIconName(node.icon)
-	side.icon:SetBorderRGB(lvl > 0 and 0.45 or 0.3, lvl > 0 and 0.7 or 0.33, lvl > 0 and 1 or 0.42)
+	local rgb = open and g.rgb or GREY
+	side.icon:SetBorderRGB(rgb[1], rgb[2], rgb[3])
 	side.name:SetText(ns.N(node.name))
-	side.lvl:SetText(string.format("레벨 %d / %d", lvl, node.max))
-	side.per:SetText("레벨당  " .. U.col("ffffff", ns.BonusText(node.stat, node.per)))
-	side.now:SetText(lvl > 0 and ("현재  " .. U.col("6af07a", ns.BonusText(node.stat, node.per * lvl))) or "")
-	if not available then
-		local step, total = R.NextStepTo(page.sel)
+	side.lvl:SetText(U.col(U.hex(g.rgb[1], g.rgb[2], g.rgb[3]), ns.N(g.name)) .. "  ·  " .. string.format("레벨 %d / %d", lvl, node.max))
+	side.now:SetText("현재  " .. (lvl > 0 and U.col("6af07a", R.Text(id, R.Amount(id, lvl))) or U.col("8a90a2", "배우지 않음")))
+	side.nxt:SetText(lvl < node.max and ("다음 레벨  " .. U.col("ffffff", R.Text(id, R.Amount(id, lvl + 1)))) or U.col("6af07a", "최대 레벨입니다"))
+	if not open then
+		local step, total = R.NextStepTo(id)
 		local first = R.byId[step]
-		side.req:SetText(U.col("ff6a5a", string.format("먼저 '%s'(%s G)을(를) 배워야 합니다.", ns.N(first.name), U.fmt(R.NextCost(step) or 0)))
+		side.req:SetText(U.col("ff6a5a", string.format("먼저 '%s'을(를) %d레벨까지 배워야 합니다.", ns.N(R.byId[R.prev[id]].name), R.Need(id)))
+			.. "\n" .. U.col("aab3c8", string.format("다음에 배울 룬: '%s' (%s G)", ns.N(first.name), U.fmt(R.NextCost(step) or 0)))
 			.. "\n" .. U.col("aab3c8", string.format("여기까지 모두 %s G", U.fmt(total))))
 		side.goPrev:Show()
 	else
@@ -353,23 +467,38 @@ local function refresh(page)
 	end
 	if cost then
 		side.buy:SetLabel("배우기  " .. U.fmt(cost) .. " G")
-		side.buy:SetOff(not available or not ns.CanAfford(cost))
+		side.buy:SetOff(not open or not ns.CanAfford(cost))
 	else
 		side.buy:SetLabel("최대 레벨")
 		side.buy:SetOff(true)
 	end
 
-	-- every learned rune added up (companions have their own screen)
-	local sums = {}
-	for id, lv in pairs(ns.db.runes) do
-		local n = R.byId[id]
-		if n and lv > 0 then sums[n.stat] = (sums[n.stat] or 0) + n.per * lv end
+	-- every learned rune added up, by what it gives (companions have their own screen)
+	local sums, some = {}, {}
+	for rid, lv in pairs(ns.db.runes) do
+		local n = R.byId[rid]
+		if n and lv > 0 then
+			sums[n.kind] = (sums[n.kind] or 0) + R.Amount(rid, lv)
+			some[n.kind] = some[n.kind] or rid
+		end
 	end
-	local keys = {}
-	for k in pairs(sums) do keys[#keys + 1] = k end
-	table.sort(keys)
+	local kinds = {}
+	for k in pairs(sums) do kinds[#kinds + 1] = k end
+	-- grouped like the key under the map, then by what they read
+	local order = {}
+	for i, gr in ipairs(ns.RUNE_GROUPS) do order[gr.key] = i end
+	local texts = {}
+	for _, k in ipairs(kinds) do texts[k] = R.Text(some[k], sums[k], true) end
+	table.sort(kinds, function(a, b)
+		local ga, gb = order[R.byId[some[a]].group.key], order[R.byId[some[b]].group.key]
+		if ga ~= gb then return ga < gb end
+		return texts[a] < texts[b]
+	end)
 	local parts = {}
-	for _, k in ipairs(keys) do parts[#parts + 1] = ns.BonusText(k, sums[k]) end
+	for _, k in ipairs(kinds) do
+		local gr = R.byId[some[k]].group
+		parts[#parts + 1] = U.col(U.hex(gr.rgb[1], gr.rgb[2], gr.rgb[3]), "■ ") .. texts[k]
+	end
 	if #parts == 0 then parts[1] = U.col("8a90a2", "아직 배운 룬이 없습니다.") end
 	local n = #parts
 	page.totalN = n
@@ -390,6 +519,7 @@ local function open(page, opts)
 	if opts and opts.rune and R.byId[opts.rune] then
 		page.sel = opts.rune
 		page.focus = opts.rune
+		centerOn(page, opts.rune)
 	else
 		page.focus = nil -- opened from the menu: nothing to point at
 	end

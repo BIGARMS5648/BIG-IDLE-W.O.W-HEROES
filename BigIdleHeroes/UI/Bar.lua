@@ -1327,13 +1327,19 @@ local function chestTip(self)
 	else
 		lines[#lines + 1] = { "각 막의 마지막 공격대 우두머리가 떨어뜨립니다.", nil, 0.8, 0.8, 0.8 }
 	end
-	if ns.Bonus("autoOpen") > 0 then
+	if ns.Loot.AutoOn(t) then
 		local left = max(0, ns.Loot.AutoInterval(t) - (ns.db.autoT[t] or 0))
-		lines[#lines + 1] = { "자동 개봉까지", U.time(left), 0.5, 1, 0.5 }
+		lines[#lines + 1] = { "자동 열기까지", U.time(left), 0.5, 1, 0.5 }
 	else
-		lines[#lines + 1] = { "'개봉의 룬'을 배우면 자동으로 열립니다.", nil, 0.6, 0.6, 0.6 }
+		lines[#lines + 1] = { "'태엽의 룬'을 배우면 자동으로 열립니다.", nil, 0.6, 0.6, 0.6 }
 	end
-	lines[#lines + 1] = { "클릭: 모두 열기", nil, 0.45, 0.8, 1 }
+	lines[#lines + 1] = { "클릭: 1개 열기", nil, 0.45, 0.8, 1 }
+	if ns.Loot.CanOpen("kind") then
+		lines[#lines + 1] = { "오른쪽 클릭: 이 상자 모두 열기", nil, 0.45, 0.8, 1 }
+	end
+	if ns.Loot.CanOpen("all") then
+		lines[#lines + 1] = { "Shift+클릭: 모든 상자 열기", nil, 0.45, 0.8, 1 }
+	end
 	return lines
 end
 
@@ -1693,8 +1699,9 @@ function Bar.Create()
 
 	frame.chests = {}
 	for t = 1, #ns.CHEST do
-		local cb = UI.IconButton(dock, 38, function(self)
-			ns.Loot.OpenAll(self.chestType)
+		local cb = UI.IconButton(dock, 38, function(self, button)
+			local how = (IsShiftKeyDown and IsShiftKeyDown()) and "all" or (button == "RightButton" and "kind" or "one")
+			ns.Loot.OpenByHand(self.chestType, how)
 			UI.RefreshTip()
 		end)
 		cb.chestType = t

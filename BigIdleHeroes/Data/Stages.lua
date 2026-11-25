@@ -430,7 +430,9 @@ ns.WAVE_CAP = { 4, 5, 6, 7 }
 ns.MAX_WAVE_MOBS = 7
 function ns.StageKills(diff, idx)
 	local t = ns.TBH.STAGES[diff][idx]
-	return t.waves * t.per
+	-- (a rune takes a wave off every stage)
+	local fewer = ns.db and ns.Bonus and math.min(t.waves - 1, ns.Bonus("waves")) or 0
+	return (t.waves - fewer) * t.per
 end
 function ns.MobsPerWave(diff, idx)
 	return math.min(ns.WAVE_CAP[diff] or ns.MAX_WAVE_MOBS, ns.TBH.STAGES[diff][idx].per)

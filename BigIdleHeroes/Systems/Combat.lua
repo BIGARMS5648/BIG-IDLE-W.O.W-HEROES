@@ -275,20 +275,29 @@ local function killReward(m, killer)
 	local db = ns.db
 	local goldPct = ns.Bonus("gold")
 	for i = 1, #heroes do goldPct = goldPct + (heroes[i].s.gold or 0) end
-	local gold = m.gold * (1 + goldPct / 100)
-	if m.boss then gold = gold * (1 + ns.Bonus("bossGold") / 100) end
+	-- the runes' gold and experience on top: every kill, then by kind (a
+	-- monster, a stage's boss, an act's boss); the gold bonus counts them too
+	local addG, addX = ns.Bonus("goldKill"), ns.Bonus("expKill")
+	if m.boss then
+		local k = st.raid and "Act" or "Boss"
+		addG, addX = addG + ns.Bonus("gold" .. k), addX + ns.Bonus("exp" .. k)
+	elseif not m.summoned then
+		addG, addX = addG + ns.Bonus("goldMob"), addX + ns.Bonus("expMob")
+	end
+	local gold = (m.gold + addG) * (1 + goldPct / 100)
 	gold = max(1, floor(gold + 0.5))
+	local exp = m.exp + addX
 	ns.AddGold(gold)
 	st.gGold = st.gGold + gold
-	st.gXP = st.gXP + m.exp
+	st.gXP = st.gXP + exp
 	Combat.earn.g = Combat.earn.g + gold
-	Combat.earn.x = Combat.earn.x + m.exp
+	Combat.earn.x = Combat.earn.x + exp
 
 	local expBonus = ns.Bonus("exp")
 	for i = 1, #heroes do
 		local u = heroes[i]
 		local h = db.heroes[u.id]
-		local amount = m.exp * (1 + (expBonus + (u.s.exp or 0)) / 100) * ns.Heroes.XPFactor(h.level, st.level)
+		local amount = exp * (1 + (expBonus + (u.s.exp or 0)) / 100) * ns.Heroes.XPFactor(h.level, st.level)
 		if ns.Heroes.AddXP(u.id, amount) > 0 then
 			fx(u.x, "레벨 업!", 1, 0.85, 0.1, true, "hero")
 			ns.Sound("level")
@@ -300,13 +309,13 @@ local function killReward(m, killer)
 	db.stat.kills = db.stat.kills + 1
 	ns.CheckPets()
 
-	-- the stage's TBH boxes: the monster box at its rate each kill (more with
-	-- the chest bonus), the boss box at its rate (an act boss always drops
-	-- its box), and a second boss box by the bonus
+	-- the stage's TBH boxes: the monster box at its rate each kill and the
+	-- boss box at its rate (an act boss always drops its box), both raised by
+	-- their runes, and a second boss box by the companions' bonus
 	local tb = ns.TBH.STAGES[st.diff][st.idx]
 	if m.boss then
 		local chest = st.raid and 3 or 2
-		if random() * 1000 < tb.brate then
+		if random() * 1000 < tb.brate * (1 + ns.Bonus("bossRate") / 100) then
 			if not ns.Loot.AddChest(chest, st.level, st.diff, tb.bbox) then ns.Loot.Lost(chest) end
 		end
 		if random() * 100 < ns.Bonus("bossChest") then

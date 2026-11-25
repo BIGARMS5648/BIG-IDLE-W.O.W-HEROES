@@ -176,8 +176,19 @@ local function enrich(round)
 	end
 end
 
+-- learns a rune to a level (its top level by default), the runes before it first
+local function learnRune(id, lvl)
+	local R = ns.Runes
+	lvl = lvl or R.byId[id].max
+	for _ = 1, 1000 do
+		if R.Level(id) >= lvl then return true end
+		if not R.Buy(R.NextStepTo(id)) then return false end
+	end
+	return false
+end
 ns.AddGold(5e9)
-for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7", "e1", "e2", "e3" }) do ns.Runes.Buy(id) end
+-- party seats, automatic chest opening, offline rewards, opening a kind at once
+for _, id in ipairs({ 21, 24, 13002, 11001, 1021 }) do learnRune(id) end
 for _, sid in ipairs({ "WARRIOR_PROT", "PRIEST_HOLY", "MAGE_FIRE", "ROGUE_ASSA", "DRUID_GUARDIAN", "SHAMAN_RESTO", "WARLOCK_DEMO", "PALADIN_HOLY" }) do H.Create(sid) end
 for _, id in ipairs(H.List()) do H.AddXP(id, 3e6) end
 enrich(1)
@@ -768,29 +779,90 @@ do
 	hoverAll()
 end
 
--- runes: the tree; pick a rune, learn it from the bar
+-- runes: the tree map; pick a rune, learn it from the card, move the map
 do
 	Main.ShowTab("runes")
 	local rp = Main.Page("runes")
-	local lvl = ns.Runes.Level("w1")
-	click("rune w1", function(b) return b.node and b.node.id == "w1" end)
-	if rp.sel ~= "w1" then fail("clicking a rune should select it") end
+	local R = ns.Runes
+	local function node(id) return rp.byId[id] end
+	learnRune(1)
+	ns.db.runes[10] = nil
+	R.Invalidate()
+	Main.Refresh()
+	click("rune 10", function(b) return b.node and b.node.id == 10 end)
+	if rp.sel ~= 10 then fail("clicking a rune should select it") end
 	press("learn", rp.side.buy)
-	if ns.Runes.Level("w1") ~= lvl + 1 then fail("learning a rune did not work") end
-	if not ns.Runes.Available("w2") or not ns.Runes.Available("w3") then fail("a branch hub should open both of its lines") end
-	if ns.Runes.Available("w4") and ns.Runes.Level("w2") == 0 then fail("a rune on a line needs the one before it") end
-	click("rune w9", function(b) return b.node and b.node.id == "w9" end)
-	if ns.Runes.Level("w9") == 0 and rp.side.goPrev:IsVisible() then
+	if R.Level(10) ~= 1 then fail("learning a rune did not work") end
+	if R.Available(11) then fail("a rune needs the one before it at the level it names (here its top level)") end
+	press("learn", rp.side.buy)
+	press("learn", rp.side.buy)
+	if not (R.Available(11) and R.Available(101) and R.Available(201)) then fail("a rune at its top level should open the runes after it") end
+	-- the border is the rune's kind; grey while closed; a green check at the top level
+	do
+		local b = node(10)
+		local rgb = R.byId[10].group.rgb
+		local v = b.border.__vertex or {}
+		if math.abs((v[1] or 0) - rgb[1]) > 0.01 or math.abs((v[2] or 0) - rgb[2]) > 0.01 then fail("an open rune's border should be its kind's colour") end
+		if not b.check:IsShown() then fail("a rune at its top level should show the green check") end
+		if R.Level(202) >= R.byId[202].max or node(202).check:IsShown() then fail("a rune below its top level shows no check") end
+		local c = node(12821)
+		local cv = c.border.__vertex or {}
+		if math.abs((cv[1] or 0) - (cv[2] or 0)) > 0.05 or not c.icon.__desat then fail("a closed rune should be grey") end
+	end
+	click("rune 12821", function(b) return b.node and b.node.id == 12821 end)
+	if rp.side.goPrev:IsVisible() then
 		press("first rune to learn", rp.side.goPrev)
-		if not ns.Runes.Available(rp.sel) then fail("'먼저 배울 룬' should select a rune that can be learned") end
+		if not R.Available(rp.sel) then fail("'먼저 배울 룬' should select a rune that can be learned") end
+	else
+		fail("a closed rune's card should offer the rune to learn first")
 	end
 	if not (rp.side.totalLines[1].__text or ""):find("%S") then fail("the rune card should list the total of the learned runes") end
+	-- the map: the wheel zooms (within limits), dragging moves it, a drag is no click
+	do
+		local map, cam = rp.map, rp.cam
+		local z0 = cam.z
+		try("map wheel in", map.__scripts.OnMouseWheel, map, 1)
+		if not (cam.z > z0) then fail("the wheel should zoom in") end
+		for _ = 1, 40 do map.__scripts.OnMouseWheel(map, 1) end
+		local zMax = cam.z
+		for _ = 1, 80 do map.__scripts.OnMouseWheel(map, -1) end
+		local zMin = cam.z
+		if not (zMax <= 1.6 + 1e-9 and zMin >= 0.3 - 1e-9 and zMin < 1) then fail("zoom should stay within its limits: " .. zMin .. " .. " .. zMax) end
+		if node(10).lvl:IsShown() then fail("zoomed far out, the levels on the runes should hide") end
+		try("wheel on a rune", node(10).__scripts.OnMouseWheel, node(10), 1)
+		if not (cam.z > zMin) then fail("the wheel over a rune should zoom the map too") end
+		for _ = 1, 10 do map.__scripts.OnMouseWheel(map, 1) end
+		if not node(10).lvl:IsShown() then fail("zoomed in, the levels on the runes show") end
+		rp.centerOn(1)
+		local real = GetCursorPosition
+		local cx, cy = 400, 300
+		_G.GetCursorPosition = function() return cx, cy end
+		local x0, y0 = cam.x, cam.y
+		try("press on the map", map.__scripts.OnMouseDown, map, "LeftButton")
+		cx, cy = 520, 240
+		try("drag", map.__scripts.OnUpdate, map, 0.02)
+		if not (cam.x < x0 and cam.y > y0) then fail("dragging right and down should show what is left and up: " .. x0 .. "," .. y0 .. " -> " .. cam.x .. "," .. cam.y) end
+		map.__scripts.OnMouseUp(map, "LeftButton")
+		-- a press on a rune that drags is no click
+		local sel = rp.sel
+		node(11).__scripts.OnMouseDown(node(11), "LeftButton")
+		cx, cy = 300, 300
+		map.__scripts.OnUpdate(map, 0.02)
+		node(11):Click()
+		if rp.sel ~= sel then fail("the end of a drag that started on a rune should not pick it") end
+		map.__scripts.OnMouseUp(map, "LeftButton")
+		node(11).__scripts.OnMouseDown(node(11), "LeftButton")
+		map.__scripts.OnUpdate(map, 0.02)
+		node(11):Click()
+		if rp.sel ~= 11 then fail("a press without moving should pick the rune") end
+		_G.GetCursorPosition = real
+	end
 	-- a long 보너스 합계 scrolls (wheel, the bar, its thumb)
 	do
 		local saved = {}
 		for id, lv in pairs(ns.db.runes) do saved[id] = lv end
-		for id, node in pairs(ns.Runes.byId) do ns.db.runes[id] = node.max end
-		ns.Runes.Invalidate()
+		for id, n in pairs(R.byId) do ns.db.runes[id] = n.max end
+		R.Invalidate()
 		Main.Refresh()
 		local side = rp.side
 		if not (rp.totalN > #side.totalLines) then fail("every rune learned should make the total longer than the list (" .. tostring(rp.totalN) .. ")") end
@@ -806,20 +878,27 @@ do
 		if rp.totalOff ~= 0 then fail("scrolling up should stop at the first line") end
 		for id in pairs(ns.db.runes) do ns.db.runes[id] = nil end
 		for id, lv in pairs(saved) do ns.db.runes[id] = lv end
-		ns.Runes.Invalidate()
+		R.Invalidate()
 		Main.Refresh()
 		if rp.totalN <= #side.totalLines and side.track:IsVisible() then fail("a short total needs no scroll bar") end
 	end
-	-- sent from another screen: the rune gets a red ring until another one is picked
-	Main.ShowTab("runes", { rune = "c4" })
-	if rp.sel ~= "c4" or rp.focus ~= "c4" or not rp.focusFx:IsShown() then fail("a rune another screen points to should be marked") end
-	click("another rune", function(b) return b.node and b.node.id == "w1" end)
+	-- sent from another screen: the map moves to the rune and red rings mark
+	-- it until another one is picked
+	local far = 1902001
+	Main.ShowTab("runes", { rune = far })
+	if rp.sel ~= far or rp.focus ~= far or not rp.focusFx:IsShown() then fail("a rune another screen points to should be marked") end
+	do
+		local n = R.byId[far]
+		local half = (rp.map:GetWidth() / 2) / rp.cam.z
+		if math.abs(rp.cam.x - n.x * 50) > half or rp.cam.z < 1 then fail("the map should move to the rune another screen points to") end
+	end
+	click("another rune", function(b) return b.node and b.node.id == 11 end)
 	if rp.focus or rp.focusFx:IsShown() then fail("picking another rune should drop the mark") end
 	Main.ShowTab("hero")
 	Main.ShowTab("runes")
 	if rp.focusFx:IsShown() then fail("opening the runes from the menu should not mark anything") end
 	-- the locked skill slot on the hero screen leads to its rune, marked
-	Main.ShowTab("runes", { rune = "c9" })
+	Main.ShowTab("runes", { rune = R.FirstFor("skillSlot") })
 	if not rp.focusFx:IsShown() then fail("the skill-slot rune should be marked") end
 	if rp.side.goPrev:IsVisible() then
 		press("first rune to learn (marked)", rp.side.goPrev)
@@ -952,13 +1031,13 @@ do
 		-- with auto-open learned, a chest's tooltip counts down while the mouse
 		-- is on it
 		do
-			local wasRune = ns.db.runes.e3
-			ns.db.runes.e3 = 1
+			local wasRune = ns.db.runes[13002]
+			ns.db.runes[13002] = 1
 			ns.Runes.Invalidate()
 			local cb = bar.chests[1]
 			local function left()
 				for _, l in ipairs(ns.UI.TipText()) do
-					local v = l:match("^자동 개봉까지  (.+)$")
+					local v = l:match("^자동 열기까지  (.+)$")
 					if v then return v end
 				end
 			end
@@ -973,7 +1052,7 @@ do
 				fail("a chest's tooltip should count down while the mouse is on it: " .. tostring(before) .. " -> " .. tostring(after) .. ", want " .. want)
 			end
 			if cb.__scripts.OnLeave then cb.__scripts.OnLeave(cb) end
-			ns.db.runes.e3 = wasRune
+			ns.db.runes[13002] = wasRune
 			ns.Runes.Invalidate()
 		end
 		if #bar.menu ~= 7 then fail("the HUD menu should have the seven screens") end
@@ -2350,9 +2429,7 @@ try("compartment", BigIdleHeroes_OnAddonCompartmentClick)
 enrich(1)
 -- the random clicks may have reset everything: learn the party-slot runes again
 ns.AddGold(5e9)
-for _ = 1, 3 do
-	for _, id in ipairs({ "root", "c1", "c2", "c3", "c6", "c4", "c5", "c7" }) do ns.Runes.Buy(id) end
-end
+for _, id in ipairs({ 21, 24, 11001 }) do learnRune(id) end
 for _, sid in ipairs({ "WARRIOR_PROT", "PRIEST_HOLY", "MAGE_FIRE", "ROGUE_ASSA", "HUNTER_MM" }) do
 	if H.PartyCount() < ns.PartyLimit() and H.Count() < ns.ROSTER_MAX then H.Create(sid) end
 end
@@ -2406,7 +2483,7 @@ Main.ShowTab("options")
 click("reset", labelIs("모든 진행 상황 초기화"))
 click("confirm reset", labelIs("초기화"))
 if H.Count() ~= 0 then fail("a reset should leave no hero") end
-if ns.BagSize() ~= 30 or ns.PartyLimit() ~= 1 then fail("a reset should take the rune bonuses: bag " .. ns.BagSize() .. ", party " .. ns.PartyLimit()) end
+if ns.BagSize() ~= 30 or ns.PartyLimit() ~= ns.PARTY_BASE then fail("a reset should take the rune bonuses: bag " .. ns.BagSize() .. ", party " .. ns.PartyLimit()) end
 if ns.Bar.IsShown() then fail("after a reset the battle window should wait for the first hero") end
 if not find(function(b) return label(b) == "얼라이언스로 시작" end) then fail("after a reset the side should be chosen again") end
 click("choose Alliance", labelIs("얼라이언스로 시작"))
