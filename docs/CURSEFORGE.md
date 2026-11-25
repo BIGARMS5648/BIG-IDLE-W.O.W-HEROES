@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.5.0
+BIG IDLE HEROES v1.6.0
 ```
 
 ---
@@ -137,20 +137,24 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.5.0)
+## Changelog for this release (v1.6.0)
 
 ```
-- Item grades: 일반, 고급, 희귀, 영웅, 전설, 불멸, 초월, 천상, 신성, 아르카나.
-  영웅 (Epic) takes the old purple; 아르카나 is the top grade, its names written
-  in a cyan-periwinkle-orchid gradient and its item frame painted in the same.
-- Scroll bars, the lines between stages, the role stripes on the hero and party
-  screens and every arrow use new art; the stage lines turn their corners in one
-  piece.
-- New pictures for every lock, the recommendation star and the boss skull on the
-  battle window.
-- The chosen bottom-menu tab is a bright blue face with a white icon and label.
-- Monsters from level 40 up are weaker, so Mythic+ can be cleared to its end and
-  the endless tower opens.
-- Enhancement stays on the item it was made on (no more moving it to another).
-- The /bih model test window is gone.
+- Battle window chests: bronze (monster), silver (boss) and gold (act boss)
+  borders, red only when a chest is full. A chest that opens by itself (its
+  태엽의 룬 learned) has a small light running round its border.
+- Chest tooltips list the gear inside; accessories come from act boss chests.
+  The three 태엽의 룬 are named after the chest each one opens, a chest's
+  tooltip names its rune, and Alt+click shows that rune on the rune screen.
+- Runes: tick a kind under the map and its runes stand out.
+- Forge: 분해 is at the top of the list and the forge opens on it; rows not
+  chosen are darker and locked rows faint.
+- Equipment: the hero line shows level, race and spec; waiting chests no
+  longer put a red dot on the 가방 tab.
+- Crafting tier 1 makes item level 5 or 10 gear (no level 1).
+- The gold amount on the battle window is white again.
+- Companions stand in a larger frame, so no model is cut at its edges.
+- The logo is smaller and centred in the title bar.
+- A monster whose model was slow to load the first time no longer stays
+  invisible for good (e.g. the Ghostpaw Runner on 일반 2-6).
 ```
