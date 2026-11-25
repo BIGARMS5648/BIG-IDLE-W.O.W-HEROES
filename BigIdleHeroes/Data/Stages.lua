@@ -481,13 +481,14 @@ end
 -- Monster strength on top of the base growth, by stage level: { level,
 -- times } points, followed in a straight line on a log scale between them.
 -- It sets how long each part of the climb takes (tests/pace: TBH's hours).
--- Set by long play runs (tests/pace.lua, eight parties covering every
--- specialization) for TBH's hours at their middle: Normal 3-10 by about
--- 64 h, Hell 3-10 by about 108 h, Torment act 3 opens by about 115 h and
--- holds out longest.
+-- Set by long play runs (tests/pace.lua): with TBH's runes, the last
+-- difficulty (신화+) is cleared to its end at about 240 h, the pace before
+-- those runes (levels above 40 three quarters as strong as before, eased
+-- in from 40 to 60). 영웅 ends near 86 h and 신화 near 95 h; the last
+-- stages are held by the heroes' level more than by the monsters.
 ns.MIGHT = {
-	{ 1, 0.47 }, { 5, 1.2 }, { 12, 2.38 }, { 22, 5.2 }, { 32, 7.7 }, { 40, 6.56 }, { 52, 6.56 },
-	{ 65, 5.46 }, { 77, 5.04 }, { 85, 5.67 }, { 90, 7.19 }, { 93, 12.8 }, { 94, 12.8 }, { 95, 13.5 }, { 100, 40 },
+	{ 1, 0.47 }, { 5, 1.2 }, { 12, 2.38 }, { 22, 5.2 }, { 32, 7.7 }, { 40, 6.56 }, { 52, 5.576 },
+	{ 65, 4.095 }, { 77, 3.78 }, { 85, 4.2525 }, { 90, 5.3925 }, { 93, 9.6 }, { 94, 9.6 }, { 95, 10.125 }, { 100, 30 },
 }
 local function knots(k, l)
 	if l <= k[1][1] then return k[1][2] end
