@@ -54,8 +54,10 @@ local function made(it, n)
 	return total
 end
 
+-- how it opens (it opens with the endless tower), wherever it is locked
+Upgrade.LOCKED_TEXT = "무한의 탑 난이도에 도달하면 해금할 수 있습니다."
 local function lockedText()
-	return string.format("%s 난이도를 끝까지(%d 스테이지) 깨면 쓸 수 있습니다.", ns.N(ns.DIFFS[#ns.DIFFS].name), ns.STAGE_COUNT)
+	return Upgrade.LOCKED_TEXT
 end
 
 -- why an item cannot be enhanced now (nil when it can)

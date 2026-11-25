@@ -110,7 +110,7 @@ end
 -- drawn light so the game can colour it (rings, bars, slots); the others are
 -- painted in their own colours and are never tinted.
 UI.GLYPH_ART = {
-	lock = { "icon_lock", tint = true }, check = { "icon_check" }, plus = { "icon_plus" }, close = { "icon_close" },
+	lock = { "icon_lock" }, check = { "icon_check" }, plus = { "icon_plus" }, close = { "icon_close" },
 	arrow = { "icon_arrow" }, star = { "icon_star" }, crown = { "icon_crown" }, skull = { "icon_skull" },
 	auto = { "icon_auto" },
 	ring = { "ui_portrait_ring", tint = true }, bar = { "ui_bar_fill", tint = true }, slot = { "ui_slot", tint = true },

@@ -890,8 +890,8 @@ local function buildLocked(page, f)
 		p.op = op
 		if op == "up" then
 			-- 강화 opens with the endless tower, not with the forge
-			p.text:SetText(string.format("'강화'는 아직 잠겨 있습니다.\n장비의 기본 능력치를 +%d까지 올립니다.\n\n%s 난이도를 끝까지(%d 스테이지) 깨면 열립니다.",
-				ns.Upgrade.MAX, ns.N(ns.DIFFS[#ns.DIFFS].name), ns.STAGE_COUNT))
+			p.text:SetText(string.format("'강화'는 아직 잠겨 있습니다.\n장비의 기본 능력치를 +%d까지 올립니다.\n\n%s",
+				ns.Upgrade.MAX, ns.Upgrade.LOCKED_TEXT))
 			p.go:Hide()
 			return
 		end

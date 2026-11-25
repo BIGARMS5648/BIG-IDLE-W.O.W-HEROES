@@ -102,7 +102,7 @@ local function buildLeft(page)
 			local lines = { { ns.N(d.name), nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] }, { d.desc, nil, 1, 1, 1, true } }
 			if not isOpen(d.key) then
 				if d.key == "up" then
-					lines[#lines + 1] = { string.format("%s 난이도를 끝까지 깨면 열립니다.", ns.N(ns.DIFFS[#ns.DIFFS].name)), nil, 1, 0.5, 0.3 }
+					lines[#lines + 1] = { ns.Upgrade.LOCKED_TEXT, nil, 1, 0.5, 0.3 }
 				else
 					local op = ns.Forge.OpDef(d.op)
 					lines[#lines + 1] = { string.format("용광로 %d레벨 · 해금 %s G", op.level, U.fmt(op.cost)), nil, 1, 0.5, 0.3 }

@@ -740,7 +740,7 @@ do
 	prog[4] = 0
 	press("enhance tab (locked)", ep.tabs:Get("up"))
 	if not ep.bodies.locked:IsVisible() or ep.bodies.up:IsVisible() then fail("a locked 강화 tab should say what opens it") end
-	if not (ep.lockView.text.__text or ""):find(ns.N(ns.DIFFS[#ns.DIFFS].name), 1, true) then fail("the locked 강화 tab should name the difficulty that opens it") end
+	if not (ep.lockView.text.__text or ""):find("무한의 탑", 1, true) then fail("the locked 강화 tab should say the endless tower opens it") end
 	if ep.lockView.go:IsVisible() then fail("강화 opens by itself, not with a button") end
 	for d = 1, #ns.DIFFS do prog[d] = ns.STAGE_COUNT end
 	ns.db.gold = 1e15
