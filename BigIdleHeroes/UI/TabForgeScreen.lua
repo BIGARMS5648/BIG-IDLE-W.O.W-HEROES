@@ -31,12 +31,12 @@ local LOG_LINES = 6
 -- op: the forge operation that unlocks it (none: always open, or 강화 with
 -- the endless tower); target: works on a piece picked on the right
 local FUNCS = {
+	{ key = "smelt", name = "분해",       op = "smelt", desc = "장비를 골드와 용광로 경험치로 바꿉니다." },
 	{ key = "fuse",  name = "융합",       op = "fuse",  desc = "같은 등급 장비 9개를 합쳐 장비 1개를 만듭니다." },
 	{ key = "craft", name = "제작",       op = "craft", desc = "재료로 원하는 부위의 무작위 장비를 만듭니다." },
 	{ key = "gem",   name = "보석",       op = "gem",   target = true, desc = "장비의 보석 홈에 무작위 능력치를 부여합니다." },
 	{ key = "ench",  name = "마법부여",   op = "ench",  target = true, desc = "전설 등급 이상 장비의 마법 홈에 마법을 부여합니다." },
 	{ key = "insc",  name = "주문각인",    op = "insc",  target = true, desc = "불멸 등급 이상 장비의 주문각인 홈에 주문서의 힘을 새깁니다." },
-	{ key = "smelt", name = "분해",       op = "smelt", desc = "장비를 골드와 용광로 경험치로 바꿉니다." },
 	{ key = "mats",  name = "재료",       desc = "재료를 모아 융합하거나 골드로 바꿉니다." },
 	{ key = "up",    name = "강화",       target = true, desc = "골드로 장비의 기본 능력치를 +20까지 올립니다." },
 }
@@ -343,7 +343,7 @@ end
 -- Screen
 ------------------------------------------------------------------------
 local function build(page)
-	page.func = "fuse"
+	page.func = FUNCS[1].key -- the top of the list (분해)
 	buildLeft(page)
 	buildMiddle(page)
 	buildSide(page)
