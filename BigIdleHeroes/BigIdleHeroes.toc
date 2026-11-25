@@ -23,6 +23,7 @@ Data\Models.lua
 Data\Effects.lua
 Data\Scenery.lua
 Data\LoadingScreens.lua
+Data\Art.lua
 
 Systems\State.lua
 Systems\Runes.lua

@@ -77,13 +77,17 @@ function UI.ArtIcon(id)
 end
 
 -- An icon from the imported art if there is one, else a game icon.
+-- (tex.isArt: the add-on's own white icon, drawn in a tint)
 function UI.SetArtOrIcon(tex, artId, iconName)
 	local art = artId and UI.ArtIcon(artId)
 	if art then
 		tex:SetTexture(art)
 		tex:SetTexCoord(0, 1, 0, 1)
+		tex.isArt = true
 	else
 		UI.SetIcon(tex, iconName)
+		tex.isArt = nil
+		tex:SetVertexColor(1, 1, 1)
 	end
 end
 
@@ -654,7 +658,7 @@ function UI.Button(parent, w, h, text, onClick, style)
 end
 
 -- A round icon button with a caption underneath (menus, docks).
-function UI.MenuButton(parent, size, icon, caption, onClick)
+function UI.MenuButton(parent, size, icon, caption, onClick, art)
 	local b = CreateFrame("Button", nil, parent)
 	b:SetSize(size, size + (caption and 13 or 0))
 	b.disc = UI.Art(b, "circle", "BACKGROUND", 0.10, 0.13, 0.22, 1)
@@ -663,7 +667,8 @@ function UI.MenuButton(parent, size, icon, caption, onClick)
 	b.icon = b:CreateTexture(nil, "ARTWORK")
 	b.icon:SetSize(size * 0.62, size * 0.62)
 	b.icon:SetPoint("CENTER", b.disc, "CENTER", 0, 0)
-	UI.SetIcon(b.icon, icon)
+	UI.SetArtOrIcon(b.icon, art, icon)
+	if b.icon.isArt then b.icon:SetVertexColor(0.86, 0.89, 0.96) end
 	b.ringT = UI.Art(b, "ring", "OVERLAY", 0.55, 0.62, 0.80)
 	b.ringT:SetSize(size, size)
 	b.ringT:SetPoint("CENTER", b.disc, "CENTER", 0, 0)

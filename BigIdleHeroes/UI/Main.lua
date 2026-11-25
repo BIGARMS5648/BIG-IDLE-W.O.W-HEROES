@@ -157,15 +157,15 @@ function Main.RefreshNav()
 			b.bg:SetColor(1.0, 0.86, 0.45, 1)
 			b.label:SetTextColor(1, 0.86, 0.35)
 			b.glow:Show()
-			b.mark:Show()
 			b.icon:SetPoint("TOP", b, "TOP", 0, -5)
+			if b.icon.isArt then b.icon:SetVertexColor(1, 0.86, 0.35) end
 		else
 			local k = b.hover and 0.75 or 0.55
 			b.bg:SetColor(k, k * 1.05, k * 1.25, 1)
 			b.label:SetTextColor(0.78, 0.82, 0.92)
 			b.glow:Hide()
-			b.mark:Hide()
 			b.icon:SetPoint("TOP", b, "TOP", 0, -6)
+			if b.icon.isArt then b.icon:SetVertexColor(0.86, 0.89, 0.96) end
 		end
 		b.badge:Set(badges[b.key])
 	end
@@ -286,6 +286,7 @@ function Main.Create()
 	frame.gear.icon:SetSize(20, 20)
 	frame.gear.icon:SetPoint("CENTER", frame.gear, "CENTER", 0, 0)
 	UI.SetArtOrIcon(frame.gear.icon, "icon_settings", "Trade_Engineering")
+	if frame.gear.icon.isArt then frame.gear.icon:SetVertexColor(0.86, 0.89, 0.96) end
 	UI.Tip(frame.gear, function() return UI.SimpleTip("설정", "화면 크기, 진영, 통계, 도움말, 초기화") end)
 
 	-- gold and the materials, right to left
@@ -350,10 +351,6 @@ function Main.Create()
 		local b = CreateFrame("Button", nil, frame)
 		b:SetSize(bw, NAV_H - 12)
 		b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16 + (i - 1) * (bw + 6), 8)
-		b.mark = b:CreateTexture(nil, "OVERLAY")
-		b.mark:SetSize(26, 4)
-		b.mark:SetPoint("BOTTOM", b, "TOP", 0, -2)
-		UI.Fill(b.mark, 1, 0.80, 0.30, 1)
 		b.key = def.key
 		b.glow = UI.Art(b, "glow", "BACKGROUND", 1, 0.75, 0.25, 0.35)
 		b.glow:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 10)

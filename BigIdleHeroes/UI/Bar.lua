@@ -1453,13 +1453,13 @@ function Bar.ApplyCompact()
 end
 
 local MENU = {
-	{ "hero",  "INV_Helmet_06",          "영웅" },
-	{ "equip", "INV_Chest_Chain_05",     "장비" },
-	{ "forge", "Trade_BlackSmithing",    "용광로" },
-	{ "party", "INV_Misc_GroupNeedMore", "편성" },
-	{ "runes", "INV_Misc_Rune_01",       "룬" },
-	{ "map",   "INV_Misc_Map_01",        "스테이지" },
-	{ "pets",  "Ability_Hunter_BeastTaming", "동료" },
+	{ "hero",  "INV_Helmet_06",          "영웅", "icon_hero" },
+	{ "equip", "INV_Chest_Chain_05",     "장비", "icon_bag" },
+	{ "forge", "Trade_BlackSmithing",    "용광로", "icon_forge" },
+	{ "party", "INV_Misc_GroupNeedMore", "편성", "icon_party" },
+	{ "runes", "INV_Misc_Rune_01",       "룬", "icon_runes" },
+	{ "map",   "INV_Misc_Map_01",        "스테이지", "icon_map" },
+	{ "pets",  "Ability_Hunter_BeastTaming", "동료", "icon_pets" },
 }
 
 function Bar.Create()
@@ -1717,7 +1717,7 @@ function Bar.Create()
 
 	frame.menu = {}
 	for i, m in ipairs(MENU) do
-		local mb = UI.MenuButton(dock, 36, m[2], ns.N(m[3]), function(self) Bar.OpenMenu(self.key) end)
+		local mb = UI.MenuButton(dock, 36, m[2], ns.N(m[3]), function(self) Bar.OpenMenu(self.key) end, m[4])
 		mb.key = m[1]
 		-- 44 apart: the captions (스테이지 is the widest) keep clear of each other
 		mb:SetPoint("TOPLEFT", auto, "TOPRIGHT", 8 + #ns.CHEST * 41 + 2 + (i - 1) * 44, 0)

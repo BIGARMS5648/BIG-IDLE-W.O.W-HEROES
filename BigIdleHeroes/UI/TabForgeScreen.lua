@@ -90,7 +90,7 @@ local function buildLeft(page)
 		b.icon = b:CreateTexture(nil, "ARTWORK")
 		b.icon:SetSize(22, 22)
 		b.icon:SetPoint("LEFT", b, "LEFT", 8, 0)
-		UI.SetIcon(b.icon, ICON[d.key] or ns.ForgeView.OP_ICON[d.key])
+		UI.SetArtOrIcon(b.icon, "forge_" .. d.key, ICON[d.key] or ns.ForgeView.OP_ICON[d.key])
 		b.label:ClearAllPoints()
 		b.label:SetPoint("LEFT", b, "LEFT", 37, 0)
 		b.label:SetJustifyH("LEFT")
@@ -113,7 +113,15 @@ local function buildLeft(page)
 		tabs.buttons[i] = b
 	end
 	function tabs:Get(key) for _, b in ipairs(self.buttons) do if b.key == key then return b end end end
-	function tabs:Select(key) for _, b in ipairs(self.buttons) do b:SetOn(b.key == key) end end
+	function tabs:Select(key)
+		for _, b in ipairs(self.buttons) do
+			b:SetOn(b.key == key)
+			-- the white icons: dark on the chosen (gold) one, light on the rest
+			if b.icon.isArt then
+				if b.key == key then b.icon:SetVertexColor(0.14, 0.11, 0.05) else b.icon:SetVertexColor(0.86, 0.89, 0.96) end
+			end
+		end
+	end
 	function tabs:SetLocked(key, v)
 		local b = self:Get(key)
 		if b then
@@ -379,7 +387,7 @@ local function open(page, opts)
 end
 
 Main.RegisterTab({
-	key = "forge", title = "용광로", sub = "융합, 제작, 보석, 분해, 재료, 강화",
+	key = "forge", title = "용광로", sub = "융합, 제작, 보석, 분해, 재료, 강화", art = "icon_forge",
 	icon = "Trade_BlackSmithing", build = build, refresh = refresh, open = open,
 	events = { "HEROES", "PARTY", "LEVEL", "GEAR", "BAG", "MATS", "STATS", "FORGE", "RESET", "PROGRESS" },
 	gold = true,
