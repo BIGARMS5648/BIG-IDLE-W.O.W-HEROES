@@ -36,9 +36,9 @@ local FUNCS = {
 	{ key = "gem",   name = "보석",       op = "gem",   target = true, desc = "장비의 보석 홈에 무작위 능력치를 부여합니다." },
 	{ key = "ench",  name = "마법부여",   op = "ench",  target = true, desc = "불멸 등급 이상 장비의 마법 홈에 마법을 부여합니다." },
 	{ key = "insc",  name = "주문각인",    op = "insc",  target = true, desc = "아르카나 등급 이상 장비의 주문각인 홈에 주문서의 힘을 새깁니다." },
-	{ key = "up",    name = "강화",       target = true, desc = "골드로 장비의 기본 능력치를 +20까지 올립니다." },
 	{ key = "smelt", name = "분해",       op = "smelt", desc = "장비를 골드와 용광로 경험치로 바꿉니다." },
 	{ key = "mats",  name = "재료",       desc = "재료를 모아 융합하거나 골드로 바꿉니다." },
+	{ key = "up",    name = "강화",       target = true, desc = "골드로 장비의 기본 능력치를 +20까지 올립니다." },
 }
 local FUNC_BY = {}
 for _, d in ipairs(FUNCS) do FUNC_BY[d.key] = d end
@@ -379,7 +379,7 @@ local function open(page, opts)
 end
 
 Main.RegisterTab({
-	key = "forge", title = "용광로", sub = "융합, 제작, 보석, 강화, 분해, 재료",
+	key = "forge", title = "용광로", sub = "융합, 제작, 보석, 분해, 재료, 강화",
 	icon = "Trade_BlackSmithing", build = build, refresh = refresh, open = open,
 	events = { "HEROES", "PARTY", "LEVEL", "GEAR", "BAG", "MATS", "STATS", "FORGE", "RESET", "PROGRESS" },
 	gold = true,
