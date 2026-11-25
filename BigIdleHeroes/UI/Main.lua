@@ -122,31 +122,10 @@ function Main.Current()
 	return current
 end
 
--- The title bar: where the party is, its power, gold and the materials.
+-- The title bar: gold and the materials.
 function Main.RefreshHeader()
 	if not frame then return end
 	local db = ns.db
-	local fid = ns.Faction() or "ALLIANCE"
-	local f = ns.FACTIONS[fid]
-	frame.faction:SetText(U.col(f.hex, ns.N(f.name)))
-	local st = db.stage
-	local d = ns.DIFFS[st.diff]
-	local power = 0
-	for i = 1, ns.PARTY_SIZE do
-		local id = db.party[i]
-		if id and db.heroes[id] then power = power + ns.Heroes.PowerScore(id) end
-	end
-	-- a long stage name takes a smaller font, and past that it is left out,
-	-- rather than reaching the gold
-	local stage = U.col(d.hex, ns.N(d.name)) .. " " .. ns.StageLabel(st.diff, st.idx)
-	local tail = "   파티 전투력 " .. U.col("ffd24a", U.fmt(power))
-	local act, n = ns.StageAct(st.idx)
-	local short = U.col(d.hex, ns.N(d.name)) .. string.format(" %d-%d", act, n)
-	for _, try in ipairs({ { stage, 11 }, { stage, 10 }, { short, 11 } }) do
-		frame.where:SetFont(ns.FONT, try[2], "")
-		frame.where:SetText(try[1] .. tail)
-		if frame.where:GetStringWidth() <= frame.where:GetWidth() then break end
-	end
 	frame.gold:SetLabel(U.fmt(db.gold))
 	for _, c in ipairs(frame.currency) do
 		local n = 0
@@ -270,8 +249,7 @@ function Main.Create()
 	end
 	frame:SetScale(ns.db.ui.scale or 1)
 
-	-- title bar: the game's logo, name and faction; where the party fights and its
-	-- power; gold and materials; settings; close
+	-- title bar: the game's logo; gold and materials; settings; close
 	local head = CreateFrame("Frame", nil, frame)
 	head:SetPoint("TOPLEFT", frame, "TOPLEFT", 3, -3)
 	head:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -3)
@@ -289,16 +267,6 @@ function Main.Create()
 	frame.logo:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -5)
 	frame.logo:SetTexture(UI.Tex("logo"))
 	frame.logo:SetTexCoord(0, 1, 0.168, 0.828)
-	local textX = 8 + LOGO_W + 8
-	frame.brand = UI.Title(frame, "BIG IDLE HEROES", 16)
-	frame.brand:SetPoint("TOPLEFT", frame, "TOPLEFT", textX, -12)
-	UI.Color(frame.brand, { 0.92, 0.94, 1 })
-	frame.faction = UI.Text(frame, 14)
-	frame.faction:SetPoint("LEFT", frame.brand, "RIGHT", 8, 0)
-	frame.where = UI.Text(frame, 11)
-	frame.where:SetPoint("TOPLEFT", frame, "TOPLEFT", textX, -34)
-	frame.where:SetWordWrap(false)
-	UI.Color(frame.where, UI.C.sub)
 
 	frame.close = UI.Button(frame, 30, 30, "", function() Main.Toggle(false) end, "dark")
 	frame.close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -14)
@@ -359,10 +327,6 @@ function Main.Create()
 	end
 	frame.gold = pill(100, "INV_Misc_Coin_01", "icon_gold")
 	frame.gold:SetPoint("RIGHT", right, "LEFT", -6, 0)
-	-- the line under the title ends before the gold (close, gear, the
-	-- material pills and the gold, from the right edge)
-	local goldLeft = Main.W - 12 - 30 - 6 - 34 - 6 - #CURRENCY * (76 + 6) - 100
-	frame.where:SetWidth(goldLeft - 10 - textX)
 	UI.Color(frame.gold.text, UI.C.gold)
 	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 모집하기, 룬, 장비 제작·강화와 기능 해금에 씁니다.") end)
 
