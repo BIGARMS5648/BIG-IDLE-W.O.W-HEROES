@@ -45,6 +45,15 @@ local AFFIX_ROW = 34
 -- Screen
 ------------------------------------------------------------------------
 local function build(page)
+	-- the stage path and its options on a dark inset, like the other screens'
+	-- lists, level with the detail card on the right: drawn on the page
+	-- itself (its background), over a box that only gives it its place
+	local pathBox = CreateFrame("Frame", nil, page)
+	pathBox:SetSize(DETAIL_X - 8, Main.PAGE_H - 76 - 30)
+	pathBox:SetPoint("TOPLEFT", page, "TOPLEFT", 0, PATH_Y + 6)
+	pathBox:EnableMouse(false)
+	page.pathBg = UI.Slice(pathBox, "inset", "BACKGROUND", nil, nil, page)
+
 	page.diff = ns.db.stage.diff
 	page.idx = ns.db.stage.idx
 	page.act = ns.StageAct(page.idx)
@@ -177,7 +186,7 @@ local function build(page)
 		if row == 1 then col = 4 - col end -- snake back on the second row
 		local b = CreateFrame("Button", nil, page)
 		b:SetSize(NODE_W, NODE_H)
-		b:SetPoint("TOPLEFT", page, "TOPLEFT", col * (NODE_W + 8), PATH_Y - row * (NODE_H + 8))
+		b:SetPoint("TOPLEFT", page, "TOPLEFT", 4 + col * (NODE_W + 8), PATH_Y - row * (NODE_H + 8))
 		b.ringT = UI.Art(b, "ring", "ARTWORK")
 		b.ringT:SetSize(52, 52)
 		b.ringT:SetPoint("TOP", b, "TOP", 0, -2)
@@ -270,10 +279,10 @@ local function build(page)
 			end),
 	}
 	for i, c in ipairs(page.checks) do
-		c:SetPoint("TOPLEFT", page, "TOPLEFT", 4, optY - (i - 1) * 24)
+		c:SetPoint("TOPLEFT", page, "TOPLEFT", 12, optY - (i - 1) * 24)
 	end
 	page.rate = UI.Text(page, 10)
-	page.rate:SetPoint("TOPLEFT", page, "TOPLEFT", 4, optY - 78)
+	page.rate:SetPoint("TOPLEFT", page, "TOPLEFT", 12, optY - 78)
 	page.rate:SetWidth(500)
 	UI.Color(page.rate, UI.C.sub)
 	-- what belongs to a world (hidden while the tower is shown)
