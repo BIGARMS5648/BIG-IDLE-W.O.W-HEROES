@@ -49,11 +49,24 @@ local function buyRunes()
 	end
 end
 
--- 강화 once the tower opens: the cheapest next step of the party's gear
--- while the gold lasts
+-- the gold the next rune wants (the cheapest one that can be learned now):
+-- kept back from 강화, so runes are still saved up for
+local function runeReserve()
+	local R = ns.Runes
+	local low
+	for id in pairs(R.byId) do
+		local cost = R.NextCost(id)
+		if cost and R.Available(id) and (not low or cost < low) then low = cost end
+	end
+	return low or 0
+end
+
+-- 강화 once it opens: the cheapest next step of the party's gear while the
+-- gold above the next rune's price lasts
 local function enhance()
 	local U = ns.Upgrade
 	if not (U and U.Open()) then return end
+	local keep = runeReserve()
 	local worn = {}
 	for i = 1, ns.PARTY_SIZE do
 		local id = ns.db.party[i]
@@ -70,7 +83,7 @@ local function enhance()
 				if not bestCost or c < bestCost then best, bestHero, bestCost = w[1], w[2], c end
 			end
 		end
-		if not best or ns.db.gold < bestCost then return end
+		if not best or ns.db.gold - keep < bestCost then return end
 		U.Try(best, bestHero)
 	end
 end
