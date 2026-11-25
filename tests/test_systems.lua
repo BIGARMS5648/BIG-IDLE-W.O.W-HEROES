@@ -573,6 +573,17 @@ end
 
 ------------------------------------------------------------------------
 section("items")
+do
+	-- the grades, in order; the top one's colours run across its letters
+	local names = { "일반", "고급", "희귀", "영웅", "전설", "불멸", "초월", "천상", "신성", "아르카나" }
+	for q, n in ipairs(names) do check(ns.QUALITY[q] and ns.QUALITY[q].name == n, "grade " .. q .. " should be " .. n) end
+	check(ns.MAX_QUALITY == #names, "ten grades")
+	local top = ns.QText(ns.MAX_QUALITY, "아르 카나")
+	local codes = select(2, top:gsub("|cff%x%x%x%x%x%x", ""))
+	check(codes == 4 and top:find("|cff" .. ns.QUALITY[ns.MAX_QUALITY].grad[1] .. "아", 1, true)
+		and top:find("|cff" .. ns.QUALITY[ns.MAX_QUALITY].grad[3] .. "나", 1, true), "the top grade's name runs through its colours: " .. top)
+	check(ns.QText(4, "영웅") == "|cff" .. ns.QUALITY[4].hex .. "영웅|r", "a one-colour grade is one colour")
+end
 for _, slot in ipairs(ns.SLOTS) do
 	for q = 1, ns.MAX_QUALITY do
 		for _, lvl in ipairs({ 1, 37, 100 }) do

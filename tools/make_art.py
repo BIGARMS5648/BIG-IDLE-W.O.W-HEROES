@@ -154,6 +154,29 @@ def frame():
     return save("frame", img)
 
 
+def frame_grad(name, stops):
+    # frame painted in colours running corner to corner (bottom left to top
+    # right): a grade whose colours run across its name (Data/Items.lua)
+    w = h = 64
+    img = blank(w, h)
+    ring = rr(w, h, 9) - rr(w, h, 9, inset=3)
+    glow = rr(w, h, 9, inset=1, blur=2.0) - rr(w, h, 9, inset=4)
+    t = (np.arange(w)[None, :] + (h - 1 - np.arange(h))[:, None]) / float(w + h - 2)
+    cols = [hexrgb(c) for c in stops]
+    x = t * (len(cols) - 1)
+    i = np.minimum(np.floor(x).astype(int), len(cols) - 2)
+    f = (x - i)[..., None]
+    rgb = np.stack(cols)[i] * (1 - f) + np.stack(cols)[i + 1] * f
+    over(img, rgb, np.clip(glow, 0, 1) * 0.35)
+    over(img, rgb, np.clip(ring, 0, 1))
+    return save(name, img)
+
+
+def frame_arcana():
+    # the colours of the user's badge picture: cyan, periwinkle, orchid
+    return frame_grad("frame_arcana", ["45e6e6", "8ea6f2", "d89ee0"])
+
+
 def corners():
     # what lies outside frame's rounded outline (reaching half into its line),
     # white: laid over a picture's corners in the colour around the picture,
@@ -422,7 +445,7 @@ def ridge_ruins(xs, layer, rng):
 
 
 def main():
-    made = [panel(), card(), inset(), button(), pill(), slot(), frame(), corners(), fades(), ring(), circle(), badge(), bar(), glow(), shadow(), gradients()]
+    made = [panel(), card(), inset(), button(), pill(), slot(), frame(), frame_arcana(), corners(), fades(), ring(), circle(), badge(), bar(), glow(), shadow(), gradients()]
     glyphs()
     scenery("scene_hills", ridge_hills)
     scenery("scene_peaks", ridge_peaks)

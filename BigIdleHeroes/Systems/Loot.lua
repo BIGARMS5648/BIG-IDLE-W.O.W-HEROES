@@ -193,7 +193,7 @@ function Loot.Announce(sum)
 	local parts = {}
 	for q = ns.MAX_QUALITY, 1, -1 do
 		if sum.items[q] then
-			parts[#parts + 1] = U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name) .. " x" .. sum.items[q])
+			parts[#parts + 1] = ns.QText(q, ns.N(ns.QUALITY[q].name) .. " x" .. sum.items[q])
 		end
 	end
 	local matCount = 0

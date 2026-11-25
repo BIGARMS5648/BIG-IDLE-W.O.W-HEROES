@@ -700,7 +700,7 @@ local function updateInfo()
 		local count = ns.Loot.Count(t)
 		cb:SetCount(count > 0 and tostring(count) or "")
 		cb:SetDim(count == 0)
-		if count >= ns.ChestCap(t) then cb:SetBorderRGB(1, 0.25, 0.2) else cb:SetQuality(t == 1 and 3 or (t == 2 and 5 or 6)) end
+		if count >= ns.ChestCap(t) then cb:SetBorderRGB(1, 0.25, 0.2) else cb:SetQuality(t == 1 and 3 or (t == 2 and 6 or 4)) end
 	end
 	-- a chest's tooltip, while the mouse is on it, counts down to the auto-open
 	local owner = UI.TipOwner()

@@ -47,7 +47,7 @@ function Items.Name(it)
 end
 
 function Items.ColorName(it)
-	return U.col(ns.QUALITY[it.q].hex, Items.Name(it))
+	return ns.QText(it.q, Items.Name(it))
 end
 
 function Items.Icon(it)
@@ -709,7 +709,7 @@ function Items.Tooltip(it, heroId)
 	end
 	local qr, qg, qb = U.rgb(q.hex)
 	local up = it.up or 0
-	add((up > 0 and ("+" .. up .. " ") or "") .. Items.Name(it), nil, qr, qg, qb)
+	add(ns.QText(it.q, (up > 0 and ("+" .. up .. " ") or "") .. Items.Name(it)), nil, qr, qg, qb)
 	add(ns.N(q.name) .. " " .. ns.N(ns.SLOT[it.s].name), "아이템 레벨 " .. it.l, 0.7, 0.7, 0.7)
 	if up > 0 then
 		add(string.format("강화 +%d · 기본 능력치 +%d%%", up, floor((ns.Upgrade.Bonus(up) - 1) * 100 + 0.5)), nil, 1, 0.82, 0.3)
@@ -789,7 +789,7 @@ function Items.MatTooltip(id)
 	local m = ns.MATS[id]
 	local lines = {}
 	local r, g, b = U.rgb(ns.QUALITY[m.q].hex)
-	lines[#lines + 1] = { ns.N(m.name), nil, r, g, b }
+	lines[#lines + 1] = { ns.QText(m.q, ns.N(m.name)), nil, r, g, b }
 	if m.tbh then
 		lines[#lines + 1] = { ns.N(ns.QUALITY[m.q].name) .. " 등급 " .. ns.N(ns.MAT_KIND_NAME[m.kind]), nil, 0.7, 0.7, 0.7 }
 	else

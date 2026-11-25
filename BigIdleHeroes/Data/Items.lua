@@ -6,15 +6,29 @@ local _, ns = ...
 -- (보석 = 장식, 마법부여 = 세공, 주문각인 = 각인) each carries, what breaking one
 -- down gives (gold, forge experience), its colour and its stat multiplier.
 ------------------------------------------------------------------------
-local GRADE_NAME = { "일반", "고급", "희귀", "영웅", "전설", "불멸", "초월", "천상", "신성", "우주" }
-local GRADE_HEX = { "e4e4e4", "54fc0c", "0c6cfc", "b40cfc", "fc9c0c", "fc2424", "fc246c", "6ccce4", "fce454", "fcfcfc" }
+local GRADE_NAME = { "일반", "고급", "희귀", "영웅", "전설", "불멸", "초월", "천상", "신성", "아르카나" }
+local GRADE_HEX = { "e4e4e4", "54fc0c", "0c6cfc", "b40cfc", "fc9c0c", "fc2424", "fc246c", "6ccce4", "fce454", "8ea6f2" }
+-- grad: colours run across the grade's names (cyan, periwinkle, orchid) and
+-- its frame is painted in them (frame: Media/<frame>.tga); hex is their middle
+local GRADE_GRAD = { [10] = { "45e6e6", "8ea6f2", "d89ee0" } }
+local GRADE_FRAME = { [10] = "frame_arcana" }
 local GRADE_MULT = { 0.85, 1.00, 1.15, 1.32, 1.52, 1.75, 2.02, 2.35, 2.70, 3.10 }
 ns.QUALITY = {}
 for i, g in ipairs(ns.TBH.GRADES) do
-	ns.QUALITY[i] = { key = g.key, name = GRADE_NAME[i], hex = GRADE_HEX[i], affix = g.affix, gem = g.gem, ench = g.ench,
+	ns.QUALITY[i] = { key = g.key, name = GRADE_NAME[i], hex = GRADE_HEX[i], grad = GRADE_GRAD[i], frame = GRADE_FRAME[i],
+		affix = g.affix, gem = g.gem, ench = g.ench,
 		insc = g.insc, gold = g.gold, fxp = g.cube, mult = GRADE_MULT[i], fuse = g.fuse }
 end
 ns.MAX_QUALITY = #ns.QUALITY
+
+-- Text in a grade's colour (its colours run across the letters when it has
+-- several).
+function ns.QText(q, text)
+	local g = ns.QUALITY[q]
+	if not g then return tostring(text) end
+	if g.grad then return ns.U.grad(g.grad, text) end
+	return ns.U.col(g.hex, text)
+end
 
 ------------------------------------------------------------------------
 -- Scaling curves by item / stage level.

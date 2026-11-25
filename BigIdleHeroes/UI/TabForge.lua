@@ -34,7 +34,7 @@ local function qualityOdds(weights, sep)
 	for q = 1, ns.MAX_QUALITY do
 		local w = weights[q] or 0
 		if w > 0 then
-			parts[#parts + 1] = U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name) .. " " .. U.num(w / total * 100, 2) .. "%")
+			parts[#parts + 1] = ns.QText(q, ns.N(ns.QUALITY[q].name) .. " " .. U.num(w / total * 100, 2) .. "%")
 		end
 	end
 	return table.concat(parts, sep or "  ")
@@ -125,7 +125,7 @@ local function buildFuse(page, f)
 		for _, g in ipairs(grades(1, ns.MAX_QUALITY - 1)) do
 			local q, n = g[1], usableCount(g[1])
 			local a, b = ns.QUALITY[q], ns.QUALITY[q + 1]
-			out[#out + 1] = { q, U.col(a.hex, ns.N(a.name)) .. " → " .. U.col(b.hex, ns.N(b.name))
+			out[#out + 1] = { q, ns.QText(q, ns.N(a.name)) .. " → " .. ns.QText(q + 1, ns.N(b.name))
 				.. U.col(n >= ns.Forge.FUSE_COUNT and "60e070" or "8a90a2", string.format("  (%d개)", n)) }
 		end
 		return out
@@ -208,7 +208,7 @@ local function buildFuse(page, f)
 			end
 		end
 		local kindName = p.cat == "gear" and "무기·방어구" or "액세서리"
-		p.head:Set(string.format("가방의 %s %s  %d개", U.col(q.hex, ns.N(q.name)), kindName, #list),
+		p.head:Set(string.format("가방의 %s %s  %d개", ns.QText(p.q, ns.N(q.name)), kindName, #list),
 			string.format("쓸 수 있는 것 %d개 · 파란 테두리 = 다음 융합에 쓰임", usable))
 		for i, b in ipairs(p.cells) do
 			local it = list[i]
@@ -316,7 +316,7 @@ local function buildCraft(page, f)
 			end
 			local best = 0
 			for q = 1, ns.MAX_QUALITY do if (t.q[q] or 0) > 0 then best = q end end
-			row.right:SetText("최고 " .. U.col(ns.QUALITY[best].hex, ns.N(ns.QUALITY[best].name)))
+			row.right:SetText("최고 " .. ns.QText(best, ns.N(ns.QUALITY[best].name)))
 			row.icon:SetDim(not open)
 			row.icon:SetLocked(not open)
 			row.badge:Set(not open and ns.db.forge.level >= t.forge and ns.CanAfford(t.gold * 5))
@@ -546,7 +546,7 @@ local function buildSocket(kind)
 			if not it then
 				local need = (kind == "gem" and 3) or (kind == "ench" and 5) or 6
 				p.empty:SetText(string.format("오른쪽에서 %s 홈이 있는 장비를 고르세요.\n%s 등급 이상의 장비에 %s 홈이 있습니다.",
-					ns.N(ns.SOCKET[kind].short), U.col(ns.QUALITY[need].hex, ns.N(ns.QUALITY[need].name)), ns.N(ns.SOCKET[kind].short)))
+					ns.N(ns.SOCKET[kind].short), ns.QText(need, ns.N(ns.QUALITY[need].name)), ns.N(ns.SOCKET[kind].short)))
 				for _, r in ipairs(c.rows) do r.socket:Hide() r.text:Hide() r.remove:Hide() end
 				p.go:SetOff(true)
 				p.why:SetText("")
@@ -559,7 +559,7 @@ local function buildSocket(kind)
 			c.icon:SetIconName(ns.Items.Icon(it))
 			c.icon:SetQuality(it.q)
 			c.icon:SetCount(tostring(it.l))
-			c.name:SetText(U.col(q.hex, ns.Items.Name(it)))
+			c.name:SetText(ns.QText(it.q, ns.Items.Name(it)))
 			local wearer = ns.Items.Wearer(it)
 			c.sub:SetText(string.format("%s 홈 %d개 중 %d개 비어 있음%s", ns.N(ns.SOCKET[kind].short), ns.Items.SocketCount(it, kind), ns.Items.FreeSockets(it, kind),
 				wearer and ("  ·  " .. ns.Heroes.ShortName(wearer) .. " 착용 중") or "  ·  가방"))
@@ -730,7 +730,7 @@ local function buildUpgrade(page, f)
 		c.icon:SetIconName(ns.Items.Icon(it))
 		c.icon:SetQuality(it.q)
 		c.icon:SetCount(tostring(it.l))
-		c.name:SetText(U.col(q.hex, (n > 0 and ("+" .. n .. " ") or "") .. ns.Items.Name(it)))
+		c.name:SetText(ns.QText(it.q, (n > 0 and ("+" .. n .. " ") or "") .. ns.Items.Name(it)))
 		local wearer = ns.Items.Wearer(it)
 		c.sub:SetText(string.format("강화 +%d / +%d  ·  %s", n, Up.MAX, wearer and (ns.Heroes.ShortName(wearer) .. " 착용 중") or "가방"))
 		local function pct(k) return floor((Up.Bonus(k) - 1) * 100 + 0.5) end
@@ -790,7 +790,7 @@ local function buildSmelt(page, f)
 	p.gradeLabel:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -8)
 	p.pick = UI.Dropdown(f, 160, 30, function()
 		local out = {}
-		for q = 1, ns.MAX_QUALITY do out[#out + 1] = { q, U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하" } end
+		for q = 1, ns.MAX_QUALITY do out[#out + 1] = { q, ns.QText(q, ns.N(ns.QUALITY[q].name)) .. " 이하" } end
 		return out
 	end, smeltQ, function(q)
 		ns.db.ui.smeltQ = q
@@ -806,7 +806,7 @@ local function buildSmelt(page, f)
 	p.auto:SetPoint("LEFT", p.pick, "RIGHT", 16, 0)
 	UI.Tip(p.auto, function()
 		local q = ns.QUALITY[smeltQ()]
-		return UI.SimpleTip("자동 분해", string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다.", U.col(q.hex, ns.N(q.name))))
+		return UI.SimpleTip("자동 분해", string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다.", ns.QText(smeltQ(), ns.N(q.name))))
 	end, "TOP")
 	p.head = UI.Section(f, W)
 	p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -44)
@@ -836,7 +836,7 @@ local function buildSmelt(page, f)
 		local total = ns.Items.SmeltGoldOf(picked)
 		local q = ns.QUALITY[smeltQ()]
 		UI.Confirm({ title = "일괄 분해", ok = "분해", style = "red",
-			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다.", U.col(q.hex, ns.N(q.name)), #picked, U.fmt(total)),
+			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다.", ns.QText(smeltQ(), ns.N(q.name)), #picked, U.fmt(total)),
 			onOk = function()
 				local ok, gold, n = ns.Forge.Smelt(picked)
 				if UI.Try(ok, gold) then

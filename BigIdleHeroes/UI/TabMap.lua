@@ -476,12 +476,10 @@ local function refresh(page)
 		b.glow:SetShown(idx == page.idx)
 		b.crown:SetShown(stg.raid == true)
 		if cleared then
-			b.state:SetTexture(UI.Tex("check"))
-			b.state:SetVertexColor(0.4, 1, 0.5)
+			UI.SetGlyph(b.state, "check", 0.4, 1, 0.5)
 			b.state:Show()
 		elseif not reachable then
-			b.state:SetTexture(UI.Tex("lock"))
-			b.state:SetVertexColor(0.8, 0.7, 0.5)
+			UI.SetGlyph(b.state, "lock", 0.8, 0.7, 0.5)
 			b.state:Show()
 		else
 			b.state:Hide()

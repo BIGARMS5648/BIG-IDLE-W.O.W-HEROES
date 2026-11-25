@@ -123,6 +123,50 @@ function U.rgb(hex)
 	return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
 end
 
+-- The colour t (0..1) of the way along colours (hex strings), as hex.
+function U.lerpHex(stops, t)
+	local n = #stops
+	if n == 1 then return stops[1] end
+	local x = math.max(0, math.min(1, t)) * (n - 1)
+	local i = math.min(n - 1, floor(x) + 1)
+	local f = x - (i - 1)
+	local r1, g1, b1 = U.rgb(stops[i])
+	local r2, g2, b2 = U.rgb(stops[i + 1])
+	return U.hex(r1 + (r2 - r1) * f, g1 + (g2 - g1) * f, b1 + (b2 - b1) * f)
+end
+
+-- Text whose letters run through the colours (hex strings), first to last.
+-- Colour codes already in it are dropped; textures (|T..|t) and spaces kept.
+function U.grad(stops, text)
+	text = (tostring(text):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+	local parts, letters = {}, 0
+	local i, n = 1, #text
+	while i <= n do
+		local c, len = text:byte(i), 1
+		if c == 124 then
+			local e = text:sub(i + 1, i + 1) == "T" and text:find("|t", i + 2, true)
+			len = e and (e + 2 - i) or 2
+		elseif c >= 240 then len = 4
+		elseif c >= 224 then len = 3
+		elseif c >= 192 then len = 2 end
+		local ch = text:sub(i, i + len - 1)
+		local letter = c ~= 124 and not ch:find("^%s")
+		parts[#parts + 1] = { ch, letter }
+		if letter then letters = letters + 1 end
+		i = i + len
+	end
+	local out, k = {}, 0
+	for _, p in ipairs(parts) do
+		if p[2] then
+			out[#out + 1] = "|cff" .. U.lerpHex(stops, letters > 1 and k / (letters - 1) or 0) .. p[1] .. "|r"
+			k = k + 1
+		else
+			out[#out + 1] = p[1]
+		end
+	end
+	return table.concat(out)
+end
+
 function U.hex(r, g, b)
 	local function c(v) return math.max(0, math.min(255, floor(v * 255 + 0.5))) end
 	return format("%02x%02x%02x", c(r), c(g), c(b))

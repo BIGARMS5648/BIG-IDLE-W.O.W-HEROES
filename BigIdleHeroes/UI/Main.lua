@@ -319,7 +319,7 @@ function Main.Create()
 			for _, id in ipairs(ns.MAT_ORDER) do
 				local m = ns.MATS[id]
 				if c.kinds[m.kind] and ns.MatCount(id) > 0 then
-					lines[#lines + 1] = { U.col(ns.QUALITY[m.q].hex, ns.N(m.name)), U.fmt(ns.MatCount(id)), 1, 1, 1 }
+					lines[#lines + 1] = { ns.QText(m.q, ns.N(m.name)), U.fmt(ns.MatCount(id)), 1, 1, 1 }
 				end
 			end
 			if #lines == 1 then lines[2] = { "아직 없습니다. 상자에서 얻습니다.", nil, 0.7, 0.7, 0.7 } end

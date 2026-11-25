@@ -110,7 +110,7 @@ end
 -- drawn light so the game can colour it (rings, bars, slots); the others are
 -- painted in their own colours and are never tinted.
 UI.GLYPH_ART = {
-	lock = { "icon_lock" }, check = { "icon_check" }, plus = { "icon_plus" }, close = { "icon_close" },
+	lock = { "icon_lock", tint = true }, check = { "icon_check" }, plus = { "icon_plus" }, close = { "icon_close" },
 	arrow = { "icon_arrow" }, star = { "icon_star" }, crown = { "icon_crown" }, skull = { "icon_skull" },
 	auto = { "icon_auto" },
 	ring = { "ui_portrait_ring", tint = true }, bar = { "ui_bar_fill", tint = true }, slot = { "ui_slot", tint = true },
@@ -841,7 +841,13 @@ function UI.IconButton(parent, size, onClick)
 		if self.qArt then UI.SetGlyph(self.slotBg, "slot") self.qArt = nil end
 		if q and ns.QUALITY[q] then
 			local r, g, bl = ns.U.rgb(ns.QUALITY[q].hex)
-			self.frame:SetVertexColor(r, g, bl)
+			-- a grade of several colours has its frame painted in them
+			local painted = ns.QUALITY[q].frame
+			if painted ~= self.frameTex then
+				self.frame:SetTexture(UI.Tex(painted or "frame"))
+				self.frameTex = painted
+			end
+			if painted then self.frame:SetVertexColor(1, 1, 1) else self.frame:SetVertexColor(r, g, bl) end
 			self.frame:Show()
 			self.slotBg:SetVertexColor(0.35 + r * 0.5, 0.35 + g * 0.5, 0.35 + bl * 0.5)
 		else
@@ -850,6 +856,10 @@ function UI.IconButton(parent, size, onClick)
 		end
 	end
 	function b:SetBorderRGB(r, g, bl)
+		if self.frameTex then
+			self.frame:SetTexture(UI.Tex("frame"))
+			self.frameTex = nil
+		end
 		self.frame:SetVertexColor(r, g, bl, 1)
 		self.frame:Show()
 	end

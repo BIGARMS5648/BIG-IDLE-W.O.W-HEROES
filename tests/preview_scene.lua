@@ -190,6 +190,13 @@ S.equip_tooltip = function()
 	local cell = p.cells[5]
 	if cell and cell.data then cell.__scripts.OnEnter(cell) end
 end
+-- the top grade's tooltip: its name in the grade's running colours
+S.equip_top_tip = function()
+	local p = equip("bag")
+	for _, cell in ipairs(p.cells) do
+		if cell.data and cell.data.q == ns.MAX_QUALITY then cell.__scripts.OnEnter(cell) return end
+	end
+end
 S.equip_slot = function() ns.Main.SelectHero(db.party[2]) equip("bag", { slot = "ring" }) end
 S.equip_bank = function()
 	while #db.bank < 6 and #db.bag > 0 do ns.Items.ToBank(#db.bag) end

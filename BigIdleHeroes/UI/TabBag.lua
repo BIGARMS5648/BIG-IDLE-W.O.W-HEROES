@@ -216,7 +216,7 @@ function BagView.Build(page, f)
 	page.smeltLabel:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 10)
 	page.smeltPick = UI.Dropdown(f, 150, 32, function()
 		local out = {}
-		for q = 1, ns.MAX_QUALITY do out[#out + 1] = { q, U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name)) .. " 이하" } end
+		for q = 1, ns.MAX_QUALITY do out[#out + 1] = { q, ns.QText(q, ns.N(ns.QUALITY[q].name)) .. " 이하" } end
 		return out
 	end, smeltQ, function(q)
 		ns.db.ui.smeltQ = q
@@ -240,7 +240,7 @@ function BagView.Build(page, f)
 		local q = ns.QUALITY[smeltQ()]
 		UI.Confirm({ title = "일괄 분해", ok = "분해", style = "red",
 			text = string.format("%s 이하의 장비 %d개를 분해하시겠습니까?\n%s 골드를 받습니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비%s는 남깁니다.",
-				U.col(q.hex, ns.N(q.name)), #picked, U.fmt(total), kept > 0 and string.format("(%d개)", kept) or ""),
+				ns.QText(smeltQ(), ns.N(q.name)), #picked, U.fmt(total), kept > 0 and string.format("(%d개)", kept) or ""),
 			onOk = function()
 				local ok, gold, n = ns.Forge.Smelt(picked)
 				if UI.Try(ok, gold) then ns.Toast(string.format("%d개 분해: +%s 골드", n, U.fmt(gold))) end
@@ -266,7 +266,7 @@ function BagView.Build(page, f)
 	page.autoSmelt:SetPoint("LEFT", page.smeltGo, "RIGHT", 16, 0)
 	UI.Tip(page.autoSmelt, function()
 		local q = ns.QUALITY[smeltQ()]
-		return UI.SimpleTip("자동 분해", string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 남깁니다.", U.col(q.hex, ns.N(q.name))))
+		return UI.SimpleTip("자동 분해", string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 남깁니다.", ns.QText(smeltQ(), ns.N(q.name))))
 	end, "TOP")
 end
 
@@ -465,7 +465,7 @@ function MatsView.Build(page, f)
 			local s = ns.SEAL[sealIndex(r.id) or 1]
 			local parts = {}
 			for q = 1, ns.MAX_QUALITY do
-				if (s.q[q] or 0) > 0 then parts[#parts + 1] = U.col(ns.QUALITY[q].hex, ns.N(ns.QUALITY[q].name) .. " " .. s.q[q] .. "%") end
+				if (s.q[q] or 0) > 0 then parts[#parts + 1] = ns.QText(q, ns.N(ns.QUALITY[q].name) .. " " .. s.q[q] .. "%") end
 			end
 			local body = "인장 1개와 골드로 장비를 하나 얻습니다. 레벨은 지금까지 간 가장 높은 스테이지를 따릅니다. 영웅보다 레벨이 높은 장비는 영웅이 그 레벨이 될 때까지 가방에 남겨 둡니다.\n" .. table.concat(parts, "  ")
 			if not ns.Forge.Unlocked("seal") then
@@ -518,7 +518,7 @@ function MatsView.Refresh(page)
 			r.icon.data = id
 			r.icon:SetIconName(m.icon)
 			r.icon:SetQuality(m.q)
-			r.name:SetText(U.col(ns.QUALITY[m.q].hex, ns.N(m.name)) .. "  " .. U.fmt(count))
+			r.name:SetText(ns.QText(m.q, ns.N(m.name)) .. "  " .. U.fmt(count))
 			r.price:SetText("개당 " .. U.fmt(ns.Forge.MatSmeltGold(id, 1)) .. " G")
 			if smelt then
 				r.smelt:SetLabel("모두 분해")
