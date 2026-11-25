@@ -1904,6 +1904,34 @@ do
 		m:Step(0.05)
 		return m
 	end
+	-- a model's box follows its animation (a running cat is longer than a
+	-- standing one): its size is taken standing and kept, so the same model
+	-- never comes up smaller, whatever it was doing when its size was read
+	do
+		Fig.ResetFailed()
+		local catBox = Mock.boxes[D[416]]
+		Mock.boxes[D[416]] = { -1.0, -0.3, 0, 1.2, 0.3, 1.0 } -- long and low
+		Mock.animBox = { [4] = 1.6, [5] = 1.6, [16] = 1.5, [17] = 1.5 } -- walking, running, attacking: longer
+		local m = stand(416, 70)
+		local standing = m.norm
+		m:Play("walk")
+		for _ = 1, 20 do m:Step(0.05) end -- past the second look, still walking
+		if math.abs(m.norm - standing) > 1e-9 then fail(string.format("a walking model should keep its standing size: %.3f, was %.3f", m.norm, standing)) end
+		m:Play("idle")
+		for _ = 1, 20 do m:Step(0.05) end
+		if math.abs(m.norm - standing) > 1e-9 then fail("standing again it should be the same size") end
+		-- the same model put up again while it walks: the size it had standing
+		local m2 = Fig.New(UIParent, 70)
+		m2:Play("walk")
+		m2:SetModelId(416)
+		m2:Show()
+		for _ = 1, 30 do m2:Step(0.05) end
+		if not (m2.norm and math.abs(m2.norm - standing) < 1e-9) then fail(string.format("a model put up again while walking should come up its standing size: %s, want %.3f", tostring(m2.norm), standing)) end
+		Mock.animBox = nil
+		Mock.boxes[D[416]] = catBox
+		m:Hide() m2:Hide()
+		Fig.ResetFailed()
+	end
 	for _, c in ipairs({ { MOB, 70 }, { 11502, 98 }, { 416, 70 } }) do
 		local m = stand(c[1], c[2])
 		local a = m.actor

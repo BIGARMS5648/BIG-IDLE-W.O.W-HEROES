@@ -48,6 +48,11 @@ local FRAME_W, FRAME_H = 2.4, 1.6
 local FEET_UP = 0.06
 
 local failed = {} -- [npc id] = true when the client could not load it
+-- [model id] = { box, norm }: a model's size as read while it stood still.
+-- A model's box follows the animation it plays (a running or pouncing cat is
+-- much longer than a standing one), so its size is only taken standing, and
+-- then kept: the same model never comes up smaller later.
+local sizeOf = {}
 
 function Figure.Enabled()
 	return ns.db and ns.db.opt and ns.db.opt.models ~= false
@@ -189,8 +194,10 @@ end
 -- forward of the model's middle: the cat's long tail puts its middle behind
 -- its body.
 Figure.FORM_BAR_X = { cat = 0.15 }
--- seconds after a model is in that its size is read once more
+-- seconds after a model is in that its size is read once more (standing
+-- still for STAND_FOR seconds by then)
 Figure.REMEASURE = 0.5
+Figure.STAND_FOR = 0.3
 -- the forms that go on four legs, long and low
 Figure.BEAST = { cat = true, bear = true }
 -- the form a hero fights in (cat, bear, moonkin ...), nil when it stands as
@@ -370,7 +377,12 @@ function base:Loaded()
 	self.corrScale, self.corrXf, self.corrYf, self.fixTries, self.fixInfo = nil, nil, nil, 0, nil
 	self.sinceLoad, self.remeasured = 0, nil
 	if self.body and self.Dress then self:Dress() end
-	self:Measure()
+	local known = self.id and sizeOf[self.id]
+	if known and self.kind == "scene" then
+		self.box, self.norm, self.remeasured = known.box, known.norm, true
+	else
+		self:Measure()
+	end
 	self:Look()
 	if self.anim then self:SetAnim(self:AnimId(self.done and self.anim == "death" and "dead" or self.anim)) end
 	if self.kind == "scene" then Figure.Calibrate(self) end
@@ -394,6 +406,7 @@ end
 function base:Play(anim, restart)
 	if not ANIM_ID[anim] then anim = "idle" end
 	if self.anim == anim and not restart and (anim == "death" or not ONESHOT[anim] or not self.done) then return end
+	if self.anim ~= anim then self.animAge = 0 end
 	self.anim = anim
 	self.left = ONESHOT[anim] or 0
 	self.done = not ONESHOT[anim]
@@ -430,17 +443,24 @@ function base:Step(dt)
 			end
 		end
 	end
+	self.animAge = (self.animAge or 0) + dt
 	-- a model can come in before its size does (it would stand as tall as a
 	-- man: a cat much too small): its size is read again until the game has
-	-- it, and once more a moment later
+	-- it, and once more a moment later, standing (see sizeOf)
 	if self.loaded and self.kind == "scene" and not self.fixedScale and not self.bust then
 		self.sinceLoad = (self.sinceLoad or 0) + dt
-		local again = (not self.box and self.sinceLoad < 5)
-			or (not self.remeasured and self.sinceLoad >= Figure.REMEASURE)
+		local standing = (self.anim == nil or self.anim == "idle") and self.animAge >= Figure.STAND_FOR
+		local final = not self.remeasured and self.sinceLoad >= Figure.REMEASURE and standing
+		local again = (not self.box and self.sinceLoad < 5) or final
 		if again then
-			if self.sinceLoad >= Figure.REMEASURE then self.remeasured = true end
 			local old = self.box and self.norm
 			self:Measure()
+			if final and self.box then
+				self.remeasured = true
+				-- (kept for fighters and forms: scenery and effects, put up from
+				-- model files, never move)
+				if self.id and not self.file then sizeOf[self.id] = { box = self.box, norm = self.norm } end
+			end
 			if self.box and (not old or abs(self.norm - old) > 0.01 * old) then
 				self.corrScale, self.corrXf, self.corrYf, self.fixTries, self.fixInfo = nil, nil, nil, 0, nil
 				self:Look()
@@ -1066,6 +1086,10 @@ function Figure.New(parent, height)
 end
 
 -- for tests: forget the models that did not load
-function Figure.ResetFailed() for k in pairs(failed) do failed[k] = nil end end
+function Figure.ResetFailed()
+	for k in pairs(failed) do failed[k] = nil end
+	for k in pairs(sizeOf) do sizeOf[k] = nil end
+end
+Figure.SizeOf = sizeOf
 Figure.failed = failed
 Figure.SIDE, Figure.FEET_AT = SIDE, FEET_AT

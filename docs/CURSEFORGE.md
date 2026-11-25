@@ -156,4 +156,6 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - Item tooltips use the same 1% step as auto-equip and the upgrade marks.
 - After a long frame (a loading screen) the fight catches up instead of losing time.
 - Damaged saved items are repaired on load; unreadable ones are set aside, not deleted.
+- The druid's cat form no longer shrinks: a model's size is read only while it stands
+  still (a walking or attacking cat measured longer and was drawn smaller), and kept.
 ```

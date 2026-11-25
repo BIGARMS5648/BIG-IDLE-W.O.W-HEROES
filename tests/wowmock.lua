@@ -459,7 +459,9 @@ Mock.noBoxUntil = 0
 function Actor:GetActiveBoundingBox()
 	if not self:IsLoaded() or Mock.now < Mock.noBoxUntil then return 0, 0, 0, 0, 0, 0 end
 	local b = Mock.boxes[self.__display] or { -0.4, -0.3, 0, 0.5, 0.3, 2.0 }
-	return b[1], b[2], b[3], b[4], b[5], b[6]
+	-- (as in the game the box follows the animation: Mock.animBox[anim] = how much longer)
+	local k = Mock.animBox and self.__anim and Mock.animBox[self.__anim] or 1
+	return b[1] * k, b[2], b[3], b[4] * k, b[5], b[6]
 end
 function Actor:SetScale(v) strict(type(v) == "number" and v > 0, "actor SetScale: positive number expected") self.__scale = v end
 function Actor:GetScale() return self.__scale or 1 end
