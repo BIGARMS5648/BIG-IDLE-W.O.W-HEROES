@@ -308,7 +308,7 @@ function BagView.Refresh(page)
 			b.data = it
 			b:SetIconName(ns.Items.Icon(it))
 			b:SetQuality(it.q)
-			b:SetCount(ns.Upgrade.Text(it))
+			b:SetCount(tostring(it.l))
 			b:SetLocked(it.lock)
 			if not bank and sel then
 				local usable = ns.Items.CanEquip(sel, it)

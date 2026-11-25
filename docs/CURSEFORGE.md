@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.2.3
+BIG IDLE HEROES v1.2.4
 ```
 
 ---
@@ -81,7 +81,7 @@ Build a party of five heroes, send them along a route through the original game'
 - **Three kinds of chests**: monster chests, boss chests and act boss chests. Each stage has its own chests, drop chances and contents, shown on the stage screen.
 - **The Forge**, a screen of its own: every function in a list on the left (fuse, craft, gems, enchant, inscription, enhance, salvage, lucky seals, materials), the work in the middle, and on the right the hero and item you work on plus a log of the latest results. Bags fill up, so auto-salvage helps keep them clear.
 - **Gems, enchanting and inscription** work like Task Bar Hero's cube: 36 gems, 33 enchanting reagents and 10 inscription scrolls, each giving its own stats by gear type (weapon, armor or accessory) at tiers 1 to 10. Better grades give higher tiers; nine of one material fuse into a random one of the next grade.
-- **Enhancement** (+1 to +20) once Mythic+ is cleared: every step raises an item's base stats; steps past +10 can fail (only the gold is lost), and enhancement can be moved to a new item of the same slot for gold. Item icons show their +N.
+- **Enhancement** (+1 to +20) once Mythic+ is cleared: every step raises an item's base stats; steps past +10 can fail (only the gold is lost), and enhancement can be moved to a new item of the same slot for gold. The tooltip shows the step before the name (+10 Iron Helm); item icons show the item level.
 - **Rune tree**: account-wide bonuses that open more party slots, skill slots and more.
 - **Companions** that join the party.
 - **Offline rewards** for the time you were away.
@@ -138,9 +138,11 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.2.3)
+## Changelog for this release (v1.2.4)
 
 ```
+- Item icons show the item level again; the enhancement step goes before the item's
+  name in its tooltip (+10 Iron Helm).
 - A new logo in the main window's top-left corner.
 - The druid's cat form no longer comes up small after a reload: a model's size is now
   always read in its standing pose (it stands out of sight for a moment, then shows

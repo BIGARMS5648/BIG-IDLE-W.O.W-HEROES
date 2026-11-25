@@ -28,12 +28,6 @@ end
 
 function Upgrade.Level(it) return it and it.up or 0 end
 
--- what the icon of an item shows: its step from "+1" to "+20" (nothing at +0)
-function Upgrade.Text(it)
-	local n = Upgrade.Level(it)
-	return n > 0 and ("+" .. n) or ""
-end
-
 -- Open once the last difficulty is cleared to its end (the endless tower).
 function Upgrade.Open()
 	return ns.TowerOpen and ns.TowerOpen() or false

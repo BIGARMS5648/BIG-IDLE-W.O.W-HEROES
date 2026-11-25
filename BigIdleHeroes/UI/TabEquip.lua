@@ -228,7 +228,7 @@ local function refreshLeft(page)
 			worn = worn + 1
 			b:SetIconName(ns.Items.Icon(it))
 			b:SetQuality(it.q)
-			b:SetCount(ns.Upgrade.Text(it))
+			b:SetCount(tostring(it.l))
 			b:SetLocked(it.lock)
 			b.empty:Hide()
 		else

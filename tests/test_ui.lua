@@ -738,15 +738,20 @@ do
 	for _ = 1, 3 do press("enhance", up.go) end
 	if (epic.up or 0) ~= 3 then fail("강화하기 should raise the piece three steps: " .. tostring(epic.up)) end
 	if not (up.lastText.__text or ""):find("+3", 1, true) then fail("the 강화 tab should say how the last try went") end
-	-- the icons show the step, not the item level (the bag, on the equipment screen)
+	-- the icons show the item level; the step goes before the name in the
+	-- tooltip ("+3 <name>")
 	Main.ShowTab("equip", { sub = "bag" })
 	local eq = Main.Page("equip")
 	local cell, plain
 	for _, b in ipairs(eq.cells) do
 		if b.data == epic then cell = b elseif b.data and not b.data.up and b:IsShown() then plain = b end
 	end
-	if not cell or cell.count.__text ~= "+3" then fail("an item's icon should show its step: " .. tostring(cell and cell.count.__text)) end
-	if plain and (plain.count.__text or "") ~= "" then fail("a piece at +0 shows nothing, not its level: " .. tostring(plain.count.__text)) end
+	if not cell or cell.count.__text ~= tostring(epic.l) then fail("an enhanced item's icon should show its item level: " .. tostring(cell and cell.count.__text)) end
+	if plain and plain.count.__text ~= tostring(plain.data.l) then fail("an item's icon should show its item level: " .. tostring(plain.count.__text)) end
+	local title = ns.Items.Tooltip(epic)[1][1]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+	if title ~= "+3 " .. ns.Items.Name(epic) then fail("the tooltip should name the step before the item: " .. title) end
+	local plainTitle = ns.Items.Tooltip(plain and plain.data or ns.Items.New("chest", 30, 2))[1][1]
+	if plainTitle:find("^%+") then fail("a piece at +0 has no step before its name: " .. plainTitle) end
 	-- 계승: a second chest of the same slot takes the steps for gold
 	local other = ns.Items.New("chest", 30, 6)
 	ns.Items.AddToBag(other)

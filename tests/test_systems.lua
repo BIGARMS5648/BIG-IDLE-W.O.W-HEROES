@@ -938,7 +938,7 @@ do
 	db.bag = {}
 	local it = ns.Items.New("chest", 100, 5)
 	ns.Items.AddToBag(it)
-	check(Up.Level(it) == 0 and Up.Text(it) == "", "a piece starts at +0, which its icon does not show")
+	check(Up.Level(it) == 0, "a piece starts at +0")
 	-- locked until the last difficulty is cleared (the endless tower)
 	db.prog[4] = ns.STAGE_COUNT - 1
 	db.gold = 1e15
@@ -956,7 +956,7 @@ do
 		local ok, success, now = Up.Try(it)
 		check(ok and success and now == n + 1 and db.gold == g - cost, "a try from +" .. n .. " always succeeds and costs its gold")
 	end
-	check(Up.Text(it) == "+10", "the icon shows +10")
+	check(ns.Items.Tooltip(it)[1][1]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):find("^%+10 ") ~= nil, "the tooltip names the step before the item: +10")
 	local base10 = ns.Items.BaseStats(it)[1][2]
 	check(math.abs(base10 / base0 - Up.Bonus(10)) < 0.05, "+10 raises the base stats by its bonus: " .. base10 / base0)
 	check(Up.Bonus(0) == 1 and Up.Bonus(10) > 1 and Up.Bonus(20) > Up.Bonus(10), "each step gives more")
