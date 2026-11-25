@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.2.7
+BIG IDLE HEROES v1.3.0
 ```
 
 ---
@@ -138,25 +138,20 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.2.7)
+## Changelog for this release (v1.3.0)
 
 ```
+- The rune tree is now TBH's: 197 runes bought with gold, spreading in every direction
+  from the first rune in the middle of a map. The mouse wheel zooms in and out around
+  the cursor; dragging moves the map.
+- A rune's border colour shows its kind (combat, gold, experience, chests, bag, unlocks,
+  forge; a key under the map). Runes that cannot be learned yet are grey; runes at
+  their top level get a green check in the lower right corner.
+- Runes open party seats (3 to start, up to 5), the third skill slot, offline rewards,
+  automatic chest opening per chest kind, opening a whole kind with a right-click or
+  every kind with Shift+click, more bag and stash room, higher chest limits, fewer
+  waves per stage, and gold / experience per kill, per boss and per act boss.
+- Runes learned before this version are taken back and all the gold they cost is
+  returned (a chat note at login says how much).
 - Forge: 강화 (enhancement) is the last entry of the function list.
-- Fusion: the latest result sits level with the fusion buttons, clear of the text below.
-- The moonkin is clearly taller in battle.
-- The bag has no open-all-chests button; chests open from the battle window.
-- The forge has no separate seal-roll entry; seals are rolled on the materials' seal tab.
-- Item icons show the item level again; the enhancement step goes before the item's
-  name in its tooltip (+10 Iron Helm).
-- A new logo in the main window's top-left corner.
-- The druid's cat form no longer comes up small after a reload: a model's size is now
-  always read in its standing pose (it stands out of sight for a moment, then shows
-  at its size doing what it should). Before, a cat whose model arrived mid-swing was
-  measured in its long pouncing pose and kept that smaller size.
-- The hunter's wolf is a little smaller; the moonkin is a little taller.
-- The battle scene has rounded corners under its border; nothing shows past the curve.
-- The main window's header and bottom-menu shading stay inside its rounded corners.
-- The main window's header shows only the logo, gold, materials and buttons.
-- The socket inscription is now called 주문각인 (scrolls: 주문서), so it is not mixed up
-  with the rune tree.
 ```
