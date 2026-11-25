@@ -48,6 +48,10 @@ ns.LOADSCREENS = {
 	blackwing = classic("BlackwingLair"),
 	ahnqiraj40 = classic("AhnQiraj40man"),
 	naxxramas = classic("Naxxramas"),
+	-- the endless tower's, used by no stage: its card Dalaran, its floors
+	-- Zephra's Isle (Forever's), else original screens no stage uses either
+	dalaran = forever("dalaran", classic("PvPBattleground")),
+	zephrasisle = forever("zephrasisle", classic("StormwindStockade")),
 }
 
 -- each stage's place (Data/Scenery.lua) -> its loading screen
@@ -96,3 +100,5 @@ end
 
 function ns.StageLoadingScreen(diff, idx) return pick(ns.StageLoadingKey(diff, idx)) end
 function ns.WorldLoadingScreen(d) return pick(BY_WORLD[d] or "easternkingdom") end
+-- the endless tower: "card" (its card on top) or "floor" (the floor's banner)
+function ns.TowerLoadingScreen(part) return pick(part == "floor" and "zephrasisle" or "dalaran") end

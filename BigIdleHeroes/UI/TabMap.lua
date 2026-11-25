@@ -115,7 +115,7 @@ local function build(page)
 		w.scene = w:CreateTexture(nil, "BACKGROUND")
 		w.scene:SetPoint("TOPLEFT", w, "TOPLEFT", 3, -3)
 		w.scene:SetPoint("BOTTOMRIGHT", w, "BOTTOMRIGHT", -3, 3)
-		if not UI.SetLoadingScreen(w.scene, ns.StageLoadingScreen(#ns.DIFFS, ns.STAGE_COUNT), (ww - 6) / 60) then
+		if not UI.SetLoadingScreen(w.scene, ns.TowerLoadingScreen("card"), (ww - 6) / 60) then
 			local th, r, g, b = themeRGB(ns.STAGES[#ns.DIFFS][ns.STAGE_COUNT].theme)
 			w.scene:SetTexture(UI.Tex(th.art))
 			w.scene:SetTexCoord(0.2, 0.6, 0.15, 0.85)
@@ -626,7 +626,7 @@ refreshTower = function(page)
 	local d = page.detail
 	local raid = T.IsRaid(f)
 	local last = ns.STAGES[#ns.DIFFS][ns.STAGE_COUNT]
-	if not UI.SetLoadingScreen(d.banner, ns.StageLoadingScreen(#ns.DIFFS, ns.STAGE_COUNT), (Main.PAGE_W - DETAIL_X - 8) / 76) then
+	if not UI.SetLoadingScreen(d.banner, ns.TowerLoadingScreen("floor"), (Main.PAGE_W - DETAIL_X - 8) / 76) then
 		local th, r, g, bl = themeRGB(last.theme)
 		d.banner:SetTexture(UI.Tex(th.art))
 		d.banner:SetTexCoord(0, 0.6, 0.1, 0.85)

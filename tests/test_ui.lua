@@ -946,6 +946,20 @@ do
 		ns.db.prog = { 30, 30, 30, 29 }
 		click("tower card", function(b) return b == pg.towerCard end)
 		if not pg.tower or not pg.towerView:IsShown() or pg.nodes[1]:IsShown() then fail("the tower card should show the tower instead of a world's stages") end
+		-- the tower's own loading screens, which no stage uses: Dalaran on its
+		-- card, Zephra's Isle behind the floor
+		do
+			local card = tostring(pg.towerCard.scene:GetTexture() or ""):lower()
+			local floor = tostring(pg.detail.banner:GetTexture() or ""):lower()
+			if not card:find("dalaran", 1, true) then fail("the tower card should show Dalaran's loading screen: " .. card) end
+			if not floor:find("zephrasisle", 1, true) then fail("the tower's floor should show Zephra's Isle's loading screen: " .. floor) end
+			for d = 1, #ns.DIFFS do
+				for i = 1, ns.STAGE_COUNT do
+					local k = ns.StageLoadingKey(d, i)
+					if k == "dalaran" or k == "zephrasisle" then fail("no stage should use the tower's loading screens") end
+				end
+			end
+		end
 		if not pg.detail.go.off then fail("a closed tower cannot be entered") end
 		ns.db.prog = { 30, 30, 30, 30 }
 		ns.db.tower.best = 7
