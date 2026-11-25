@@ -6,7 +6,9 @@
 --   python3 tests/run.py pace HOURS [STARTER,RECRUIT,RECRUIT,...]
 --
 -- globals: PACE_PARTY (spec ids), PACE_LOAD (a checkpoint to start from),
--- PACE_SAVE + PACE_SAVE_AT (hours) to write one, PACE_SEED
+-- PACE_SAVE + PACE_SAVE_AT (hours, "tower" or "stop") to write one,
+-- PACE_STOP_DIFF + PACE_STOP_STAGE (end once that stage is first cleared),
+-- PACE_SEED
 local ns = NS
 local hours, party = ...
 local Bot = dofile(debug.getinfo(1, "S").source:sub(2):gsub("pace%.lua$", "bot.lua"))
@@ -98,8 +100,11 @@ while t < total do
 			db.stat.gold, ns.Runes.Spent and ns.Runes.Spent() or 0, db.tower.best or 0)
 		mi = mi + 1
 	end
-	-- (PACE_SAVE_AT "tower": when the tower opens)
-	if PACE_SAVE and not saved and ((PACE_SAVE_AT == "tower" and ns.TowerOpen()) or (tonumber(PACE_SAVE_AT) and t >= PACE_SAVE_AT * 3600)) then
+	-- (PACE_STOP_DIFF/STAGE: done once that stage is cleared)
+	local stop = PACE_STOP_DIFF and (db.prog[PACE_STOP_DIFF] or 0) >= (PACE_STOP_STAGE or ns.STAGE_COUNT)
+	-- (PACE_SAVE_AT "tower": when the tower opens; "stop": at the stop)
+	if PACE_SAVE and not saved and ((PACE_SAVE_AT == "tower" and ns.TowerOpen()) or (PACE_SAVE_AT == "stop" and stop)
+		or (tonumber(PACE_SAVE_AT) and t >= PACE_SAVE_AT * 3600)) then
 		saved = true
 		local buf = { "return { t = ", string.format("%.17g", t), ", db = " }
 		ser(db, buf)
@@ -108,6 +113,7 @@ while t < total do
 		f:write(table.concat(buf))
 		f:close()
 	end
+	if stop then break end
 end
 out[#out + 1] = string.format("[end %.0fh %d/%d/%d/%d L%d wipes %d R%.3g F%d]", t / 3600, db.prog[1], db.prog[2], db.prog[3], db.prog[4], lv(), db.stat.wipes,
 	ns.Runes.Spent(), db.tower.best or 0)
