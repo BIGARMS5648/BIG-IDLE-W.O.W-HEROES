@@ -481,14 +481,16 @@ end
 -- Monster strength on top of the base growth, by stage level: { level,
 -- times } points, followed in a straight line on a log scale between them.
 -- It sets how long each part of the climb takes (tests/pace: TBH's hours).
--- Set by long play runs (tests/pace.lua): with TBH's runes, the last
--- difficulty (신화+) is cleared to its end at about 240 h, the pace before
--- those runes (levels above 40 three quarters as strong as before, eased
--- in from 40 to 60). 영웅 ends near 86 h and 신화 near 95 h; the last
--- stages are held by the heroes' level more than by the monsters.
+-- Set by long play runs (tests/pace.lua, one difficulty after another from
+-- the one before's end), each difficulty timed from its start as in TBH:
+-- 일반 1~30 about 64 h, 영웅 about 70~75 h, 신화 about 83~90 h, 신화+ to its
+-- 20th stage about 115 h and to its end about 330 h (with 강화 open from
+-- 신화+, bought before the dearer runes). 신화+'s last stages still vary
+-- by some 100 h with the luck of the drops.
 ns.MIGHT = {
-	{ 1, 0.47 }, { 5, 1.2 }, { 12, 2.38 }, { 22, 5.2 }, { 32, 7.7 }, { 40, 6.56 }, { 52, 5.576 },
-	{ 65, 4.095 }, { 77, 3.78 }, { 85, 4.2525 }, { 90, 5.3925 }, { 93, 9.6 }, { 94, 9.6 }, { 95, 10.125 }, { 100, 30 },
+	{ 1, 0.517 }, { 5, 1.32 }, { 12, 2.618 }, { 22, 5.72 }, { 32, 8.47 }, { 40, 5.1168 }, { 52, 14.2188 },
+	{ 58, 8.22042 }, { 65, 9.828 }, { 70, 11.486 }, { 77, 8.883 }, { 85, 12.7575 }, { 90, 16.1775 },
+	{ 93, 14.4 }, { 94, 14.88 }, { 95, 16.2 }, { 100, 90 },
 }
 local function knots(k, l)
 	if l <= k[1][1] then return k[1][2] end
@@ -506,7 +508,7 @@ function ns.MobMight(l) return knots(ns.MIGHT, l) end
 -- fewer monsters come at once here than in TBH's big waves, so later
 -- stages give more for each one.
 ns.EXP_GROW = {
-	{ 1, 1 }, { 32, 1 }, { 40, 3 }, { 52, 5 }, { 65, 6 }, { 77, 5 }, { 85, 1.5 }, { 90, 0.5 }, { 100, 0.4 },
+	{ 1, 0.45 }, { 32, 0.45 }, { 40, 1.14 }, { 52, 1.9 }, { 65, 1.8 }, { 77, 1.5 }, { 85, 0.45 }, { 90, 0.15 }, { 100, 0.12 },
 }
 function ns.ExpGrow(l) return knots(ns.EXP_GROW, l) end
 -- The gear level a party has at stage level l: boxes give gear in TBH's
