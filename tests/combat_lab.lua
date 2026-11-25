@@ -157,8 +157,8 @@ ns.MobsPerWave = function(d, i) if LAB then return LAB.n end return real.MobsPer
 -- a lab stage: nine waves of LAB.n, then the boss (o.boss: the boss alone)
 ns.StageWaves = function(d, i) if LAB then return LAB.boss and 1 or 10 end return real.StageWaves(d, i) end
 ns.StageKills = function(d, i) if LAB then return LAB.boss and 0 or 9 * LAB.n end return real.StageKills(d, i) end
-ns.MobAtk = function(b, l) if LAB and LAB.atk then return LAB.atk end return real.MobAtk(b, l) end
-ns.MobHP = function(b, l) if LAB and LAB.hp then return LAB.hp end return real.MobHP(b, l) end
+ns.MobAtk = function(b, l, m) if LAB and LAB.atk then return LAB.atk end return real.MobAtk(b, l, m) end
+ns.MobHP = function(b, l, m) if LAB and LAB.hp then return LAB.hp end return real.MobHP(b, l, m) end
 ns.Heroes.AddXP = function(id, amount)
 	LOG.xp[#LOG.xp + 1] = { id = id, a = amount }
 	return 0 -- levels stay put during a test

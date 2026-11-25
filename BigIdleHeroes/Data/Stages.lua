@@ -478,20 +478,35 @@ function ns.StageNorm(diff, idx)
 	return stg.norm
 end
 
--- Monster strength on top of the base growth, by stage level: { level,
--- times } points, followed in a straight line on a log scale between them.
--- It sets how long each part of the climb takes (tests/pace: TBH's hours).
--- Set by long play runs (tests/pace.lua, one difficulty after another from
--- the one before's end), each difficulty timed from its start as in TBH:
--- 일반 1~30 about 64 h, 영웅 about 70~75 h, 신화 about 83~90 h, 신화+ to its
--- 20th stage about 115 h and to its end about 330 h (with 강화 open from
--- 신화+, bought before the dearer runes). 신화+'s last stages still vary
--- by some 100 h with the luck of the drops.
+-- Monster strength on top of the base growth, stage by stage (each
+-- difficulty's 30 stages in order). It sets how long each part of the climb
+-- takes, each difficulty timed from its start as in TBH: 일반 about 64 h,
+-- 영웅 75 h, 신화 90 h, 신화+ 333 h (its 20th stage at 115 h). Fitted by long
+-- play runs of several parties (tests/pace.lua). The endless tower starts
+-- from the last stage's.
 ns.MIGHT = {
-	{ 1, 0.517 }, { 5, 1.32 }, { 12, 2.618 }, { 22, 5.72 }, { 32, 8.47 }, { 40, 5.1168 }, { 52, 14.2188 },
-	{ 58, 8.22042 }, { 65, 9.828 }, { 70, 11.486 }, { 77, 8.883 }, { 85, 12.7575 }, { 90, 16.1775 },
-	{ 93, 14.4 }, { 94, 14.88 }, { 95, 16.2 }, { 100, 90 },
+	{ -- 일반
+		0.517, 0.6535, 0.8261, 1.32, 1.456, 1.605, 1.77, 2.153, 2.374, 2.618,
+		2.831, 3.061, 3.31, 3.579, 3.87, 4.184, 4.524, 4.892, 5.29, 5.72,
+		5.949, 6.187, 6.435, 6.693, 6.96, 7.239, 7.529, 7.83, 8.144, 8.47,
+	},
+	{ -- 영웅
+		7.953, 7.467, 7.011, 7.011, 6.583, 6.181, 5.804, 5.45, 5.117, 5.117,
+		5.572, 5.572, 6.067, 6.067, 6.606, 6.606, 7.194, 7.194, 7.833, 7.833,
+		8.53, 9.288, 10.11, 11.01, 11.99, 11.99, 13.06, 13.06, 14.22, 14.22,
+	},
+	{ -- 신화
+		12.98, 11.85, 10.81, 9.868, 9.006, 8.22, 8.433, 8.433, 8.651, 8.651,
+		8.874, 9.104, 9.339, 9.58, 9.828, 10.14, 10.46, 10.79, 11.13, 11.13,
+		11.49, 11.07, 10.67, 10.29, 9.917, 9.56, 9.215, 9.215, 8.883, 8.883,
+	},
+	{ -- 신화+
+		9.294, 9.724, 10.17, 10.65, 11.14, 11.65, 12.19, 12.19, 12.76, 12.76,
+		13.38, 13.38, 14.03, 14.03, 14.71, 14.71, 15.43, 15.43, 16.18, 16.18,
+		15.56, 15.56, 14.97, 14.97, 14.4, 14.4, 14.88, 14.88, 16.2, 16.2,
+	},
 }
+function ns.StageMight(diff, idx) return ns.MIGHT[diff][idx] end
 local function knots(k, l)
 	if l <= k[1][1] then return k[1][2] end
 	for i = 2, #k do
@@ -503,7 +518,6 @@ local function knots(k, l)
 	end
 	return k[#k][2]
 end
-function ns.MobMight(l) return knots(ns.MIGHT, l) end
 -- Experience on top of TBH's growth, by stage level (same kind of points):
 -- fewer monsters come at once here than in TBH's big waves, so later
 -- stages give more for each one.
@@ -531,13 +545,14 @@ function ns.MobLevel(l)
 	local g = ns.GearAt(l)
 	return g + ns.MOB_BAND * (l - g)
 end
-function ns.MobHP(base, l)
+-- might: the stage's strength (ns.StageMight)
+function ns.MobHP(base, l, might)
 	local m = ns.MobLevel(l)
-	return base * (1 + 0.25 * (m - 1)) * 1.07 ^ (m - 1) * ns.MobMight(l)
+	return base * (1 + 0.25 * (m - 1)) * 1.07 ^ (m - 1) * (might or 1)
 end
-function ns.MobAtk(base, l)
+function ns.MobAtk(base, l, might)
 	local m = ns.MobLevel(l)
-	return base * (1 + 0.12 * (m - 1)) * 1.05 ^ (m - 1) * ns.MobMight(l)
+	return base * (1 + 0.12 * (m - 1)) * 1.05 ^ (m - 1) * (might or 1)
 end
 function ns.MobGold(base, l) return base * (1 + 0.15 * (l - 1)) * 1.04 ^ (l - 1) end
 -- experience grows with the stage level as TBH's (Data/TBH.lua)

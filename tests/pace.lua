@@ -8,7 +8,7 @@
 -- globals: PACE_PARTY (spec ids), PACE_LOAD (a checkpoint to start from),
 -- PACE_SAVE + PACE_SAVE_AT (hours, "tower" or "stop") to write one,
 -- PACE_STOP_DIFF + PACE_STOP_STAGE (end once that stage is first cleared),
--- PACE_SEED
+-- PACE_SEED, PACE_EVERY (every stage's first clear, not only every tenth)
 local ns = NS
 local hours, party = ...
 local Bot = dofile(debug.getinfo(1, "S").source:sub(2):gsub("pace%.lua$", "bot.lua"))
@@ -85,7 +85,7 @@ while t < total do
 	for d = 1, 4 do
 		if db.prog[d] ~= last[d] then
 			last[d] = db.prog[d]
-			if db.prog[d] % 10 == 0 or (d == 4 and db.prog[d] > 20) then
+			if PACE_EVERY or db.prog[d] % 10 == 0 or (d == 4 and db.prog[d] > 20) then
 				out[#out + 1] = string.format("%s%d=%.1fh(L%d)", ({ "N", "M", "H", "T" })[d], db.prog[d], t / 3600, lv())
 			end
 		end

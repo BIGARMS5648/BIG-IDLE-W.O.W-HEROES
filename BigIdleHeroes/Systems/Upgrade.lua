@@ -1,8 +1,8 @@
 -- Equipment enhancement (강화): every piece starts at +0 and goes up to +20,
 -- one step a try, bought with gold. Each step raises the item's base stats;
 -- from +0 to +10 every try succeeds, from +10 on a try can fail (the gold is
--- gone, the item stays as it was). Opens with the endless tower, once Mythic+
--- is cleared to its end.
+-- gone, the item stays as it was). Opens with 신화+, once 신화 is cleared to
+-- its end.
 -- Stored on the item as it.up (nil = +0).
 local _, ns = ...
 

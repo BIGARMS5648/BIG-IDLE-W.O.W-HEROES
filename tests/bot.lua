@@ -164,6 +164,63 @@ local function forge()
 	end
 end
 
+-- Crafting and seals as a player would use them: each crafting tier opened
+-- once the forge is high enough, then gear of the best tier the party can
+-- wear made for the party's slots still below that level (accessories most
+-- of all: only act bosses drop them), and every seal rolled, the best first.
+local CRAFT_PER_TICK, SEAL_PER_TICK = 10, 10
+local function craft()
+	local F = ns.Forge
+	local db = ns.db
+	if F.Unlocked("craft") then
+		for tier, d in ipairs(ns.CRAFT_TIERS) do
+			if not F.CraftTierUnlocked(tier) and db.forge.level >= d.forge and db.gold >= d.gold * 5 * 3 then
+				F.UnlockCraftTier(tier)
+			end
+		end
+		local top = ns.Heroes.PartyTopLevel()
+		local tier, want
+		for t = #ns.CRAFT_TIERS, 1, -1 do
+			local d = ns.CRAFT_TIERS[t]
+			if F.CraftTierUnlocked(t) and d.levels[1] <= top then
+				tier = t
+				for _, l in ipairs(d.levels) do if l <= top then want = l end end
+				break
+			end
+		end
+		if tier then
+			local made = 0
+			for g, grp in ipairs(ns.CRAFT_GROUPS) do
+				local need = 0
+				for i = 1, ns.PARTY_SIZE do
+					local id = db.party[i]
+					if id then
+						for _, slot in ipairs(grp.slots) do
+							local it = db.heroes[id].gear[slot]
+							if not it or it.l < want then need = need + 1 end
+						end
+					end
+				end
+				while need > 0 and made < CRAFT_PER_TICK and ns.Items.BagFree() > 10 and F.CanCraft(g, tier)
+					and db.gold >= ns.CRAFT_TIERS[tier].gold * 3 do
+					F.Craft(g, tier)
+					need, made = need - 1, made + 1
+				end
+			end
+		end
+	end
+	if F.Unlocked("seal") then
+		local rolled = 0
+		for tier = #ns.SEAL, 1, -1 do
+			local d = ns.SEAL[tier]
+			while rolled < SEAL_PER_TICK and ns.MatCount(d.mat) > 0 and ns.Items.BagFree() > 10 and db.gold >= d.gold * 3 do
+				if not F.BonusRoll(tier) then break end
+				rolled = rolled + 1
+			end
+		end
+	end
+end
+
 -- Fill every empty gem, enchant and rune socket on the party's gear with
 -- the best material at hand, first making better materials out of nine.
 local function sockets()
@@ -208,6 +265,7 @@ function Bot.Tick()
 		end
 	end
 	forge()
+	craft()
 	sockets()
 	recruit()
 	buyRunes()

@@ -90,7 +90,7 @@ local function run(party, loadouts, level, quality, stageLevel, seconds, seed, d
 	local db = fresh()
 	if dummy then
 		ns.MobAtk = function() return 0 end
-		ns.MobHP = function(b, l) return realMobHP(b, l) * 1000 end
+		ns.MobHP = function(b, l, m) return realMobHP(b, l, m) * 1000 end
 	else
 		ns.MobAtk, ns.MobHP = realMobAtk, realMobHP
 	end

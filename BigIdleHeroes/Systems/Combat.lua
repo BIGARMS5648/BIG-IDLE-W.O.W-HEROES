@@ -531,7 +531,7 @@ Combat.SourceOf = sourceOf
 
 local function newMob(def, isBoss, index, summoned)
 	local l = st.level
-	local hp, atk = ns.MobHP(def.hp, l), ns.MobAtk(def.atk, l)
+	local hp, atk = ns.MobHP(def.hp, l, st.might), ns.MobAtk(def.atk, l, st.might)
 	-- a stage of the game (not a test's): its monsters on one footing
 	local sd, si = sourceOf(isBoss)
 	local norm = not summoned and ns.Stage(sd, si) == ns.STAGES[sd][si] and ns.StageNorm(sd, si)
@@ -1240,6 +1240,7 @@ function Combat.StartStage()
 		st.diff, st.idx = roll.place[1], roll.place[2]
 		st.mobStage, st.bossStage = roll.mobs, roll.boss
 		st.level = ns.Tower.LEVEL
+		st.might = ns.StageMight(#ns.DIFFS, ns.STAGE_COUNT)
 		st.raid = ns.Tower.IsRaid(f)
 		st.waves = ns.Tower.Waves(f)
 	else
@@ -1247,6 +1248,7 @@ function Combat.StartStage()
 		st.diff = db.stage.diff
 		st.idx = db.stage.idx
 		st.level = ns.StageLevel(st.diff, st.idx)
+		st.might = ns.StageMight(st.diff, st.idx)
 		st.raid = ns.Stage(st.diff, st.idx).raid or false
 		st.waves = ns.StageWaves(st.diff, st.idx)
 	end
