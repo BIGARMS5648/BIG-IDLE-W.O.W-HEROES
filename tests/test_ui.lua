@@ -798,6 +798,26 @@ do
 	press("learn", rp.side.buy)
 	press("learn", rp.side.buy)
 	if not (R.Available(11) and R.Available(101) and R.Available(201)) then fail("a rune at its top level should open the runes after it") end
+	-- a kind checked under the map: the other runes fade, but their dark
+	-- backing stays solid so the lines behind them stay hidden
+	do
+		local box
+		for _, bt in ipairs(rp.kindBoxes) do if bt.key == "fight" then box = bt end end
+		press("check fight", box)
+		local faded, kept
+		for _, b in ipairs(rp.nodes) do
+			if b.node.group.key == "fight" then kept = kept or b else faded = faded or b end
+		end
+		if not (faded and kept) then fail("the rune map should have runes of the checked kind and of others")
+		else
+			if faded:GetAlpha() < 1 or faded.icon:GetAlpha() > 0.2 or faded.border:GetAlpha() > 0.2 then
+				fail("a faded rune should fade its picture and border, not its solid backing")
+			end
+			if kept.border:GetAlpha() < 1 then fail("a rune of the checked kind should stay bright") end
+		end
+		press("uncheck fight", box)
+		if faded and faded.border:GetAlpha() < 1 then fail("with no kind checked every rune should be bright again") end
+	end
 	-- the border is the rune's kind; grey while closed; a green check at the top level
 	do
 		local b = node(10)

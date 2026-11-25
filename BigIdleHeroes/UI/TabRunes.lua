@@ -464,7 +464,6 @@ local function refresh(page)
 		local node = b.node
 		local id = node.id
 		local lit = not filtering or page.kinds[node.group.key] == true
-		b:SetAlpha(lit and 1 or 0.18)
 		b.halo:SetShown(filtering and lit)
 		if b.link then b.link:SetAlpha(lit and 1 or 0.15) end
 		local lvl, cost, open = R.Level(id), R.NextCost(id), R.Available(id)
@@ -477,7 +476,6 @@ local function refresh(page)
 			b.border:SetVertexColor(rgb[1], rgb[2], rgb[3])
 			b.border2:SetVertexColor(rgb[1], rgb[2], rgb[3])
 			b.icon:SetDesaturated(not open)
-			b.icon:SetAlpha(open and 1 or 0.45)
 			local full = lvl >= node.max
 			b.check:SetShown(full)
 			b.lvl:SetText(full and "" or (lvl .. "/" .. node.max))
@@ -491,6 +489,15 @@ local function refresh(page)
 				end
 			end
 		end
+		-- a faded rune: what it shows fades, its dark backing stays solid,
+		-- so the lines behind it stay hidden
+		local k = lit and 1 or 0.18
+		b.icon:SetAlpha((open and 1 or 0.45) * k)
+		b.border:SetAlpha(k)
+		b.border2:SetAlpha(k)
+		b.check:SetAlpha(k)
+		b.lvl:SetAlpha(k)
+		b.glow:SetAlpha(0.85 * k)
 		if page.focus == id then focusB = b end
 		if page.sel == id then b.sel:Show() elseif not b:IsMouseOver() then b.sel:Hide() end
 	end
