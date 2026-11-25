@@ -413,21 +413,27 @@ local function refresh(page)
 		local node = b.node
 		local id = node.id
 		local lvl, cost, open = R.Level(id), R.NextCost(id), R.Available(id)
-		local rgb = open and node.group.rgb or GREY
-		b.border:SetVertexColor(rgb[1], rgb[2], rgb[3])
-		b.border2:SetVertexColor(rgb[1], rgb[2], rgb[3])
-		b.icon:SetDesaturated(not open)
-		b.icon:SetAlpha(open and 1 or 0.45)
-		local full = lvl >= node.max
-		b.check:SetShown(full)
-		b.lvl:SetText(full and "" or (lvl .. "/" .. node.max))
-		b.lvl:SetTextColor(lvl > 0 and 1 or 0.62, lvl > 0 and 1 or 0.65, lvl > 0 and 1 or 0.72)
-		b.glow:SetShown(open and cost ~= nil and ns.CanAfford(cost))
-		if b.link then
-			if open then
-				b.link:SetColorTexture(rgb[1] * 0.8, rgb[2] * 0.8, rgb[3] * 0.8, 0.95)
-			else
-				b.link:SetColorTexture(0.24, 0.26, 0.31, 0.9)
+		local afford = open and cost ~= nil and ns.CanAfford(cost)
+		-- (redrawn only when it changed: the page refreshes with every gold change)
+		local state = lvl * 4 + (open and 2 or 0) + (afford and 1 or 0)
+		if b.state ~= state then
+			b.state = state
+			local rgb = open and node.group.rgb or GREY
+			b.border:SetVertexColor(rgb[1], rgb[2], rgb[3])
+			b.border2:SetVertexColor(rgb[1], rgb[2], rgb[3])
+			b.icon:SetDesaturated(not open)
+			b.icon:SetAlpha(open and 1 or 0.45)
+			local full = lvl >= node.max
+			b.check:SetShown(full)
+			b.lvl:SetText(full and "" or (lvl .. "/" .. node.max))
+			b.lvl:SetTextColor(lvl > 0 and 1 or 0.62, lvl > 0 and 1 or 0.65, lvl > 0 and 1 or 0.72)
+			b.glow:SetShown(afford)
+			if b.link then
+				if open then
+					b.link:SetColorTexture(rgb[1] * 0.8, rgb[2] * 0.8, rgb[3] * 0.8, 0.95)
+				else
+					b.link:SetColorTexture(0.24, 0.26, 0.31, 0.9)
+				end
 			end
 		end
 		if page.focus == id then focusB = b end
