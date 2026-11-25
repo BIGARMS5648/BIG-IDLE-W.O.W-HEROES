@@ -580,11 +580,15 @@ local function drawPips(now)
 	for i = 1, MAX_PIPS do
 		local p = pips[i]
 		if i <= n then
-			p:ClearAllPoints()
-			p:SetPoint("CENTER", frame.scene, "TOPLEFT", x0 + (i - 1) * 16, -17)
 			local isBoss = i == n
-			p.dot:SetTexture(UI.Tex(isBoss and "skull" or "circle"))
-			local size = isBoss and 16 or 9
+			-- the boss: the painted skull in its own colours (pulsing while reached),
+			-- moved right so the gap before it is the dots' (7: the skull shows
+			-- about 15 of its 18 wide, the dots 9 of 9)
+			local skull = isBoss and UI.ArtPath("icon_skull")
+			p:ClearAllPoints()
+			p:SetPoint("CENTER", frame.scene, "TOPLEFT", x0 + (i - 1) * 16 + (skull and 3 or 0), -17)
+			p.dot:SetTexture(skull or UI.Tex(isBoss and "skull" or "circle"))
+			local size = isBoss and (skull and 18 or 16) or 9
 			if i < wave or (i == wave and st.phase ~= "fight" and (runDone or waves <= MAX_PIPS or i == n)) then
 				p.dot:SetVertexColor(1, 0.80, 0.28) -- cleared
 			elseif i == wave then
@@ -594,7 +598,10 @@ local function drawPips(now)
 			else
 				p.dot:SetVertexColor(0.22, 0.25, 0.33) -- ahead
 			end
-			if isBoss and i >= wave then
+			if skull then
+				local k = i == wave and (0.8 + 0.2 * sin(now * 6)) or 1
+				p.dot:SetVertexColor(k, k, k)
+			elseif isBoss and i >= wave then
 				p.dot:SetVertexColor(i == wave and 1 or 0.75, i == wave and 0.35 or 0.30, i == wave and 0.25 or 0.30)
 			end
 			p.dot:SetSize(size, size)

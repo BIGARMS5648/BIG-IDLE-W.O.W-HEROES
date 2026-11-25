@@ -103,7 +103,6 @@ Build a party of five heroes, send them along a route through the original game'
 | `/bih` | Open or close the menu |
 | `/bih bar` | Show or hide the battle window |
 | `/bih reset` | Put the battle window back in its default place and size |
-| `/bih model` | Open the 3D model check window (for testing how models look on your client) |
 
 Right-click the battle window to open the menu. Chat messages from the add-on start with **[B.I.H]**.
 

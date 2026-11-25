@@ -174,10 +174,8 @@ local function slash(msg)
 			ns.Log(string.format("땅 그림: %d곳 중 %d곳은 다른 그림으로 바꿔 씀", total, #missing))
 			for _, m in ipairs(missing) do ns.Log("  " .. m) end
 		end
-	elseif msg == "model" or msg == "모델" then
-		ns.ModelCheck.Toggle()
 	else
-		ns.Print("/bih (메뉴) · /bih bar (전투 창 표시/숨김) · /bih reset (전투 창 위치 초기화) · /bih model (3D 모델 확인) · /bih ground (땅 그림 확인)")
+		ns.Print("/bih (메뉴) · /bih bar (전투 창 표시/숨김) · /bih reset (전투 창 위치 초기화) · /bih ground (땅 그림 확인)")
 	end
 end
 

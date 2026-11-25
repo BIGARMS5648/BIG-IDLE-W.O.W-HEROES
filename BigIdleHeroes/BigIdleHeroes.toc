@@ -53,6 +53,5 @@ UI\TabRunes.lua
 UI\TabMap.lua
 UI\TabPets.lua
 UI\TabOptions.lua
-UI\ModelCheck.lua
 
 Init.lua
