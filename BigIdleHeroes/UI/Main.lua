@@ -153,12 +153,15 @@ function Main.RefreshNav()
 		local on = b.key == current
 		local over = UI.ArtUI(on and "ui_tab_on" or "ui_tab")
 		if over and b.bg.art ~= over then b.bg:SetArt(over) end
+		b.sel:SetShown(on)
 		if on then
+			local p = UI.STYLE.primary
+			b.sel:SetColor(p[1], p[2], p[3], 1)
 			b.bg:SetColor(0.45, 0.68, 1.0, 1)
-			b.label:SetTextColor(0.78, 0.90, 1)
+			b.label:SetTextColor(1, 1, 1)
 			b.glow:Show()
 			b.icon:SetPoint("TOP", b, "TOP", 0, -5)
-			if b.icon.isArt then b.icon:SetVertexColor(0.78, 0.90, 1) end
+			if b.icon.isArt then b.icon:SetVertexColor(1, 1, 1) end
 		else
 			local k = b.hover and 0.75 or 0.55
 			b.bg:SetColor(k, k * 1.05, k * 1.25, 1)
@@ -354,10 +357,13 @@ function Main.Create()
 		b:SetSize(bw, NAV_H - 12)
 		b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16 + (i - 1) * (bw + 6), 8)
 		b.key = def.key
-		b.glow = UI.Art(b, "glow", "BACKGROUND", 0.25, 0.55, 1, 0.45)
+		b.glow = UI.Art(b, "glow", "BACKGROUND", 0.25, 0.55, 1, 0.7)
 		b.glow:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 10)
 		b.glow:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 0, -6)
 		b.bg = UI.Slice(b, "card", "BACKGROUND")
+		-- the chosen tab: a bright blue face like the main buttons
+		b.sel = UI.Slice(b, "button", "BORDER")
+		b.sel:SetShown(false)
 		b.icon = b:CreateTexture(nil, "ARTWORK")
 		b.icon:SetSize(28, 28)
 		b.icon:SetPoint("TOP", b, "TOP", 0, -6)
