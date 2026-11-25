@@ -2469,6 +2469,16 @@ Mock.wall = Mock.wall + 7200
 local goldBefore = ns.db.gold
 try("PLAYER_LOGIN again", Mock.FireEvent, "PLAYER_LOGIN")
 if ns.db.gold <= goldBefore then fail("offline rewards were not paid on login") end
+-- the report: the amounts earned in green, their names as they are
+do
+	local f = ns.ShowOffline({ away = 7200, counted = 7200, eff = 1, gold = 1234567, xp = 98765, levels = 2 })
+	local text = ns.log[#ns.log] or ""
+	if not text:find("골드 |cff66ff73+1.23M|r", 1, true) or not text:find("경험치 |cff66ff73+98,765|r", 1, true)
+		or not text:find("영웅 레벨 |cff66ff73+2|r", 1, true) then
+		fail("the offline report should show the amounts in green: " .. text)
+	end
+	f:Hide()
+end
 frames(10)
 local st = ns.db.stat
 print(string.format("  after the run: %d kills, %d clears, %d chests opened, forge level %d, %d heroes",
