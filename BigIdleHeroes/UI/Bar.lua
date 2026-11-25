@@ -22,6 +22,7 @@ local FEET = 9        -- unit bottom above the scene's bottom edge (the health b
 -- how tall the fighters stand on screen: every model height below times this
 local FIG_SCALE = 0.85
 local BACK_FIG, PET_FIG = 34 * FIG_SCALE, 24 * FIG_SCALE -- summons (by the front or their summoner) and the companion (at the back)
+local PET_ROOM, PET_ROOM_FEET = 7, 0.22 -- the companion's frame: 7 of its heights across, its feet 0.22 up
 -- summons drawn as a share of a druid's cat (Bar.CatScale): the hunter's pet
 local SUMMON_SIZE = { call_pet = 0.8 }
 local SUMMON_PACE = 140 -- how fast the companion walks to its place behind the party (pixels a second)
@@ -1556,6 +1557,9 @@ function Bar.Create()
 	frame.pet.icon:SetAllPoints(frame.pet)
 	frame.pet:Hide()
 	frame.petModel = Figure.New(units, PET_FIG)
+	-- a companion's frame is far larger than the companion, so no part of a
+	-- model (a long one, one fitted larger) is ever cut at its edges
+	if frame.petModel and frame.petModel.SetRoom then frame.petModel:SetRoom(PET_ROOM, PET_ROOM_FEET) end
 	frame.summons, frame.summonIcons = {}, {}
 	for i = 1, 8 do
 		frame.summons[i] = Figure.New(units, BACK_FIG)
