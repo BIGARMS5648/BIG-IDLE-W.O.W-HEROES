@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.6.0
+BIG IDLE HEROES v1.7.0
 ```
 
 ---
@@ -137,24 +137,17 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.6.0)
+## Changelog for this release (v1.7.0)
 
 ```
-- Battle window chests: bronze (monster), silver (boss) and gold (act boss)
-  borders, red only when a chest is full. A chest that opens by itself (its
-  태엽의 룬 learned) has a small light running round its border.
-- Chest tooltips list the gear inside; accessories come from act boss chests.
-  The three 태엽의 룬 are named after the chest each one opens, a chest's
-  tooltip names its rune, and Alt+click shows that rune on the rune screen.
-- Runes: tick a kind under the map and its runes stand out.
-- Forge: 분해 is at the top of the list and the forge opens on it; rows not
-  chosen are darker and locked rows faint.
-- Equipment: the hero line shows level, race and spec; waiting chests no
-  longer put a red dot on the 가방 tab.
-- Crafting tier 1 makes item level 5 or 10 gear (no level 1).
-- The gold amount on the battle window is white again.
-- Companions stand in a larger frame, so no model is cut at its edges.
-- The logo is smaller and centred in the title bar.
-- A monster whose model was slow to load the first time no longer stays
-  invisible for good (e.g. the Ghostpaw Runner on 일반 2-6).
+- Battle window chests: with 개방의 룬 a click opens every chest of that kind
+  (one before it); Shift+click with the second 개방의 룬 still opens every
+  kind.
+- A right-click on a chest stops that kind opening by itself, and another
+  right-click starts it again; while stopped its border light is off and
+  the tooltip says so.
+- The gear line in every chest tooltip is yellow.
+- Runes: with a kind checked, the faded runes no longer let the lines behind
+  them show through.
+- The logo sits at the left of the title bar, in line with the panels below.
 ```
