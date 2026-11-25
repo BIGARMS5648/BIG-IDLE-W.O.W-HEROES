@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.2.1
+BIG IDLE HEROES v1.2.2
 ```
 
 ---
@@ -138,24 +138,17 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.2.1)
+## Changelog for this release (v1.2.2)
 
 ```
-- Auto-equip judges gear by every combat stat: lifesteal, health regeneration, healing
-  on hit and on kill, flat damage absorb, thorns, and resistances against the elements
-  of the monsters you are fighting.
-- "+ to all skills" counts by the skills a hero has equipped, and element damage by the
-  elements of those skills.
-- Multistrike stops at 100% (it gives at most one extra half hit).
-- Gear for later: every step up on the way is kept from salvage and fusion, not only the
-  best piece.
-- Salvage and fusion check every piece again right before it goes: protected gear never
-  goes; enhanced, socketed or still useful gear only when you pick it yourself.
-- Party auto-equip gives each piece to the hero it helps most.
-- New setting: also keep gear for heroes waiting outside the party.
-- Item tooltips use the same 1% step as auto-equip and the upgrade marks.
-- After a long frame (a loading screen) the fight catches up instead of losing time.
-- Damaged saved items are repaired on load; unreadable ones are set aside, not deleted.
-- The druid's cat form no longer shrinks: a model's size is read only while it stands
-  still (a walking or attacking cat measured longer and was drawn smaller), and kept.
+- The druid's cat form no longer comes up small after a reload: a model's size is now
+  always read in its standing pose (it stands out of sight for a moment, then shows
+  at its size doing what it should). Before, a cat whose model arrived mid-swing was
+  measured in its long pouncing pose and kept that smaller size.
+- The hunter's wolf is a little smaller; the moonkin is a little taller.
+- The battle scene has rounded corners under its border; nothing shows past the curve.
+- The main window's header and bottom-menu shading stay inside its rounded corners.
+- The main window's header shows only the logo, gold, materials and buttons.
+- The socket inscription is now called 주문각인 (scrolls: 주문서), so it is not mixed up
+  with the rune tree.
 ```

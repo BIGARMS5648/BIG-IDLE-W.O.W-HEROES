@@ -153,6 +153,29 @@ def frame():
     return save("frame", img)
 
 
+def corners():
+    # what lies outside frame's rounded outline (reaching half into its line),
+    # white: laid over a picture's corners in the colour around the picture,
+    # with frame over it, it rounds the picture's corners
+    w = h = 64
+    img = blank(w, h)
+    over(img, WHITE, np.clip(1 - rr(w, h, 9, inset=1.5), 0, 1))
+    return save("corners", img)
+
+
+def fades():
+    # grad_v with rounded corners, as 9-slices: shading across the top or the
+    # bottom of a rounded window keeps inside its corners
+    w = h = 64
+    shape = rr(w, h, 16)
+    for name, fade in (("fade_down", np.linspace(1, 0, h)), ("fade_up", np.linspace(0, 1, h))):
+        img = blank(w, h)
+        img[..., :3] = 1.0
+        img[..., 3] = shape * fade[:, None]
+        save(name, img)
+    return "fades"
+
+
 def ring():
     w = h = 128
 
@@ -398,7 +421,7 @@ def ridge_ruins(xs, layer, rng):
 
 
 def main():
-    made = [panel(), card(), inset(), button(), pill(), slot(), frame(), ring(), circle(), badge(), bar(), glow(), shadow(), gradients()]
+    made = [panel(), card(), inset(), button(), pill(), slot(), frame(), corners(), fades(), ring(), circle(), badge(), bar(), glow(), shadow(), gradients()]
     glyphs()
     scenery("scene_hills", ridge_hills)
     scenery("scene_peaks", ridge_peaks)

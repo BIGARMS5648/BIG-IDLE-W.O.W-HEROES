@@ -338,7 +338,7 @@ function draw(scene, title) {
 // Layout check: problems a player would see. Every visible item of a scene is
 // tested; tests/layout_check.js prints the list and fails on any problem.
 // ---------------------------------------------------------------------------
-const SEE_THROUGH = new Set(['glow','ring','frame','shadow','grad_h','grad_v','check','lock','star','crown','arrow','plus',
+const SEE_THROUGH = new Set(['glow','ring','frame','corners','fade_down','fade_up','shadow','grad_h','grad_v','check','lock','star','crown','arrow','plus',
   'close','auto','skull','role_tank','role_dps','role_heal','circle','bar']);
 const SLICES = new Set(['panel','card','inset','button','pill','slot','menu']);
 function texName(e) { return e.tex ? String(e.tex).split('\\').pop().replace(/\.tga$/i, '') : null; }
@@ -468,7 +468,7 @@ function lint(scene, title) {
   // are a little wider than the game's, so a gap that passes here is at
   // least as wide in the game.
   const GAP = 6;
-  const SOFT = new Set(['glow', 'shadow', 'grad_h', 'grad_v', 'bar', 'frame']);
+  const SOFT = new Set(['glow', 'shadow', 'grad_h', 'grad_v', 'fade_down', 'fade_up', 'corners', 'bar', 'frame']);
   const units = [];
   {
     const sliceOf = new Map();

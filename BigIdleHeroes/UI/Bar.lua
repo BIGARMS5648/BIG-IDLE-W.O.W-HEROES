@@ -23,7 +23,7 @@ local FEET = 9        -- unit bottom above the scene's bottom edge (the health b
 local FIG_SCALE = 0.85
 local BACK_FIG, PET_FIG = 34 * FIG_SCALE, 24 * FIG_SCALE -- summons (by the front or their summoner) and the companion (at the back)
 -- summons drawn as a share of a druid's cat (Bar.CatScale): the hunter's pet
-local SUMMON_SIZE = { call_pet = 0.9 }
+local SUMMON_SIZE = { call_pet = 0.8 }
 local SUMMON_PACE = 140 -- how fast the companion walks to its place behind the party (pixels a second)
 local MAX_MOBS = 12
 local MAX_FLOATS = 28
@@ -1512,7 +1512,17 @@ function Bar.Create()
 	topShade:SetPoint("TOPLEFT", scene, "TOPLEFT", 0, 0)
 	topShade:SetPoint("TOPRIGHT", scene, "TOPRIGHT", 0, 0)
 	topShade:SetHeight(40)
-	local edge = UI.Slice(scene, "frame", "OVERLAY", 10)
+	-- the scene's rounded corners and its border line: on a layer above
+	-- everything in it (the fighters and the scenery are frames of their own,
+	-- drawn over the scene's own pictures), the corners outside the border's
+	-- curve covered in the colour of the window around the scene
+	local rim = CreateFrame("Frame", nil, scene)
+	rim:SetAllPoints(scene)
+	rim:SetFrameLevel(scene:GetFrameLevel() + 40)
+	frame.rim = rim
+	local corners = UI.Slice(rim, "corners", "BORDER", 10)
+	corners:SetColor(0.10, 0.13, 0.21, 1)
+	local edge = UI.Slice(rim, "frame", "OVERLAY", 10)
 	edge:SetColor(0.14, 0.17, 0.27, 1)
 
 	-- the place's own trees and rocks behind the fight, the fighters on a

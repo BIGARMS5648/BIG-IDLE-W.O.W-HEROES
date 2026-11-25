@@ -1475,7 +1475,7 @@ do
 		if x1 and s1.anchorX and s1.anchorX <= x1 then fail("a melee summon should go forward when the fight starts") end
 		-- the hunter's pet a little smaller than a druid's cat
 		local catTall = ns.Bar.FIG.hero * ns.Bar.CatScale()
-		if not (s1 and s1.height and s1.height < catTall and s1.height > catTall * 0.8) then
+		if not (s1 and s1.height and math.abs(s1.height - catTall * 0.8) < 0.01) then
 			fail(string.format("the hunter's pet should be a little smaller than a druid's cat: %s / %.1f", tostring(s1 and s1.height), catTall))
 		end
 		-- it goes back into formation as fast as its summoner falls back (as
@@ -1865,7 +1865,7 @@ do
 			local raceScale = Fig.RACE_SCALE[ns.Heroes.Race(h.id)] or 1
 			local inForm = Fig.HeroScale(h.id, true)
 			if sid == "DRUID_FERAL" and math.abs(inForm - raceScale * 0.92 / 0.85) > 1e-9 then fail("the cat should stand as tall as before the fighters were made smaller: " .. inForm) end
-			if sid == "DRUID_BALANCE" and math.abs(inForm - Fig.RACE_SCALE.TAUREN) > 1e-9 then fail("the moonkin of both factions should be as tall as the tauren's: " .. inForm) end
+			if sid == "DRUID_BALANCE" and math.abs(inForm - Fig.RACE_SCALE.TAUREN * 1.08) > 1e-9 then fail("the moonkin of both factions should be a little taller than the tauren: " .. inForm) end
 			if (sid == "DRUID_GUARDIAN" or sid == "DRUID_RESTO") and math.abs(inForm - raceScale) > 1e-9 then fail(sid .. " should keep its size") end
 			-- the cat's health bar under its body, forward of its middle (its tail is long)
 			local shift = Fig.HeroBarShift(h.id, true)
@@ -1927,6 +1927,38 @@ do
 		m2:Show()
 		for _ = 1, 30 do m2:Step(0.05) end
 		if not (m2.norm and math.abs(m2.norm - standing) < 1e-9) then fail(string.format("a model put up again while walking should come up its standing size: %s, want %.3f", tostring(m2.norm), standing)) end
+		-- after a reload nothing is known yet, and the cat is already fighting
+		-- when its model comes in: it swings without a pause and never stands
+		-- idle. Its size is still read standing, and only then does it swing.
+		for _, slow in ipairs({ 0, 0.4 }) do
+			Fig.ResetFailed()
+			Mock.loadDelay[D[416]] = slow > 0 and slow or nil
+			local m3 = Fig.New(UIParent, 70)
+			-- (as the battle does: the model put up, then the swing it is in)
+			m3:SetModelId(416)
+			m3:Play("attack")
+			m3:Show()
+			local t, swing, sawStand = 0, 0, false
+			while t < 3 do
+				swing = swing + 0.05
+				if swing >= 0.5 then m3:Play("attack", true) swing = 0 end
+				m3:Step(0.05)
+				t = t + 0.05
+				Mock.now = Mock.now + 0.05
+				if m3.loaded and m3.actor.__anim == 0 then
+					sawStand = true
+					if (m3.actor.__alpha or 1) > 0.05 then fail("a model should be out of sight while it stands for its size") end
+				end
+			end
+			if not (m3.norm and math.abs(m3.norm - standing) < 1e-9) then
+				fail(string.format("a cat that comes in while it fights (load %.1fs) should get its standing size: %s, want %.3f", slow, tostring(m3.norm), standing))
+			end
+			if not sawStand then fail("a model should stand while its size is read") end
+			if m3.actor.__anim ~= 17 then fail("once its size is read the model should play what it was asked to (the swing): " .. tostring(m3.actor.__anim)) end
+			if (m3.actor.__alpha or 1) < 1 then fail("once its size is read the model should be in sight") end
+			m3:Hide()
+		end
+		Mock.loadDelay[D[416]] = nil
 		Mock.animBox = nil
 		Mock.boxes[D[416]] = catBox
 		m:Hide() m2:Hide()
@@ -2130,7 +2162,8 @@ do
 	for n = 1, 60 do
 		frames(1, 0.02) -- 50 frames a second
 		xs[n] = f:IsShown() and select(4, f:GetPoint(1)) or nil
-		anims[n] = f.model and f.model:IsShown() and animOf(f.model) or false
+		-- (a model whose size is being read stands out of sight: not counted)
+		anims[n] = f.model and f.model:IsShown() and not f.model.sizing and animOf(f.model) or false
 	end
 	-- while it walks: from its first step to its last (it stops to fight)
 	local first, last

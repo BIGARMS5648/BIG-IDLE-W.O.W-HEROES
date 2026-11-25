@@ -256,8 +256,9 @@ function Main.Create()
 	head:SetHeight(56)
 	-- (the shading belongs to the window itself, under the title and logo:
 	-- on the header frame it would be drawn over them and dim them)
-	local hbg = UI.Art(frame, "grad_v", "BORDER", 0.10, 0.13, 0.22, 0.9)
-	hbg:SetAllPoints(head)
+	-- (rounded like the window, so its corners stay inside the window's)
+	local hbg = UI.Slice(head, "fade_down", "BORDER", nil, nil, frame)
+	hbg:SetColor(0.10, 0.13, 0.22, 0.9)
 	if UI.ArtUI("ui_header") then UI.Slice(head, "card", "BACKGROUND"):SetArt(UI.ArtUI("ui_header")) end
 	local line = UI.Line(frame, Main.W - 24, 0.55, 0.60, 0.75, 0.35)
 	line:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -59)
@@ -331,11 +332,13 @@ function Main.Create()
 	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 모집하기, 룬, 장비 제작·강화와 기능 해금에 씁니다.") end)
 
 	-- bottom navigation
-	local navBg = UI.Art(frame, "grad_v", "BORDER", 0, 0, 0, 0.45)
-	navBg:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 3, 3)
-	navBg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -3, 3)
-	navBg:SetHeight(NAV_H)
-	navBg:SetTexCoord(0, 1, 1, 0) -- dark at the bottom
+	local navRect = CreateFrame("Frame", nil, frame)
+	navRect:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 3, 3)
+	navRect:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -3, 3)
+	navRect:SetHeight(NAV_H)
+	-- dark at the bottom, rounded like the window
+	local navBg = UI.Slice(navRect, "fade_up", "BORDER", nil, nil, frame)
+	navBg:SetColor(0, 0, 0, 0.45)
 	frame.nav = {}
 	local navTabs = {}
 	for _, def in ipairs(tabs) do

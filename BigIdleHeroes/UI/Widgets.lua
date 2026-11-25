@@ -290,6 +290,9 @@ local ART = {
 	pill   = { w = 64, h = 32, e = 16, d = 0 },
 	slot   = { w = 64, h = 64, e = 12, d = 8 },
 	frame  = { w = 64, h = 64, e = 14, d = 9 },
+	corners = { w = 64, h = 64, e = 14, d = 9 },
+	fade_down = { w = 64, h = 64, e = 18, d = 11 },
+	fade_up = { w = 64, h = 64, e = 18, d = 11 },
 	shadow = { w = 64, h = 64, e = 24, d = 22 },
 }
 
@@ -334,7 +337,9 @@ end
 
 -- Covers `frame` (optionally grown by `out` pixels) with a sliced texture.
 -- d = displayed edge size; 0 means "half the frame height" (capsules).
-function UI.Slice(frame, art, layer, d, out)
+-- `on`: the textures belong to that frame instead (drawn with its own
+-- pictures, under its children), still covering `frame`.
+function UI.Slice(frame, art, layer, d, out, on)
 	local a = ART[art]
 	local over = artOverride(UI.ART_OVERRIDE[art])
 	if over then
@@ -353,7 +358,7 @@ function UI.Slice(frame, art, layer, d, out)
 	local path = over and (UI.MEDIA .. "Art\\" .. over.file) or UI.Tex(art)
 	for r = 1, 3 do
 		for c = 1, 3 do
-			local t = frame:CreateTexture(nil, layer or "BACKGROUND")
+			local t = (on or frame):CreateTexture(nil, layer or "BACKGROUND")
 			t:SetTexture(path)
 			t:SetTexCoord(us[c][1], us[c][2], vs[r][1], vs[r][2])
 			s[(r - 1) * 3 + c] = t

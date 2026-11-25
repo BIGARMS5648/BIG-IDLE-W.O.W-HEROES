@@ -48,11 +48,18 @@ local FRAME_W, FRAME_H = 2.4, 1.6
 local FEET_UP = 0.06
 
 local failed = {} -- [npc id] = true when the client could not load it
--- [model id] = { box, norm }: a model's size as read while it stood still.
+-- [model id] = { box, norm }: a model's size, read in its standing pose.
 -- A model's box follows the animation it plays (a running or pouncing cat is
--- much longer than a standing one), so its size is only taken standing, and
--- then kept: the same model never comes up smaller later.
+-- much longer than a standing one). So when a model comes in it is held in
+-- the standing pose, whatever it was asked to play meanwhile, until its box
+-- reads the same twice in a row; only then does it play. The size is kept:
+-- the same model never comes up at another size later.
 local sizeOf = {}
+local SIZE_WAIT = 5      -- seconds a model is held standing for its size at most (when its size is slow to come)
+local SIZE_SETTLE = 0.3  -- seconds standing before the first read that counts
+local SIZE_APART = 0.1   -- seconds between two reads that are compared
+local SIZE_AGREE = 0.02  -- how far apart two reads may be and still agree
+local SIZING_ALPHA = 0.01 -- a model standing for its size is all but out of sight
 
 function Figure.Enabled()
 	return ns.db and ns.db.opt and ns.db.opt.models ~= false
@@ -175,8 +182,8 @@ end
 Figure.RACE_SCALE = { GNOME = 0.78, DWARF = 0.9, TAUREN = 1.12, NIGHTELF = 1.04, TROLL = 1.06 }
 -- In battle a form has its own size: the cat a little taller than the
 -- others (as tall as it stood before every fighter was drawn 15% smaller),
--- the moonkin of both factions as tall as the tauren's.
-Figure.FORM_SCALE = { cat = 0.92 / 0.85 }
+-- the moonkin of both factions a little taller than the tauren.
+Figure.FORM_SCALE = { cat = 0.92 / 0.85, moonkin = 1.08 }
 Figure.FORM_SIZE_OF = { moonkin = "TAUREN" }
 function Figure.HeroScale(heroId, inCombat)
 	local s = Figure.RACE_SCALE[ns.Heroes.Race(heroId)] or 1
@@ -194,10 +201,6 @@ end
 -- forward of the model's middle: the cat's long tail puts its middle behind
 -- its body.
 Figure.FORM_BAR_X = { cat = 0.15 }
--- seconds after a model is in that its size is read once more (standing
--- still for STAND_FOR seconds by then)
-Figure.REMEASURE = 0.5
-Figure.STAND_FOR = 0.3
 -- the forms that go on four legs, long and low
 Figure.BEAST = { cat = true, bear = true }
 -- the form a hero fights in (cat, bear, moonkin ...), nil when it stands as
@@ -375,17 +378,30 @@ function base:Loaded()
 		end
 	end
 	self.corrScale, self.corrXf, self.corrYf, self.fixTries, self.fixInfo = nil, nil, nil, 0, nil
-	self.sinceLoad, self.remeasured = 0, nil
+	self.sinceLoad = 0
 	if self.body and self.Dress then self:Dress() end
 	local known = self.id and sizeOf[self.id]
 	if known and self.kind == "scene" then
-		self.box, self.norm, self.remeasured = known.box, known.norm, true
+		self.box, self.norm = known.box, known.norm
+	elseif self.kind == "scene" and not self.file then
+		-- its size is read standing (Step): until then it stands, out of sight
+		-- (all but: a model not drawn at all may not take its pose), and
+		-- comes into view at its size, doing what it was asked to
+		self.sizing = { t = 0 }
+		call(self.actor, "SetAlpha", SIZING_ALPHA)
+		call(self.actor, "SetAnimation", ANIM_ID.idle)
+		self:Measure()
 	else
 		self:Measure()
 	end
 	self:Look()
-	if self.anim then self:SetAnim(self:AnimId(self.done and self.anim == "death" and "dead" or self.anim)) end
+	self:ShowAnim()
 	if self.kind == "scene" then Figure.Calibrate(self) end
+end
+
+-- The animation the figure was last asked to play, on the model.
+function base:ShowAnim()
+	if self.anim then self:SetAnim(self:AnimId(self.done and self.anim == "death" and "dead" or self.anim)) end
 end
 
 function base:IsLoaded() return self.loaded and true or false end
@@ -444,22 +460,38 @@ function base:Step(dt)
 		end
 	end
 	self.animAge = (self.animAge or 0) + dt
-	-- a model can come in before its size does (it would stand as tall as a
-	-- man: a cat much too small): its size is read again until the game has
-	-- it, and once more a moment later, standing (see sizeOf)
-	if self.loaded and self.kind == "scene" and not self.fixedScale and not self.bust then
+	-- the model's size: an NPC or a body is held standing until its box reads
+	-- the same twice (see sizeOf); a model file (scenery, an effect: they do
+	-- not move) is read until the game has its size (a model can come in
+	-- before it)
+	if self.loaded and self.kind == "scene" then
 		self.sinceLoad = (self.sinceLoad or 0) + dt
-		local standing = (self.anim == nil or self.anim == "idle") and self.animAge >= Figure.STAND_FOR
-		local final = not self.remeasured and self.sinceLoad >= Figure.REMEASURE and standing
-		local again = (not self.box and self.sinceLoad < 5) or final
+		local z = self.sizing
+		local again = z or (self.file and not self.box and not self.fixedScale and self.sinceLoad < SIZE_WAIT)
 		if again then
 			local old = self.box and self.norm
 			self:Measure()
-			if final and self.box then
-				self.remeasured = true
-				-- (kept for fighters and forms: scenery and effects, put up from
-				-- model files, never move)
-				if self.id and not self.file then sizeOf[self.id] = { box = self.box, norm = self.norm } end
+			if z then
+				-- read once it has stood a moment (the pose it had before has
+				-- given way), and taken when two reads a little apart agree;
+				-- a model that keeps moving while it stands (a tail) is taken
+				-- after a while all the same, standing
+				z.t = z.t + dt
+				local done = z.t >= SIZE_WAIT
+				if self.box and z.t >= SIZE_SETTLE then
+					if z.ref and z.t - z.refT >= SIZE_APART then
+						done = done or abs(self.norm - z.ref) <= SIZE_AGREE * z.ref or z.t >= SIZE_SETTLE * 4
+						z.ref, z.refT = self.norm, z.t
+					elseif not z.ref then
+						z.ref, z.refT = self.norm, z.t
+					end
+				end
+				if done then
+					self.sizing = nil
+					if self.box and self.id then sizeOf[self.id] = { box = self.box, norm = self.norm } end
+					call(self.actor, "SetAlpha", self.alpha or 1)
+					self:ShowAnim()
+				end
 			end
 			if self.box and (not old or abs(self.norm - old) > 0.01 * old) then
 				self.corrScale, self.corrXf, self.corrYf, self.fixTries, self.fixInfo = nil, nil, nil, 0, nil
@@ -749,6 +781,8 @@ function scene:Load()
 	self.tries = (self.tries or 0) + 1
 	self.tryDisplay = nil
 	self.box = nil
+	if self.sizing then call(a, "SetAlpha", self.alpha or 1) end
+	self.sizing = nil
 	call(a, "ClearModel")
 	-- measured as it is: no size, turn or offset yet
 	call(a, "SetScale", 1)
@@ -868,13 +902,18 @@ function scene:SetShade(r, g, b)
 	setCamera(self)
 end
 
-function scene:SetAnim(id) call(self.actor, "SetAnimation", id) end
+-- (a model not in yet, or held standing for its size, plays it once it can:
+-- base:ShowAnim)
+function scene:SetAnim(id)
+	if not self.loaded or self.sizing then return end
+	call(self.actor, "SetAnimation", id)
+end
 
 function scene:SetAlpha(v)
 	if self.alpha == v then return end
 	self.alpha = v
 	self:FrameAlpha(v)
-	call(self.actor, "SetAlpha", v)
+	if not self.sizing then call(self.actor, "SetAlpha", v) end
 end
 
 function scene:SetHeight2(h)
