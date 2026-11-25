@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import run  # noqa: E402
 
 SCENES = [
-    "bar", "bar_boss", "bar_wipe", "bar_compact", "offline", "faction", "create", "create_druid", "rename",
+    "bar", "bar_chest_tip", "bar_boss", "bar_wipe", "bar_compact", "offline", "faction", "create", "create_druid", "rename",
     "hero", "hero_res_tip", "hero_skills", "hero_tree", "hero_bench", "hero_tank", "hero_reset", "hero_dismiss", "hero_scroll",
     "equip", "equip_tooltip", "equip_top_tip", "equip_slot", "equip_bank", "equip_smelt_list", "equip_view_list", "equip_smelt_all", "equip_max",
     "equip_sockets_tip", "equip_mixed_tip", "equip_slot_tip",

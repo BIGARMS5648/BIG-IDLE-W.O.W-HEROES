@@ -92,6 +92,15 @@ S.bar = function()
 	Mock.Update(0.05)
 end
 
+-- the act boss chest's tooltip on the battle window
+S.bar_chest_tip = function()
+	ns.Main.Toggle(false)
+	for _ = 1, 5 do Mock.Update(0.1) end
+	local cb = BigIdleHeroesBar.chests[3]
+	cb.__scripts.OnEnter(cb)
+	S.restore = function() if cb.__scripts.OnLeave then cb.__scripts.OnLeave(cb) end end
+end
+
 -- the battle window during a boss fight, then after a wipe
 S.bar_boss = function()
 	ns.Main.Toggle(false)

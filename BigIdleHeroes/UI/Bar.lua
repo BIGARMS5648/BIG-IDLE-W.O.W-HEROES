@@ -1338,6 +1338,12 @@ local function chestTip(self)
 	else
 		lines[#lines + 1] = { "각 막의 마지막 공격대 우두머리가 떨어뜨립니다.", nil, 0.8, 0.8, 0.8 }
 	end
+	-- what gear it holds: the accessories come from the act boss chests only
+	if t == 3 then
+		lines[#lines + 1] = { "나오는 장비: 무기·방어구·액세서리(목·반지·손목·장신구)", nil, 1, 0.82, 0.4, true }
+	else
+		lines[#lines + 1] = { "나오는 장비: 무기·방어구", nil, 0.8, 0.8, 0.8 }
+	end
 	if ns.Loot.AutoOn(t) then
 		local left = max(0, ns.Loot.AutoInterval(t) - (ns.db.autoT[t] or 0))
 		lines[#lines + 1] = { "자동 열기까지", U.time(left), 0.5, 1, 0.5 }
@@ -1842,15 +1848,16 @@ end
 local function ensureToast()
 	if toast then return toast end
 	toast = CreateFrame("Frame", "BigIdleHeroesToast", UIParent)
-	toast:SetSize(480, 90)
+	-- wide enough for a long stage name in a notice ("2-10 그림자송곳니 성채 …")
+	toast:SetSize(600, 90)
 	toast:SetFrameStrata("DIALOG")
 	toast:EnableMouse(false)
 	toast.rows = {}
 	for i = 1, 3 do
-		local r = UI.Pill(toast, 480, 26, 0.02, 0.03, 0.06, 0.88)
+		local r = UI.Pill(toast, 600, 26, 0.02, 0.03, 0.06, 0.88)
 		if UI.ArtUI("ui_toast") then r.bg:SetArt(UI.ArtUI("ui_toast")) end
 		r:SetPoint("BOTTOM", toast, "BOTTOM", 0, (i - 1) * 29)
-		r.text:SetWidth(460)
+		r.text:SetWidth(580)
 		r.text:SetWordWrap(false)
 		r.t = 0
 		r:Hide()
