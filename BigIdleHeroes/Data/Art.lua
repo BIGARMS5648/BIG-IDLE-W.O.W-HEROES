@@ -13,6 +13,8 @@ for _, id in ipairs({
 	"icon_hero", "icon_bag", "icon_forge", "icon_party", "icon_runes", "icon_map", "icon_pets", "icon_settings",
 	"forge_fuse", "forge_craft", "forge_gem", "forge_ench", "forge_insc", "forge_up", "forge_smelt", "forge_mats",
 	"icon_lock", "icon_star", "icon_skull", "icon_crown",
+	-- item slots (tools/cut_marks.py, painted): the better-gear arrow
+	"icon_upgrade",
 	-- scroll bars (tools/cut_scrollbar.py): bars, grips, page arrows
 	"sb_bar_v", "sb_bar_h", "sb_bend", "sb_grip_v", "sb_grip_v_hot", "sb_arrow_left", "sb_arrow_right", "sb_arrow_up", "sb_arrow_down",
 }) do

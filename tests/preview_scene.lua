@@ -232,6 +232,27 @@ local function forge(func, opts)
 	return p
 end
 S.equip = function() ns.Main.SelectHero(db.party[2]) equip("bag") end
+-- the item marks: level top left, the better-gear arrow top right, the
+-- enhancement step bottom right (a protected one's lock bottom left)
+S.equip_marks = function()
+	local was = {}
+	for i = 1, 6 do local it = db.bag[i] if it then was[i] = { it.up, it.lock } end end
+	local steps = { 3, 10, 15, 20, nil, 7 }
+	for i = 1, 6 do local it = db.bag[i] if it then it.up = steps[i] end end
+	if db.bag[5] then db.bag[5].lock = true end
+	local hero = db.heroes[db.party[2]]
+	local lvl = hero.level
+	hero.level = 40 -- (old enough for the bag's gear: some of it is better)
+	ns.Stats.Invalidate(db.party[2])
+	ns.Main.SelectHero(db.party[2])
+	equip("bag")
+	S.restore = function()
+		hero.level = lvl
+		ns.Stats.Invalidate(db.party[2])
+		for i, w in pairs(was) do db.bag[i].up, db.bag[i].lock = w[1], w[2] end
+		ns.Main.Refresh()
+	end
+end
 S.equip_tooltip = function()
 	local p = equip("bag")
 	local cell = p.cells[5]

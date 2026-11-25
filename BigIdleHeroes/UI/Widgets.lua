@@ -965,6 +965,34 @@ function UI.IconButton(parent, size, onClick)
 	b.lockG = UI.Glyph(b, "lock", max(10, floor(size * 0.3)), 0.95, 0.75, 0.35)
 	b.lockG:SetPoint("TOPRIGHT", b, "TOPRIGHT", -2, -2)
 	b.lockG:Hide()
+	-- an item's marks (SetItemMarks): its level top left ("lv.20"), the
+	-- better-gear arrow top right, its enhancement step bottom right
+	b.ilvl = UI.Text(b, max(10, floor(size * 0.22)), nil, "OUTLINE")
+	b.ilvl:SetPoint("TOPLEFT", b, "TOPLEFT", 3, -3)
+	b.ilvl:SetJustifyH("LEFT")
+	-- (a mark on the slot's corner, like the notice dots: it sits on the
+	-- corner on purpose, clear of the level text)
+	b.upArrow = CreateFrame("Frame", nil, b)
+	b.upArrow.isBadge = true
+	b.upArrow:SetFrameLevel(b:GetFrameLevel() + 6)
+	b.upArrow:SetSize(floor(size * 0.36 + 0.5), floor(size * 0.36 + 0.5))
+	b.upArrow:SetPoint("TOPRIGHT", b, "TOPRIGHT", 2, 2)
+	b.upArrow.tex = b.upArrow:CreateTexture(nil, "OVERLAY")
+	b.upArrow.tex:SetTexture(UI.ArtPath("icon_upgrade"))
+	b.upArrow.tex:SetAllPoints(b.upArrow)
+	b.upArrow:Hide()
+	-- the enhancement step, "+10": larger than the level, low in the
+	-- corner (a mark on the corner like the notice dots, over the border)
+	local fs = max(12, floor(size * 0.3))
+	b.enhF = CreateFrame("Frame", nil, b)
+	b.enhF.isBadge = true
+	b.enhF:SetFrameLevel(b:GetFrameLevel() + 5)
+	b.enhF:SetSize(floor(size * 0.7), fs + 2)
+	b.enhF:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -3, -1)
+	b.enh = UI.Text(b.enhF, fs, nil, "OUTLINE")
+	b.enh:SetPoint("BOTTOMRIGHT", b.enhF, "BOTTOMRIGHT", 0, 0)
+	b.enh:SetJustifyH("RIGHT")
+	b.enhF:Hide()
 	b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	b.onClick = onClick
 	b:SetScript("OnClick", function(self, button)
@@ -1030,6 +1058,20 @@ function UI.IconButton(parent, size, onClick)
 		self.frame:Show()
 	end
 	function b:SetCount(t) self.count:SetText(t or "") end
+	-- an item in the slot: its level, its enhancement step ("+10") and,
+	-- given better = true, the better-gear arrow; a protected item's lock
+	-- moves to the bottom left, clear of the arrow
+	function b:SetItemMarks(it, better)
+		self.ilvl:SetText(it and it.l and ("lv." .. it.l) or "")
+		local n = it and it.up or 0
+		self.enh:SetText(n > 0 and ("+" .. n) or "")
+		self.enhF:SetShown(n > 0)
+		self.upArrow:SetShown(better and true or false)
+		self.lockG:ClearAllPoints()
+		self.lockG:SetPoint("BOTTOMLEFT", self, "BOTTOMLEFT", 2, 2)
+		local l = max(10, floor(self:GetWidth() * 0.24))
+		self.lockG:SetSize(l, l)
+	end
 	function b:SetMark(t, r, g, bl)
 		self.mark:SetText(t or "")
 		if r then self.mark:SetTextColor(r, g, bl) end
@@ -1049,6 +1091,14 @@ function UI.IconButton(parent, size, onClick)
 		self:SetQuality(nil)
 		self:SetCount(nil)
 		self:SetMark(nil)
+		self.ilvl:SetText("")
+		self.enh:SetText("")
+		self.enhF:Hide()
+		self.upArrow:Hide()
+		self.lockG:ClearAllPoints()
+		self.lockG:SetPoint("TOPRIGHT", self, "TOPRIGHT", -2, -2)
+		local l = max(10, floor(self:GetWidth() * 0.3))
+		self.lockG:SetSize(l, l)
 		self:SetDim(false)
 		self:SetLocked(false)
 		self:SetSelected(false)

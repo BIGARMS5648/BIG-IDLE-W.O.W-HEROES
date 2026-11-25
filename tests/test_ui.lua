@@ -770,8 +770,10 @@ do
 	for _, b in ipairs(eq.cells) do
 		if b.data == epic then cell = b elseif b.data and not b.data.up and b:IsShown() then plain = b end
 	end
-	if not cell or cell.count.__text ~= tostring(epic.l) then fail("an enhanced item's icon should show its item level: " .. tostring(cell and cell.count.__text)) end
-	if plain and plain.count.__text ~= tostring(plain.data.l) then fail("an item's icon should show its item level: " .. tostring(plain.count.__text)) end
+	-- marks: "lv.N" top left, the enhancement step's number badge bottom right
+	if not cell or cell.ilvl.__text ~= "lv." .. epic.l then fail("an enhanced item's icon should show its item level: " .. tostring(cell and cell.ilvl.__text)) end
+	if cell and cell.enh.__text ~= "+" .. epic.up then fail("an enhanced item's icon should show its step: " .. tostring(cell.enh.__text)) end
+	if plain and (plain.ilvl.__text ~= "lv." .. plain.data.l or (plain.enh.__text or "") ~= "") then fail("an item's icon should show its level and no step: " .. tostring(plain.ilvl.__text)) end
 	local title = ns.Items.Tooltip(epic)[1][1]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
 	if title ~= "+3 " .. ns.Items.Name(epic) then fail("the tooltip should name the step before the item: " .. title) end
 	local plainTitle = ns.Items.Tooltip(plain and plain.data or ns.Items.New("chest", 30, 2))[1][1]

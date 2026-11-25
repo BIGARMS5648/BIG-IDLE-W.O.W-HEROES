@@ -74,7 +74,7 @@ local function addResult(f, x, y)
 			self.icon.data = it
 			self.icon:SetIconName(ns.Items.Icon(it))
 			self.icon:SetQuality(it.q)
-			self.icon:SetCount(tostring(it.l))
+			self.icon:SetItemMarks(it)
 			self.text:SetText((self.msg and (self.msg .. "\n") or "") .. ns.Items.ColorName(it))
 		else
 			self.icon.data = nil
@@ -217,7 +217,7 @@ local function buildFuse(page, f)
 			if it then
 				b:SetIconName(ns.Items.Icon(it))
 				b:SetQuality(it.q)
-				b:SetCount(tostring(it.l))
+				b:SetItemMarks(it)
 				b:SetLocked(it.lock)
 				b:SetSelected(used[it] == true)
 				b.why = ns.Forge.FuseBlock(it)
@@ -558,7 +558,7 @@ local function buildSocket(kind)
 			c.icon.data = it
 			c.icon:SetIconName(ns.Items.Icon(it))
 			c.icon:SetQuality(it.q)
-			c.icon:SetCount(tostring(it.l))
+			c.icon:SetItemMarks(it)
 			c.name:SetText(ns.QText(it.q, ns.Items.Name(it)))
 			local wearer = ns.Items.Wearer(it)
 			c.sub:SetText(string.format("%s 홈 %d개 중 %d개 비어 있음%s", ns.N(ns.SOCKET[kind].short), ns.Items.SocketCount(it, kind), ns.Items.FreeSockets(it, kind),
@@ -700,7 +700,7 @@ local function buildUpgrade(page, f)
 		c.icon.data = it
 		c.icon:SetIconName(ns.Items.Icon(it))
 		c.icon:SetQuality(it.q)
-		c.icon:SetCount(tostring(it.l))
+		c.icon:SetItemMarks(it)
 		c.name:SetText(ns.QText(it.q, (n > 0 and ("+" .. n .. " ") or "") .. ns.Items.Name(it)))
 		local wearer = ns.Items.Wearer(it)
 		c.sub:SetText(string.format("강화 +%d / +%d  ·  %s", n, Up.MAX, wearer and (ns.Heroes.ShortName(wearer) .. " 착용 중") or "가방"))

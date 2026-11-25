@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import run  # noqa: E402
 
 SCENES = [
-    "bar", "bar_chest_auto", "bar_chest_tip", "chest_tip_norune", "chest_tip_auto", "chest_tip_stop", "chest_tip_boss", "bar_boss", "bar_wipe", "bar_compact", "offline", "faction", "create", "create_druid", "rename",
+    "bar", "equip_marks", "bar_chest_auto", "bar_chest_tip", "chest_tip_norune", "chest_tip_auto", "chest_tip_stop", "chest_tip_boss", "bar_boss", "bar_wipe", "bar_compact", "offline", "faction", "create", "create_druid", "rename",
     "hero", "hero_res_tip", "hero_skills", "hero_tree", "hero_bench", "hero_tank", "hero_reset", "hero_dismiss", "hero_scroll",
     "equip", "equip_tooltip", "equip_top_tip", "equip_slot", "equip_bank", "equip_smelt_list", "equip_view_list", "equip_smelt_all", "equip_max",
     "equip_sockets_tip", "equip_mixed_tip", "equip_slot_tip",
@@ -370,7 +370,7 @@ function draw(scene, title) {
 // Layout check: problems a player would see. Every visible item of a scene is
 // tested; tests/layout_check.js prints the list and fails on any problem.
 // ---------------------------------------------------------------------------
-const SEE_THROUGH = new Set(['icon_lock','icon_star','icon_skull','icon_crown','frame_arcana','sb_bar_v','sb_bar_h','sb_bend','sb_grip_v','sb_grip_v_hot','glow','ring','frame','corners','fade_down','fade_up','shadow','grad_h','grad_v','check','lock','star','crown','arrow','plus',
+const SEE_THROUGH = new Set(['icon_lock','icon_star','icon_skull','icon_crown','icon_upgrade','frame_arcana','sb_bar_v','sb_bar_h','sb_bend','sb_grip_v','sb_grip_v_hot','glow','ring','frame','corners','fade_down','fade_up','shadow','grad_h','grad_v','check','lock','star','crown','arrow','plus',
   'close','auto','skull','role_tank','role_dps','role_heal','circle','bar']);
 const SLICES = new Set(['panel','card','inset','button','pill','slot','menu']);
 function texName(e) { return e.tex ? String(e.tex).split('\\').pop().replace(/\.tga$/i, '') : null; }

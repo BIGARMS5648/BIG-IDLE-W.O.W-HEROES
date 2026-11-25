@@ -296,14 +296,14 @@ function BagView.Refresh(page)
 			b.data = it
 			b:SetIconName(ns.Items.Icon(it))
 			b:SetQuality(it.q)
-			b:SetCount(tostring(it.l))
+			b:SetItemMarks(it)
 			b:SetLocked(it.lock)
 			if not bank and sel then
 				local usable = ns.Items.CanEquip(sel, it)
 				b:SetDim(not usable)
 				if usable then
 					local r = ns.Items.Compare(sel, it)
-					if r and r > ns.Items.UPGRADE then b:SetMark("+", 0.4, 1, 0.45) end
+					if r and r > ns.Items.UPGRADE then b:SetItemMarks(it, true) end
 				end
 			end
 		end

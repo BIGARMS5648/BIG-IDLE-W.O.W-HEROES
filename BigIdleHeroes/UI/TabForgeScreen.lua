@@ -277,7 +277,7 @@ local function fill(b, it, heroId)
 	if it then
 		b:SetIconName(ns.Items.Icon(it))
 		b:SetQuality(it.q)
-		b:SetCount(tostring(it.l))
+		b:SetItemMarks(it)
 		b:SetLocked(it.lock)
 		local t = ns.ForgeView.Target()
 		b:SetSelected(t == it)
