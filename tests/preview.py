@@ -28,7 +28,7 @@ SCENES = [
     "fuse", "fuse_ready", "fuse_list", "fuse_high", "craft", "craft_locked", "craft_far", "gem", "gem_stress", "ench", "insc_locked", "up", "up_locked", "smelt", "seal",
     "mats", "mats_gem", "mats_seal", "mats_seal_some", "mats_page2", "mats_seal_locked", "gem_remove_locked", "bag_smelt_locked",
     "party", "party_open",
-    "runes", "runes_locked", "runes_far", "runes_full", "runes_full_end",
+    "runes", "runes_kind", "runes_locked", "runes_far", "runes_full", "runes_full_end",
     "map", "map_heroic", "map_raid", "map_locked", "map_tower_locked", "map_tower", "map_tower_raid", "bar_tower",
     "pets", "pets_locked",
     "options", "options_reset",

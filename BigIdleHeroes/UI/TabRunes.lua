@@ -4,7 +4,8 @@
 -- the mouse wheel zooms in and out around the cursor, dragging moves it.
 --
 -- A rune's border colour is its kind (전투 · 골드 · 경험치 · 상자 · 가방 · 해금
--- · 용광로, the key under the map); a rune that cannot be learned yet is
+-- · 용광로, the key under the map; a kind's box there can be checked, and the
+-- runes of the checked kinds then stand out, the others fade); a rune that cannot be learned yet is
 -- grey; a rune at its top level has a green check in its lower right corner.
 -- Click a rune to see it in the card on the right and learn it there; the
 -- card also lists the total of every learned rune (a list that scrolls).
@@ -154,6 +155,12 @@ local function runeNode(page, node)
 	b.glow:SetPoint("TOPLEFT", b, "TOPLEFT", -9, 9)
 	b.glow:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 9, -9)
 	b.glow:Hide()
+	-- a kind checked under the map: a halo in the kind's colour
+	local g = node.group.rgb
+	b.halo = UI.Art(b, "glow", "BACKGROUND", g[1], g[2], g[3], 1)
+	b.halo:SetPoint("TOPLEFT", b, "TOPLEFT", -12, 12)
+	b.halo:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 12, -12)
+	b.halo:Hide()
 	b.bg = b:CreateTexture(nil, "BACKGROUND", nil, 1)
 	b.bg:SetAllPoints(b)
 	UI.Fill(b.bg, 0.04, 0.05, 0.08, 1)
@@ -276,18 +283,47 @@ local function build(page)
 	fx:Hide()
 	page.focusFx = fx
 
-	-- under the map: what the border colours mean, and how to move the map
+	-- under the map: what the border colours mean (a box per kind: checked,
+	-- that kind's runes stand out), and how to move the map
 	local key = CreateFrame("Frame", nil, page)
 	key:SetSize(MAP_W, KEY_H)
 	key:SetPoint("TOPLEFT", map, "BOTTOMLEFT", 0, -6)
+	page.kinds = {}
+	local saved = ns.db.ui.runeKinds
+	if type(saved) == "table" then
+		for _, g in ipairs(ns.RUNE_GROUPS) do if saved[g.key] then page.kinds[g.key] = true end end
+	end
+	page.kindBoxes = {}
 	local x = 8
 	for _, g in ipairs(ns.RUNE_GROUPS) do
-		local sw = UI.Art(key, "frame", "ARTWORK", g.rgb[1], g.rgb[2], g.rgb[3])
-		sw:SetSize(14, 14)
-		sw:SetPoint("LEFT", key, "LEFT", x, 0)
-		local t = UI.Text(key, 11, ns.N(g.name))
-		t:SetPoint("LEFT", sw, "RIGHT", 6, 0)
-		x = x + 14 + 6 + t:GetStringWidth() + 14
+		local bt = CreateFrame("Button", nil, key)
+		bt.fill = bt:CreateTexture(nil, "BACKGROUND")
+		bt.fill:SetSize(12, 12)
+		bt.fill:SetPoint("LEFT", bt, "LEFT", 1, 0)
+		UI.Fill(bt.fill, g.rgb[1], g.rgb[2], g.rgb[3], 0.35)
+		bt.box = UI.Art(bt, "frame", "ARTWORK", g.rgb[1], g.rgb[2], g.rgb[3])
+		bt.box:SetSize(14, 14)
+		bt.box:SetPoint("LEFT", bt, "LEFT", 0, 0)
+		bt.mark = UI.Glyph(bt, "check", 12, 1, 1, 1, "OVERLAY")
+		bt.mark:SetPoint("CENTER", bt.box, "CENTER", 0, 0)
+		local t = UI.Text(bt, 11, ns.N(g.name))
+		t:SetPoint("LEFT", bt.box, "RIGHT", 8, 0)
+		bt:SetSize(14 + 8 + t:GetStringWidth(), KEY_H)
+		bt.isItem = true -- one of the key's boxes (its names are the kinds')
+		bt:SetPoint("LEFT", key, "LEFT", x, 0)
+		bt.key = g.key
+		bt:RegisterForClicks("LeftButtonUp")
+		bt:SetScript("OnClick", function(self)
+			ns.Sound("click")
+			page.kinds[self.key] = not page.kinds[self.key] or nil
+			local keep = {}
+			for k in pairs(page.kinds) do keep[k] = true end
+			ns.db.ui.runeKinds = keep
+			Main.Refresh()
+		end)
+		UI.Tip(bt, function() return UI.SimpleTip(ns.N(g.name) .. " 룬", "체크하면 이 종류의 룬이 지도에서 강조됩니다. 여러 종류를 함께 체크할 수 있습니다.") end)
+		page.kindBoxes[#page.kindBoxes + 1] = bt
+		x = x + 14 + 8 + t:GetStringWidth() + 14
 	end
 	local hint = UI.Text(key, 10, "휠: 확대·축소  ·  끌기: 이동")
 	hint:SetPoint("RIGHT", key, "RIGHT", -8, 0)
@@ -417,9 +453,20 @@ end
 
 local function refresh(page)
 	local focusB
+	-- the kinds checked under the map: their runes stand out, the rest fade
+	local filtering = next(page.kinds) ~= nil
+	for _, bt in ipairs(page.kindBoxes) do
+		local on = page.kinds[bt.key] == true
+		bt.mark:SetShown(on)
+		bt.fill:SetShown(on)
+	end
 	for _, b in ipairs(page.nodes) do
 		local node = b.node
 		local id = node.id
+		local lit = not filtering or page.kinds[node.group.key] == true
+		b:SetAlpha(lit and 1 or 0.18)
+		b.halo:SetShown(filtering and lit)
+		if b.link then b.link:SetAlpha(lit and 1 or 0.15) end
 		local lvl, cost, open = R.Level(id), R.NextCost(id), R.Available(id)
 		local afford = open and cost ~= nil and ns.CanAfford(cost)
 		-- (redrawn only when it changed: the page refreshes with every gold change)

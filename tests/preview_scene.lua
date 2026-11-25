@@ -351,6 +351,13 @@ S.runes_far = function()
 end
 
 -- 스테이지
+-- the 전투 kind checked under the map: its runes stand out
+S.runes_kind = function()
+	show("runes", { rune = 11 })
+	local page = ns.Main.Page("runes")
+	for _, bt in ipairs(page.kindBoxes) do if bt.key == "fight" then bt:Click() end end
+	S.restore = function() for _, bt in ipairs(page.kindBoxes) do if bt.key == "fight" then bt:Click() end end end
+end
 -- every rune learned: the 보너스 합계 list is longer than its box and scrolls
 S.runes_full = function()
 	local saved = {}
