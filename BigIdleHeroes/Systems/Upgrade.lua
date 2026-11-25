@@ -27,9 +27,11 @@ end
 
 function Upgrade.Level(it) return it and it.up or 0 end
 
--- Open once the last difficulty is cleared to its end (the endless tower).
+-- Open with the last difficulty (신화+): once the one before it is cleared
+-- to its end.
 function Upgrade.Open()
-	return ns.TowerOpen and ns.TowerOpen() or false
+	local prog = ns.db and ns.db.prog
+	return prog ~= nil and (prog[#ns.DIFFS - 1] or 0) >= ns.STAGE_COUNT
 end
 
 function Upgrade.Chance(n)
@@ -46,8 +48,8 @@ function Upgrade.Cost(it, n)
 	return floor(base(it) * Upgrade.GROWTH ^ n + 0.5)
 end
 
--- how it opens (it opens with the endless tower), wherever it is locked
-Upgrade.LOCKED_TEXT = "무한의 탑 난이도에 도달하면 해금할 수 있습니다."
+-- how it opens (it opens with 신화+), wherever it is locked
+Upgrade.LOCKED_TEXT = "신화+ 난이도에 도달하면 해금할 수 있습니다."
 local function lockedText()
 	return Upgrade.LOCKED_TEXT
 end

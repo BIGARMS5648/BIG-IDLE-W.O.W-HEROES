@@ -744,18 +744,18 @@ do
 	confirmYes("unlock")
 	if not F.Unlocked("insc") then fail("해금하기 should unlock the function") end
 	hoverAll()
-	-- 강화: locked until the last difficulty is cleared, then +0 .. +20
+	-- 강화: locked until 신화+ opens (신화 cleared), then +0 .. +20
 	local prog = ns.db.prog
 	local savedProg = { prog[1], prog[2], prog[3], prog[4] }
-	prog[4] = 0
+	prog[3], prog[4] = 0, 0
 	press("enhance tab (locked)", ep.tabs:Get("up"))
 	if not ep.bodies.locked:IsVisible() or ep.bodies.up:IsVisible() then fail("a locked 강화 tab should say what opens it") end
-	if not (ep.lockView.text.__text or ""):find("무한의 탑", 1, true) then fail("the locked 강화 tab should say the endless tower opens it") end
+	if not (ep.lockView.text.__text or ""):find("신화+ 난이도", 1, true) then fail("the locked 강화 tab should say 신화+ opens it") end
 	if ep.lockView.go:IsVisible() then fail("강화 opens by itself, not with a button") end
 	for d = 1, #ns.DIFFS do prog[d] = ns.STAGE_COUNT end
 	ns.db.gold = 1e15
 	Main.Refresh()
-	if not ep.bodies.up:IsVisible() then fail("the 강화 tab should open once the last difficulty is cleared") end
+	if not ep.bodies.up:IsVisible() then fail("the 강화 tab should open once 신화+ opens") end
 	local up = ep.forge.up
 	click("enhance target", function(b) return b.data == epic end)
 	if up.picked ~= epic then fail("clicking an item in the 강화 tab should choose it") end

@@ -72,7 +72,7 @@ local function buildLeft(page)
 			lines[#lines + 1] = { ns.N(d.name), open and "해금됨" or string.format("Lv %d · %s G", d.level, U.fmt(d.cost)),
 				open and 0.4 or 0.75, open and 1 or 0.75, open and 0.45 or 0.8 }
 		end
-		lines[#lines + 1] = { "강화", ns.Upgrade.Open() and "해금됨" or string.format("%s 클리어", ns.N(ns.DIFFS[#ns.DIFFS].name)),
+		lines[#lines + 1] = { "강화", ns.Upgrade.Open() and "해금됨" or string.format("%s 클리어", ns.N(ns.DIFFS[#ns.DIFFS - 1].name)),
 			ns.Upgrade.Open() and 0.4 or 0.75, ns.Upgrade.Open() and 1 or 0.75, ns.Upgrade.Open() and 0.45 or 0.8 }
 		return lines
 	end, "TOP")

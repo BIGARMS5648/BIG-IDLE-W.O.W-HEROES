@@ -1027,12 +1027,14 @@ do
 	local it = ns.Items.New("chest", 100, 5)
 	ns.Items.AddToBag(it)
 	check(Up.Level(it) == 0, "a piece starts at +0")
-	-- locked until the last difficulty is cleared (the endless tower)
-	db.prog[4] = ns.STAGE_COUNT - 1
+	-- locked until 신화+ opens (신화 cleared to its end)
+	db.prog[3], db.prog[4] = ns.STAGE_COUNT - 1, 0
 	db.gold = 1e15
-	check(not Up.Open() and not Up.Try(it), "enhancement is locked before the last difficulty is cleared")
-	db.prog[1], db.prog[2], db.prog[3], db.prog[4] = ns.STAGE_COUNT, ns.STAGE_COUNT, ns.STAGE_COUNT, ns.STAGE_COUNT
-	check(Up.Open(), "enhancement opens once the last difficulty is cleared")
+	check(not Up.Open() and not Up.Try(it), "enhancement is locked before 신화+ opens")
+	db.prog[1], db.prog[2], db.prog[3] = ns.STAGE_COUNT, ns.STAGE_COUNT, ns.STAGE_COUNT
+	check(Up.Open(), "enhancement opens with 신화+ (신화 cleared)")
+	check(Up.LOCKED_TEXT == "신화+ 난이도에 도달하면 해금할 수 있습니다.", "the lock text names 신화+")
+	db.prog[4] = ns.STAGE_COUNT
 	-- +0 .. +10: every try succeeds, each costs more, gold is spent
 	local base0 = ns.Items.BaseStats(it)[1][2]
 	local lastCost = 0
