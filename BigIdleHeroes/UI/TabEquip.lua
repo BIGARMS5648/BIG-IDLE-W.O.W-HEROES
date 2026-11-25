@@ -285,7 +285,8 @@ local function refreshRight(page)
 	local tab = page.tab
 	if tab ~= "bag" and tab ~= "bank" then tab = "bag" page.tab = tab end
 	page.tabs:Select(tab)
-	page.tabs:SetBadge("bag", ns.Loot.Count() > 0 and ns.Loot.Count() or (not ns.Forge.Unlocked("smelt") and ns.CanAfford(ns.Forge.OpDef("smelt").cost) and ns.Guide.UnlockUseful("smelt")))
+	-- (chests waiting do not mark the 가방 tab; 분해 ready to unlock does)
+	page.tabs:SetBadge("bag", not ns.Forge.Unlocked("smelt") and ns.CanAfford(ns.Forge.OpDef("smelt").cost) and ns.Guide.UnlockUseful("smelt") or nil)
 	page.bodies.bag:Show()
 	ns.BagView.Refresh(page)
 end
