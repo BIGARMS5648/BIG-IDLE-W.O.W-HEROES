@@ -1950,7 +1950,7 @@ do
 		end
 	end
 	if waiting == 0 then fail("a model that is still loading should be up (waiting)") end
-	frames(400) -- every try of every model (famous NPC, then the trainer)
+	frames(900) -- every try of every model (famous NPC, then the trainer)
 	Mock.missingDisplays = {}
 	local back = 0
 	for _, f in ipairs(heroes) do
@@ -1960,7 +1960,8 @@ do
 		end
 	end
 	if back == 0 then fail("a hero whose model did not load should fall back to the icon") end
-	if not next(ns.db.models.bad) then fail("display ids the game does not have should be noted") end
+	if not next(Fig.bad) then fail("display ids the game does not have should be noted for the session") end
+	if ns.db.models.bad then fail("display ids that did not come up must not be saved: a slow model is not a missing one") end
 	ns.db.models = nil
 	Fig.ResetFailed()
 	frames(2)
@@ -2247,9 +2248,27 @@ do
 	m3:Show()
 	m3:SetModelId(npc)
 	for _ = 1, 30 do m3:Step(0.1) end
-	if not ns.db.models.bad[D[npc]] then fail("a display id the game does not have should be noted") end
+	if Fig.failed[npc] or Fig.bad[D[npc]] then fail("a model should get more than one try before it is given up on") end
+	for _ = 1, 100 do m3:Step(0.1) end
+	if not Fig.bad[D[npc]] then fail("a display id the game does not have should be noted for the session") end
+	if ns.db.models.bad then fail("a display id that did not come up must not be saved") end
 	if m3:IsLoaded() or not Fig.failed[npc] then fail("a model the game does not have should be given up on") end
 	Mock.missingDisplays = {}
+	m3:Hide()
+	Fig.ResetFailed()
+	-- a model slow to come up (not there at the first try) still comes up
+	Mock.missingDisplays[D[npc]] = true
+	local m4 = Fig.New(UIParent, 60)
+	m4:Show()
+	m4:SetModelId(npc)
+	for _ = 1, 20 do m4:Step(0.1) end
+	Mock.missingDisplays = {}
+	for _ = 1, 60 do m4:Step(0.1) end
+	if not m4:IsLoaded() then fail("a model slow to come up should still come up at a later try") end
+	m4:Hide()
+	-- an older save's list of "missing" display ids is dropped
+	ns.db.models = { ok = {}, bad = { [D[npc]] = true } }
+	if Fig.DisplayFor(npc) ~= D[npc] or ns.db.models.bad then fail("an older save's missing display ids should be forgotten") end
 	for _, x in ipairs({ m, m2, m3 }) do x:Hide() end
 	ns.db.models = nil
 	Fig.ResetFailed()

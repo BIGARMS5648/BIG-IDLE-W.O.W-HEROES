@@ -33,7 +33,10 @@ local SIDE, FEET_AT, FOV = 3.0, 0.32, 0.3
 -- a bust (SetBust): the frame is the portrait and shows the top of the
 -- model, from mid-chest to just over the head (in model heights)
 local BUST_SIDE, BUST_TZ = 0.62, 0.74
-local SCENE_WAIT = 1.5 -- seconds a display id is given to come up
+-- a display id is asked for up to SCENE_TRIES times, given SCENE_WAIT
+-- seconds the first time and twice as long each time after (a model the game
+-- has can be slow the first time: its files are read from disk)
+local SCENE_WAIT, SCENE_TRIES = 1.5, 3
 local BODY_WAIT_MAX, BODY_TRIES = 6, 5 -- a hero's body: the longest wait between tries (seconds), and the tries
 -- a long model (a dragon, a wolf) is fitted by this much of its length, so it
 -- stays inside the frame
@@ -235,14 +238,17 @@ end
 ------------------------------------------------------------------------
 -- What this game showed (saved)
 ------------------------------------------------------------------------
--- ok[npc] = display id it came up with, bad[display id] = true for one the
--- game does not have
+-- ok[npc] = display id it came up with. A display id that did not come up
+-- after every try is passed over for this session only (badNow): a slow
+-- model is never taken for one the game does not have for good. (Older
+-- saves kept such ids in models.bad; that list is dropped.)
+local badNow = {}
 local function memory()
 	local db = ns.db
 	if not db then return nil end
 	db.models = db.models or {}
 	db.models.ok = db.models.ok or {}
-	db.models.bad = db.models.bad or {}
+	db.models.bad = nil
 	return db.models
 end
 
@@ -252,12 +258,12 @@ local function displayFor(id)
 	local mem = memory()
 	-- a model by its display id itself (a druid's form)
 	local own = type(id) == "string" and tonumber(id:match("^disp:(%d+)$"))
-	if own then return not (mem and mem.bad[own]) and own or nil end
+	if own then return not badNow[own] and own or nil end
 	if type(id) ~= "number" then return nil end
 	local seen = mem and mem.ok[id]
 	if seen then return seen end
 	local disp = ns.MODEL.display and ns.MODEL.display[id]
-	if disp and not (mem and mem.bad[disp]) then return disp end
+	if disp and not badNow[disp] then return disp end
 	return nil
 end
 Figure.DisplayFor = displayFor
@@ -353,14 +359,13 @@ function base:SetFixedScale(s)
 	if self.loaded then self:Look() end
 end
 
--- A try that did not bring the model: a display id this game lacks is noted
--- (and forgotten as the NPC's), so it is not waited for again.
+-- A try that did not bring the model. After the last one its display id
+-- is passed over for the rest of the session (and forgotten as the NPC's).
 function base:TryFailed()
+	if not (self.lastTry and self.tryDisplay) then return end
+	badNow[self.tryDisplay] = true
 	local mem = memory()
-	if mem and self.tryDisplay then
-		mem.bad[self.tryDisplay] = true
-		if mem.ok[self.id] == self.tryDisplay then mem.ok[self.id] = nil end
-	end
+	if mem and mem.ok[self.id] == self.tryDisplay then mem.ok[self.id] = nil end
 end
 
 -- The model is in: remember the display id it came up with, then size it
@@ -374,7 +379,7 @@ function base:Loaded()
 		local d = self:ShownDisplay()
 		if d then
 			mem.ok[self.id] = d
-			mem.bad[d] = nil
+			badNow[d] = nil
 		end
 	end
 	self.corrScale, self.corrXf, self.corrYf, self.fixTries, self.fixInfo = nil, nil, nil, 0, nil
@@ -775,7 +780,8 @@ local function newScene(parent, height)
 	return f
 end
 
--- One try: the display id (a scene actor takes no NPC id).
+-- One try: the display id (a scene actor takes no NPC id), waited for
+-- longer each time.
 function scene:Load()
 	local a = self.actor
 	self.tries = (self.tries or 0) + 1
@@ -812,8 +818,8 @@ function scene:Load()
 	local ok, res = call(a, "SetModelByCreatureDisplayID", disp)
 	if not ok or res == false then return false end
 	self.tryDisplay = disp
-	self.lastTry = true
-	self.loadT = SCENE_WAIT
+	self.lastTry = self.tries >= SCENE_TRIES
+	self.loadT = SCENE_WAIT * 2 ^ (self.tries - 1)
 	return true
 end
 
@@ -1127,8 +1133,10 @@ end
 -- for tests: forget the models that did not load
 function Figure.ResetFailed()
 	for k in pairs(failed) do failed[k] = nil end
+	for k in pairs(badNow) do badNow[k] = nil end
 	for k in pairs(sizeOf) do sizeOf[k] = nil end
 end
 Figure.SizeOf = sizeOf
 Figure.failed = failed
+Figure.bad = badNow
 Figure.SIDE, Figure.FEET_AT = SIDE, FEET_AT
