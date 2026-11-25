@@ -49,6 +49,36 @@ local function buyRunes()
 	end
 end
 
+-- 강화 once the tower opens: steps moved onto newly worn pieces first (계승),
+-- then the cheapest next step of the party's gear while the gold lasts
+local function enhance()
+	local U = ns.Upgrade
+	if not (U and U.Open()) then return end
+	local worn = {}
+	for i = 1, ns.PARTY_SIZE do
+		local id = ns.db.party[i]
+		if id then
+			for _, it in pairs(ns.db.heroes[id].gear) do worn[#worn + 1] = { it, id } end
+		end
+	end
+	for _, w in ipairs(worn) do
+		local src, srcHero = U.SourceFor(w[1])
+		if src and U.CanMove(src, w[1]) then U.Move(src, w[1], srcHero, w[2]) end
+	end
+	for _ = 1, 60 do
+		local best, bestHero, bestCost
+		for _, w in ipairs(worn) do
+			local n = U.Level(w[1])
+			if n < U.MAX then
+				local c = U.Cost(w[1], n)
+				if not bestCost or c < bestCost then best, bestHero, bestCost = w[1], w[2], c end
+			end
+		end
+		if not best or ns.db.gold < bestCost then return end
+		U.Try(best, bestHero)
+	end
+end
+
 local function recruit()
 	if ns.Heroes.PartyCount() >= ns.PartyLimit() then return end
 	local have = {}
@@ -172,6 +202,7 @@ function Bot.Tick()
 	sockets()
 	recruit()
 	buyRunes()
+	enhance()
 	-- the endless tower once it opens: up from the floor after the best
 	if ns.Tower and ns.Tower.Open() and not ns.db.tower.on then ns.Combat.EnterTower(ns.Tower.Top()) end
 end
