@@ -1342,7 +1342,11 @@ local function chestTip(self)
 		local left = max(0, ns.Loot.AutoInterval(t) - (ns.db.autoT[t] or 0))
 		lines[#lines + 1] = { "자동 열기까지", U.time(left), 0.5, 1, 0.5 }
 	else
-		lines[#lines + 1] = { "'태엽의 룬'을 배우면 자동으로 열립니다.", nil, 0.6, 0.6, 0.6 }
+		-- the rune that opens this kind by itself, and the way to it
+		local rid = ns.Runes.FirstFor("auto" .. t)
+		local rune = rid and ns.Runes.byId[rid]
+		lines[#lines + 1] = { string.format("'%s'을(를) 배우면 자동으로 열립니다.", rune and ns.N(rune.name) or "태엽의 룬"), nil, 0.6, 0.6, 0.6, true }
+		if rid then lines[#lines + 1] = { "Alt+클릭: 룬 화면에서 보기", nil, 0.45, 0.8, 1 } end
 	end
 	lines[#lines + 1] = { "클릭: 1개 열기", nil, 0.45, 0.8, 1 }
 	if ns.Loot.CanOpen("kind") then
@@ -1720,6 +1724,15 @@ function Bar.Create()
 	frame.chests = {}
 	for t = 1, #ns.CHEST do
 		local cb = UI.IconButton(dock, 38, function(self, button)
+			-- Alt+click, before its rune is learned: the rune that opens it by itself
+			if IsAltKeyDown and IsAltKeyDown() and not ns.Loot.AutoOn(self.chestType) then
+				local rid = ns.Runes.FirstFor("auto" .. self.chestType)
+				if rid then
+					ns.Main.Toggle(true)
+					ns.Main.ShowTab("runes", { rune = rid })
+					return
+				end
+			end
 			local how = (IsShiftKeyDown and IsShiftKeyDown()) and "all" or (button == "RightButton" and "kind" or "one")
 			ns.Loot.OpenByHand(self.chestType, how)
 			UI.RefreshTip()

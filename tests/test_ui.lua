@@ -1092,6 +1092,29 @@ do
 			ns.db.runes[13002] = wasRune
 			ns.Runes.Invalidate()
 		end
+		-- before its own 태엽의 룬: the act boss chest names that rune, and
+		-- Alt+click shows it on the rune screen
+		do
+			local rid = 1902001
+			local was = ns.db.runes[rid]
+			ns.db.runes[rid] = nil
+			ns.Runes.Invalidate()
+			local cb = bar.chests[3]
+			try("act chest hover", cb.__scripts.OnEnter, cb)
+			local named = false
+			for _, l in ipairs(ns.UI.TipText()) do
+				if l:find("태엽의 룬: 막 우두머리 상자", 1, true) then named = true end
+			end
+			if not named then fail("the act boss chest should name the rune that opens it by itself") end
+			if cb.__scripts.OnLeave then cb.__scripts.OnLeave(cb) end
+			Mock.alt = true
+			try("act chest alt-click", cb.Click, cb, "LeftButton")
+			Mock.alt = nil
+			local rp = Main.Page("runes")
+			if Main.Current() ~= "runes" or not rp or rp.focus ~= rid then fail("Alt+click on a chest should show its 태엽의 룬 on the rune screen") end
+			ns.db.runes[rid] = was
+			ns.Runes.Invalidate()
+		end
 		if #bar.menu ~= 7 then fail("the HUD menu should have the seven screens") end
 		for _, mb in ipairs(bar.menu) do
 			try("menu " .. mb.key, mb.Click, mb, "LeftButton")
