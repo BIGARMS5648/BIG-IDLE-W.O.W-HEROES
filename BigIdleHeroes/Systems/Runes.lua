@@ -46,7 +46,7 @@ ns.RUNE_STAT = {
 	ReduceAutoOpenNormalChestTime = { key = "autoCut1", text = "몬스터 상자 자동 열기 간격 -%s초", icon = "INV_Misc_PocketWatch_01" },
 	ReduceAutoOpenStageBossChestTime = { key = "autoCut2", text = "우두머리 상자 자동 열기 간격 -%s초", icon = "INV_Misc_PocketWatch_01" },
 	ReduceAutoOpenActBossChestTime = { key = "autoCut3", text = "막 우두머리 상자 자동 열기 간격 -%s초", icon = "INV_Misc_PocketWatch_01" },
-	OpenOneTypeChestAllAtOnce = { key = "openKind", flag = true, text = "상자를 오른쪽 클릭하면 그 종류를 모두 엽니다", sum = "상자 종류별로 모두 열기 (오른쪽 클릭)", icon = "INV_Misc_Key_04" },
+	OpenOneTypeChestAllAtOnce = { key = "openKind", flag = true, text = "상자를 클릭하면 그 종류를 모두 엽니다", sum = "상자 종류별로 모두 열기 (클릭)", icon = "INV_Misc_Key_04" },
 	OpenAllTypeChestAllAtOnce = { key = "openAll", flag = true, text = "상자를 Shift+클릭하면 모든 종류를 한 번에 엽니다", sum = "모든 상자 한 번에 열기 (Shift+클릭)", icon = "INV_Misc_Key_01" },
 	MaxInventorySlot = { key = "bag", text = "가방 칸 +%s", icon = "INV_Misc_Bag_10" },
 	UnlockStashPageCount = { key = "stash", text = "창고 칸 +%s", per = 20, icon = "INV_Misc_Bag_09" },

@@ -109,6 +109,7 @@ local DEFAULTS = {
 	stat = { kills = 0, gold = 0, clears = 0, wipes = 0, time = 0, chests = 0 },
 	rate = { gold = 0, xp = 0 }, -- smoothed income per second, used for offline rewards
 	autoT = { 0, 0, 0 },         -- auto-open timers per chest type
+	autoStop = {},               -- [chest type] = true: its auto-open stopped by hand
 	retry = 0,                   -- clears since the last failed push
 }
 
@@ -266,6 +267,7 @@ function ns.InitDB()
 	for i = 1, #ns.CHEST do
 		db.autoT[i] = db.autoT[i] or 0
 	end
+	db.autoStop = db.autoStop or {}
 	-- weapon types that no longer exist become the nearest kept one
 	local function retype(it)
 		if type(it) == "table" and it.t and not ns.WTYPE[it.t] then

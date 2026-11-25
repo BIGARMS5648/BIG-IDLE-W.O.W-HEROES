@@ -115,6 +115,30 @@ S.bar_chest_tip = function()
 	S.restore = function() if cb.__scripts.OnLeave then cb.__scripts.OnLeave(cb) end end
 end
 
+-- the monster chest's tooltip: before its runes; with them, opening by
+-- itself; with its auto-open stopped by a right-click
+local function chestTipWith(runes, stop, t)
+	ns.Main.Toggle(false)
+	local learnt = {}
+	for _, rid in ipairs({ 13002, 1021, 1055 }) do learnt[rid] = ns.db.runes[rid] ns.db.runes[rid] = runes and 1 or nil end
+	ns.Runes.Invalidate()
+	if ns.db.autoStop then ns.db.autoStop[1] = stop or nil end
+	for _ = 1, 5 do Mock.Update(0.1) end
+	local cb = BigIdleHeroesBar.chests[t or 1]
+	cb.__scripts.OnEnter(cb)
+	S.restore = function()
+		if cb.__scripts.OnLeave then cb.__scripts.OnLeave(cb) end
+		for rid, v in pairs(learnt) do ns.db.runes[rid] = v end
+		if ns.db.autoStop then ns.db.autoStop[1] = nil end
+		ns.Runes.Invalidate()
+		Mock.Update(0.05)
+	end
+end
+S.chest_tip_norune = function() chestTipWith(false) end
+S.chest_tip_auto = function() chestTipWith(true) end
+S.chest_tip_stop = function() chestTipWith(true, true) end
+S.chest_tip_boss = function() chestTipWith(true, false, 2) end
+
 -- the battle window during a boss fight, then after a wipe
 S.bar_boss = function()
 	ns.Main.Toggle(false)

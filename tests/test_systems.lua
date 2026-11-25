@@ -762,6 +762,43 @@ db.opt.autoSmelt = 0
 sum = ns.Loot.OpenAll()
 check(sum.opened == 0 and sum.full, "a full bag keeps chests closed")
 do
+	-- by hand: a click opens one chest, or every chest of its kind with
+	-- 개방의 룬; a right-click stops its kind opening by itself, and starts
+	-- it again
+	db.bag = {}
+	db.chests = {}
+	local was = { [1021] = db.runes[1021], [13002] = db.runes[13002] }
+	for _ = 1, 4 do ns.Loot.AddChest(1, 10, 1) end
+	ns.Loot.AddChest(2, 10, 1)
+	db.runes[1021] = nil
+	ns.Runes.Invalidate()
+	ns.Loot.OpenByHand(1, "kind")
+	check(ns.Loot.Count(1) == 3, "a click before 개방의 룬 opens one chest")
+	db.runes[1021] = 1
+	ns.Runes.Invalidate()
+	ns.Loot.OpenByHand(1, "kind")
+	check(ns.Loot.Count(1) == 0 and ns.Loot.Count(2) == 1, "a click with 개방의 룬 opens every chest of its kind, no other")
+	db.runes[13002] = nil
+	ns.Runes.Invalidate()
+	check(not ns.Loot.ToggleAutoStop(1) and not ns.Loot.AutoStopped(1), "with no auto-open there is nothing to stop")
+	db.runes[13002] = 1
+	ns.Runes.Invalidate()
+	check(ns.Loot.AutoRunning(1), "the chest opens by itself with its 태엽의 룬")
+	check(ns.Loot.ToggleAutoStop(1) and ns.Loot.AutoStopped(1) and not ns.Loot.AutoRunning(1), "a right-click stops the auto-open")
+	for _ = 1, 3 do ns.Loot.AddChest(1, 10, 1) end
+	ns.Loot.Tick(ns.Loot.AutoInterval(1) + 5)
+	check(ns.Loot.Count(1) == 3, "a stopped auto-open opens nothing")
+	check(db.autoStop[1] == true, "a stopped auto-open is kept in the save")
+	ns.Loot.ToggleAutoStop(1)
+	check(ns.Loot.AutoRunning(1), "another right-click starts the auto-open again")
+	ns.Loot.Tick(ns.Loot.AutoInterval(1) + 5)
+	check(ns.Loot.Count(1) == 0, "the auto-open runs again once started")
+	for rid, v in pairs(was) do db.runes[rid] = v end
+	ns.Runes.Invalidate()
+	db.chests = {}
+	db.bag = {}
+end
+do
 	-- a box's gear is the box's own level (TBH): no cap by the party's level
 	local key = ns.Loot.BoxFor("monster", 95)
 	local lo, hi = ns.Loot.BoxLevels(key)

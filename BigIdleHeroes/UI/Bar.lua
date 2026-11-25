@@ -1300,13 +1300,13 @@ end
 function Bar.Scenery() return frame and frame.scenery, frame and frame.units end
 function Bar.Sky() return frame and frame.sky end
 
--- A chest that opens by itself (its 태엽의 룬 learned): a light runs round
+-- A chest that opens by itself (its 태엽의 룬 learned, not stopped): a light runs round
 -- its border, a bright spark with a short fading tail, once every 2 seconds.
 local SPARK = { { 0, 14, 0.7 }, { 0.02, 13, 0.5 }, { 0.04, 12, 0.36 }, { 0.06, 11, 0.25 }, { 0.08, 10, 0.16 }, { 0.10, 9, 0.09 } } -- behind by, size, alpha
 local function drawChestSparks(now)
 	if not frame.chests then return end
 	for t, cb in ipairs(frame.chests) do
-		local on = ns.Loot.AutoOn(t)
+		local on = ns.Loot.AutoRunning(t)
 		for i, sp in ipairs(cb.sparks) do
 			if on then
 				local S = cb:GetWidth()
@@ -1367,13 +1367,12 @@ local function chestTip(self)
 	else
 		lines[#lines + 1] = { "각 막의 마지막 공격대 우두머리가 떨어뜨립니다.", nil, 0.8, 0.8, 0.8 }
 	end
-	-- what gear it holds: the accessories come from the act boss chests only
-	if t == 3 then
-		lines[#lines + 1] = { "나오는 장비: 무기·방어구·액세서리(목·반지·손목·장신구)", nil, 1, 0.82, 0.4, true }
-	else
-		lines[#lines + 1] = { "나오는 장비: 무기·방어구", nil, 0.8, 0.8, 0.8 }
-	end
-	if ns.Loot.AutoOn(t) then
+	-- what gear it holds (in yellow): the accessories come from the act boss
+	-- chests only
+	lines[#lines + 1] = { t == 3 and "나오는 장비: 무기·방어구·액세서리(목·반지·손목·장신구)" or "나오는 장비: 무기·방어구", nil, 1, 0.82, 0.4, true }
+	if ns.Loot.AutoStopped(t) and ns.Loot.AutoOn(t) then
+		lines[#lines + 1] = { "자동 열기 멈춤", nil, 1, 0.6, 0.3 }
+	elseif ns.Loot.AutoOn(t) then
 		local left = max(0, ns.Loot.AutoInterval(t) - (ns.db.autoT[t] or 0))
 		lines[#lines + 1] = { "자동 열기까지", U.time(left), 0.5, 1, 0.5 }
 	else
@@ -1383,12 +1382,12 @@ local function chestTip(self)
 		lines[#lines + 1] = { string.format("'%s'을(를) 배우면 자동으로 열립니다.", rune and ns.N(rune.name) or "태엽의 룬"), nil, 0.6, 0.6, 0.6, true }
 		if rid then lines[#lines + 1] = { "Alt+클릭: 룬 화면에서 보기", nil, 0.45, 0.8, 1 } end
 	end
-	lines[#lines + 1] = { "클릭: 1개 열기", nil, 0.45, 0.8, 1 }
-	if ns.Loot.CanOpen("kind") then
-		lines[#lines + 1] = { "오른쪽 클릭: 이 상자 모두 열기", nil, 0.45, 0.8, 1 }
-	end
+	lines[#lines + 1] = { ns.Loot.CanOpen("kind") and "클릭: 이 상자 모두 열기" or "클릭: 1개 열기", nil, 0.45, 0.8, 1 }
 	if ns.Loot.CanOpen("all") then
 		lines[#lines + 1] = { "Shift+클릭: 모든 상자 열기", nil, 0.45, 0.8, 1 }
+	end
+	if ns.Loot.AutoOn(t) then
+		lines[#lines + 1] = { ns.Loot.AutoStopped(t) and "오른쪽 클릭: 자동 열기 다시 켜기" or "오른쪽 클릭: 자동 열기 멈추기", nil, 0.45, 0.8, 1 }
 	end
 	return lines
 end
@@ -1768,7 +1767,13 @@ function Bar.Create()
 					return
 				end
 			end
-			local how = (IsShiftKeyDown and IsShiftKeyDown()) and "all" or (button == "RightButton" and "kind" or "one")
+			-- right-click: its kind's auto-open stopped, or started again
+			if button == "RightButton" then
+				ns.Loot.ToggleAutoStop(self.chestType)
+				UI.RefreshTip()
+				return
+			end
+			local how = (IsShiftKeyDown and IsShiftKeyDown()) and "all" or "kind"
 			ns.Loot.OpenByHand(self.chestType, how)
 			UI.RefreshTip()
 		end)

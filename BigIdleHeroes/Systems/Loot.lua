@@ -219,8 +219,8 @@ function Loot.Announce(sum)
 	end
 end
 
--- Opening by hand: a click opens one chest; with its runes a right-click
--- opens every chest of the kind and a Shift+click every chest there is.
+-- Opening by hand: a click opens one chest, or with its rune every chest of
+-- the kind; with its rune a Shift+click opens every chest there is.
 -- how: "one" | "kind" | "all"; chestType nil = any kind.
 function Loot.CanOpen(how)
 	if how == "kind" then return ns.Bonus("openKind") > 0 end
@@ -242,6 +242,26 @@ function Loot.AutoOn(chestType)
 	return ns.Bonus("auto" .. chestType) > 0
 end
 
+-- A right-click on a chest stops its kind opening by itself, and another
+-- starts it again (kept in the save).
+function Loot.AutoStopped(chestType)
+	return ns.db.autoStop and ns.db.autoStop[chestType] and true or false
+end
+
+function Loot.AutoRunning(chestType)
+	return Loot.AutoOn(chestType) and not Loot.AutoStopped(chestType)
+end
+
+-- false when the kind has no auto-open to stop (its rune not learned)
+function Loot.ToggleAutoStop(chestType)
+	if not Loot.AutoOn(chestType) then return false end
+	ns.db.autoStop = ns.db.autoStop or {}
+	ns.db.autoStop[chestType] = not ns.db.autoStop[chestType] or nil
+	ns.db.autoT[chestType] = 0
+	ns.Fire("CHESTS")
+	return true
+end
+
 function Loot.AutoInterval(chestType)
 	local wait = ns.Bonus("auto" .. chestType) - ns.Bonus("autoCut" .. chestType)
 	return max(10, wait * (1 - min(80, ns.Bonus("autoCd")) / 100))
@@ -250,7 +270,7 @@ end
 function Loot.Tick(dt)
 	local db = ns.db
 	for t = 1, #ns.CHEST do
-		if not Loot.AutoOn(t) then
+		if not Loot.AutoRunning(t) then
 			db.autoT[t] = 0
 		else
 		db.autoT[t] = (db.autoT[t] or 0) + dt

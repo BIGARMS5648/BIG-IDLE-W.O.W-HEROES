@@ -1143,6 +1143,33 @@ do
 			ns.Runes.Invalidate()
 			Mock.Update(0.1)
 		end
+		-- a right-click on a chest stops its auto-open (no light), another
+		-- starts it again
+		do
+			local rid = 13002
+			local was = ns.db.runes[rid]
+			ns.db.runes[rid] = 1
+			ns.Runes.Invalidate()
+			local cb = bar.chests[1]
+			local function lit()
+				for _, sp in ipairs(cb.sparks) do if sp:IsShown() then return true end end
+				return false
+			end
+			try("chest right-click", cb.Click, cb, "RightButton")
+			Mock.Update(0.1)
+			if not ns.Loot.AutoStopped(1) or lit() then fail("a right-click on a chest should stop its auto-open and its light") end
+			try("chest hover", cb.__scripts.OnEnter, cb)
+			local said = false
+			for _, l in ipairs(ns.UI.TipText()) do if l:find("자동 열기 멈춤", 1, true) then said = true end end
+			if not said then fail("a stopped chest's tooltip should say its auto-open is stopped") end
+			if cb.__scripts.OnLeave then cb.__scripts.OnLeave(cb) end
+			try("chest right-click again", cb.Click, cb, "RightButton")
+			Mock.Update(0.1)
+			if ns.Loot.AutoStopped(1) or not lit() then fail("another right-click should start the auto-open and its light again") end
+			ns.db.runes[rid] = was
+			ns.Runes.Invalidate()
+			Mock.Update(0.1)
+		end
 		if #bar.menu ~= 7 then fail("the HUD menu should have the seven screens") end
 		for _, mb in ipairs(bar.menu) do
 			try("menu " .. mb.key, mb.Click, mb, "LeftButton")
