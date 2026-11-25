@@ -209,7 +209,7 @@ local function buildFuse(page, f)
 		end
 		local kindName = p.cat == "gear" and "무기·방어구" or "액세서리"
 		p.head:Set(string.format("가방의 %s %s  %d개", U.col(q.hex, ns.N(q.name)), kindName, #list),
-			string.format("쓸 수 있는 것 %d개 · 금색 테두리 = 다음 융합에 쓰임", usable))
+			string.format("쓸 수 있는 것 %d개 · 파란 테두리 = 다음 융합에 쓰임", usable))
 		for i, b in ipairs(p.cells) do
 			local it = list[i]
 			b:Clear()

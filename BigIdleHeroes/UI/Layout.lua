@@ -13,11 +13,12 @@
 --   +---------------------------------------+ +-----------------------+
 --
 -- Colours mean the same on every screen:
---   gold  = the main action for what is chosen (always bottom right of the card)
---   blue  = an action for the whole screen (bottom of the list)
+--   blue  = the main action for what is chosen (always bottom right of the card;
+--           the logo's blue)
+--   steel = an action for the whole screen (bottom of the list)
 --   dark  = a secondary action      red = something you lose (break down,
 --   reset); those ask first in a confirmation window (UI.Confirm)
--- What is selected always has a gold frame. Text is never smaller than 10.
+-- What is selected always has a blue frame (the logo's). Text is never smaller than 10.
 local _, ns = ...
 
 local floor, max, min = math.floor, math.max, math.min
@@ -38,7 +39,7 @@ K.SMALL_H = 26                -- small buttons
 K.FOOT = K.PAD + K.BTN_H + 8  -- footer zone height (54)
 K.LIST_IN = K.LIST_W - 2 * K.PAD   -- 512: usable list width
 K.CARD_IN = K.CARD_W - 2 * K.PAD   -- 276: usable card width
-K.SEL = { 1.00, 0.82, 0.30 }  -- selection gold
+K.SEL = { 0.42, 0.70, 1.00 }  -- selection blue (the logo's)
 -- font sizes
 K.F_TITLE, K.F_HEAD, K.F_BODY, K.F_SMALL, K.F_MIN = 15, 12, 12, 11, 10
 
@@ -235,7 +236,7 @@ function UI.Lines(parent, w, n, size, h)
 	return f
 end
 
--- Gold frame around whatever is selected.
+-- Blue frame around whatever is selected.
 function UI.SelFrame(parent, out)
 	out = out or 2
 	local t = UI.Slice(parent, "frame", "OVERLAY", 11, out)
@@ -285,7 +286,7 @@ function UI.Row(parent, w, h, onClick)
 	function b:SetSelected(v)
 		self.selected = v and true or false
 		self.sel:SetShown(self.selected)
-		if self.selected then self.bg:SetColor(1, 0.92, 0.70, 1) else self.bg:SetColor(1, 1, 1, 1) end
+		if self.selected then self.bg:SetColor(0.78, 0.88, 1, 1) else self.bg:SetColor(1, 1, 1, 1) end
 	end
 	b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	b:SetScript("OnClick", function(self, button)
@@ -771,7 +772,7 @@ local function openList(b)
 			r.isItem = true
 			r.hl = r:CreateTexture(nil, "BACKGROUND")
 			r.hl:SetAllPoints(r)
-			UI.Fill(r.hl, 1, 0.82, 0.3, 0.18)
+			UI.Fill(r.hl, 0.35, 0.62, 1, 0.18)
 			r.mark = UI.Glyph(r, "check", 14, K.SEL[1], K.SEL[2], K.SEL[3])
 			r.mark:SetPoint("LEFT", r, "LEFT", 6, 0)
 			r.label = UI.Text(r, K.F_BODY)

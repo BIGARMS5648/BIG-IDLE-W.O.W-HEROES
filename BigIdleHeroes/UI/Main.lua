@@ -154,11 +154,11 @@ function Main.RefreshNav()
 		local over = UI.ArtUI(on and "ui_tab_on" or "ui_tab")
 		if over and b.bg.art ~= over then b.bg:SetArt(over) end
 		if on then
-			b.bg:SetColor(1.0, 0.86, 0.45, 1)
-			b.label:SetTextColor(1, 0.86, 0.35)
+			b.bg:SetColor(0.45, 0.68, 1.0, 1)
+			b.label:SetTextColor(0.78, 0.90, 1)
 			b.glow:Show()
 			b.icon:SetPoint("TOP", b, "TOP", 0, -5)
-			if b.icon.isArt then b.icon:SetVertexColor(1, 0.86, 0.35) end
+			if b.icon.isArt then b.icon:SetVertexColor(0.78, 0.90, 1) end
 		else
 			local k = b.hover and 0.75 or 0.55
 			b.bg:SetColor(k, k * 1.05, k * 1.25, 1)
@@ -205,8 +205,10 @@ function Main.CloseModal()
 	end
 end
 
+-- the wide logo (tools/cut_logo.py): 512 x LOGO_USED of its 512 x 256 texture
 local LOGO_H = 56
-local LOGO_W = math.floor(LOGO_H * 1.101 + 0.5) -- the emblem's own proportions
+local LOGO_USED = 157
+local LOGO_W = math.floor(LOGO_H * 512 / LOGO_USED + 0.5)
 
 local refreshT = 0
 local function onUpdate(_, elapsed)
@@ -262,12 +264,12 @@ function Main.Create()
 	if UI.ArtUI("ui_header") then UI.Slice(head, "card", "BACKGROUND"):SetArt(UI.ArtUI("ui_header")) end
 	local line = UI.Line(frame, Main.W - 24, 0.55, 0.60, 0.75, 0.35)
 	line:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -59)
-	-- the logo (Media/logo.tga: the emblem, its edges faded into the header)
+	-- the logo (Media/logo.tga: the wide logo, its background left clear)
 	frame.logo = frame:CreateTexture(nil, "ARTWORK")
 	frame.logo:SetSize(LOGO_W, LOGO_H)
 	frame.logo:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -2)
 	frame.logo:SetTexture(UI.Tex("logo"))
-	frame.logo:SetTexCoord(0, 1, 0, 1)
+	frame.logo:SetTexCoord(0, 1, 0, LOGO_USED / 256)
 
 	frame.close = UI.Button(frame, 30, 30, "", function() Main.Toggle(false) end, "dark")
 	frame.close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -14)
@@ -329,7 +331,7 @@ function Main.Create()
 	end
 	frame.gold = pill(100, "INV_Misc_Coin_01", "icon_gold")
 	frame.gold:SetPoint("RIGHT", right, "LEFT", -6, 0)
-	UI.Color(frame.gold.text, UI.C.gold)
+	UI.Color(frame.gold.text, UI.C.coin)
 	UI.Tip(frame.gold, function() return UI.SimpleTip("골드", "몬스터를 잡고 지역을 공략하면 얻습니다. 영웅 모집하기, 룬, 장비 제작·강화와 기능 해금에 씁니다.") end)
 
 	-- bottom navigation
@@ -352,7 +354,7 @@ function Main.Create()
 		b:SetSize(bw, NAV_H - 12)
 		b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16 + (i - 1) * (bw + 6), 8)
 		b.key = def.key
-		b.glow = UI.Art(b, "glow", "BACKGROUND", 1, 0.75, 0.25, 0.35)
+		b.glow = UI.Art(b, "glow", "BACKGROUND", 0.25, 0.55, 1, 0.45)
 		b.glow:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 10)
 		b.glow:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 0, -6)
 		b.bg = UI.Slice(b, "card", "BACKGROUND")

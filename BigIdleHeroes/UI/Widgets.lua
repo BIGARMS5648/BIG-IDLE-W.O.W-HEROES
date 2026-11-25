@@ -17,7 +17,8 @@ end
 
 -- Palette
 UI.C = {
-	gold  = { 1.00, 0.82, 0.29 },
+	gold  = { 0.62, 0.80, 1.00 },
+	coin  = { 1.00, 0.82, 0.29 },
 	text  = { 0.92, 0.94, 0.98 },
 	sub   = { 0.62, 0.68, 0.80 },
 	dim   = { 0.42, 0.46, 0.56 },
@@ -26,11 +27,11 @@ UI.C = {
 	blue  = { 0.48, 0.72, 1.00 },
 }
 UI.STYLE = {
-	primary = { 0.96, 0.64, 0.14 },
-	blue    = { 0.30, 0.47, 0.84 },
+	primary = { 0.20, 0.52, 1.00 },
+	blue    = { 0.34, 0.43, 0.62 },
 	green   = { 0.22, 0.66, 0.34 },
 	red     = { 0.80, 0.25, 0.23 },
-	dark    = { 0.26, 0.31, 0.43 },
+	dark    = { 0.20, 0.27, 0.40 },
 	purple  = { 0.55, 0.36, 0.86 },
 	off     = { 0.20, 0.22, 0.27 },
 }
@@ -686,7 +687,7 @@ function UI.MenuButton(parent, size, icon, caption, onClick, art)
 		ns.Sound("click")
 		if onClick then onClick(self) end
 	end)
-	b.onEnter = function(self) self.ringT:SetVertexColor(1, 0.85, 0.35) end
+	b.onEnter = function(self) self.ringT:SetVertexColor(0.55, 0.80, 1) end
 	b.onLeave = function(self) self.ringT:SetVertexColor(0.55, 0.62, 0.80) end
 	b:SetScript("OnEnter", function(self) self.onEnter(self) end)
 	b:SetScript("OnLeave", function(self) self.onLeave(self) end)
@@ -717,9 +718,9 @@ function UI.Chip(parent, w, h, text, onClick)
 			return
 		end
 		if self.on then
-			self.bg:SetColor(UI.C.gold[1], UI.C.gold[2] * 0.95, UI.C.gold[3], 1)
-			self.label:SetTextColor(0.12, 0.10, 0.05)
-			self.label:SetShadowOffset(0, 0)
+			self.bg:SetColor(0.20, 0.52, 1.00, 1)
+			self.label:SetTextColor(1, 1, 1)
+			self.label:SetShadowOffset(1, -1)
 		else
 			local k = self.hover and 0.32 or 0.22
 			self.bg:SetColor(k, k * 1.12, k * 1.5, 1)
@@ -786,7 +787,7 @@ function UI.IconButton(parent, size, onClick)
 	b.frame = UI.Art(b, "frame", "OVERLAY")
 	b.frame:SetAllPoints(b)
 	b.frame:Hide()
-	b.hl = UI.Art(b, "frame", "OVERLAY", 1, 0.92, 0.55, 0.9)
+	b.hl = UI.Art(b, "frame", "OVERLAY", 0.55, 0.80, 1, 0.9)
 	b.hl:SetPoint("TOPLEFT", b, "TOPLEFT", -2, 2)
 	b.hl:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 2, -2)
 	b.hl:Hide()
@@ -896,7 +897,7 @@ function UI.Portrait(parent, size, onClick)
 	b.icon:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -pad, pad)
 	b.ringT = UI.Art(b, "ring", "OVERLAY")
 	b.ringT:SetAllPoints(b)
-	b.hl = UI.Art(b, "glow", "BACKGROUND", 1, 0.85, 0.35, 0.8)
+	b.hl = UI.Art(b, "glow", "BACKGROUND", 0.35, 0.62, 1, 0.8)
 	b.hl:SetPoint("TOPLEFT", b, "TOPLEFT", -size * 0.22, size * 0.22)
 	b.hl:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", size * 0.22, -size * 0.22)
 	b.hl:Hide()

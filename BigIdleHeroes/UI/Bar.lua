@@ -711,9 +711,9 @@ local function updateInfo()
 		ab.on = auto
 		-- on: » (on to the next stage) on gold; off: a loop (this stage again) on dark
 		UI.SetGlyph(ab.glyph, auto and "auto" or "repeat")
-		if auto then ab.glyph:SetVertexColor(0.18, 0.12, 0.02) else ab.glyph:SetVertexColor(0.86, 0.89, 0.96) end
-		ab.disc:SetVertexColor(auto and 1 or 0.16, auto and 0.76 or 0.2, auto and 0.22 or 0.3)
-		ab.ringT:SetVertexColor(auto and 1 or 0.55, auto and 0.9 or 0.62, auto and 0.6 or 0.8)
+		if auto then ab.glyph:SetVertexColor(1, 1, 1) else ab.glyph:SetVertexColor(0.86, 0.89, 0.96) end
+		ab.disc:SetVertexColor(auto and 0.22 or 0.16, auto and 0.55 or 0.2, auto and 1 or 0.3)
+		ab.ringT:SetVertexColor(auto and 0.7 or 0.55, auto and 0.85 or 0.62, auto and 1 or 0.8)
 		ab.caption:SetText(auto and "자동 진행" or "반복")
 		UI.Color(ab.caption, auto and UI.C.gold or UI.C.sub)
 	end

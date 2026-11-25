@@ -118,7 +118,7 @@ local function buildLeft(page)
 			b:SetOn(b.key == key)
 			-- the white icons: dark on the chosen (gold) one, light on the rest
 			if b.icon.isArt then
-				if b.key == key then b.icon:SetVertexColor(0.14, 0.11, 0.05) else b.icon:SetVertexColor(0.86, 0.89, 0.96) end
+				if b.key == key then b.icon:SetVertexColor(1, 1, 1) else b.icon:SetVertexColor(0.86, 0.89, 0.96) end
 			end
 		end
 	end

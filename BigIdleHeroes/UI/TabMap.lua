@@ -38,6 +38,7 @@ local function themeRGB(theme)
 end
 
 local TOWER_HEX = "b48cff"
+local K_SEL = UI.K.SEL -- what is chosen
 local AFFIX_ROW = 34
 
 ------------------------------------------------------------------------
@@ -186,7 +187,7 @@ local function build(page)
 		b.icon = b:CreateTexture(nil, "ARTWORK", nil, -1)
 		b.icon:SetSize(38, 38)
 		b.icon:SetPoint("CENTER", b.disc, "CENTER", 0, 0)
-		b.glow = UI.Art(b, "glow", "BACKGROUND", 1, 0.8, 0.3, 0.9)
+		b.glow = UI.Art(b, "glow", "BACKGROUND", 0.35, 0.62, 1, 0.9)
 		b.glow:SetSize(84, 84)
 		b.glow:SetPoint("CENTER", b.disc, "CENTER", 0, 0)
 		b.glow:Hide()
@@ -426,7 +427,7 @@ local function refresh(page)
 		w.prog:SetText(open and string.format("진행 %d / 30", p) or "잠김")
 		w.lockG:SetShown(not open)
 		w.scene:SetDesaturated(not open)
-		if d == page.diff and not page.tower then w.edge:SetColor(1, 0.82, 0.3, 1) else w.edge:SetColor(0.22, 0.27, 0.4, 1) end
+		if d == page.diff and not page.tower then w.edge:SetColor(K_SEL[1], K_SEL[2], K_SEL[3], 1) else w.edge:SetColor(0.22, 0.27, 0.4, 1) end
 		if d == db.stage.diff and not inTower then
 			w.name:SetText(ns.N(ns.DIFFS[d].world) .. "  " .. U.col("6af07a", "●"))
 		else
@@ -439,7 +440,7 @@ local function refresh(page)
 		w.prog:SetText(open and string.format("최고 %d층", db.tower.best or 0) or "잠김")
 		w.lockG:SetShown(not open)
 		w.scene:SetDesaturated(not open)
-		if page.tower then w.edge:SetColor(1, 0.82, 0.3, 1) else w.edge:SetColor(0.22, 0.27, 0.4, 1) end
+		if page.tower then w.edge:SetColor(K_SEL[1], K_SEL[2], K_SEL[3], 1) else w.edge:SetColor(0.22, 0.27, 0.4, 1) end
 		w.name:SetText(inTower and ("무한의 탑  " .. U.col("6af07a", "●")) or "무한의 탑")
 	end
 	for _, part in ipairs(page.stageParts) do part:SetShown(not page.tower) end
@@ -466,7 +467,7 @@ local function refresh(page)
 		if here then
 			b.ringT:SetVertexColor(0.4, 1, 0.5)
 		elseif idx == page.idx then
-			b.ringT:SetVertexColor(1, 0.82, 0.3)
+			b.ringT:SetVertexColor(K_SEL[1], K_SEL[2], K_SEL[3])
 		elseif reachable then
 			b.ringT:SetVertexColor(r, g, bl)
 		else
@@ -493,7 +494,7 @@ local function refresh(page)
 			local parts = { link }
 			for _, t in ipairs(link.parts or {}) do parts[#parts + 1] = t end
 			for _, t in ipairs(parts) do
-				if cleared then UI.Fill(t, 1, 0.8, 0.3, 0.9) else UI.Fill(t, 0.3, 0.33, 0.42, 0.8) end
+				if cleared then UI.Fill(t, 0.40, 0.66, 1, 0.9) else UI.Fill(t, 0.3, 0.33, 0.42, 0.8) end
 			end
 		end
 	end

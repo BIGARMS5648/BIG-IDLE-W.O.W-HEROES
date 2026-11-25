@@ -168,7 +168,7 @@ local function runeNode(page, node)
 	b.border2:SetPoint("TOPLEFT", b, "TOPLEFT", 1, -1)
 	b.border2:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -1, 1)
 	-- the chosen rune: a gold frame around it
-	b.sel = UI.Art(b, "frame", "OVERLAY", 1, 0.86, 0.35)
+	b.sel = UI.Art(b, "frame", "OVERLAY", 0.55, 0.80, 1)
 	b.sel:SetPoint("TOPLEFT", b, "TOPLEFT", -4, 4)
 	b.sel:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 4, -4)
 	b.sel:Hide()

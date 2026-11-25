@@ -88,8 +88,9 @@ WHITE = np.array([1.0, 1.0, 1.0])
 def panel():
     w = h = 64
     img = blank(w, h)
-    over(img, vgrad(w, h, hexrgb("56689a"), hexrgb("242f4c")), rr(w, h, 14))            # border
-    over(img, vgrad(w, h, hexrgb("1c2439"), hexrgb("0f1424")), rr(w, h, 14, inset=2))   # body
+    over(img, vgrad(w, h, hexrgb("b9c8e2"), hexrgb("55688c")), rr(w, h, 14))            # border (silver)
+    over(img, hexrgb("2f7bff"), rr(w, h, 14, inset=1.5))                                 # the logo's blue line
+    over(img, vgrad(w, h, hexrgb("16223a"), hexrgb("0b1222")), rr(w, h, 14, inset=2.5)) # body
     hl = rr(w, h, 14, inset=2) - rr(w, h, 14, inset=3)                                  # inner highlight, top only
     fade = np.clip(1 - np.linspace(0, 1, h) * 3.0, 0, 1)[:, None]
     over(img, WHITE, np.clip(hl, 0, 1) * fade * 0.22)
@@ -99,8 +100,8 @@ def panel():
 def card():
     w = h = 64
     img = blank(w, h)
-    over(img, vgrad(w, h, hexrgb("46578a"), hexrgb("2a3558")), rr(w, h, 10))
-    over(img, vgrad(w, h, hexrgb("242e4a"), hexrgb("19213a")), rr(w, h, 10, inset=1.5))
+    over(img, vgrad(w, h, hexrgb("7d93bd"), hexrgb("34466c")), rr(w, h, 10))
+    over(img, vgrad(w, h, hexrgb("1c2a46"), hexrgb("121c32")), rr(w, h, 10, inset=1.5))
     return save("card", img)
 
 
