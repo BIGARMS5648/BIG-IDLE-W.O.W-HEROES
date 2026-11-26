@@ -186,4 +186,6 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   experience hint says how far above the heroes a stage may be before
   experience drops. The inheritance window lists the gems, enchants and
   inscriptions that move along.
+- The gear score (auto-equip, upgrade arrows, protection) no longer depends
+  on the stage being fought: an item scores the same everywhere.
 ```

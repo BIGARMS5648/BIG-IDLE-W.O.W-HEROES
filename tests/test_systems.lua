@@ -1555,7 +1555,8 @@ do
 		"lifesteal, regeneration, resistances and absorb together make an upgrade")
 	-- +1 to all skills
 	check(I.Compare(mage, with({ { "skills", 1 } })) > I.UPGRADE, "+1 to all skills makes an upgrade")
-	-- resistances count by the element of the monsters being fought
+	-- the score is the same wherever the party fights: each element's
+	-- resistance counts the same, on a fire boss's stage too
 	do
 		local fireStage
 		for d = 1, #ns.DIFFS do
@@ -1566,8 +1567,13 @@ do
 		end
 		local frostOnly = with({ { "res_frost", 60 } })
 		local fireOnly = with({ { "res_fire", 60 } })
+		local armored = with({ { "armor", 400 } })
+		local here = { I.Compare(mage, fireOnly), I.Compare(mage, frostOnly), I.Compare(mage, armored) }
 		db.stage = fireStage
-		check(I.Compare(mage, fireOnly) > I.Compare(mage, frostOnly), "fire resistance is worth more against a fire boss")
+		local there = { I.Compare(mage, fireOnly), I.Compare(mage, frostOnly), I.Compare(mage, armored) }
+		check(math.abs(here[1] - here[2]) < 1e-9, "fire and frost resistance score the same")
+		check(math.abs(here[1] - there[1]) < 1e-9 and math.abs(here[3] - there[3]) < 1e-9,
+			"an item scores the same on another stage (fire boss " .. fireStage.diff .. "-" .. fireStage.idx .. ")")
 		db.stage = { diff = 1, idx = 5 }
 	end
 	-- element damage counts for the elements of the equipped skills

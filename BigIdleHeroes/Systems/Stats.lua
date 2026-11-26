@@ -185,36 +185,12 @@ local HITS = { TANK = 1.2, DPS = 0.3, HEALER = 0.3 }
 local BLOW = 0.06
 local KILLS = 0.1
 
--- Where the damage of the stage being fought comes from: { [school] = share }
--- (its monsters by how often they come, the boss for a third), with a
--- little of every element on top: the next stages hit with other ones.
-local ELEMENTS = { "fire", "frost", "nature", "shadow" }
-local ELEMENT_BASE = 0.12
-local threatKey, threatMix
+-- Where the damage taken comes from, the same wherever the party fights (so
+-- one item scores the same on every stage): half physical, the rest spread
+-- evenly over the four elements.
+local THREAT = { phys = 0.5, fire = 0.125, frost = 0.125, nature = 0.125, shadow = 0.125 }
 function Stats.ThreatMix()
-	local st = ns.db and ns.db.stage
-	if not (st and ns.Stage) then return { phys = 1 } end
-	local key = st.diff .. "-" .. st.idx
-	if key == threatKey then return threatMix end
-	local mix, total = {}, 0
-	local stg = ns.Stage(st.diff, st.idx)
-	for _, e in ipairs(stg.mobs or {}) do
-		local m = ns.MONSTERS[e[1]]
-		if m then
-			local w = e[2] or 1
-			mix[m.school or "phys"] = (mix[m.school or "phys"] or 0) + w
-			total = total + w
-		end
-	end
-	local out = {}
-	local share = (total > 0) and 2 / 3 or 0
-	for k, v in pairs(mix) do out[k] = v / total * share end
-	local bs = stg.boss and stg.boss.school or "phys"
-	out[bs] = (out[bs] or 0) + (1 - share)
-	for k, v in pairs(out) do out[k] = v * (1 - ELEMENT_BASE) end
-	for _, e in ipairs(ELEMENTS) do out[e] = (out[e] or 0) + ELEMENT_BASE / #ELEMENTS end
-	threatKey, threatMix = key, out
-	return out
+	return THREAT
 end
 
 -- Damage taken, as a share, against that mix (armor against physical blows,
@@ -222,8 +198,7 @@ end
 -- flat absorb included.
 local function takenShare(s)
 	local mix = Stats.ThreatMix()
-	local stage = ns.db and ns.db.stage
-	local level = stage and ns.StageLevel(stage.diff, stage.idx) or s.level
+	local level = s.level -- armor against foes of the hero's own level
 	local by = 0
 	for school, w in pairs(mix) do
 		local t
