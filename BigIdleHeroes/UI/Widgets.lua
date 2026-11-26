@@ -655,6 +655,8 @@ function UI.ShowTip(owner, lines, anchor, compare)
 	tip:ClearAllPoints()
 	if anchor == "TOP" then
 		tip:SetPoint("BOTTOM", owner, "TOP", 0, 6)
+	elseif anchor == "LEFT" then
+		tip:SetPoint("TOPRIGHT", owner, "TOPLEFT", -6, 0)
 	else
 		tip:SetPoint("TOPLEFT", owner, "TOPRIGHT", 6, 0)
 	end

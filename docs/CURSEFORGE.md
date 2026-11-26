@@ -219,4 +219,16 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - Unlock buttons (breaking down, forge functions, crafting tiers, seal rolls,
   extraction) carry the red dot when they can be unlocked right now.
 - Removed unused code and an unused texture.
+- A minimap button with the add-on's logo: click for the menu window, right
+  click for the battle window, drag to move it around the minimap. It can be
+  hidden in the settings.
+- Boss chests can hold accessories too, as often as the act boss chest of
+  their level.
+- The stage screen's options and notes sit at the bottom of the stage list,
+  and each chest's reward line is in its chest's colour (bronze, silver,
+  gold). The boss chest's silver is a little darker.
+- The recruit cost reads "300 G".
+- The last party seat's rune (60,000 gold) is recommended once Normal 1-10
+  is cleared.
+- Normal 1-6 to 1-9 now rise evenly in difficulty instead of jumping at 1-6.
 ```

@@ -91,6 +91,8 @@ local function cheapestRune()
 	return bestId, bestCost
 end
 
+Guide.LAST_SEAT_CLEARS = 10 -- 일반 stages cleared before the last seat's rune is suggested
+
 local function nextCommandRune()
 	local id = ns.Runes.FirstFor("party")
 	return id and ns.Runes.byId[id]
@@ -139,6 +141,8 @@ local function nextRecruit(heroes)
 			tab = "hero", create = role, wait = not ns.CanAfford(cost) }
 	end
 	local cmd = nextCommandRune()
+	-- the last seat's rune (60,000 gold) waits until 일반 1-10 is cleared
+	if ns.PartyLimit() > ns.PARTY_BASE and (ns.db.prog[1] or 0) < Guide.LAST_SEAT_CLEARS then return nil end
 	if cmd and ns.PartyLimit() < ns.PARTY_SIZE then
 		local step = ns.Runes.NextStepTo(cmd.id)
 		if step then

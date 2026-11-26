@@ -559,6 +559,9 @@ Mock.shift, Mock.ctrl, Mock.alt = false, false, false
 
 _G.UIParent = CreateFrame("Frame", "UIParent")
 UIParent:SetSize(1920, 1080)
+_G.Minimap = CreateFrame("Frame", "Minimap", UIParent)
+Minimap:SetSize(140, 140)
+Minimap:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -20, -20)
 _G.GetLocale = function() return Mock.locale end
 _G.GetTime = function() return Mock.now end
 _G.time = function() return Mock.wall end

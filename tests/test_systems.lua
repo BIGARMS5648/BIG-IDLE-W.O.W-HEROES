@@ -834,6 +834,27 @@ do
 	check(missing == 0, "every stage's boxes exist")
 	-- a chest kept from before (no box) opens as the box of its kind and level
 	check(ns.TBH.BOXES[ns.Loot.BoxFor("boss", 37)].lv <= 37 and ns.TBH.BOXES[ns.Loot.BoxFor("act", 1)], "an old chest finds its box")
+	-- accessories: from boss boxes as often (among their gear) as from the act
+	-- boss box of their level; never from monster boxes
+	local ACC = { neck = true, ring = true, trinket = true, wrist = true }
+	local function accShare(k, n)
+		local g, a = 0, 0
+		for _ = 1, n do
+			local r = ns.Loot.RollBox(k)
+			if r.item then
+				g = g + 1
+				if ACC[r.item.s] then a = a + 1 end
+			end
+		end
+		return g > 0 and a / g or 0
+	end
+	local boss40, act40 = ns.Loot.BoxFor("boss", 40), ns.Loot.BoxFor("act", 40)
+	local want = ns.Loot.AccShare(boss40)
+	local got, ref = accShare(boss40, 6000), accShare(act40, 6000)
+	check(want > 0.2 and math.abs(got - want) < 0.03 and math.abs(got - ref) < 0.04,
+		string.format("a boss box's gear is an accessory as often as the act box's: %.3f (want %.3f, act box %.3f)", got, want, ref))
+	check(accShare(ns.Loot.BoxFor("boss", 1), 2000) > 0, "even the first boss box holds accessories")
+	check(accShare(ns.Loot.BoxFor("monster", 40), 3000) == 0, "monster boxes hold no accessories")
 end
 do
 	-- grade odds follow the box's table: common is likelier than rare
@@ -1786,6 +1807,24 @@ do
 		if g.rune and g.rune ~= seat then other = true end
 	end
 	check(found and found.wait and not other, "then the rune toward the next party seat, saved up for, no other rune: " .. texts())
+	-- the last seat's rune (60,000 gold) only once 일반 1-10 is cleared: before
+	-- that nothing is saved up for it
+	d.runes[ns.Runes.FirstFor("party")] = 1
+	ns.Runes.Invalidate()
+	d.gold = 1e9
+	ns.Heroes.Create("ROGUE_SUB")
+	d.gold = 0
+	check(ns.PartyLimit() == ns.PARTY_BASE + 1 and ns.Heroes.PartyCount() == ns.PartyLimit(), "four seats, all taken")
+	local last = ns.Runes.NextStepTo(ns.Runes.FirstFor("party"))
+	local function seatGoal()
+		ns.Guide.Invalidate()
+		for _, g in ipairs(ns.Guide.Candidates()) do if g.rune == last then return g end end
+	end
+	d.prog[1] = ns.Guide.LAST_SEAT_CLEARS - 1
+	check(seatGoal() == nil, "before 일반 1-10 is cleared, no step toward the last seat: " .. texts())
+	d.prog[1] = ns.Guide.LAST_SEAT_CLEARS
+	local g5 = seatGoal()
+	check(g5 and g5.wait, "once 일반 1-10 is cleared, the last seat's step is saved up for: " .. texts())
 	-- the order the party fills in: the healer third
 	local SPEC_OF = { TANK = "PALADIN_PROT", DPS = "ROGUE_SUB", HEALER = "DRUID_RESTO" }
 	local base = ns.PARTY_BASE

@@ -1163,6 +1163,25 @@ do
 	if op.S then fail("settings should be one page without tabs") end
 	if not (op.screen:IsVisible() and op.game:IsVisible()) then fail("every setting should show on the one page") end
 	if op.screen.bar or op.game.autoSmelt then fail("settings should not have the battle window size or the bag auto break-down") end
+	-- the minimap button: on by default, the settings line hides and shows it;
+	-- a click opens and closes the menu window, a drag moves it around
+	do
+		local mb = ns.MinimapButton.Button()
+		if not (mb and mb:IsShown()) then fail("the minimap button should be shown by default") end
+		press("minimap off", op.game.minimap)
+		if mb:IsShown() or ns.db.ui.minimap ~= false then fail("the settings line should hide the minimap button") end
+		press("minimap on", op.game.minimap)
+		if not mb:IsShown() then fail("the settings line should show the minimap button again") end
+		local was = Main.IsShown and Main.IsShown()
+		try("minimap click", mb.__scripts.OnClick, mb, "LeftButton")
+		try("minimap click", mb.__scripts.OnClick, mb, "LeftButton")
+		if Main.IsShown and Main.IsShown() ~= was then fail("two clicks on the minimap button should leave the menu window as it was") end
+		ns.db.ui.minimapAngle = nil
+		try("minimap drag", mb.__scripts.OnDragStart, mb)
+		frames(1)
+		try("minimap drag stop", mb.__scripts.OnDragStop, mb)
+		if type(ns.db.ui.minimapAngle) ~= "number" then fail("dragging should store the button's angle") end
+	end
 	press("battle window back to default", op.screen.resetPos)
 	press("reset everything", op.game.reset)
 	local _, no = ns.UI.ConfirmButtons()

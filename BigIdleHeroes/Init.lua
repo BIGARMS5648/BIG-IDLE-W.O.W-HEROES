@@ -103,6 +103,7 @@ local function onLogin()
 	ns.Runes.Invalidate()
 	ns.Bar.Create()
 	ns.Main.Create()
+	ns.MinimapButton.Create()
 	local report = ns.Offline.Claim(time())
 	ready = true
 	if report then showOffline(report) end

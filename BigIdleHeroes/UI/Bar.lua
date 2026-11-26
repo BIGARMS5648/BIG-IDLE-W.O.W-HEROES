@@ -1381,9 +1381,9 @@ local function chestTip(self)
 	else
 		lines[#lines + 1] = { "각 막의 마지막 공격대 우두머리가 떨어뜨립니다.", nil, 0.8, 0.8, 0.8 }
 	end
-	-- what gear it holds (in yellow): the accessories come from the act boss
-	-- chests only
-	lines[#lines + 1] = { t == 3 and "나오는 장비: 무기·방어구·액세서리(목·반지·손목·장신구)" or "나오는 장비: 무기·방어구", nil, 1, 0.82, 0.4, true }
+	-- what gear it holds (in yellow): accessories come from the boss and act
+	-- boss chests
+	lines[#lines + 1] = { t >= 2 and "나오는 장비: 무기·방어구·액세서리(목·반지·손목·장신구)" or "나오는 장비: 무기·방어구", nil, 1, 0.82, 0.4, true }
 	if ns.Loot.AutoStopped(t) and ns.Loot.AutoOn(t) then
 		lines[#lines + 1] = { "자동 열기 멈춤", nil, 1, 0.6, 0.3 }
 	elseif ns.Loot.AutoOn(t) then

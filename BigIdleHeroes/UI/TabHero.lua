@@ -193,7 +193,7 @@ local function refreshList(page)
 	page.createWhy = H.CreateWhy()
 	page.create:SetOff(page.createWhy ~= nil)
 	local priced = not full and cost > 0
-	page.create.cost:SetText(full and "가득 참" or (priced and U.col("ffd24a", U.fmt(cost) .. "G") or "무료"))
+	page.create.cost:SetText(full and "가득 참" or (priced and U.col("ffd24a", U.fmt(cost) .. " G") or "무료"))
 	page.create.cost:ClearAllPoints()
 	page.create.cost:SetPoint("CENTER", page.create, "CENTER", priced and 10 or 0, -12)
 	page.create.coin:SetShown(priced)

@@ -61,6 +61,35 @@ function Loot.MatFor(kind, grade)
 	return k .. U.clamp(grade, 1, ns.MAT_MAX_TIER[k]), n
 end
 
+-- Accessories in a boss box: the act boss box of its level (the one at or
+-- below it) holds them as this share of its gear, in these families by
+-- weight; a boss box's gear is an accessory as often (its grade and level
+-- kept). Returns share, { { family, weight }, ... }.
+local ACC = { neck = true, ring = true, trinket = true, wrist = true }
+local accCache = {}
+function Loot.AccShare(key)
+	local b = ns.TBH.BOXES[key]
+	if not b or b.kind ~= "boss" then return 0 end
+	if accCache[key] then return accCache[key][1], accCache[key][2] end
+	local act = ns.TBH.BOXES[Loot.BoxFor("act", b.lv)]
+	local gear, acc, fams = 0, 0, {}
+	for _, e in ipairs(act and act.e or {}) do
+		if e[1] == "gear" then
+			gear = gear + e[#e]
+			if ACC[e[2]] then
+				acc = acc + e[#e]
+				fams[e[2]] = (fams[e[2]] or 0) + e[#e]
+			end
+		end
+	end
+	local list = {}
+	for fam, w in pairs(fams) do list[#list + 1] = { fam, w } end
+	table.sort(list, function(x, y) return x[1] < y[1] end)
+	local share = gear > 0 and acc / gear or 0
+	accCache[key] = { share, list }
+	return share, list
+end
+
 -- One opening of a box: an item (its family's slot, the grade and level of
 -- the entry) or a material. Returns { item = it } or { mat = id, n = n }.
 -- level: the gear's item level instead of the entry's (the tower's chests);
@@ -78,6 +107,12 @@ function Loot.RollBox(key, level, luck)
 	local e = U.weighted(list).e
 	if e[1] == "gear" then
 		local fam = e[2]
+		local share, fams = Loot.AccShare(key)
+		if share > 0 and random() < share then
+			local pick = {}
+			for _, f in ipairs(fams) do pick[#pick + 1] = { fam = f[1], w = f[2] } end
+			fam = U.weighted(pick).fam
+		end
 		local slot = fam == "armor" and ARMOR[random(#ARMOR)] or (fam == "weapon" and "mh") or (fam == "offhand" and "oh") or fam
 		return { item = ns.Items.New(slot, level or e[4], e[3]) }
 	end

@@ -18,6 +18,8 @@ for _, id in ipairs({
 	"icon_upgrade",
 	-- the faction picker's crests (tools/cut_faction_logos.py, painted)
 	"icon_alliance", "icon_horde",
+	-- the minimap button's logo (tools/cut_minimap_icon.py, painted)
+	"icon_minimap",
 	-- 강화's strikes (tools/cut_anvil.py): the anvil, and the hammer swung
 	-- about its handle's end
 	"fx_anvil", "fx_hammer",

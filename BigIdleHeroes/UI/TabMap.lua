@@ -46,6 +46,12 @@ local AFFIX_ROW = 34
 ------------------------------------------------------------------------
 -- Screen
 ------------------------------------------------------------------------
+-- a chest's border colour (ns.CHEST: bronze, silver, gold) as hex text
+local function chestHex(t)
+	local c = ns.CHEST[t].rgb
+	return U.hex(c[1], c[2], c[3])
+end
+
 local function build(page)
 	-- the stage path and its options on a dark inset, like the other screens'
 	-- lists, level with the detail card on the right: drawn on the page
@@ -262,8 +268,7 @@ local function build(page)
 		end
 	end
 
-	-- options under the path
-	local optY = PATH_Y - 2 * (NODE_H + 8) - 6
+	-- options at the bottom of the inset, the income and experience note under them
 	page.checks = {
 		UI.Check(page, "자동 진행 - 깨면 다음 스테이지로",
 			function() return ns.db.opt.auto end, function(v) ns.db.opt.auto = v ns.db.retry = 0 ns.Fire("OPTIONS") end),
@@ -280,13 +285,14 @@ local function build(page)
 				ns.Fire("OPTIONS")
 			end),
 	}
-	for i, c in ipairs(page.checks) do
-		c:SetPoint("TOPLEFT", page, "TOPLEFT", 12, optY - (i - 1) * 24)
-	end
 	page.rate = UI.Text(page, 10)
-	page.rate:SetPoint("TOPLEFT", page, "TOPLEFT", 12, optY - 78)
+	page.rate:SetPoint("BOTTOMLEFT", pathBox, "BOTTOMLEFT", 12, 12)
 	page.rate:SetWidth(500)
+	page.rate:SetJustifyV("BOTTOM")
 	UI.Color(page.rate, UI.C.sub)
+	for i, c in ipairs(page.checks) do
+		c:SetPoint("BOTTOMLEFT", page.rate, "TOPLEFT", 0, 8 + (#page.checks - i) * 24)
+	end
 	-- what belongs to a world (hidden while the tower is shown)
 	page.stageParts = { page.rate }
 	for _, c in ipairs(page.acts) do page.stageParts[#page.stageParts + 1] = c end
@@ -565,17 +571,19 @@ local function refresh(page)
 	-- chest bonus), the boss's box at its chance and a second one by the
 	-- bonus, and the gear levels they hold (worn from that level)
 	local tb = ns.TBH.STAGES[page.diff][page.idx]
+	-- each chest's line in its border's colour (bronze, silver, gold)
 	local lines = { "보상" }
 	local function pct(v) v = math.min(100, v) return (v >= 100 and "%d%%" or (v >= 10 and "%.0f%%" or "%.1f%%")):format(v) end
 	if tb.mbox then
 		local chance = tb.mrate / 10 * (1 + ns.Bonus("chestChance") / 100)
-		lines[#lines + 1] = U.col("ffffff", string.format("Lv %d %s %s", ns.TBH.BOXES[tb.mbox].lv, ns.N(ns.CHEST[1].name), pct(chance)))
+		lines[#lines + 1] = U.col(chestHex(1), string.format("Lv %d %s %s", ns.TBH.BOXES[tb.mbox].lv, ns.N(ns.CHEST[1].name), pct(chance)))
 	end
-	lines[#lines + 1] = U.col("ffd24a", string.format("Lv %d %s %s", ns.TBH.BOXES[tb.bbox].lv, ns.N((stg.raid and ns.CHEST[3] or ns.CHEST[2]).name),
+	local bt = stg.raid and 3 or 2
+	lines[#lines + 1] = U.col(chestHex(bt), string.format("Lv %d %s %s", ns.TBH.BOXES[tb.bbox].lv, ns.N(ns.CHEST[bt].name),
 		pct(tb.brate / 10 * (1 + ns.Bonus("bossRate") / 100))))
 	local extra = ns.Bonus("bossChest")
 	if extra > 0 then
-		lines[#lines + 1] = U.col("ffd24a", string.format("한 개 더 %s (동료 효과)", pct(extra)))
+		lines[#lines + 1] = U.col(chestHex(bt), string.format("한 개 더 %s (동료 효과)", pct(extra)))
 	end
 	local lo, hi = ns.Loot.BoxLevels(tb.bbox)
 	if tb.mbox then
@@ -666,12 +674,13 @@ refreshTower = function(page)
 	local function pct(v) v = math.min(100, v) return (v >= 100 and "%d%%" or (v >= 10 and "%.0f%%" or "%.1f%%")):format(v) end
 	local lines = { "보상" }
 	if kills > 0 then
-		lines[#lines + 1] = U.col("ffffff", string.format("%s %s", ns.N(ns.CHEST[1].name), pct(T.MRATE / 10 * (1 + ns.Bonus("chestChance") / 100))))
+		lines[#lines + 1] = U.col(chestHex(1), string.format("%s %s", ns.N(ns.CHEST[1].name), pct(T.MRATE / 10 * (1 + ns.Bonus("chestChance") / 100))))
 	end
-	lines[#lines + 1] = U.col("ffd24a", string.format("%s %s", ns.N((raid and ns.CHEST[3] or ns.CHEST[2]).name), pct(T.BRATE / 10 * (1 + ns.Bonus("bossRate") / 100))))
+	local bt = raid and 3 or 2
+	lines[#lines + 1] = U.col(chestHex(bt), string.format("%s %s", ns.N(ns.CHEST[bt].name), pct(T.BRATE / 10 * (1 + ns.Bonus("bossRate") / 100))))
 	local extra = ns.Bonus("bossChest")
 	if extra > 0 then
-		lines[#lines + 1] = U.col("ffd24a", string.format("한 개 더 %s (동료 효과)", pct(extra)))
+		lines[#lines + 1] = U.col(chestHex(bt), string.format("한 개 더 %s (동료 효과)", pct(extra)))
 	end
 	lines[#lines + 1] = U.col("aab3c8", string.format("장비 Lv %d", T.ITEM_LEVEL))
 	if f > (db.tower.best or 0) then

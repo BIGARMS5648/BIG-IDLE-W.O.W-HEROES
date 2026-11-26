@@ -448,7 +448,7 @@ ns.CHEST = {
 	-- rgb: the box's border on the battle window (bronze, silver, gold; red
 	-- is kept for a full store)
 	{ key = "common", name = "몬스터 상자",   icon = "INV_Box_01", cap = 20, box = "monster", rgb = { 0.80, 0.52, 0.30 } },
-	{ key = "boss",   name = "우두머리 상자", icon = "INV_Box_03", cap = 10, box = "boss", rgb = { 0.80, 0.85, 0.92 } },
+	{ key = "boss",   name = "우두머리 상자", icon = "INV_Box_03", cap = 10, box = "boss", rgb = { 0.70, 0.75, 0.83 } },
 	{ key = "raid",   name = "막 우두머리 상자", icon = "INV_Box_04", cap = 5, box = "act", rgb = { 1.00, 0.80, 0.25 } },
 }
 

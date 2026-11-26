@@ -1,7 +1,7 @@
 -- Settings (설정), opened from the gear button in the window header.
 --   one page, two panels side by side:
 --   left: 크기 (the menu window), 전투 창 (what it shows), 도움말
---   right: 소리, 진영, 진행 방식, 통계, 저장 데이터
+--   right: 소리, 미니맵, 진영, 통계, 저장 데이터
 --   each setting on its own line with its control beside it; a button that
 --   acts on a group (원래대로, 진영 바꾸기, 초기화) sits in that group's header.
 local _, ns = ...
@@ -103,27 +103,31 @@ local function build(page)
 	gm.head = section(gm, -K.PAD, "소리")
 	gm.sound = UI.Check(gm, "효과음", function() return ns.db.ui.sound end, function(v) ns.db.ui.sound = v end)
 	gm.sound:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD, -40)
-	gm.head3 = section(gm, -78, "진영")
+	gm.headMap = section(gm, -78, "미니맵")
+	gm.minimap = UI.Check(gm, "미니맵 버튼 보이기", function() return ns.db.ui.minimap ~= false end,
+		function(v) ns.db.ui.minimap = v and true or false ns.MinimapButton.Refresh() end)
+	gm.minimap:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD, -106)
+	gm.head3 = section(gm, -144, "진영")
 	gm.faction = gm.head3:AddTool(UI.Button(gm, 96, 22, "진영 바꾸기", function()
 		ns.PickFaction(function() Main.ShowTab("options") end)
 	end, "dark"))
 	-- the faction's crest (the user's logo, as on the faction picker)
 	gm.factionIcon = gm:CreateTexture(nil, "ARTWORK")
 	gm.factionIcon:SetSize(40, 40)
-	gm.factionIcon:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD, -106)
+	gm.factionIcon:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD, -172)
 	gm.factionName = UI.Text(gm, K.F_TITLE)
-	gm.factionName:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD + 50, -108)
-	gm.factionText = note(gm, K.PAD + 50, -128, "")
-	gm.head5 = section(gm, -176, "통계")
+	gm.factionName:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD + 50, -174)
+	gm.factionText = note(gm, K.PAD + 50, -194, "")
+	gm.head5 = section(gm, -242, "통계")
 	gm.rows = {}
 	local half = (W - 24) / 2
 	for i = 1, 6 do
 		local r = UI.StatRow(gm, half)
 		local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
-		r:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD + col * (half + 24), -202 - row * 24)
+		r:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD + col * (half + 24), -268 - row * 24)
 		gm.rows[i] = r
 	end
-	gm.head6 = section(gm, -284, "저장 데이터")
+	gm.head6 = section(gm, -350, "저장 데이터")
 	gm.reset = gm.head6:AddTool(UI.Button(gm, 150, 22, "모든 진행 상황 초기화", function()
 		UI.Confirm({ title = "모든 진행 상황 초기화", ok = "초기화", style = "red",
 			text = "모든 진행 상황을 초기화하시겠습니까?\n영웅, 장비, 골드, 룬, 진행도가 모두 사라지며 되돌릴 수 없습니다.",
@@ -135,7 +139,7 @@ local function build(page)
 				ns.PickFaction(function() Main.ShowTab("hero", { create = true }) end)
 			end })
 	end, "red"))
-	gm.resetNote = note(gm, K.PAD, -312, "처음부터 다시 시작하려면 모든 진행 상황을 지웁니다. " ..
+	gm.resetNote = note(gm, K.PAD, -378, "처음부터 다시 시작하려면 모든 진행 상황을 지웁니다. " ..
 		U.col("ff9a7a", "영웅, 장비, 골드, 룬, 진행도가 모두 사라지며 되돌릴 수 없습니다."))
 end
 
@@ -157,6 +161,7 @@ local function refresh(page)
 		or "• 룬 '안식의 룬'을 배우면 게임을 꺼 둔 동안에도 골드와 경험치가 쌓입니다."))
 
 	gm.sound:Refresh()
+	gm.minimap:Refresh()
 	local fid = ns.Faction() or "ALLIANCE"
 	local f = ns.FACTIONS[fid]
 	UI.SetArtOrIcon(gm.factionIcon, "icon_" .. fid:lower(), f.icon)
