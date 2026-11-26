@@ -813,6 +813,35 @@ do
 	if title ~= "+3 " .. ns.Items.Name(epic) then fail("the tooltip should name the step before the item: " .. title) end
 	local plainTitle = ns.Items.Tooltip(plain and plain.data or ns.Items.New("chest", 30, 2))[1][1]
 	if plainTitle:find("^%+") then fail("a piece at +0 has no step before its name: " .. plainTitle) end
+	-- a bag item's tooltip has, beside it, what the chosen hero wears in
+	-- that slot; none when the hero wears nothing there, none in the bank
+	do
+		local hid = Main.SelectedHero()
+		local h = hid and ns.db.heroes[hid]
+		local wornCell, bareCell
+		for _, b in ipairs(eq.cells) do
+			if b.data and b:IsShown() and h then
+				if h.gear[b.data.s] and not wornCell then wornCell = b end
+				if not h.gear[b.data.s] and not bareCell then bareCell = b end
+			end
+		end
+		if not wornCell then fail("the test needs a bag item of a slot the chosen hero wears") else
+			try("bag hover", wornCell.__scripts.OnEnter, wornCell)
+			local side = ns.UI.TipText(true)
+			local worn = h.gear[wornCell.data.s]
+			if side[1] ~= "착용 중" or not (side[2] or ""):find(ns.Items.Name(worn), 1, true) then
+				fail("a bag item's tooltip should show the worn " .. wornCell.data.s .. " beside it: " .. tostring(side[1]) .. " / " .. tostring(side[2]))
+			end
+			if not (ns.UI.TipText()[1] or ""):find(ns.Items.Name(wornCell.data), 1, true) then fail("the bag item's own tooltip should stay first") end
+			try("bag leave", wornCell.__scripts.OnLeave, wornCell)
+			if #ns.UI.TipText(true) > 0 then fail("leaving the item should hide the worn item's tooltip too") end
+		end
+		if bareCell then
+			try("bag hover", bareCell.__scripts.OnEnter, bareCell)
+			if #ns.UI.TipText(true) > 0 then fail("no worn tooltip when the hero wears nothing in that slot") end
+			try("bag leave", bareCell.__scripts.OnLeave, bareCell)
+		end
+	end
 	-- 계승: a new piece of the same slot takes the steps' worth, the old one
 	-- is used up
 	local other = ns.Items.New(epic.s, epic.l, epic.q, epic.t)

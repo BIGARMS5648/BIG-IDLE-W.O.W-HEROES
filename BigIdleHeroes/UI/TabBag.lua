@@ -188,6 +188,13 @@ function BagView.Build(page, f)
 			else
 				lines[#lines + 1] = { "클릭: 장착 · 오른쪽 클릭: 분해", nil, 0.45, 0.8, 1 }
 				lines[#lines + 1] = { "Alt+클릭: 보호 · Shift+클릭: 창고에 보관", nil, 0.45, 0.8, 1 }
+				-- beside it: what the chosen hero wears there
+				local worn = id and ns.db.heroes[id] and ns.db.heroes[id].gear[it.s]
+				if worn and worn ~= it then
+					local cmpLines = { { "착용 중", nil, 0.6, 0.65, 0.75 } }
+					for _, l in ipairs(ns.Items.Tooltip(worn, id)) do cmpLines[#cmpLines + 1] = l end
+					return lines, cmpLines
+				end
 			end
 			return lines
 		end)

@@ -597,53 +597,54 @@ end
 ------------------------------------------------------------------------
 -- Tooltip (own frame: full control over fonts and layout)
 ------------------------------------------------------------------------
-local tip
+local tip, cmp -- the tooltip, and the one beside it comparing what is worn
 local TIP_WIDTH = 270
 
+local function newTip()
+	local t = CreateFrame("Frame", nil, UIParent)
+	t:SetFrameStrata("TOOLTIP")
+	t:SetClampedToScreen(true)
+	t:SetSize(TIP_WIDTH + 20, 40)
+	t.bg = UI.Slice(t, "panel", "BACKGROUND", 12)
+	if UI.ArtUI("ui_tooltip") then t.bg:SetArt(UI.ArtUI("ui_tooltip")) end
+	t.rows = {}
+	t:Hide()
+	return t
+end
 local function ensureTip()
-	if tip then return tip end
-	tip = CreateFrame("Frame", nil, UIParent)
-	tip:SetFrameStrata("TOOLTIP")
-	tip:SetClampedToScreen(true)
-	tip:SetSize(TIP_WIDTH + 20, 40)
-	tip.bg = UI.Slice(tip, "panel", "BACKGROUND", 12)
-	if UI.ArtUI("ui_tooltip") then tip.bg:SetArt(UI.ArtUI("ui_tooltip")) end
-	tip.rows = {}
-	tip:Hide()
+	if not tip then tip = newTip() end
 	return tip
 end
 
 -- lines: array of { left, right, r, g, b } (a line may carry sockets: see
--- UI.Lines in UI/Layout.lua)
+-- UI.Lines in UI/Layout.lua); the line at `title` (1) is the bigger one
 local TIP_SOCKET = 16
-function UI.ShowTip(owner, lines, anchor)
-	if not lines or #lines == 0 then return end
-	ensureTip()
+local function fill(t, lines, title)
 	local y = -10
 	for i = 1, #lines do
 		local l = lines[i]
-		local row = tip.rows[i]
+		local row = t.rows[i]
 		if not row then
-			row = { left = UI.Text(tip, 11), right = UI.Text(tip, 11), sockets = {} }
+			row = { left = UI.Text(t, 11), right = UI.Text(t, 11), sockets = {} }
 			row.right:SetJustifyH("RIGHT")
 			row.left:SetJustifyV("TOP")
-			tip.rows[i] = row
+			t.rows[i] = row
 		end
-		local size = (i == 1) and 13 or 11
+		local size = (i == (title or 1)) and 13 or 11
 		local socks = l.sockets
-		local indent = UI.PlaceSockets(row.sockets, tip, socks, TIP_SOCKET, 10, y)
+		local indent = UI.PlaceSockets(row.sockets, t, socks, TIP_SOCKET, 10, y)
 		row.left:SetFont(ns.FONT, size, "")
 		row.left:SetWidth((l[2] and (TIP_WIDTH - 90) or TIP_WIDTH) - indent)
 		row.left:SetText(l[1] or "")
 		row.left:SetTextColor(l[3] or 1, l[4] or 1, l[5] or 1)
 		row.left:ClearAllPoints()
-		row.left:SetPoint("TOPLEFT", tip, "TOPLEFT", 10 + indent, y - (socks and 2 or 0))
+		row.left:SetPoint("TOPLEFT", t, "TOPLEFT", 10 + indent, y - (socks and 2 or 0))
 		row.left:Show()
 		if l[2] then
 			row.right:SetText(l[2])
 			row.right:SetTextColor(l[3] or 1, l[4] or 1, l[5] or 1)
 			row.right:ClearAllPoints()
-			row.right:SetPoint("TOPRIGHT", tip, "TOPRIGHT", -10, y)
+			row.right:SetPoint("TOPRIGHT", t, "TOPRIGHT", -10, y)
 			row.right:Show()
 		else
 			row.right:Hide()
@@ -653,12 +654,21 @@ function UI.ShowTip(owner, lines, anchor)
 		if socks and h < TIP_SOCKET then h = TIP_SOCKET end
 		y = y - h - 3
 	end
-	for i = #lines + 1, #tip.rows do
-		tip.rows[i].left:Hide()
-		tip.rows[i].right:Hide()
-		UI.PlaceSockets(tip.rows[i].sockets, tip, nil)
+	for i = #lines + 1, #t.rows do
+		t.rows[i].left:Hide()
+		t.rows[i].right:Hide()
+		UI.PlaceSockets(t.rows[i].sockets, t, nil)
 	end
-	tip:SetSize(TIP_WIDTH + 20, -y + 8)
+	t:SetSize(TIP_WIDTH + 20, -y + 8)
+end
+
+-- compare: lines of a second tooltip shown beside the first (its line 2 the
+-- bigger one: line 1 says what it is), at its right, or at the owner's left
+-- when the screen has no room on the right
+function UI.ShowTip(owner, lines, anchor, compare)
+	if not lines or #lines == 0 then return end
+	ensureTip()
+	fill(tip, lines)
 	tip:ClearAllPoints()
 	if anchor == "TOP" then
 		tip:SetPoint("BOTTOM", owner, "TOP", 0, 6)
@@ -667,12 +677,33 @@ function UI.ShowTip(owner, lines, anchor)
 	end
 	tip.owner = owner
 	tip:Show()
+	if compare and #compare > 0 then
+		cmp = cmp or newTip()
+		fill(cmp, compare, 2)
+		cmp:ClearAllPoints()
+		local right, screen = tip:GetRight(), UIParent:GetRight()
+		local s1, s2 = tip:GetEffectiveScale() or 1, UIParent:GetEffectiveScale() or 1
+		if right and screen and right * s1 + (TIP_WIDTH + 26) * s1 > screen * s2 then
+			cmp:SetPoint("TOPRIGHT", owner, "TOPLEFT", -6, 0)
+		else
+			cmp:SetPoint("TOPLEFT", tip, "TOPRIGHT", 4, 0)
+		end
+		cmp.owner = owner
+		cmp:Show()
+	elseif cmp then
+		cmp:Hide()
+		cmp.owner = nil
+	end
 end
 
 function UI.HideTip(owner)
 	if tip and (owner == nil or tip.owner == owner) then
 		tip:Hide()
 		tip.owner = nil
+	end
+	if cmp and (owner == nil or cmp.owner == owner) then
+		cmp:Hide()
+		cmp.owner = nil
 	end
 end
 
@@ -682,7 +713,10 @@ function UI.Tip(widget, fn, anchor)
 	widget.tipAnchor = anchor
 	widget:SetScript("OnEnter", function(self)
 		if self.onEnter then self.onEnter(self) end
-		if self.tipFn then UI.ShowTip(self, self.tipFn(self), self.tipAnchor) end
+		if self.tipFn then
+			local lines, compare = self.tipFn(self)
+			UI.ShowTip(self, lines, self.tipAnchor, compare)
+		end
 	end)
 	widget:SetScript("OnLeave", function(self)
 		if self.onLeave then self.onLeave(self) end
@@ -696,10 +730,12 @@ function UI.TipOwner()
 end
 
 -- what the tooltip shows, line by line ("left  right"; for the checks)
-function UI.TipText()
+-- the shown tooltip's lines (compare: the one beside it)
+function UI.TipText(compare)
 	local out = {}
-	if not (tip and tip:IsShown()) then return out end
-	for _, row in ipairs(tip.rows) do
+	local t = compare and cmp or tip
+	if not (t and t:IsShown()) then return out end
+	for _, row in ipairs(t.rows) do
 		if row.left:IsShown() then
 			out[#out + 1] = (row.left:GetText() or "") .. (row.right:IsShown() and ("  " .. (row.right:GetText() or "")) or "")
 		end
@@ -709,7 +745,8 @@ end
 
 function UI.RefreshTip()
 	if tip and tip:IsShown() and tip.owner and tip.owner.tipFn then
-		UI.ShowTip(tip.owner, tip.owner.tipFn(tip.owner), tip.owner.tipAnchor)
+		local lines, compare = tip.owner.tipFn(tip.owner)
+		UI.ShowTip(tip.owner, lines, tip.owner.tipAnchor, compare)
 	end
 end
 

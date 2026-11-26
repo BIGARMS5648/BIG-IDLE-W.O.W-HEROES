@@ -23,7 +23,7 @@ import run  # noqa: E402
 SCENES = [
     "bar", "equip_marks", "bar_chest_auto", "bar_chest_tip", "chest_tip_norune", "chest_tip_auto", "chest_tip_stop", "chest_tip_boss", "bar_boss", "bar_wipe", "bar_compact", "offline", "faction", "create", "create_druid", "rename",
     "hero", "hero_res_tip", "hero_skills", "hero_tree", "hero_bench", "hero_tank", "hero_reset", "hero_dismiss", "hero_scroll",
-    "equip", "equip_tooltip", "equip_top_tip", "equip_slot", "equip_bank", "equip_smelt_list", "equip_view_list", "equip_smelt_all", "equip_max",
+    "equip", "equip_tooltip", "equip_compare", "equip_top_tip", "equip_slot", "equip_bank", "equip_smelt_list", "equip_view_list", "equip_smelt_all", "equip_max",
     "equip_sockets_tip", "equip_mixed_tip", "equip_slot_tip",
     "fuse", "fuse_ready", "fuse_list", "fuse_high", "craft", "craft_locked", "craft_far", "gem", "gem_stress", "ench", "insc_locked", "up", "up_move", "up_move_confirm", "up_move_lost", "upfx", "upfx_ok", "upfx_fail", "up_locked", "smelt", "seal",
     "mats", "mats_gem", "mats_seal", "mats_seal_some", "mats_page2", "mats_seal_locked", "gem_remove_locked", "bag_smelt_locked",

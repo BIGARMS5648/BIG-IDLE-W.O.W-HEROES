@@ -258,6 +258,25 @@ S.equip_tooltip = function()
 	local cell = p.cells[5]
 	if cell and cell.data then cell.__scripts.OnEnter(cell) end
 end
+-- a bag item's tooltip next to the item the chosen hero wears there
+S.equip_compare = function()
+	local id = db.party[2]
+	ns.Main.SelectHero(id)
+	local p = equip("bag")
+	local h = db.heroes[id]
+	-- an armour piece in a middle column, so both tooltips fit beside it
+	for i, cell in ipairs(p.cells) do
+		local it = cell.data
+		if it and (i - 1) % 10 < 5 and it.s ~= "mh" and it.s ~= "oh" then
+			if not h.gear[it.s] then
+				h.gear[it.s] = ns.Items.New(it.s, 10, 2)
+				ns.Main.Refresh()
+			end
+			cell.__scripts.OnEnter(cell)
+			return
+		end
+	end
+end
 -- the top grade's tooltip: its name in the grade's running colours
 S.equip_top_tip = function()
 	local p = equip("bag")

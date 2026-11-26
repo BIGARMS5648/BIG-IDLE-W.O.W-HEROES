@@ -214,4 +214,6 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - In a boss fight the boss's skull stays at the left of its health bar,
   pulsing.
 - The Alliance start button on the faction picker is the Alliance's blue.
+- Hovering a bag item on the equipment screen also shows, beside it, the
+  item the chosen hero wears in that slot.
 ```
