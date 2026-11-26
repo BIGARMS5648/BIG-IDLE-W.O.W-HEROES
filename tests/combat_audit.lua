@@ -347,9 +347,11 @@ for _, sid in ipairs(skillIds) do
 			end
 			local all = {}
 			for _, g in pairs(byT) do for _, r in ipairs(g.r) do all[#all + 1] = r end end
-			-- each hit rolls ±5%: the average of a few hits may drift more
-			-- than of many (three standard deviations of the mean, at least 3%)
-			local tol = #all > 0 and math.max(0.03, 3 * 0.05 / math.sqrt(3 * #all)) or 0.03
+			-- each hit rolls ±5% (evenly: a standard deviation of 0.1 / √12):
+			-- the average of a few hits may drift more than of many. Four
+			-- standard deviations of the mean, at least 3%: with 160 skills
+			-- checked, three would fail one now and then by chance alone.
+			local tol = #all > 0 and math.max(0.03, 4 * 0.1 / math.sqrt(12 * #all)) or 0.03
 			if #all > 0 and not near(mean(all), 1, tol) then sfail(sid, "평균 피해 " .. f(mean(all) * v, 1) .. "% (설명 " .. numText(v) .. "%)") end
 			if sk.status then
 				local n = 0
@@ -821,6 +823,32 @@ do -- every specialization's first hero clears the first stage alone
 		if st.result ~= "win" then lost[#lost + 1] = spec end
 	end
 	check(#lost == 0, "모든 전문화: 1레벨 첫 영웅 혼자 1-1을 깸 (" .. #specs .. "개)", #lost > 0 and table.concat(lost, ", ") or nil)
+end
+
+do -- every melee hero hits from where it stands: within its own reach
+	local seen, far, worst = 0, 0, 0
+	local lastN = 0
+	lab({ heroes = {
+		{ spec = "WARRIOR_PROT", stats = { hp = 1e9 } },
+		{ spec = "WARRIOR_ARMS", stats = { hp = 1e9 } },
+		{ spec = "ROGUE_OUTLAW", stats = { hp = 1e9 } },
+		{ spec = "PALADIN_RET", stats = { hp = 1e9 } } }, hp = 400, atk = 1, n = 3, seconds = 60,
+		each = function(_, units)
+			local log = L.LOGF().mob
+			for i = lastN + 1, #log do
+				local e = log[i]
+				if e.src and e.src.hero and not e.src.ranged and not e.dot and e.cast == nil then
+					seen = seen + 1
+					local d = e.m.x - e.src.x
+					if d > e.src.range + 15 then far = far + 1 end
+					if d > worst then worst = d end
+				end
+			end
+			lastN = #log
+		end })
+	check(seen > 50 and far == 0, "근접 영웅은 자기 자리에서 사거리 안의 적만 침 (탱커 뒤 근접 3명)",
+		seen .. "번 중 사거리 밖 " .. far .. "번, 가장 먼 거리 " .. f(worst, 0))
+	L.endLab()
 end
 
 print(string.format("\n  결과: %d개 통과, %d개 실패", L.R.pass, L.R.fail))

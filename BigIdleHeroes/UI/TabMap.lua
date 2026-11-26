@@ -10,6 +10,8 @@ local UI, U = ns.UI, ns.U
 local Main = ns.Main
 
 local NODE_W, NODE_H = 96, 98
+-- how experience goes by the stage's level (Heroes.XPFactor)
+local XP_RULE = "스테이지 레벨이 영웅보다 10 넘게 높으면 1레벨마다 경험치가 5%씩 줄어듭니다."
 local PATH_Y = -112
 local DETAIL_X = 528
 
@@ -569,10 +571,11 @@ local function refresh(page)
 		local chance = tb.mrate / 10 * (1 + ns.Bonus("chestChance") / 100)
 		lines[#lines + 1] = U.col("ffffff", string.format("Lv %d %s %s", ns.TBH.BOXES[tb.mbox].lv, ns.N(ns.CHEST[1].name), pct(chance)))
 	end
-	lines[#lines + 1] = U.col("ffd24a", string.format("Lv %d %s %s", ns.TBH.BOXES[tb.bbox].lv, ns.N((stg.raid and ns.CHEST[3] or ns.CHEST[2]).name), pct(tb.brate / 10)))
+	lines[#lines + 1] = U.col("ffd24a", string.format("Lv %d %s %s", ns.TBH.BOXES[tb.bbox].lv, ns.N((stg.raid and ns.CHEST[3] or ns.CHEST[2]).name),
+		pct(tb.brate / 10 * (1 + ns.Bonus("bossRate") / 100))))
 	local extra = ns.Bonus("bossChest")
 	if extra > 0 then
-		lines[#lines + 1] = U.col("ffd24a", string.format("한 개 더 %s", pct(extra)))
+		lines[#lines + 1] = U.col("ffd24a", string.format("한 개 더 %s (동료 효과)", pct(extra)))
 	end
 	local lo, hi = ns.Loot.BoxLevels(tb.bbox)
 	if tb.mbox then
@@ -597,9 +600,9 @@ local function refresh(page)
 	for _, c in ipairs(page.checks) do c:Refresh() end
 	local rate = db.rate
 	if (rate.gold or 0) > 0 then
-		page.rate:SetText(string.format("최근 수입: 시간당 골드 %s · 경험치 %s. 영웅 레벨과 비슷한 레벨의 스테이지에서 경험치가 가장 잘 오릅니다.", U.fmt(rate.gold * 3600), U.fmt(rate.xp * 3600)))
+		page.rate:SetText(string.format("최근 수입: 시간당 골드 %s · 경험치 %s. %s", U.fmt(rate.gold * 3600), U.fmt(rate.xp * 3600), XP_RULE))
 	else
-		page.rate:SetText("영웅 레벨과 비슷한 레벨의 스테이지에서 경험치가 가장 잘 오릅니다.")
+		page.rate:SetText(XP_RULE)
 	end
 end
 
@@ -665,7 +668,11 @@ refreshTower = function(page)
 	if kills > 0 then
 		lines[#lines + 1] = U.col("ffffff", string.format("%s %s", ns.N(ns.CHEST[1].name), pct(T.MRATE / 10 * (1 + ns.Bonus("chestChance") / 100))))
 	end
-	lines[#lines + 1] = U.col("ffd24a", string.format("%s %s", ns.N((raid and ns.CHEST[3] or ns.CHEST[2]).name), pct(T.BRATE / 10)))
+	lines[#lines + 1] = U.col("ffd24a", string.format("%s %s", ns.N((raid and ns.CHEST[3] or ns.CHEST[2]).name), pct(T.BRATE / 10 * (1 + ns.Bonus("bossRate") / 100))))
+	local extra = ns.Bonus("bossChest")
+	if extra > 0 then
+		lines[#lines + 1] = U.col("ffd24a", string.format("한 개 더 %s (동료 효과)", pct(extra)))
+	end
 	lines[#lines + 1] = U.col("aab3c8", string.format("장비 Lv %d", T.ITEM_LEVEL))
 	if f > (db.tower.best or 0) then
 		lines[#lines + 1] = U.col("6af07a", string.format("첫 공략: %s G", U.fmt(T.FirstGold(f))))

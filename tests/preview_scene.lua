@@ -388,6 +388,16 @@ local function upMove()
 end
 S.up_move = function() upMove() end
 S.up_move_confirm = function() local p = upMove() p.forge.up.move.btn:Click() end
+-- 계승 onto a 전설 chest: no inscription socket there
+S.up_move_lost = function()
+	local p = upMove()
+	local i = ns.Items.IndexInBag(p.forge.up.picked)
+	local low = ns.Items.New("chest", 65, 5)
+	db.bag[i] = low
+	ns.ForgeView.SetTarget(low)
+	ns.Main.Refresh()
+	p.forge.up.move.btn:Click()
+end
 -- the strikes at a moment, and the result window after a try
 local function upFx(ok, at)
 	setProg(ns.STAGE_COUNT)
@@ -530,6 +540,38 @@ S.map_tower_raid = function()
 	local undo = towerOn(59, 60)
 	show("map")
 	S.restore = undo
+end
+-- runes and a companion that raise the boss chests
+local function bossBonus()
+	local wasPet = db.pets.skull
+	db.pets.skull = true
+	local set = {}
+	for _, id in ipairs({ 102, 106 }) do
+		set[id] = db.runes[id] or false
+		db.runes[id] = ns.Runes.byId[id].max
+	end
+	ns.Runes.Invalidate()
+	local wasRate = { db.rate.gold, db.rate.xp }
+	db.rate.gold, db.rate.xp = 41.7, 12.5
+	return function()
+		db.rate.gold, db.rate.xp = wasRate[1], wasRate[2]
+		db.pets.skull = wasPet
+		for id, v in pairs(set) do db.runes[id] = v or nil end
+		ns.Runes.Invalidate()
+	end
+end
+S.map_bonus = function()
+	local undo = bossBonus()
+	local p = show("map")
+	p.diff, p.act, p.idx = 1, 3, 22
+	ns.Main.Refresh()
+	S.restore = undo
+end
+S.map_tower_bonus = function()
+	local undo = towerOn(12, 13)
+	local undo2 = bossBonus()
+	show("map")
+	S.restore = function() undo2() undo() end
 end
 -- the battle window on a floor of the tower
 S.bar_tower = function()

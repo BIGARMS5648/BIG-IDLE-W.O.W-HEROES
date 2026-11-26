@@ -88,6 +88,21 @@ local function frontHero()
 	return best
 end
 
+-- The melee heroes behind the leader: this one's place among them (1 for
+-- the one nearest the front, by where they started) and how many there are.
+local MELEE_GAP = 28
+local function meleeRank(u, front)
+	local k, n = 1, 0
+	for i = 1, #heroes do
+		local h = heroes[i]
+		if h ~= front and not h.dead and not h.ranged then
+			n = n + 1
+			if h ~= u and (h.homeX > u.homeX or (h.homeX == u.homeX and h.slot < u.slot)) then k = k + 1 end
+		end
+	end
+	return k, n
+end
+
 local function nearestMob()
 	local best
 	for i = 1, #mobs do
@@ -1049,19 +1064,27 @@ local function stepHero(u)
 	local front = frontHero()
 	local inRange = false
 	if target then
-		local reachFrom = u.x
-		if not u.ranged and front and front.x > reachFrom then reachFrom = front.x end
-		inRange = target.x - reachFrom <= u.range
-		if not inRange then
-			-- advance; melee followers keep a step behind whoever leads
+		-- every hero reaches from where it stands
+		inRange = target.x - u.x <= u.range
+		-- the melee heroes behind whoever leads each walk up to their own
+		-- spot behind it, spread out but all within reach; the others
+		-- advance until they reach
+		local follow = not u.ranged and front and front ~= u
+		if follow or not inRange then
 			local limit = target.x - (u.ranged and (u.range - 20) or 60)
-			if not u.ranged and front and front ~= u then
-				limit = min(limit, front.x - 40)
+			if follow then
+				local lead = min(limit, front.x)
+				local k, n = meleeRank(u, front)
+				local room = max(0, lead - (target.x - u.range + 10))
+				limit = lead - k * min(MELEE_GAP, room / max(1, n))
 			end
+			-- (a chill slows a hero's steps as it does a monster's)
+			local chill = u.st.chill and (1 - u.st.chill.v / 100) or 1
+			local step = heroSpeed(u) * chill * STEP
 			if u.x < limit then
-				-- (a chill slows a hero's steps as it does a monster's)
-				local chill = u.st.chill and (1 - u.st.chill.v / 100) or 1
-				u.x = min(limit, u.x + heroSpeed(u) * chill * STEP)
+				u.x = min(limit, u.x + step)
+			elseif follow and u.x > limit + 1 then
+				u.x = max(limit, u.x - step) -- a step back to its spot
 			end
 		end
 	end

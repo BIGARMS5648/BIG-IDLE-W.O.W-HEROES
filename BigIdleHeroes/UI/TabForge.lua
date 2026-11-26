@@ -1008,9 +1008,24 @@ local function buildUpgrade(page, f)
 			UI.Try(false, why)
 			return
 		end
+		-- what is set in its sockets moves along (as much as there is room for)
+		local moved, lost = {}, {}
+		local plan = Up.SocketPlan(from, to)
+		for _, kind in ipairs(ns.SOCKET_KINDS) do
+			local q = plan[kind]
+			local name = ns.N(ns.SOCKET[kind].short)
+			if q and q.moved > 0 then moved[#moved + 1] = string.format("%s %d개", name, q.moved) end
+			if q and q.lost > 0 then lost[#lost + 1] = string.format("%s %d개", name, q.lost) end
+		end
+		local what = string.format("+%d 강화", Up.Level(from))
+		if #moved > 0 then what = what .. "와 " .. table.concat(moved, " · ") end
+		local text = string.format("정말 %s의 %s를 이 장비에 계승하시겠습니까?\n%s  →  +%d\n원래 장비는 사라집니다.",
+			ns.Items.ColorName(from), what, ns.Items.ColorName(to), Up.MoveResult(from, to))
+		if #lost > 0 then
+			text = text .. "\n" .. U.col("ff9a7a", string.format("빈 홈이 모자라 %s는 함께 사라집니다.", table.concat(lost, " · ")))
+		end
 		UI.Confirm({ title = "계승", ok = "계승",
-			text = string.format("정말 %s의 +%d 강화를 이 장비에 계승하시겠습니까?\n%s  →  +%d\n원래 장비는 사라집니다.",
-				ns.Items.ColorName(from), Up.Level(from), ns.Items.ColorName(to), Up.MoveResult(from, to)),
+			text = text,
 			onOk = function()
 				local done, n = Up.Move(from, to)
 				if UI.Try(done, n) then

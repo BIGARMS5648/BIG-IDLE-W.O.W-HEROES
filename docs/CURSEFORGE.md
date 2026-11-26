@@ -179,4 +179,11 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   up by inheritance.
 - New heroes start with their first two skills (the skill point of level 4
   comes at level 1), so every specialization clears the first stage alone.
+- Melee heroes behind the tank walk up and line up behind it, and hit only
+  what they reach from where they stand.
+- Stage screen: the boss chest chance includes the rune bonus; the extra
+  boss chest from the companion shows on stages and tower floors; the
+  experience hint says how far above the heroes a stage may be before
+  experience drops. The inheritance window lists the gems, enchants and
+  inscriptions that move along.
 ```
