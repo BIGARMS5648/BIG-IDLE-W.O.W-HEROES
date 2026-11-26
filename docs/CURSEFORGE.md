@@ -232,8 +232,10 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   is cleared.
 - Normal 1-6 to 1-9 now rise evenly in difficulty instead of jumping at 1-6.
 - The clockwork runes of the monster and boss chests sit nearer the start and
-  cost 500 and 10,000 gold; the recommendation puts them beside the next
-  hero, the cheapest first.
+  cost 500 and 10,000 gold. The recommendation goes: the heroes up to the
+  third, then the monster chest's clockwork rune, then the next heroes and
+  the boss chest's clockwork rune, the cheapest first.
 - The start rune has a silver border, and the battle window's boss skull is
-  drawn darker.
+  drawn darker while it waits; on the boss's turn it pulses at full
+  brightness.
 ```

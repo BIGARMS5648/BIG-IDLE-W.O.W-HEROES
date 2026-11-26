@@ -1849,9 +1849,10 @@ do
 		check(table.concat(got, " ") == want, start .. " first: the next heroes " .. want .. " (got " .. table.concat(got, " ") .. ")")
 	end
 	ns.PARTY_BASE = base
-	-- the clockwork runes of the monster and boss chests lead with the next
-	-- hero: what can be done now first, the cheapest first; none of them:
-	-- the cheapest is saved up for, nothing else costing gold
+	-- in turn: the heroes up to the third; then the monster chest's
+	-- clockwork rune; then the next hero and the boss chest's clockwork rune
+	-- side by side, the cheapest first (nothing else costing gold while the
+	-- first goal is saved up for)
 	BigWowIdleDB = nil
 	ns.InitDB()
 	ns.Runes.Invalidate()
@@ -1862,23 +1863,43 @@ do
 		ns.Guide.Invalidate()
 		return ns.Guide.Candidates()
 	end
-	local heroCost = ns.Heroes.CreateCost()
-	local step1 = ns.Runes.NextStepTo(ns.Guide.CLOCK_RUNES[1])
-	local stepCost = ns.Runes.NextCost(step1)
-	check(stepCost < heroCost, "the clockwork rune's first step is cheaper than a hero here")
-	g.gold = heroCost
+	local function spendsGold(x) return x.create or x.rune or (x.text or ""):find("해금", 1, true) end
+	-- one hero: the next hero first, no clockwork rune before it
+	g.gold = ns.Heroes.CreateCost()
 	local c = firsts()
-	check(c[1] and c[1].rune == step1 and c[2] and c[2].create, "both affordable: the cheaper first, then the hero: " .. texts())
-	g.gold = stepCost
-	c = firsts()
-	check(c[1] and c[1].rune == step1 and not c[1].wait, "the hero short, the clockwork step affordable: the step first: " .. texts())
+	check(c[1] and c[1].create, "before the third hero, recruiting leads: " .. texts())
 	g.gold = 0
-	local saved, costly = nil, false
+	local runeFirst = false
+	for _, x in ipairs(firsts()) do if x.rune then runeFirst = true end end
+	check(not runeFirst, "before the third hero, no rune while its gold is saved up: " .. texts())
+	-- three heroes: the monster chest's clockwork rune next, alone
+	g.gold = 1e9
+	ns.Heroes.Create("MAGE_FIRE")
+	ns.Heroes.Create("PRIEST_HOLY")
+	check(ns.Heroes.PartyCount() == ns.Guide.CLOCK_AFTER_HEROES, "three heroes in the party")
+	local mStep = ns.Runes.NextStepTo(ns.Guide.CLOCK_RUNES[1])
+	g.gold = 0
+	local saved, other = nil, false
 	for _, x in ipairs(firsts()) do
-		if x.wait and x.rune == step1 then saved = x end
-		if x.create or (x.rune and x.rune ~= step1) or (x.text or ""):find("해금", 1, true) then costly = true end
+		if x.rune == mStep and x.wait then saved = x
+		elseif spendsGold(x) then other = true end
 	end
-	check(saved and not costly, "nothing affordable: the cheapest saved up for, nothing else costing gold: " .. texts())
+	check(saved and not other, "then the monster chest's clockwork rune is saved up for, nothing else costing gold: " .. texts())
+	g.gold = 1e9
+	c = firsts()
+	check(c[1] and c[1].rune == mStep and not c[1].wait, "with the gold, the monster chest's rune leads: " .. texts())
+	-- the monster chest's rune learned: the 4th hero's seat and the boss
+	-- chest's rune side by side, the cheapest first
+	g.runes[ns.Guide.CLOCK_RUNES[1]] = 1
+	ns.Runes.Invalidate()
+	local seat = ns.Runes.NextStepTo(ns.Runes.FirstFor("party"))
+	local bStep = ns.Runes.NextStepTo(ns.Guide.CLOCK_RUNES[2])
+	local cheap = ns.Runes.NextCost(seat) <= ns.Runes.NextCost(bStep) and seat or bStep
+	c = firsts()
+	local ok = c[1] and c[1].rune == cheap
+	local both = 0
+	for _, x in ipairs(c) do if x.rune == seat or x.rune == bStep then both = both + 1 end end
+	check(ok and (seat == bStep or both == 2), "then the next seat and the boss chest's rune, the cheaper first: " .. texts())
 	-- the two clockwork runes: 500 and 10,000 gold, near the start
 	check(ns.Runes.Cost(13002, 1) == 500 and ns.Runes.Cost(15001, 1) == 10000, "the clockwork runes cost 500 and 10,000 gold")
 	check(ns.Runes.prev[13002] == 12 and ns.Runes.prev[15001] == 14 and ns.Runes.Need(13002) == 1 and ns.Runes.Need(15001) == 1,

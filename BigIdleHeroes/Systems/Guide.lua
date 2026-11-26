@@ -157,26 +157,40 @@ end
 -- with the next hero (see candidates).
 Guide.CLOCK_RUNES = { 13002, 15001 }
 
--- The first goals: the step that brings the next hero in and the next rune
--- on the way to each clockwork rune not learned yet, side by side, the
--- cheapest first (one goal per rune).
+Guide.CLOCK_AFTER_HEROES = 3 -- party heroes before the clockwork runes join
+
+-- The next rune on the way to a clockwork rune not learned yet, as a goal.
+local function clockStep(rid)
+	local node = ns.Runes.byId[rid]
+	if not node or ns.Runes.Level(rid) >= node.max then return nil end
+	local step = ns.Runes.NextStepTo(rid)
+	if not step then return nil end
+	local cost = ns.Runes.NextCost(step)
+	return { text = "룬 배우기: " .. ns.N(ns.Runes.byId[step].name), tab = "runes", rune = step,
+		wait = not ns.CanAfford(cost), cost = cost }
+end
+
+-- The first goals, in turn: the heroes up to the third alone; then the
+-- monster chest's clockwork rune alone; then the step that brings the next
+-- hero in and the boss chest's clockwork rune side by side, the cheapest
+-- first (one goal per rune).
 local function firstGoals(heroes)
-	local list, seen = {}, {}
 	local recruit = nextRecruit(heroes)
+	if ns.Heroes.PartyCount() < Guide.CLOCK_AFTER_HEROES then
+		return recruit and { recruit } or {}
+	end
+	local monster = clockStep(Guide.CLOCK_RUNES[1])
+	if monster then return { monster } end
+	local list, seen = {}, {}
 	if recruit then
 		list[#list + 1] = recruit
 		if recruit.rune then seen[recruit.rune] = true end
 	end
-	for _, rid in ipairs(Guide.CLOCK_RUNES) do
-		local node = ns.Runes.byId[rid]
-		if node and ns.Runes.Level(rid) < node.max then
-			local step = ns.Runes.NextStepTo(rid)
-			if step and not seen[step] then
-				seen[step] = true
-				local cost = ns.Runes.NextCost(step)
-				list[#list + 1] = { text = "룬 배우기: " .. ns.N(ns.Runes.byId[step].name), tab = "runes", rune = step,
-					wait = not ns.CanAfford(cost), cost = cost }
-			end
+	for i = 2, #Guide.CLOCK_RUNES do
+		local g = clockStep(Guide.CLOCK_RUNES[i])
+		if g and not seen[g.rune] then
+			seen[g.rune] = true
+			list[#list + 1] = g
 		end
 	end
 	table.sort(list, function(a, b)
