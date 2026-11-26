@@ -35,6 +35,8 @@ UI.STYLE = {
 	purple  = { 0.55, 0.36, 0.86 },
 	off     = { 0.20, 0.22, 0.27 },
 }
+-- the faction picker's Alliance button: the Alliance's own blue (ns.FACTIONS)
+UI.STYLE.alliance = { ns.U.rgb("4a8cff") }
 
 function UI.RGB(hex)
 	return ns.U.rgb(hex)

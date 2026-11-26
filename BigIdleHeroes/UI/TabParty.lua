@@ -235,7 +235,7 @@ local function buildFaction()
 				faction.done = nil
 				d(first)
 			end
-		end, fid == "ALLIANCE" and "blue" or "red")
+		end, fid == "ALLIANCE" and "alliance" or "red")
 		go:SetPoint("BOTTOM", half, "BOTTOM", 0, 18)
 		half.go = go
 	end
