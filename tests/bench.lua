@@ -248,7 +248,7 @@ for pass = 1, passes do
 			-- attack moves the party total, so the step is 1 / share
 			local gain = GAIN[role] or (1 / math.max(0.12, share[sid]))
 			local step = math.max(0.75, math.min(1.33, (1 / s) ^ gain))
-			local nextv = math.max(0.5, math.min(2.0, cur * step))
+			local nextv = math.max(0.5, math.min(3.0, cur * step)) -- (the discipline priest heals at 2.8)
 			print(string.format("    %-7s %-16s %s | score %.3f | %s %.3f -> %.3f", role, sid, table.concat(rows[sid], "  "), s, key, cur, nextv))
 			ns.SPEC_TUNE[sid][key] = nextv
 			worst = math.max(worst, math.abs(s - 1))

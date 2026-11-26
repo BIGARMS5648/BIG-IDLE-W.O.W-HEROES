@@ -191,4 +191,6 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - Offline rewards pay what the party earns hunting the highest stage it has
   cleared (that stage's last clear), and the experience cut for heroes far
   below that stage shrinks as they level while away.
+- Discipline priests heal and shield much more, keeping a party alive about
+  as well as a holy priest or a holy paladin.
 ```

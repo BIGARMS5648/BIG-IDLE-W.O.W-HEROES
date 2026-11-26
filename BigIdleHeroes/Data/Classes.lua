@@ -391,7 +391,7 @@ ns.SPEC_TUNE = {
 	ROGUE_ASSA = { atk = 0.77 },
 	ROGUE_OUTLAW = { atk = 0.74 },
 	ROGUE_SUB = { atk = 0.76 },
-	PRIEST_DISC = { heal = 0.66 },
+	PRIEST_DISC = { heal = 2.8 }, -- its heals are atonement and shields: kept level with the other priests and paladins
 	PRIEST_HOLY = { heal = 0.96 },
 	PRIEST_SHADOW = { atk = 1.24 },
 	SHAMAN_ELE = { atk = 0.81 },
