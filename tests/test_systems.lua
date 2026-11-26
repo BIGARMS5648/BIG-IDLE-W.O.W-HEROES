@@ -1774,6 +1774,9 @@ do
 	local d = ns.db
 	d.faction = "ALLIANCE"
 	check(ns.Heroes.Create("WARRIOR_PROT"), "a first hero (free)")
+	-- the clockwork runes learned: the next hero alone leads
+	for _, rid in ipairs(ns.Guide.CLOCK_RUNES) do d.runes[rid] = 1 end
+	ns.Runes.Invalidate()
 	local function texts()
 		local t = {}
 		for _, g in ipairs(ns.Guide.Candidates()) do t[#t + 1] = g.text end
@@ -1846,6 +1849,40 @@ do
 		check(table.concat(got, " ") == want, start .. " first: the next heroes " .. want .. " (got " .. table.concat(got, " ") .. ")")
 	end
 	ns.PARTY_BASE = base
+	-- the clockwork runes of the monster and boss chests lead with the next
+	-- hero: what can be done now first, the cheapest first; none of them:
+	-- the cheapest is saved up for, nothing else costing gold
+	BigWowIdleDB = nil
+	ns.InitDB()
+	ns.Runes.Invalidate()
+	ns.db.faction = "ALLIANCE"
+	ns.Heroes.Create("WARRIOR_PROT")
+	local g = ns.db
+	local function firsts()
+		ns.Guide.Invalidate()
+		return ns.Guide.Candidates()
+	end
+	local heroCost = ns.Heroes.CreateCost()
+	local step1 = ns.Runes.NextStepTo(ns.Guide.CLOCK_RUNES[1])
+	local stepCost = ns.Runes.NextCost(step1)
+	check(stepCost < heroCost, "the clockwork rune's first step is cheaper than a hero here")
+	g.gold = heroCost
+	local c = firsts()
+	check(c[1] and c[1].rune == step1 and c[2] and c[2].create, "both affordable: the cheaper first, then the hero: " .. texts())
+	g.gold = stepCost
+	c = firsts()
+	check(c[1] and c[1].rune == step1 and not c[1].wait, "the hero short, the clockwork step affordable: the step first: " .. texts())
+	g.gold = 0
+	local saved, costly = nil, false
+	for _, x in ipairs(firsts()) do
+		if x.wait and x.rune == step1 then saved = x end
+		if x.create or (x.rune and x.rune ~= step1) or (x.text or ""):find("해금", 1, true) then costly = true end
+	end
+	check(saved and not costly, "nothing affordable: the cheapest saved up for, nothing else costing gold: " .. texts())
+	-- the two clockwork runes: 500 and 10,000 gold, near the start
+	check(ns.Runes.Cost(13002, 1) == 500 and ns.Runes.Cost(15001, 1) == 10000, "the clockwork runes cost 500 and 10,000 gold")
+	check(ns.Runes.prev[13002] == 12 and ns.Runes.prev[15001] == 14 and ns.Runes.Need(13002) == 1 and ns.Runes.Need(15001) == 1,
+		"the clockwork runes follow the 2nd and 4th 확장의 룬 at their first level")
 	-- the party full: the usual order again
 	ns.db, BigWowIdleDB = savedDB, savedGlobal
 	ns.Runes.Invalidate()

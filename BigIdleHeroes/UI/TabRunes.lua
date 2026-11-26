@@ -32,6 +32,9 @@ local LEVEL_TEXT_ZOOM = 0.6   -- below this the levels on the runes are hidden
 local TOTAL_ROWS, TOTAL_STEP = 14, 15 -- the 보너스 합계 list
 local BAR_W = 6
 local GREY = { 0.34, 0.36, 0.42 }
+-- the start rune's border is silver, not its kind's colour
+local START_RGB = { 0.78, 0.82, 0.88 }
+local function borderRGB(node) return node.id == ns.RUNE_FIRST and START_RGB or node.group.rgb end
 
 -- the tree's extent in cells
 local minX, maxX, minY, maxY = 0, 0, 0, 0
@@ -476,7 +479,7 @@ local function refresh(page)
 		local state = lvl * 4 + (open and 2 or 0) + (afford and 1 or 0)
 		if b.state ~= state then
 			b.state = state
-			local rgb = open and node.group.rgb or GREY
+			local rgb = open and borderRGB(node) or GREY
 			b.border:SetVertexColor(rgb[1], rgb[2], rgb[3])
 			b.border2:SetVertexColor(rgb[1], rgb[2], rgb[3])
 			b.icon:SetDesaturated(not open)
@@ -520,7 +523,7 @@ local function refresh(page)
 	local lvl, cost, open = R.Level(id), R.NextCost(id), R.Available(id)
 	local g = node.group
 	side.icon:SetIconName(node.icon)
-	local rgb = open and g.rgb or GREY
+	local rgb = open and borderRGB(node) or GREY
 	side.icon:SetBorderRGB(rgb[1], rgb[2], rgb[3])
 	side.name:SetText(ns.N(node.name))
 	side.lvl:SetText(U.col(U.hex(g.rgb[1], g.rgb[2], g.rgb[3]), ns.N(g.name)) .. "  ·  " .. string.format("레벨 %d / %d", lvl, node.max))

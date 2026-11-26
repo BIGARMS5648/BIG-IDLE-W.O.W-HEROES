@@ -562,6 +562,9 @@ local function drawMobs()
 	end
 end
 
+-- the boss skull's brightness (its picture is drawn this much darker)
+local SKULL_DIM = 0.5
+
 local function drawPips(now)
 	local st = ns.Combat.state
 	-- the boss bar takes the wave row's place while the boss is up, the skull
@@ -569,7 +572,7 @@ local function drawPips(now)
 	local sk = frame.bossSkull
 	if frame.bossBar:IsShown() then
 		for i = 1, MAX_PIPS do pips[i]:Hide() end
-		local k = 0.8 + 0.2 * sin(now * 6)
+		local k = (0.8 + 0.2 * sin(now * 6)) * SKULL_DIM
 		sk:SetVertexColor(k, k, k)
 		sk:Show()
 		return
@@ -609,7 +612,7 @@ local function drawPips(now)
 				p.dot:SetVertexColor(0.22, 0.25, 0.33) -- ahead
 			end
 			if skull then
-				local k = i == wave and (0.8 + 0.2 * sin(now * 6)) or 1
+				local k = (i == wave and (0.8 + 0.2 * sin(now * 6)) or 1) * SKULL_DIM
 				p.dot:SetVertexColor(k, k, k)
 			elseif isBoss and i >= wave then
 				p.dot:SetVertexColor(i == wave and 1 or 0.75, i == wave and 0.35 or 0.30, i == wave and 0.25 or 0.30)

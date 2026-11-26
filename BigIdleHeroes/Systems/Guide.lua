@@ -132,13 +132,13 @@ local function nextRecruit(heroes)
 		-- a waiting hero of that role goes out first (no gold)
 		for _, id in ipairs(ns.Heroes.List()) do
 			if not ns.Heroes.PartySlot(id) and ns.Heroes.Role(id) == role and ns.Heroes.FreeSlot(role) then
-				return { text = ns.Heroes.ShortName(id) .. " 출전시키기", tab = "party", act = function() ns.Heroes.Deploy(id) end }
+				return { text = ns.Heroes.ShortName(id) .. " 출전시키기", tab = "party", act = function() ns.Heroes.Deploy(id) end, cost = 0 }
 			end
 		end
 		if heroes >= ns.ROSTER_MAX then return nil end
 		local cost = ns.Heroes.CreateCost()
 		return { text = string.format("%s 영웅 모집하기 (%s G)", ns.ROLE[role].name, ns.U.fmt(cost)),
-			tab = "hero", create = role, wait = not ns.CanAfford(cost) }
+			tab = "hero", create = role, wait = not ns.CanAfford(cost), cost = cost }
 	end
 	local cmd = nextCommandRune()
 	-- the last seat's rune (60,000 gold) waits until 일반 1-10 is cleared
@@ -146,10 +146,44 @@ local function nextRecruit(heroes)
 	if cmd and ns.PartyLimit() < ns.PARTY_SIZE then
 		local step = ns.Runes.NextStepTo(cmd.id)
 		if step then
+			local cost = ns.Runes.NextCost(step)
 			return { text = "룬 배우기: " .. ns.N(ns.Runes.byId[step].name), tab = "runes", rune = step,
-				wait = not ns.CanAfford(ns.Runes.NextCost(step)) }
+				wait = not ns.CanAfford(cost), cost = cost }
 		end
 	end
+end
+
+-- The clockwork runes of the monster and boss chests: on the way to them
+-- with the next hero (see candidates).
+Guide.CLOCK_RUNES = { 13002, 15001 }
+
+-- The first goals: the step that brings the next hero in and the next rune
+-- on the way to each clockwork rune not learned yet, side by side, the
+-- cheapest first (one goal per rune).
+local function firstGoals(heroes)
+	local list, seen = {}, {}
+	local recruit = nextRecruit(heroes)
+	if recruit then
+		list[#list + 1] = recruit
+		if recruit.rune then seen[recruit.rune] = true end
+	end
+	for _, rid in ipairs(Guide.CLOCK_RUNES) do
+		local node = ns.Runes.byId[rid]
+		if node and ns.Runes.Level(rid) < node.max then
+			local step = ns.Runes.NextStepTo(rid)
+			if step and not seen[step] then
+				seen[step] = true
+				local cost = ns.Runes.NextCost(step)
+				list[#list + 1] = { text = "룬 배우기: " .. ns.N(ns.Runes.byId[step].name), tab = "runes", rune = step,
+					wait = not ns.CanAfford(cost), cost = cost }
+			end
+		end
+	end
+	table.sort(list, function(a, b)
+		if (a.cost or 0) ~= (b.cost or 0) then return (a.cost or 0) < (b.cost or 0) end
+		return (a.create or a.act) and not (b.create or b.act) or false
+	end)
+	return list
 end
 
 -- Candidate goals in order of usefulness. A goal with wait = true is shown
@@ -168,10 +202,19 @@ local function candidates()
 		add({ text = "첫 영웅을 만드세요 (무료)", tab = "hero", create = true })
 		return out
 	end
-	local early = ns.Heroes.PartyCount() < ns.PARTY_SIZE
-	local recruit = nextRecruit(heroes)
-	local saving = early and recruit and recruit.wait
-	if early and recruit and not recruit.wait then add(recruit) end
+	-- the next hero and the clockwork runes lead: those that can be done now
+	-- (the cheapest first); none of them yet: the cheapest is saved up for
+	-- and nothing else that costs gold is suggested
+	local ready, saveFor = {}, nil
+	for _, g in ipairs(firstGoals(heroes)) do
+		if g.wait then saveFor = saveFor or g else ready[#ready + 1] = g end
+	end
+	local saving = #ready == 0 and saveFor ~= nil
+	local firstRune = {}
+	for _, g in ipairs(ready) do
+		add(g)
+		if g.rune then firstRune[g.rune] = true end
+	end
 	for _, id in ipairs(partyHeroes()) do
 		local free = ns.Heroes.PointsFree(id)
 		if free > 0 then
@@ -213,7 +256,10 @@ local function candidates()
 	if not ns.Forge.Unlocked("smelt") and not saving then
 		add({ text = "분해 해금하기 (장비 > 가방, 10 G)", tab = "equip", sub = "bag", wait = not ns.CanAfford(10) })
 	end
-	if recruit and (not early or recruit.wait) then add(recruit) end
+	if saveFor then
+		add(saveFor)
+		if saveFor.rune then firstRune[saveFor.rune] = true end
+	end
 	for _, op in ipairs(saving and {} or ns.FORGE_OPS) do
 		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and Guide.UnlockUseful(op.key) then
 			-- where its button is: 분해 under the bag, the rest on the forge screen
@@ -230,7 +276,7 @@ local function candidates()
 		end
 	end
 	local rid, rcost = cheapestRune()
-	if rid and ns.CanAfford(rcost) and not saving then
+	if rid and ns.CanAfford(rcost) and not saving and not firstRune[rid] then
 		add({ text = "룬 배우기: " .. ns.N(ns.Runes.byId[rid].name), tab = "runes", rune = rid })
 	end
 	-- the endless tower, once open: go there, then climb it
