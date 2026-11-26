@@ -264,6 +264,13 @@ function BagView.Build(page, f)
 		ns.Toast(v and "자동 분해를 켰습니다." or "자동 분해를 껐습니다.")
 	end)
 	page.autoSmelt:SetPoint("LEFT", page.smeltGo, "RIGHT", 16, 0)
+	-- the heroes waiting outside the party: their better gear kept too
+	page.keepBench = UI.Check(f, "대기 중인 영웅에게 좋은 장비도 분해·융합에서 지키기",
+		function() return ns.db.opt.keepBench end, function(v) ns.db.opt.keepBench = v and true or false ns.Fire("BAG") end)
+	page.keepBench:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 44)
+	UI.Tip(page.keepBench, function()
+		return UI.SimpleTip("대기 영웅의 장비 지키기", "켜면 파티 밖에서 기다리는 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비도 일괄 분해·자동 분해·융합에 쓰지 않습니다. 가방이 더 빨리 찰 수 있습니다.")
+	end, "TOP")
 	UI.Tip(page.autoSmelt, function()
 		local q = ns.QUALITY[smeltQ()]
 		return UI.SimpleTip("자동 분해", string.format("켜 두면 가방이 가득 찰 때 %s 이하의 장비를 저절로 분해해 자리를 만듭니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 남깁니다.", ns.QText(smeltQ(), ns.N(q.name))))
@@ -341,7 +348,8 @@ function BagView.Refresh(page)
 		page.smeltGo:SetOff(off)
 	end
 	page.autoSmelt:Refresh()
-	for _, w in ipairs({ page.smeltLabel, page.smeltPick, page.smeltGo, page.autoSmelt }) do w:SetShown(not bank) end
+	page.keepBench:Refresh()
+	for _, w in ipairs({ page.smeltLabel, page.smeltPick, page.smeltGo, page.autoSmelt, page.keepBench }) do w:SetShown(not bank) end
 end
 
 -- opts.slot: show that slot's items; opts.view: a view of the bag

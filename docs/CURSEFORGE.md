@@ -202,4 +202,7 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - Casters' basic attacks fly a small bolt of their school (Fireball,
   Frostbolt, Arcane Bolt, Shadow Bolt, Lightning Bolt, Wrath); holy casters'
   light bursts on the target.
+- The option to keep benched heroes' better gear from salvage and fusion is
+  under the bag on the equipment screen; the forge's function buttons have
+  their names centred.
 ```

@@ -1470,7 +1470,8 @@ do
 			-- a missile is in the air for a moment only: counted when it leaves
 			if ns.Bar.fxStats.missiles > flown then sawMissile = true end
 			for _, hs in ipairs(ns.Bar.hits) do
-				if not hit and hs.active and hs.fig:IsShown() and hs.fig:IsLoaded() and hitFiles[hs.fig.actor.__display] then
+				-- (a skill's hit, not a caster's smaller basic bolt: hs.size)
+				if not hit and hs.active and not hs.size and hs.fig:IsShown() and hs.fig:IsLoaded() and hitFiles[hs.fig.actor.__display] then
 					local t = hs.tfig
 					hit = { scale = hs.fig.actor.__scale or 0, height = hs.fig.height, want = (t.fixedScale or (t.norm or 0.5) * (t.corrScale or 1)), tall = t.height,
 						parent = hs.fig:GetParent() }
