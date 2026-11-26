@@ -565,11 +565,17 @@ end
 
 local function drawPips(now)
 	local st = ns.Combat.state
-	-- the boss bar takes the wave row's place while the boss is up
+	-- the boss bar takes the wave row's place while the boss is up, the skull
+	-- pulsing at its left
+	local sk = frame.bossSkull
 	if frame.bossBar:IsShown() then
 		for i = 1, MAX_PIPS do pips[i]:Hide() end
+		local k = 0.8 + 0.2 * sin(now * 6)
+		sk:SetVertexColor(k, k, k)
+		sk:Show()
 		return
 	end
+	sk:Hide()
 	local waves = st.waves or 10
 	local n = max(1, min(MAX_PIPS, waves))
 	-- more waves than pips: each monster pip stands for a run of waves, the
@@ -1659,14 +1665,21 @@ function Bar.Create()
 	UI.SetIcon(coin, "INV_Misc_Coin_01")
 
 	-- the boss bar sits in the top row, where the wave dots are (the boss is
-	-- always the last wave), so nothing in the fight below can cover it
-	frame.bossBar = UI.Bar(over, 290, 16, 0.85, 0.15, 0.12)
+	-- always the last wave), so nothing in the fight below can cover it; the
+	-- row's skull stays at its left, pulsing
+	frame.bossBar = UI.Bar(over, 266, 16, 0.85, 0.15, 0.12)
 	if UI.ArtUI("ui_boss_bar") then
 		local deco = UI.Slice(frame.bossBar, "pill", "OVERLAY", 14, 10)
 		deco:SetArt(UI.ArtUI("ui_boss_bar"))
 	end
-	frame.bossBar:SetPoint("CENTER", scene, "TOPLEFT", 418, -17)
+	frame.bossBar:SetPoint("LEFT", scene, "TOPLEFT", 297, -17)
 	frame.bossBar:Hide()
+	local sk = over:CreateTexture(nil, "OVERLAY")
+	sk:SetSize(18, 18)
+	sk:SetTexture(UI.ArtPath("icon_skull") or UI.Tex("skull"))
+	sk:SetPoint("RIGHT", frame.bossBar, "LEFT", -6, 0)
+	sk:Hide()
+	frame.bossSkull = sk
 
 	frame.result = UI.Text(over, 26, nil, "OUTLINE")
 

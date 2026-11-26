@@ -1789,6 +1789,27 @@ do
 		if g.rune and g.rune ~= seat then other = true end
 	end
 	check(found and found.wait and not other, "then the rune toward the next party seat, saved up for, no other rune: " .. texts())
+	-- the order the party fills in: the healer third
+	local SPEC_OF = { TANK = "PALADIN_PROT", DPS = "ROGUE_SUB", HEALER = "DRUID_RESTO" }
+	local base = ns.PARTY_BASE
+	ns.PARTY_BASE = ns.PARTY_SIZE
+	for start, want in pairs({ DPS = "TANK HEALER DPS DPS", TANK = "DPS HEALER DPS DPS", HEALER = "TANK DPS DPS DPS" }) do
+		BigWowIdleDB = nil
+		ns.InitDB()
+		ns.Runes.Invalidate()
+		ns.db.faction = "HORDE"
+		ns.db.gold = 1e9
+		ns.Heroes.Create(SPEC_OF[start])
+		local got = {}
+		for _ = 1, 4 do
+			local r = ns.Guide.MissingRole()
+			got[#got + 1] = tostring(r)
+			if not r then break end
+			ns.Heroes.Create(SPEC_OF[r])
+		end
+		check(table.concat(got, " ") == want, start .. " first: the next heroes " .. want .. " (got " .. table.concat(got, " ") .. ")")
+	end
+	ns.PARTY_BASE = base
 	-- the party full: the usual order again
 	ns.db, BigWowIdleDB = savedDB, savedGlobal
 	ns.Runes.Invalidate()

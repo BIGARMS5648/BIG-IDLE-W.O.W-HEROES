@@ -88,13 +88,28 @@ local function nextCommandRune()
 	return id and ns.Runes.byId[id]
 end
 
--- A role the party still has an open slot for (within the party limit).
+-- The role of the next hero for the party (within the party limit), the
+-- healer third: before it a tank and a damage dealer (whichever the party
+-- lacks, the tank first), after it the damage dealers. A damage dealer first
+-- goes tank, healer, damage, damage; a tank first damage, healer, damage,
+-- damage; a healer first tank, damage, damage, damage.
 local function missingRole()
 	local db = ns.db
-	if ns.Heroes.PartyCount() >= ns.PartyLimit() then return nil end
+	local n = ns.Heroes.PartyCount()
+	if n >= ns.PartyLimit() then return nil end
+	local have = { TANK = 0, DPS = 0, HEALER = 0 }
 	for i = 1, ns.PARTY_SIZE do
-		if not db.party[i] then return ns.PARTY_ROLES[i] end
+		if db.party[i] then
+			local r = ns.PARTY_ROLES[i]
+			have[r] = have[r] + 1
+		end
 	end
+	local room = { TANK = 0, DPS = 0, HEALER = 0 }
+	for _, r in ipairs(ns.PARTY_ROLES) do room[r] = room[r] + 1 end
+	if n >= 2 and have.HEALER < room.HEALER then return "HEALER" end
+	if have.TANK < room.TANK then return "TANK" end
+	if have.DPS < room.DPS then return "DPS" end
+	if have.HEALER < room.HEALER then return "HEALER" end
 end
 Guide.MissingRole = missingRole
 
@@ -104,8 +119,9 @@ Guide.MissingRole = missingRole
 local function nextRecruit(heroes)
 	local role = missingRole()
 	if role then
+		-- a waiting hero of that role goes out first (no gold)
 		for _, id in ipairs(ns.Heroes.List()) do
-			if not ns.Heroes.PartySlot(id) and ns.Heroes.FreeSlot(ns.Heroes.Role(id)) then
+			if not ns.Heroes.PartySlot(id) and ns.Heroes.Role(id) == role and ns.Heroes.FreeSlot(role) then
 				return { text = ns.Heroes.ShortName(id) .. " 출전시키기", tab = "party", act = function() ns.Heroes.Deploy(id) end }
 			end
 		end

@@ -209,4 +209,9 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - Early on (until five heroes fight) the recommendation puts the next hero
   first and, while saving up for it, suggests nothing else that costs gold.
 - No red dot on the equipment menu for chests waiting.
+- The recommendation recruits the healer third (a damage dealer first: tank,
+  healer, damage, damage; a tank first: damage, healer, damage, damage).
+- In a boss fight the boss's skull stays at the left of its health bar,
+  pulsing.
+- The Alliance start button on the faction picker is the Alliance's blue.
 ```
