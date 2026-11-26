@@ -206,4 +206,7 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   under the bag on the equipment screen; the forge's function buttons have
   their names centred.
 - The recruit button shows its price as a gold coin and the amount.
+- Early on (until five heroes fight) the recommendation puts the next hero
+  first and, while saving up for it, suggests nothing else that costs gold.
+- No red dot on the equipment menu for chests waiting.
 ```

@@ -98,8 +98,38 @@ local function missingRole()
 end
 Guide.MissingRole = missingRole
 
+-- The step that brings the next hero into the party: a waiting hero sent
+-- out, a hero recruited, or (every seat taken) the rune on the way to the
+-- next party seat. nil when there is none.
+local function nextRecruit(heroes)
+	local role = missingRole()
+	if role then
+		for _, id in ipairs(ns.Heroes.List()) do
+			if not ns.Heroes.PartySlot(id) and ns.Heroes.FreeSlot(ns.Heroes.Role(id)) then
+				return { text = ns.Heroes.ShortName(id) .. " 출전시키기", tab = "party", act = function() ns.Heroes.Deploy(id) end }
+			end
+		end
+		if heroes >= ns.ROSTER_MAX then return nil end
+		local cost = ns.Heroes.CreateCost()
+		return { text = string.format("%s 영웅 모집하기 (%s G)", ns.ROLE[role].name, ns.U.fmt(cost)),
+			tab = "hero", create = role, wait = not ns.CanAfford(cost) }
+	end
+	local cmd = nextCommandRune()
+	if cmd and ns.PartyLimit() < ns.PARTY_SIZE then
+		local step = ns.Runes.NextStepTo(cmd.id)
+		if step then
+			return { text = "룬 배우기: " .. ns.N(ns.Runes.byId[step].name), tab = "runes", rune = step,
+				wait = not ns.CanAfford(ns.Runes.NextCost(step)) }
+		end
+	end
+end
+
 -- Candidate goals in order of usefulness. A goal with wait = true is shown
--- only when nothing actionable comes after it.
+-- only when nothing actionable comes after it. Early on (until all five
+-- party seats are filled) the next hero comes first: its step leads the
+-- list when it can be done now, and while its gold is saved up nothing else
+-- that costs gold is suggested (only what is free, and the bag's 분해 when
+-- it is full).
 -- Goal: { text, tab, hero, sub, act = fn, create = role|true, rune, wait, done }
 local function candidates()
 	local db = ns.db
@@ -110,6 +140,10 @@ local function candidates()
 		add({ text = "첫 영웅을 만드세요 (무료)", tab = "hero", create = true })
 		return out
 	end
+	local early = ns.Heroes.PartyCount() < ns.PARTY_SIZE
+	local recruit = nextRecruit(heroes)
+	local saving = early and recruit and recruit.wait
+	if early and recruit and not recruit.wait then add(recruit) end
 	for _, id in ipairs(partyHeroes()) do
 		local free = ns.Heroes.PointsFree(id)
 		if free > 0 then
@@ -148,34 +182,11 @@ local function candidates()
 				ns.Items.AutoEquipParty()
 			end })
 	end
-	if not ns.Forge.Unlocked("smelt") then
+	if not ns.Forge.Unlocked("smelt") and not saving then
 		add({ text = "분해 해금하기 (장비 > 가방, 10 G)", tab = "equip", sub = "bag", wait = not ns.CanAfford(10) })
 	end
-	local limit = ns.PartyLimit()
-	local role = missingRole()
-	if role then
-		-- a bench hero could fill the slot
-		local bench
-		for _, id in ipairs(ns.Heroes.List()) do
-			if not ns.Heroes.PartySlot(id) and ns.Heroes.FreeSlot(ns.Heroes.Role(id)) then bench = id break end
-		end
-		if bench then
-			add({ text = ns.Heroes.ShortName(bench) .. " 출전시키기", tab = "party", act = function() ns.Heroes.Deploy(bench) end })
-		elseif heroes < ns.ROSTER_MAX then
-			local cost = ns.Heroes.CreateCost()
-			add({ text = string.format("%s 영웅 모집하기 (%s G)", ns.ROLE[role].name, ns.U.fmt(cost)),
-				tab = "hero", create = role, wait = not ns.CanAfford(cost) })
-		end
-	end
-	local cmd = nextCommandRune()
-	if cmd and limit < ns.PARTY_SIZE then
-		local step = ns.Runes.NextStepTo(cmd.id)
-		if step then
-			local cost = ns.Runes.NextCost(step)
-			add({ text = "룬 배우기: " .. ns.N(ns.Runes.byId[step].name), tab = "runes", rune = step, wait = not ns.CanAfford(cost) })
-		end
-	end
-	for _, op in ipairs(ns.FORGE_OPS) do
+	if recruit and (not early or recruit.wait) then add(recruit) end
+	for _, op in ipairs(saving and {} or ns.FORGE_OPS) do
 		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and Guide.UnlockUseful(op.key) then
 			-- where its button is: 분해 under the bag, the rest on the forge screen
 			if op.key == "smelt" then
@@ -191,7 +202,7 @@ local function candidates()
 		end
 	end
 	local rid, rcost = cheapestRune()
-	if rid and ns.CanAfford(rcost) then
+	if rid and ns.CanAfford(rcost) and not saving then
 		add({ text = "룬 배우기: " .. ns.N(ns.Runes.byId[rid].name), tab = "runes", rune = rid })
 	end
 	-- the endless tower, once open: go there, then climb it

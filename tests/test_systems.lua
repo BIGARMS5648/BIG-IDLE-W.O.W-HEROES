@@ -1746,6 +1746,57 @@ do
 end
 
 ------------------------------------------------------------------------
+section("recommendations early on: the next hero first")
+do
+	local savedDB, savedGlobal = ns.db, BigWowIdleDB
+	BigWowIdleDB = nil
+	ns.InitDB()
+	ns.Runes.Invalidate()
+	ns.Stats.Invalidate()
+	local d = ns.db
+	d.faction = "ALLIANCE"
+	check(ns.Heroes.Create("WARRIOR_PROT"), "a first hero (free)")
+	local function texts()
+		local t = {}
+		for _, g in ipairs(ns.Guide.Candidates()) do t[#t + 1] = g.text end
+		return table.concat(t, " | ")
+	end
+	local function spends(g) return g.rune or (g.text and g.text:find("해금", 1, true)) end
+	-- the gold for the next hero there: recruiting leads, before free points
+	local cost = ns.Heroes.CreateCost()
+	d.gold = cost
+	ns.Guide.Invalidate()
+	local first = ns.Guide.Candidates()[1]
+	check(first and first.create and not first.wait, "with the gold, recruiting comes first: " .. texts())
+	-- short of it: saved up for (the goal shown), nothing else costing gold
+	d.gold = cost - 1
+	ns.Guide.Invalidate()
+	local cur = ns.Guide.Current()
+	local other = false
+	for _, g in ipairs(ns.Guide.Candidates()) do if spends(g) then other = true end end
+	check((cur.create or ns.Heroes.PointsFree(d.party[1]) > 0) and not other, "short of it: no rune or unlock while saving up: " .. texts())
+	-- every seat within the limit taken: the rune toward the next seat
+	d.gold = 1e9
+	for _, sp in ipairs({ "MAGE_FIRE", "PRIEST_HOLY" }) do ns.Heroes.Create(sp) end
+	check(ns.Heroes.PartyCount() == ns.PartyLimit() and ns.PartyLimit() < ns.PARTY_SIZE, "the party's seats are taken")
+	for _, id in ipairs(ns.Heroes.List()) do d.heroes[id].tree = { [11] = d.heroes[id].level } end
+	d.gold = 0
+	ns.Guide.Invalidate()
+	local seat = ns.Runes.NextStepTo(ns.Runes.FirstFor("party"))
+	local found
+	for _, g in ipairs(ns.Guide.Candidates()) do
+		if g.rune == seat then found = g end
+		if g.rune and g.rune ~= seat then other = true end
+	end
+	check(found and found.wait and not other, "then the rune toward the next party seat, saved up for, no other rune: " .. texts())
+	-- the party full: the usual order again
+	ns.db, BigWowIdleDB = savedDB, savedGlobal
+	ns.Runes.Invalidate()
+	ns.Stats.Invalidate()
+	ns.Guide.Invalidate()
+end
+
+------------------------------------------------------------------------
 section("save repair and migration")
 -- saves from before the renames (the old file copied to BigIdleHeroes.lua)
 BigWowIdleDB, BigWowHeroesDB = nil, nil
