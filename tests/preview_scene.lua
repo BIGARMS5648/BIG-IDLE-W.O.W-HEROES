@@ -366,6 +366,28 @@ S.up = function()
 	p.forge.up.last = ns.U.col("60e070", "성공! +12")
 	ns.Main.Refresh()
 end
+-- 계승: a new chest at +0 picked, the enhanced one in the bag to move from
+local function upMove()
+	setProg(ns.STAGE_COUNT)
+	local undo = S.restore
+	mixedItem()
+	local was = mixed.up
+	mixed.up = 15
+	local fresh = ns.Items.New("chest", 65, ns.MAX_QUALITY)
+	table.insert(db.bag, 1, fresh)
+	ns.ForgeView.SetTarget(fresh)
+	local p = forge("up")
+	ns.Main.Refresh()
+	S.restore = function()
+		undo()
+		mixed.up = was
+		local i = ns.Items.IndexInBag(fresh)
+		if i then table.remove(db.bag, i) end
+	end
+	return p
+end
+S.up_move = function() upMove() end
+S.up_move_confirm = function() local p = upMove() p.forge.up.card.move:Click() end
 S.mats = function() local p = forge("mats") p.matTab = "mat_craft" ns.Main.Refresh() end
 S.mats_gem = function() local p = forge("mats") p.matTab = "mat_gem" ns.Main.Refresh() end
 S.mats_seal = function() local p = forge("mats") p.matTab = "mat_seal" ns.Main.Refresh() end

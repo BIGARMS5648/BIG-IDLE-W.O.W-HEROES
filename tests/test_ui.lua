@@ -778,6 +778,20 @@ do
 	if title ~= "+3 " .. ns.Items.Name(epic) then fail("the tooltip should name the step before the item: " .. title) end
 	local plainTitle = ns.Items.Tooltip(plain and plain.data or ns.Items.New("chest", 30, 2))[1][1]
 	if plainTitle:find("^%+") then fail("a piece at +0 has no step before its name: " .. plainTitle) end
+	-- 계승: a new piece of the same slot takes the steps' worth, the old one
+	-- is used up
+	local other = ns.Items.New(epic.s, epic.l, epic.q, epic.t)
+	ns.Items.AddToBag(other)
+	Main.ShowTab("forge", { sub = "up" })
+	click("inherit target", function(b) return b.data == other end)
+	if up.picked ~= other then fail("the second piece should be chosen") end
+	local want = ns.Upgrade.MoveResult(epic, other)
+	if not (up.card.moveText.__text or ""):find("+" .. want, 1, true) then fail("the 계승 line should say the step it gives: " .. tostring(up.card.moveText.__text)) end
+	press("inherit", up.card.move)
+	confirmYes("inherit")
+	if (other.up or 0) ~= want or want < 1 or ns.Items.IndexInBag(epic) or ns.Items.Wearer(epic) then
+		fail("계승 should give the new piece +" .. want .. " and use up the old one: " .. tostring(other.up))
+	end
 	prog[1], prog[2], prog[3], prog[4] = savedProg[1], savedProg[2], savedProg[3], savedProg[4]
 	hoverAll()
 end

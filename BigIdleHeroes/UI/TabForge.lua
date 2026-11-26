@@ -617,14 +617,15 @@ end
 
 ------------------------------------------------------------------------
 -- 강화: the chosen piece's step, what the next one gives (its base stats
--- now and after), its chance and cost
+-- now and after), its chance and cost; 계승 from a piece of the same slot
 ------------------------------------------------------------------------
 local function buildUpgrade(page, f)
 	local p = {}
 	local Up = ns.Upgrade
-	local c = UI.Panel(f, W, 226, "card")
+	local c = UI.Panel(f, W, 270, "card")
 	c:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
 	p.card = c
+	c.isRow = true -- the 계승 button on its line
 	c.icon = UI.IconButton(c, 44)
 	c.icon:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -12)
 	UI.Tip(c.icon, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end)
@@ -646,12 +647,40 @@ local function buildUpgrade(page, f)
 		l:SetWordWrap(false)
 		c.lines[i] = l
 	end
+	-- 계승: from the piece of the same slot that takes this one the highest
+	c.moveText = UI.Text(c, 11)
+	c.moveText:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 12, 16)
+	c.moveText:SetWidth(W - 24 - 150)
+	c.moveText:SetWordWrap(false)
+	UI.Color(c.moveText, UI.C.sub)
+	c.move = UI.Button(c, 136, 26, "계승하기", function()
+		local to = p.picked
+		local from = Up.SourceFor(to)
+		local ok, why = Up.CanMove(from, to)
+		if not ok then
+			UI.Try(false, why)
+			return
+		end
+		UI.Confirm({ title = "계승", ok = "계승",
+			text = string.format("정말 %s의 +%d 강화를 이 장비에 계승하시겠습니까?\n%s  →  +%d\n원래 장비는 사라집니다.",
+				ns.Items.ColorName(from), Up.Level(from), ns.Items.ColorName(to), Up.MoveResult(from, to)),
+			onOk = function()
+				local done, n = Up.Move(from, to)
+				if UI.Try(done, n) then
+					p.last, p.lastFor = U.col("60e070", string.format("계승: +%d", n)), to
+					ForgeView.Log(U.col("60e070", string.format("계승 +%d", n)) .. " · " .. ns.Items.Name(to))
+				end
+				Main.Refresh()
+			end })
+	end, "dark")
+	c.move:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", -12, 10)
+	c.move.clickWhenOff = true
 	p.empty = UI.Text(c, 12)
 	p.empty:SetPoint("CENTER", c, "CENTER", 0, 0)
 	p.empty:SetWidth(W - 40)
 	p.empty:SetJustifyH("CENTER")
 	UI.Color(p.empty, UI.C.sub)
-	p.rule = note(f, -244, string.format("장비는 +0에서 시작합니다. +0에서 +%d까지는 항상 성공하고, +%d부터는 성공 확률이 낮아집니다. 실패하면 쓴 골드만 사라지고 장비와 강화 단계는 그대로입니다. 강화는 기본 능력치를 올립니다. 강화한 장비는 자동 분해·융합에 쓰이지 않습니다.", Up.SAFE, Up.SAFE))
+	p.rule = note(f, -288, string.format("장비는 +0에서 시작합니다. +0에서 +%d까지는 항상 성공하고, +%d부터는 성공 확률이 낮아집니다. 실패하면 쓴 골드만 사라지고 장비와 강화 단계는 그대로입니다. 강화는 기본 능력치를 올립니다. 강화한 장비는 자동 분해·융합에 쓰이지 않습니다. 같은 부위 장비의 강화를 계승하면, 그 강화에 드는 골드의 %d%%만큼 이 장비의 강화 단계가 오르고 원래 장비는 사라집니다.", Up.SAFE, Up.SAFE, floor(Up.KEEP * 100 + 0.5)))
 	p.go = UI.Button(f, 220, 36, "강화하기", function()
 		local it = p.picked
 		local ok, success, n = Up.Try(it, p.pickedHero)
@@ -683,7 +712,7 @@ local function buildUpgrade(page, f)
 		p.picked, p.pickedHero = t, th
 		local it = p.picked
 		p.empty:SetShown(it == nil)
-		for _, w in ipairs({ c.icon, c.name, c.sub }) do w:SetShown(it ~= nil) end
+		for _, w in ipairs({ c.icon, c.name, c.sub, c.moveText, c.move }) do w:SetShown(it ~= nil) end
 		for _, l in ipairs(c.lines) do l:SetShown(it ~= nil) end
 		-- the last result, while its piece is the one picked
 		p.lastText:SetText(it ~= nil and p.lastFor == it and p.last or "")
@@ -727,10 +756,18 @@ local function buildUpgrade(page, f)
 		local nl = 2 + min(4, #now)
 		if not top then
 			local chance = Up.Chance(n)
-			c.lines[nl]:SetText(string.format("성공 확률 %s%s     비용 %s G",
+			c.lines[nl]:SetText(string.format("성공 확률 %s     비용 %s G",
 				U.col(chance >= 1 and "60e070" or (chance >= 0.5 and "ffd24a" or "ff9a5a"), U.num(chance * 100, 0) .. "%"),
-				chance < 1 and U.col("9aa3b8", " (실패하면 골드만 사라짐)") or "",
 				U.col(ns.CanAfford(Up.Cost(it, n)) and "ffd24a" or "ff6a5a", U.fmt(Up.Cost(it, n)))))
+		end
+		local from = Up.SourceFor(it)
+		if from then
+			c.moveText:SetText(string.format("계승: %s +%d  →  이 장비 %s",
+				ns.Items.Name(from), Up.Level(from), U.col("60e070", "+" .. Up.MoveResult(from, it))))
+			c.move:SetOff(not Up.CanMove(from, it))
+		else
+			c.moveText:SetText("계승: 같은 부위에 계승할 강화 장비가 없습니다.")
+			c.move:SetOff(true)
 		end
 		local why = Up.Why(it)
 		p.go:SetLabel(top and "최고 단계" or ("강화하기  " .. U.fmt(Up.Cost(it, n)) .. " G"))
