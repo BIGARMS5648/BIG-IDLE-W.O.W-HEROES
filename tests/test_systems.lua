@@ -1106,6 +1106,36 @@ do
 		"the new piece is worn in the old one's place")
 	hero.gear.chest, hero.level = wornBefore, levelBefore
 	ns.Stats.Invalidate(H)
+	-- a protected piece is never the one to move from
+	local locked = ns.Items.New("chest", 100, ns.MAX_QUALITY)
+	locked.up, locked.lock = 12, true
+	ns.Items.AddToBag(locked)
+	local fresh = ns.Items.New("chest", 100, ns.MAX_QUALITY)
+	ns.Items.AddToBag(fresh)
+	check(Up.SourceFor(fresh) ~= locked and not Up.CanMove(locked, fresh), "a protected piece is not used for 계승")
+	locked.lock = nil
+	check(Up.SourceFor(fresh) == locked and Up.CanMove(locked, fresh), "once unprotected it is")
+	-- what is set in the sockets moves along, into the new piece's free
+	-- sockets; what finds no room is lost
+	local gemMat = ns.SocketMat("gem", 4)
+	local dustMat = ns.SocketMat("dust", 4)
+	for _ = 1, ns.Items.SocketCount(locked, "gem") do ns.Items.AddSocket(locked, "gem", gemMat) end
+	ns.Items.AddSocket(locked, "ench", dustMat)
+	local gems, ench = {}, locked.e[1]
+	for i, e in ipairs(locked.g) do gems[i] = e end
+	local small = ns.Items.New("chest", 100, 5) -- 전설: gem sockets, an enchant socket, no inscription
+	ns.Items.AddToBag(small)
+	ns.Items.AddSocket(small, "gem", gemMat)
+	local ownGem = small.g[1]
+	local plan = Up.SocketPlan(locked, small)
+	local room = ns.Items.SocketCount(small, "gem") - 1
+	check(plan.gem and plan.gem.moved == math.min(#gems, room) and plan.gem.lost == #gems - plan.gem.moved
+		and plan.ench and plan.ench.moved == 1 and plan.ench.lost == 0, "the plan: as many as there is room for")
+	check(Up.Move(locked, small), "계승 with sockets")
+	local same = small.g[1] == ownGem
+	for i = 1, plan.gem.moved do same = same and small.g[1 + i] == gems[i] end
+	check(same and #small.g == 1 + plan.gem.moved and plan.gem.lost > 0, "the gems moved into the free sockets, its own kept, the one without room lost")
+	check(small.e and small.e[1] == ench and #small.e == 1, "the enchant moved along")
 	db.prog[1], db.prog[2], db.prog[3], db.prog[4] = savedProg[1], savedProg[2], savedProg[3], savedProg[4]
 	db.gold, db.bag = savedGold, savedBag
 end

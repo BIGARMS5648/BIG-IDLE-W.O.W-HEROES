@@ -4,7 +4,7 @@
 -- up to +10, then lower and lower, 10% for the last. Opens with 신화+, once 신화 is cleared to
 -- its end. An item's steps can be moved onto another piece of the same slot
 -- (계승): 70% of what they are worth in gold becomes steps on the new piece,
--- and the old piece is used up.
+-- what is set in its sockets moves along, and the old piece is used up.
 -- Stored on the item as it.up (nil = +0).
 local _, ns = ...
 
@@ -123,19 +123,20 @@ function Upgrade.CanMove(from, to)
 	if not from or not to or from == to then return false, "계승할 장비가 없습니다." end
 	if from.s ~= to.s then return false, "같은 부위의 장비끼리만 계승할 수 있습니다." end
 	if Upgrade.Level(from) == 0 then return false, "계승할 강화 단계가 없습니다." end
+	if from.lock then return false, "보호한 장비는 계승에 쓰지 않습니다." end
 	if not reachable(from) or not reachable(to) then return false, "착용한 장비나 가방의 장비만 계승할 수 있습니다." end
 	if Upgrade.MoveResult(from, to) <= Upgrade.Level(to) then return false, "계승해도 강화 단계가 오르지 않습니다." end
 	return true
 end
 
--- The piece of the same slot (worn by any hero or in the bag) whose steps
--- would take `to` the highest, the one worth less on a tie; nil when none
--- would raise it.
+-- The piece of the same slot (worn by any hero or in the bag, not a
+-- protected one) whose steps would take `to` the highest, the one worth less
+-- on a tie; nil when none would raise it.
 function Upgrade.SourceFor(to)
 	if not to then return nil end
 	local best, bestN, bestWorth
 	local function consider(it)
-		if it ~= to and it.s == to.s and Upgrade.Level(it) > 0 then
+		if it ~= to and it.s == to.s and Upgrade.Level(it) > 0 and not it.lock then
 			local n, w = Upgrade.MoveResult(it, to), Upgrade.Worth(it)
 			if n > Upgrade.Level(to) and (not best or n > bestN or (n == bestN and w < bestWorth)) then
 				best, bestN, bestWorth = it, n, w
@@ -149,13 +150,36 @@ function Upgrade.SourceFor(to)
 	return best
 end
 
--- Moves the steps; the old piece is gone (with whatever was socketed in it).
--- When it was worn and the new piece was in the bag, the new piece takes its
--- place on that hero if the hero can wear it. Returns true and the new step.
+-- What is set in the old piece's sockets goes into the new piece's free
+-- sockets of the same kind, in the order it was set; what finds no free
+-- socket is lost with the old piece. Per kind the old piece has something
+-- in: { moved = n, lost = n }.
+function Upgrade.SocketPlan(from, to)
+	local plan = {}
+	for _, kind in ipairs(ns.SOCKET_KINDS) do
+		local l = ns.Items.SocketList(from, kind)
+		if l and #l > 0 then
+			local n = min(#l, max(0, ns.Items.FreeSockets(to, kind)))
+			plan[kind] = { moved = n, lost = #l - n }
+		end
+	end
+	return plan
+end
+
+-- Moves the steps and what is set in the sockets (Upgrade.SocketPlan); the
+-- old piece is gone. When it was worn and the new piece was in the bag, the
+-- new piece takes its place on that hero if the hero can wear it. Returns
+-- true and the new step.
 function Upgrade.Move(from, to)
 	local ok, why = Upgrade.CanMove(from, to)
 	if not ok then return false, why end
 	local n = Upgrade.MoveResult(from, to)
+	for kind, p in pairs(Upgrade.SocketPlan(from, to)) do
+		if p.moved > 0 then
+			local src, dst = ns.Items.SocketList(from, kind), ns.Items.SocketList(to, kind, true)
+			for i = 1, p.moved do dst[#dst + 1] = src[i] end
+		end
+	end
 	local db = ns.db
 	local fromHero, toHero = ns.Items.Wearer(from), ns.Items.Wearer(to)
 	if fromHero then
