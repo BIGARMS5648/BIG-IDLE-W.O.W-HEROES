@@ -416,13 +416,19 @@ do
 	click("hero in the strip", function(b) return b.heroId == id end)
 	if Main.SelectedHero() ~= id then fail("the strip on top should choose the hero") end
 	if ep.tab ~= "bag" or not ep.bodies.bag:IsVisible() then fail("the equipment screen should open on the bag") end
-	-- chests waiting do not put a red dot on the 가방 tab
+	-- chests waiting put no red dot on the 가방 tab nor on the 장비 menu
 	do
-		local savedChests = ns.db.chests
-		ns.db.chests = { { t = 1, l = 5, d = 1 } }
+		local savedChests, savedBag = ns.db.chests, ns.db.bag
+		ns.db.chests = { { t = 1, l = 5, d = 1 }, { t = 2, l = 5, d = 1 } }
+		ns.db.bag = {}
+		ns.Fire("BAG")
+		ns.Fire("CHESTS")
 		Main.Refresh()
 		local bagTab = ep.tabs:Get("bag")
 		if ns.Forge.Unlocked("smelt") and bagTab.badge and bagTab.badge:IsShown() then fail("chests should not mark the 가방 tab") end
+		if ns.Forge.Unlocked("smelt") and ns.Guide.Badges().equip then fail("chests should not put a red dot on the 장비 menu") end
+		ns.db.bag = savedBag
+		ns.Fire("BAG")
 		ns.db.chests = savedChests
 		Main.Refresh()
 	end

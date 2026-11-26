@@ -241,10 +241,9 @@ local function computeBadges()
 		if ns.Heroes.PointsFree(id) + ns.Heroes.SkillPointsFree(id) > 0 then n = n + 1 end
 	end
 	if n > 0 then b.hero = n elseif create then b.hero = true end
-	-- equipment: chests waiting, a better item for the party
-	local chests = ns.Loot.Count()
-	if chests > 0 then b.equip = chests end
-	if not b.equip and next(Guide.UpgradeHeroes()) then b.equip = true end
+	-- equipment: a better item for the party (chests waiting are opened on
+	-- the battle window: no dot for them)
+	if next(Guide.UpgradeHeroes()) then b.equip = true end
 	-- forge: a function that can be unlocked now (분해 is unlocked under the bag)
 	for _, op in ipairs(ns.FORGE_OPS) do
 		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and ns.CanAfford(op.cost) and Guide.UnlockUseful(op.key) then
