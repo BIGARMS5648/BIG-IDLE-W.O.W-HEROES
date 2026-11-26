@@ -999,7 +999,7 @@ function UI.IconButton(parent, size, onClick)
 	b.upArrow = CreateFrame("Frame", nil, b)
 	b.upArrow.isBadge = true
 	b.upArrow:SetFrameLevel(b:GetFrameLevel() + 6)
-	b.upArrow:SetSize(floor(size * 0.36 + 0.5), floor(size * 0.36 + 0.5))
+	b.upArrow:SetSize(floor(size * 0.44 + 0.5), floor(size * 0.44 + 0.5))
 	b.upArrow:SetPoint("TOPRIGHT", b, "TOPRIGHT", 2, 2)
 	b.upArrow.tex = b.upArrow:CreateTexture(nil, "OVERLAY")
 	b.upArrow.tex:SetTexture(UI.ArtPath("icon_upgrade"))

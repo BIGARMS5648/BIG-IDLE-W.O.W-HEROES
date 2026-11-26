@@ -238,4 +238,5 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - The start rune has a silver border, and the battle window's boss skull is
   drawn darker while it waits; on the boss's turn it pulses at full
   brightness.
+- A new, slightly bigger green arrow marks better gear on item slots.
 ```

@@ -14,7 +14,7 @@ for _, id in ipairs({
 	"icon_hero", "icon_bag", "icon_forge", "icon_party", "icon_runes", "icon_map", "icon_pets", "icon_settings",
 	"forge_fuse", "forge_craft", "forge_gem", "forge_ench", "forge_insc", "forge_up", "forge_smelt", "forge_mats",
 	"icon_lock", "icon_star", "icon_skull", "icon_crown",
-	-- item slots (tools/cut_marks.py, painted): the better-gear arrow
+	-- item slots (tools/cut_icon.py from tools/art/upgrade_arrow.png, painted): the better-gear arrow
 	"icon_upgrade",
 	-- the faction picker's crests (tools/cut_faction_logos.py, painted)
 	"icon_alliance", "icon_horde",
