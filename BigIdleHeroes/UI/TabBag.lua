@@ -354,6 +354,7 @@ function BagView.Refresh(page)
 		page.smeltGo:SetLabel(label)
 		page.smeltGo:SetOff(off)
 	end
+	page.smeltGo:SetBadge(not unlocked and ns.Guide.CanUnlock("smelt"))
 	page.autoSmelt:Refresh()
 	page.keepBench:Refresh()
 	for _, w in ipairs({ page.smeltLabel, page.smeltPick, page.smeltGo, page.autoSmelt, page.keepBench }) do w:SetShown(not bank) end
@@ -545,6 +546,7 @@ function MatsView.Refresh(page)
 				r.smelt:SetStyle(style)
 				r.smelt:SetOff(off)
 			end
+			r.smelt:SetBadge(not smelt and ns.Guide.CanUnlock("smelt"))
 			local seal = sealIndex(id)
 			r.roll:SetShown(seal ~= nil)
 			r.one:SetShown(seal == nil and not top)
@@ -552,6 +554,7 @@ function MatsView.Refresh(page)
 			if seal then
 				local s = ns.SEAL[seal]
 				r.sub:SetText("굴리면 장비 1개 · 비용 " .. U.fmt(s.gold) .. " G")
+				r.roll:SetBadge(ns.Guide.CanUnlock("seal"))
 				if ns.Forge.Unlocked("seal") then
 					local full = ns.Items.BagFree() <= 0
 					r.roll:SetStyle("primary")

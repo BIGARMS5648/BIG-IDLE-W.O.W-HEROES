@@ -54,6 +54,7 @@ local function click(what, pred, mouse)
 end
 
 local function label(b) return b.label and b.label.__text end
+local function dotOn(b) return b.badge ~= nil and b.badge:IsShown() end
 local function labelIs(ko, en) return function(b) return label(b) == (ko) end end
 
 math.randomseed(777)
@@ -498,10 +499,14 @@ do
 	ns.db.forge.ops.smelt = nil
 	Main.Refresh()
 	if not (label(ep.smeltGo) or ""):find("분해 해금", 1, true) then fail("a locked 분해 should offer to unlock it, got " .. tostring(label(ep.smeltGo))) end
+	-- an unlock button that can unlock now has the red dot
+	if not ns.Guide.CanUnlock("smelt") or not dotOn(ep.smeltGo) then fail("[분해 해금] should have the red dot when it can unlock now") end
 	press("unlock 분해", ep.smeltGo)
 	if ns.Forge.Unlocked("smelt") then fail("unlocking must ask first") end
 	confirmYes("unlock 분해")
 	if not ns.Forge.Unlocked("smelt") then fail("[분해 해금] should unlock breaking down") end
+	Main.Refresh()
+	if dotOn(ep.smeltGo) then fail("the 분해 button has no red dot once unlocked") end
 	-- break down by grade, or by itself
 	press("grade list", ep.smeltPick)
 	click("grade 3", function(b) return b.value == 3 and b.label end)
@@ -612,9 +617,12 @@ do
 		fail("a seal row should have a roll button")
 	else
 		if not (label(s.roll) or ""):find("해금", 1, true) then fail("a locked roll should offer to unlock it, got " .. tostring(label(s.roll))) end
+		if dotOn(s.roll) ~= ns.Guide.CanUnlock("seal") then fail("[굴리기 해금] should have the red dot exactly when it can unlock now") end
 		press("unlock the roll", s.roll)
 		confirmYes("unlock the roll")
 		if not ns.Forge.Unlocked("seal") then fail("the roll button should unlock 인장 굴리기") end
+		Main.Refresh()
+		if dotOn(s.roll) then fail("the roll button has no red dot once unlocked") end
 		local before = #ns.db.bag
 		press("roll", s.roll)
 		if #ns.db.bag ~= before + 1 then fail("rolling a seal should add one item") end
@@ -670,6 +678,21 @@ do
 	local cp = ep.forge.craft
 	press("tier 2", cp.tiers[2])
 	if cp.tier ~= 2 then fail("clicking a crafting tier should choose it") end
+	-- each tier's unlock button has the red dot when it can unlock now (tier
+	-- 2 locked again, with the forge level and the gold for it)
+	local had2, hadLvl, hadGold = ns.db.forge.craft[2], ns.db.forge.level, ns.db.gold
+	ns.db.forge.craft[2] = nil
+	ns.db.forge.level = math.max(hadLvl, ns.CRAFT_TIERS[2].forge)
+	ns.db.gold = math.max(hadGold, ns.CRAFT_TIERS[2].gold * 5)
+	Main.Refresh()
+	for i = 1, #cp.tiers do
+		press("tier " .. i, cp.tiers[i])
+		local t = ns.CRAFT_TIERS[i]
+		local can = not ns.Forge.CraftTierUnlocked(i) and ns.db.forge.level >= t.forge and ns.CanAfford(t.gold * 5)
+		if dotOn(cp.go) ~= (can and true or false) then fail("tier " .. i .. "'s button: the red dot should show exactly when it can unlock now") end
+		if i == 2 and not can then fail("the test should have tier 2 ready to unlock") end
+	end
+	ns.db.forge.craft[2], ns.db.forge.level, ns.db.gold = had2, hadLvl, hadGold
 	press("tier 1", cp.tiers[1])
 	for _, mid in ipairs(ns.MAT_ORDER) do ns.AddMat(mid, 30) end
 	Main.Refresh()
@@ -736,6 +759,7 @@ do
 	ns.db.forge.ops.remove = nil
 	Main.Refresh()
 	if not (label(gp.card.rows[1].remove) or ""):find("추출 해금", 1, true) then fail("a locked 추출 should offer to unlock it") end
+	if dotOn(gp.card.rows[1].remove) ~= ns.Guide.CanUnlock("remove") then fail("[추출 해금] should have the red dot exactly when it can unlock now") end
 	press("unlock 추출", gp.card.rows[1].remove)
 	confirmYes("unlock 추출")
 	if not F.Unlocked("remove") then fail("the socket line should unlock 추출") end
@@ -746,6 +770,7 @@ do
 	ns.db.forge.ops.insc = nil
 	press("locked tab", ep.tabs:Get("insc"))
 	if not ep.bodies.locked:IsVisible() then fail("a locked forge tab should show how to unlock it") end
+	if dotOn(ep.lockView.go) ~= ns.Guide.CanUnlock("insc") then fail("[해금하기] should have the red dot exactly when it can unlock now") end
 	press("unlock", ep.lockView.go)
 	confirmYes("unlock")
 	if not F.Unlocked("insc") then fail("해금하기 should unlock the function") end

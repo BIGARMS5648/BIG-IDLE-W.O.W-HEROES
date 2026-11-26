@@ -153,7 +153,7 @@ local function refreshLeft(page)
 		page.tabs:SetLocked(d.key, not open)
 		-- a red dot: a function that can be unlocked now
 		local op = d.op and ns.Forge.OpDef(d.op)
-		page.tabs:SetBadge(d.key, not open and op and f.level >= op.level and ns.CanAfford(op.cost) and ns.Guide.UnlockUseful(d.op) or false)
+		page.tabs:SetBadge(d.key, not open and op and ns.Guide.CanUnlock(d.op) or false)
 	end
 	-- 인장 굴리기 is on the materials' seal tab
 	local sl = ns.Forge.OpDef("seal")

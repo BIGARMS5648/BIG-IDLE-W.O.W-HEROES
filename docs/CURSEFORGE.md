@@ -216,4 +216,6 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - The Alliance start button on the faction picker is the Alliance's blue.
 - Hovering a bag item on the equipment screen also shows, beside it, the
   item the chosen hero wears in that slot.
+- Unlock buttons (breaking down, forge functions, crafting tiers, seal rolls,
+  extraction) carry the red dot when they can be unlocked right now.
 ```

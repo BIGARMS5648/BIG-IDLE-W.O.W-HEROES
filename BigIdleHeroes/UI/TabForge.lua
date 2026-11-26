@@ -349,6 +349,7 @@ local function buildCraft(page, f)
 		p.odds:SetText("결과: " .. qualityOdds(t.q, " · "))
 		p.result:Refresh()
 		p.why:SetText("")
+		p.go:SetBadge(not open and ns.db.forge.level >= t.forge and ns.CanAfford(t.gold * 5))
 		if open then
 			local okc, whyc = ns.Forge.CanCraft(p.group, p.tier)
 			p.go:SetLabel("제작하기")
@@ -421,9 +422,9 @@ local function buildSocket(kind)
 			r.socket:SetPoint("TOPLEFT", c, "TOPLEFT", 12, y)
 			r.text = UI.Text(c, 12)
 			r.text:SetPoint("TOPLEFT", c, "TOPLEFT", 46, y - 6)
-			r.text:SetWidth(W - 46 - 130)
+			r.text:SetWidth(W - 46 - 142)
 			r.text:SetWordWrap(false)
-			r.remove = UI.Button(c, 112, 26, "", function()
+			r.remove = UI.Button(c, 124, 26, "", function()
 				local it = p.picked
 				local l = it and ns.Items.SocketList(it, kind)
 				local e = l and l[i]
@@ -574,6 +575,7 @@ local function buildSocket(kind)
 					if e then
 						r.socket:Set(kind, ns.Items.SocketIcon(kind, e[3], e[4]))
 						r.text:SetText(U.col("66ccff", ns.Items.SocketText(it, kind, e)))
+						r.remove:SetBadge(ns.Guide.CanUnlock("remove"))
 						if ns.Forge.Unlocked("remove") then
 							r.remove:SetStyle("red")
 							r.remove:SetLabel("추출 " .. U.fmt(ns.Forge.RemoveCost(kind, e[3])) .. " G")
@@ -1247,6 +1249,7 @@ local function buildLocked(page, f)
 			return
 		end
 		p.go:Show()
+		p.go:SetBadge(ns.Guide.CanUnlock(op))
 		local d = ns.Forge.OpDef(op)
 		local lvl = ns.db.forge.level
 		local okLevel = lvl >= d.level

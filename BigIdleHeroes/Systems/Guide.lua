@@ -66,6 +66,14 @@ function Guide.UnlockUseful(op)
 	return true
 end
 
+-- A forge function that can be unlocked right now and is worth it: the red
+-- dot on its menu, its list row and its unlock buttons
+function Guide.CanUnlock(op)
+	local d = ns.Forge.OpDef(op)
+	return d and not ns.Forge.Unlocked(op) and ns.db.forge.level >= d.level and ns.CanAfford(d.cost)
+		and Guide.UnlockUseful(op) or false
+end
+
 -- Talent or skill points to spend (the hero screen's red dots); better gear
 -- shows on the equipment screen instead.
 function Guide.HeroNeeds(id)
@@ -273,7 +281,7 @@ local function computeBadges()
 	if next(Guide.UpgradeHeroes()) then b.equip = true end
 	-- forge: a function that can be unlocked now (분해 is unlocked under the bag)
 	for _, op in ipairs(ns.FORGE_OPS) do
-		if not ns.Forge.Unlocked(op.key) and db.forge.level >= op.level and ns.CanAfford(op.cost) and Guide.UnlockUseful(op.key) then
+		if Guide.CanUnlock(op.key) then
 			if op.key == "smelt" then b.equip = b.equip or true else b.forge = true end
 		end
 	end
