@@ -616,44 +616,154 @@ local function buildSocket(kind)
 end
 
 ------------------------------------------------------------------------
--- 강화: the chosen piece's step, what the next one gives (its base stats
--- now and after), its chance and cost; 계승 from a piece of the same slot
+-- 강화: two cards. Left: the chosen piece, its step bar (+0 .. +20) and what
+-- the next step gives (the bonus and up to four base stats now → after).
+-- Right: the piece now » after the next step (icons), the chance large, the cost,
+-- the average tries, [강화하기]. Under both, 계승 from a piece of the same
+-- slot.
 ------------------------------------------------------------------------
+local UP_GREEN, UP_YELLOW, UP_RED = "60e070", "ffd24a", "ff6a5a"
+local function chanceHex(c)
+	if c >= 0.6 then return UP_GREEN elseif c >= 0.3 then return UP_YELLOW end
+	return UP_RED
+end
 local function buildUpgrade(page, f)
 	local p = {}
 	local Up = ns.Upgrade
-	local c = UI.Panel(f, W, 270, "card")
-	c:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
-	p.card = c
-	c.isRow = true -- the 계승 button on its line
-	c.icon = UI.IconButton(c, 44)
-	c.icon:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -12)
-	UI.Tip(c.icon, function(self) return self.data and ns.Items.Tooltip(self.data, Main.SelectedHero()) or nil end)
-	c.name = UI.Text(c, 14)
-	c.name:SetPoint("TOPLEFT", c, "TOPLEFT", 66, -14)
-	c.name:SetWidth(W - 80)
-	c.name:SetWordWrap(false)
-	c.sub = UI.Text(c, 11)
-	c.sub:SetPoint("TOPLEFT", c, "TOPLEFT", 66, -36)
-	c.sub:SetWidth(W - 80)
-	c.sub:SetWordWrap(false)
-	UI.Color(c.sub, UI.C.sub)
-	-- the bonus, up to four base stats now → after, the chance, the cost
-	c.lines = {}
-	for i = 1, 7 do
-		local l = UI.Text(c, 12)
-		l:SetPoint("TOPLEFT", c, "TOPLEFT", 12, -68 - (i - 1) * 21)
-		l:SetWidth(W - 24)
-		l:SetWordWrap(false)
-		c.lines[i] = l
+	local CW = floor((W - 10) / 2)
+	local function pct(k) return floor((Up.Bonus(k) - 1) * 100 + 0.5) end
+	-- an item button showing the piece at step `step` (its tooltip too)
+	local function pieceIcon(parent, size)
+		local b = UI.IconButton(parent, size)
+		UI.Tip(b, function(self)
+			local it = self.data
+			if not it then return nil end
+			local was = it.up
+			it.up = (self.step or 0) > 0 and self.step or nil
+			local lines = ns.Items.Tooltip(it, Main.SelectedHero())
+			it.up = was
+			return lines
+		end)
+		function b:Show2(it, step)
+			self:Clear()
+			self.data, self.step = it, step
+			self:SetIconName(ns.Items.Icon(it))
+			self:SetQuality(it.q)
+			local was = it.up
+			it.up = step > 0 and step or nil
+			self:SetItemMarks(it)
+			it.up = was
+		end
+		return b
 	end
+	-- a name on the left, its value on the right
+	local function row(parent, y, w)
+		local l = UI.Text(parent, 12)
+		l:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, y)
+		l:SetWidth(floor(w * 0.45))
+		l:SetWordWrap(false)
+		UI.Color(l, UI.C.sub)
+		local r = UI.Text(parent, 12)
+		r:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -12, y)
+		r:SetWidth(floor(w * 0.55))
+		r:SetJustifyH("RIGHT")
+		r:SetWordWrap(false)
+		return { l, r }
+	end
+
+	-- the piece
+	local L = UI.Panel(f, CW, 322, "card")
+	L:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+	p.card = L
+	L.icon = pieceIcon(L, 44)
+	L.icon:SetPoint("TOPLEFT", L, "TOPLEFT", 12, -12)
+	L.name = UI.Text(L, 13)
+	L.name:SetPoint("LEFT", L.icon, "RIGHT", 8, 0)
+	L.name:SetWidth(CW - 76)
+	L.name:SetWordWrap(false)
+	L.stepL = UI.Text(L, 11, "강화 단계")
+	L.stepL:SetPoint("TOPLEFT", L, "TOPLEFT", 12, -72)
+	UI.Color(L.stepL, UI.C.sub)
+	L.step = UI.Bar(L, CW - 24, 10, 0.34, 0.6, 1.0)
+	L.step:SetPoint("TOPLEFT", L, "TOPLEFT", 12, -90)
+	L.ticks = {}
+	for i, k in ipairs({ 0, Up.SAFE, Up.MAX }) do
+		local t = UI.Text(L, 10, "+" .. k)
+		UI.Color(t, UI.C.dim)
+		if i == 1 then t:SetPoint("TOPLEFT", L.step, "BOTTOMLEFT", 0, -3)
+		elseif i == 2 then t:SetPoint("TOP", L.step, "BOTTOMLEFT", (CW - 24) * k / Up.MAX, -3)
+		else t:SetPoint("TOPRIGHT", L.step, "BOTTOMRIGHT", 0, -3) end
+		L.ticks[i] = t
+	end
+	L.head = UI.Text(L, 11, "다음 단계에서")
+	L.head:SetPoint("TOPLEFT", L, "TOPLEFT", 12, -124)
+	UI.Color(L.head, UI.C.sub)
+	L.rows = {}
+	for i = 1, 5 do L.rows[i] = row(L, -144 - (i - 1) * 22, CW - 24) end
+	p.empty = UI.Text(f, 12)
+	p.empty:SetPoint("CENTER", L, "CENTER", 0, 0)
+	p.empty:SetWidth(CW - 24)
+	p.empty:SetJustifyH("CENTER")
+	UI.Color(p.empty, UI.C.sub)
+
+	-- the try
+	local R = UI.Panel(f, CW, 322, "card")
+	R:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
+	p.tryCard = R
+	R.head = UI.Text(R, 11, "성공 확률")
+	R.head:SetPoint("TOP", R, "TOP", 0, -14)
+	UI.Color(R.head, UI.C.sub)
+	R.cur = pieceIcon(R, 40)
+	R.cur:SetPoint("TOP", R, "TOP", -50, -34)
+	R.nxt = pieceIcon(R, 40)
+	R.nxt:SetPoint("TOP", R, "TOP", 50, -34)
+	R.arrow = R:CreateTexture(nil, "ARTWORK")
+	R.arrow:SetSize(14, 14)
+	R.arrow:SetPoint("TOP", R, "TOP", 0, -47)
+	UI.SetArrow(R.arrow, "right", 0.75, 0.8, 0.92)
+	R.ch = UI.Text(R, 30)
+	R.ch:SetPoint("TOP", R, "TOP", 0, -96)
+	R.rows = { row(R, -150, CW - 24), row(R, -172, CW - 24) }
+	p.go = UI.Button(R, CW - 24, 36, "강화하기", function()
+		local it = p.picked
+		local ok, success, n = Up.Try(it, p.pickedHero)
+		if UI.Try(ok, success) then
+			if success then
+				p.last, p.lastFor = U.col(UP_GREEN, string.format("성공! +%d", n)), it
+				ForgeView.Log(U.col(UP_GREEN, string.format("강화 성공 +%d", n)) .. " · " .. ns.Items.Name(it))
+			else
+				p.last, p.lastFor = U.col(UP_RED, string.format("실패 · +%d 그대로", n)), it
+				ForgeView.Log(U.col(UP_RED, string.format("강화 실패 +%d", n)) .. " · " .. ns.Items.Name(it))
+			end
+		end
+		Main.Refresh()
+	end, "primary")
+	p.go:SetPoint("BOTTOM", R, "BOTTOM", 0, 12)
+	p.go.clickWhenOff = true
+	-- why it cannot be tried now, or how the last try went
+	p.why = UI.Text(R, 11)
+	p.why:SetPoint("BOTTOM", p.go, "TOP", 0, 8)
+	p.why:SetWidth(CW - 24)
+	p.why:SetJustifyH("CENTER")
+	p.why:SetWordWrap(false)
+	p.why:SetTextColor(1, 0.55, 0.45)
+	p.lastText = UI.Text(R, 12)
+	p.lastText:SetPoint("BOTTOM", p.go, "TOP", 0, 8)
+	p.lastText:SetWidth(CW - 24)
+	p.lastText:SetJustifyH("CENTER")
+	p.lastText:SetWordWrap(false)
+
 	-- 계승: from the piece of the same slot that takes this one the highest
-	c.moveText = UI.Text(c, 11)
-	c.moveText:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 12, 16)
-	c.moveText:SetWidth(W - 24 - 150)
-	c.moveText:SetWordWrap(false)
-	UI.Color(c.moveText, UI.C.sub)
-	c.move = UI.Button(c, 136, 26, "계승하기", function()
+	local m = UI.Panel(f, W, 40, "inset")
+	m:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -330)
+	m.isRow = true -- the 계승 button on its line
+	p.move = m
+	m.text = UI.Text(m, 11)
+	m.text:SetPoint("LEFT", m, "LEFT", 12, 0)
+	m.text:SetWidth(W - 24 - 130)
+	m.text:SetWordWrap(false)
+	UI.Color(m.text, UI.C.sub)
+	m.btn = UI.Button(m, 120, 26, "계승하기", function()
 		local to = p.picked
 		local from = Up.SourceFor(to)
 		local ok, why = Up.CanMove(from, to)
@@ -667,78 +777,40 @@ local function buildUpgrade(page, f)
 			onOk = function()
 				local done, n = Up.Move(from, to)
 				if UI.Try(done, n) then
-					p.last, p.lastFor = U.col("60e070", string.format("계승: +%d", n)), to
-					ForgeView.Log(U.col("60e070", string.format("계승 +%d", n)) .. " · " .. ns.Items.Name(to))
+					p.last, p.lastFor = U.col(UP_GREEN, string.format("계승: +%d", n)), to
+					ForgeView.Log(U.col(UP_GREEN, string.format("계승 +%d", n)) .. " · " .. ns.Items.Name(to))
 				end
 				Main.Refresh()
 			end })
 	end, "dark")
-	c.move:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", -12, 10)
-	c.move.clickWhenOff = true
-	p.empty = UI.Text(c, 12)
-	p.empty:SetPoint("CENTER", c, "CENTER", 0, 0)
-	p.empty:SetWidth(W - 40)
-	p.empty:SetJustifyH("CENTER")
-	UI.Color(p.empty, UI.C.sub)
-	p.rule = note(f, -288, string.format("장비는 +0에서 시작합니다. +%d까지는 성공 확률이 %d%%이고, 그 뒤로는 단계가 오를수록 낮아집니다. 실패하면 쓴 골드만 사라지고 장비와 강화 단계는 그대로입니다. 강화는 기본 능력치를 올립니다. 강화한 장비는 자동 분해·융합에 쓰이지 않습니다. 같은 부위 장비의 강화를 계승하면, 그 강화에 드는 골드의 %d%%만큼 이 장비의 강화 단계가 오르고 원래 장비는 사라집니다.", Up.SAFE, floor(Up.LOW * 100 + 0.5), floor(Up.KEEP * 100 + 0.5)))
-	p.go = UI.Button(f, 220, 36, "강화하기", function()
-		local it = p.picked
-		local ok, success, n = Up.Try(it, p.pickedHero)
-		if UI.Try(ok, success) then
-			if success then
-				p.last, p.lastFor = U.col("60e070", string.format("성공! +%d", n)), it
-				ForgeView.Log(U.col("60e070", string.format("강화 성공 +%d", n)) .. " · " .. ns.Items.Name(it))
-			else
-				p.last, p.lastFor = U.col("ff6a5a", string.format("실패 · +%d 그대로", n)), it
-				ForgeView.Log(U.col("ff6a5a", string.format("강화 실패 +%d", n)) .. " · " .. ns.Items.Name(it))
-			end
-		end
-		Main.Refresh()
-	end, "primary")
-	p.go:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
-	p.go.clickWhenOff = true
-	p.why = UI.Text(f, 11)
-	p.why:SetPoint("LEFT", p.go, "RIGHT", 12, 6)
-	p.why:SetWidth(W - 240)
-	p.why:SetWordWrap(false)
-	p.why:SetTextColor(1, 0.55, 0.45)
-	p.lastText = UI.Text(f, 12)
-	p.lastText:SetPoint("LEFT", p.go, "RIGHT", 12, -9)
-	p.lastText:SetWidth(W - 240)
-	p.lastText:SetWordWrap(false)
+	m.btn:SetPoint("RIGHT", m, "RIGHT", -8, 0)
+	m.btn.clickWhenOff = true
+
+	local parts = { L.icon, L.name, L.stepL, L.step, L.head, R.head, R.cur, R.nxt, R.arrow, R.ch, m }
+	for _, t in ipairs(L.ticks) do parts[#parts + 1] = t end
+	for _, r in ipairs(L.rows) do parts[#parts + 1] = r[1] parts[#parts + 1] = r[2] end
+	for _, r in ipairs(R.rows) do parts[#parts + 1] = r[1] parts[#parts + 1] = r[2] end
 	p.accepts = function(it) return it ~= nil end
 	p.refresh = function()
 		local t, th = ForgeView.Target()
 		p.picked, p.pickedHero = t, th
 		local it = p.picked
 		p.empty:SetShown(it == nil)
-		for _, w in ipairs({ c.icon, c.name, c.sub, c.moveText, c.move }) do w:SetShown(it ~= nil) end
-		for _, l in ipairs(c.lines) do l:SetShown(it ~= nil) end
-		-- the last result, while its piece is the one picked
-		p.lastText:SetText(it ~= nil and p.lastFor == it and p.last or "")
+		for _, w in ipairs(parts) do w:SetShown(it ~= nil) end
 		if not it then
 			p.empty:SetText("오른쪽에서 강화할 장비를 고르세요.")
 			p.go:SetLabel("강화하기")
 			p.go:SetOff(true)
 			p.why:SetText("")
+			p.lastText:SetText("")
 			return
 		end
 		local n = Up.Level(it)
-		local q = ns.QUALITY[it.q]
-		c.icon:Clear()
-		c.icon.data = it
-		c.icon:SetIconName(ns.Items.Icon(it))
-		c.icon:SetQuality(it.q)
-		c.icon:SetItemMarks(it)
-		c.name:SetText(ns.QText(it.q, (n > 0 and ("+" .. n .. " ") or "") .. ns.Items.Name(it)))
-		local wearer = ns.Items.Wearer(it)
-		c.sub:SetText(string.format("강화 +%d / +%d  ·  %s", n, Up.MAX, wearer and (ns.Heroes.ShortName(wearer) .. " 착용 중") or "가방"))
-		local function pct(k) return floor((Up.Bonus(k) - 1) * 100 + 0.5) end
-		for _, l in ipairs(c.lines) do l:SetText("") end
 		local top = n >= Up.MAX
-		c.lines[1]:SetText(top and string.format("기본 능력치 +%d%% (최고 단계)", pct(n))
-			or string.format("기본 능력치 +%d%%  →  %s", pct(n), U.col("60e070", "+" .. pct(n + 1) .. "%")))
-		-- the base stats now and after the next step
+		L.icon:Show2(it, n)
+		L.name:SetText(ns.QText(it.q, (n > 0 and ("+" .. n .. " ") or "") .. ns.Items.Name(it)))
+		L.step:SetValue(n / Up.MAX)
+		-- the bonus and the base stats now → after the next step
 		local now = ns.Items.BaseStats(it)
 		local after = {}
 		if not top then
@@ -747,32 +819,59 @@ local function buildUpgrade(page, f)
 			after = ns.Items.BaseStats(it)
 			it.up = was
 		end
+		local lines = { { "기본 능력치", "+" .. pct(n) .. "%" .. (top and "" or ("  →  " .. U.col(UP_GREEN, "+" .. pct(n + 1) .. "%"))) } }
 		for i = 1, min(4, #now) do
-			local key, v = now[i][1], now[i][2]
-			local line = ns.Stats.ModText(key, v)
-			if after[i] then line = line .. "  →  " .. U.col("60e070", ns.Stats.ModText(key, after[i][2])) end
-			c.lines[1 + i]:SetText(line)
+			local key = now[i][1]
+			local text = ns.Stats.ModText(key, now[i][2])
+			local num, name = text:match("^%+?([%d,%.%%]+)%s+(.+)$")
+			local value = num or text
+			if after[i] then
+				local num2 = ns.Stats.ModText(key, after[i][2]):match("^%+?([%d,%.%%]+)")
+				value = value .. "  →  " .. U.col(UP_GREEN, num2 or "")
+			end
+			lines[#lines + 1] = { name or "", value }
 		end
-		local nl = 2 + min(4, #now)
-		if not top then
-			local chance = Up.Chance(n)
-			c.lines[nl]:SetText(string.format("성공 확률 %s     비용 %s G",
-				U.col(chance >= 1 and "60e070" or (chance >= 0.5 and "ffd24a" or "ff9a5a"), U.num(chance * 100, 0) .. "%"),
-				U.col(ns.CanAfford(Up.Cost(it, n)) and "ffd24a" or "ff6a5a", U.fmt(Up.Cost(it, n)))))
+		for i, r in ipairs(L.rows) do
+			r[1]:SetText(lines[i] and lines[i][1] or "")
+			r[2]:SetText(lines[i] and lines[i][2] or "")
 		end
-		local from = Up.SourceFor(it)
-		if from then
-			c.moveText:SetText(string.format("계승: %s +%d  →  이 장비 %s",
-				ns.Items.Name(from), Up.Level(from), U.col("60e070", "+" .. Up.MoveResult(from, it))))
-			c.move:SetOff(not Up.CanMove(from, it))
+		L.head:SetText(top and "최고 단계" or "다음 단계에서")
+		-- the try
+		R.cur:Show2(it, n)
+		R.nxt:SetShown(not top)
+		R.arrow:SetShown(not top)
+		if top then
+			R.ch:SetText(U.col(UP_GREEN, "최고 단계"))
+			R.rows[1][1]:SetText("")
+			R.rows[1][2]:SetText("")
+			R.rows[2][1]:SetText("")
+			R.rows[2][2]:SetText("")
 		else
-			c.moveText:SetText("계승: 같은 부위에 계승할 강화 장비가 없습니다.")
-			c.move:SetOff(true)
+			R.nxt:Show2(it, n + 1)
+			local chance = Up.Chance(n)
+			R.ch:SetText(U.col(chanceHex(chance), U.num(chance * 100, 0) .. "%"))
+			R.rows[1][1]:SetText("비용")
+			R.rows[1][2]:SetText(U.col(ns.CanAfford(Up.Cost(it, n)) and UP_YELLOW or UP_RED, U.fmt(Up.Cost(it, n)) .. " G"))
+			R.rows[2][1]:SetText("성공까지 평균 시도")
+			R.rows[2][2]:SetText(string.format("%.1f회", 1 / chance))
 		end
 		local why = Up.Why(it)
 		p.go:SetLabel(top and "최고 단계" or ("강화하기  " .. U.fmt(Up.Cost(it, n)) .. " G"))
 		p.go:SetOff(why ~= nil)
-		p.why:SetText(why or "")
+		-- the last result while its piece is the one picked, else why not
+		local last = p.lastFor == it and p.last or nil
+		p.lastText:SetText(last or "")
+		p.why:SetText((not last and not top) and (why or "") or "")
+		-- 계승
+		local from = Up.SourceFor(it)
+		if from then
+			m.text:SetText(string.format("계승: %s +%d  →  이 장비 %s",
+				ns.Items.Name(from), Up.Level(from), U.col(UP_GREEN, "+" .. Up.MoveResult(from, it))))
+			m.btn:SetOff(not Up.CanMove(from, it))
+		else
+			m.text:SetText("계승: 같은 부위에 계승할 강화 장비가 없습니다.")
+			m.btn:SetOff(true)
+		end
 	end
 	return p
 end

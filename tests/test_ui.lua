@@ -790,8 +790,8 @@ do
 	click("inherit target", function(b) return b.data == other end)
 	if up.picked ~= other then fail("the second piece should be chosen") end
 	local want = ns.Upgrade.MoveResult(epic, other)
-	if not (up.card.moveText.__text or ""):find("+" .. want, 1, true) then fail("the 계승 line should say the step it gives: " .. tostring(up.card.moveText.__text)) end
-	press("inherit", up.card.move)
+	if not (up.move.text.__text or ""):find("+" .. want, 1, true) then fail("the 계승 line should say the step it gives: " .. tostring(up.move.text.__text)) end
+	press("inherit", up.move.btn)
 	confirmYes("inherit")
 	if (other.up or 0) ~= want or want < 1 or ns.Items.IndexInBag(epic) or ns.Items.Wearer(epic) then
 		fail("계승 should give the new piece +" .. want .. " and use up the old one: " .. tostring(other.up))

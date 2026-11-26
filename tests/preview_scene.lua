@@ -387,7 +387,7 @@ local function upMove()
 	return p
 end
 S.up_move = function() upMove() end
-S.up_move_confirm = function() local p = upMove() p.forge.up.card.move:Click() end
+S.up_move_confirm = function() local p = upMove() p.forge.up.move.btn:Click() end
 S.mats = function() local p = forge("mats") p.matTab = "mat_craft" ns.Main.Refresh() end
 S.mats_gem = function() local p = forge("mats") p.matTab = "mat_gem" ns.Main.Refresh() end
 S.mats_seal = function() local p = forge("mats") p.matTab = "mat_seal" ns.Main.Refresh() end
