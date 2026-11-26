@@ -747,5 +747,60 @@ do -- a monster walking in swings once, not twice at once
 	L.endLab()
 end
 
+do -- an ailment's damage over time goes through the target's resistance once
+	-- (from the blow as it came, each tick through the resistance)
+	local u, log = lab({ heroes = { { spec = "WARRIOR_PROT", stats = { hp = 1e12, res_fire = 50 } } }, hp = 1e12, atk = 1000,
+		mob = { school = "fire", status = { "ignite", 1 }, aspd = 1 }, seconds = 3 })
+	local first, hitIn
+	for _, e in ipairs(log.status) do if e.kind == "ignite" and e.tgt == u[1] then first = e break end end
+	for _, e in ipairs(log.hero) do if e.h == u[1] and not e.dot then hitIn = e break end end
+	local ticks = {}
+	for _, e in ipairs(log.hero) do if e.h == u[1] and e.dot and e.school == "fire" then ticks[#ticks + 1] = e end end
+	local want = hitIn and hitIn.a * ns.STATUS.ignite.power / 100 * 0.1 * 0.5
+	local tickOut = ticks[1] and ticks[1].out
+	check(first and hitIn and near(first.hit, hitIn.a, 1e-9) and tickOut and near(tickOut, want, 1e-6),
+		"발화(지속 피해)는 화염 저항을 한 번만 받음 (화염 저항 50%)",
+		first and tickOut and (f(tickOut, 3) .. " (저항 한 번이면 " .. f(want, 3) .. ", 두 번이면 " .. f(want * 0.5, 3) .. ")") or "발화가 걸리지 않음")
+	L.endLab()
+end
+do -- a change of max health keeps the share of health (nothing heals for free)
+	local u = lab({ heroes = { { spec = "WARRIOR_PROT", stats = { hp = 100000 } } }, hp = 1e12, atk = 0, seconds = 1 })
+	local me = u[1]
+	me.hp = me.maxhp * 0.5
+	L.OVR[me.id].hp = 200000
+	ns.Fire("STATS")
+	ns.Combat.Step()
+	local up = me.hp / me.maxhp
+	L.OVR[me.id].hp = 100000
+	ns.Fire("STATS")
+	ns.Combat.Step()
+	local down = me.hp / me.maxhp
+	check(me.maxhp == 100000 and near(up, 0.5, 1e-6) and near(down, 0.5, 1e-6),
+		"최대 생명력이 늘거나 줄어도 생명력 비율은 그대로 (50%)", "늘 때 " .. f(up * 100, 1) .. "%, 줄 때 " .. f(down * 100, 1) .. "%")
+	L.endLab()
+end
+do -- a change of party keeps the health, revival time and cooldowns of who stays
+	local u = lab({ heroes = {
+		{ spec = "WARRIOR_PROT", stats = { hp = 100000 } },
+		{ spec = "MAGE_FIRE", skills = { "fireball", "fire_blast" }, stats = { hp = 100000, aspd = 0.01 } },
+		{ spec = "PRIEST_HOLY", stats = { hp = 100000 } } }, hp = 1e12, atk = 0, seconds = 3 })
+	local war, mage, priest = u[1], u[2], u[3]
+	mage.hp = mage.maxhp * 0.3
+	mage.cd.fire_blast = 4.2
+	L.kill(priest)
+	local revive = priest.reviveT
+	ns.Heroes.Withdraw(war.id)
+	local m2, p2
+	for _, x in ipairs(ns.Combat.heroes) do
+		if x.id == mage.id then m2 = x elseif x.id == priest.id then p2 = x end
+	end
+	check(m2 and p2 and #ns.Combat.heroes == 2 and near(m2.hp / m2.maxhp, 0.3, 1e-6) and near(m2.cd.fire_blast, 4.2, 1e-9)
+		and p2.dead and near(p2.reviveT, revive, 1e-9),
+		"편성을 바꿔도 남은 영웅의 생명력 비율 · 부활 시간 · 재사용 대기시간이 그대로",
+		m2 and p2 and ("생명력 " .. f(m2.hp / m2.maxhp * 100, 1) .. "%, 화염 작렬 " .. f(m2.cd.fire_blast, 2) .. "초, 사제 "
+			.. (p2.dead and ("부활까지 " .. f(p2.reviveT, 2) .. "초") or "살아남")) or "영웅이 없음")
+	L.endLab()
+end
+
 print(string.format("\n  결과: %d개 통과, %d개 실패", L.R.pass, L.R.fail))
 return L.R.fail == 0

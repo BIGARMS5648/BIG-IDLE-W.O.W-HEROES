@@ -95,11 +95,11 @@ hook("damageHero", function(orig) return function(h, amount, school, src, isDot)
 	if not finite(amount) or amount < 0 then bad("damageHero amount " .. tostring(amount)) end
 	if src and src.mob and src.dead then bad("a dead monster dealt damage") end
 	local alive, shield0 = not h.dead, h.shield
-	local r, how = orig(h, amount, school, src, isDot)
+	local r, how, came = orig(h, amount, school, src, isDot)
 	if alive then
-		LOG.hero[#LOG.hero + 1] = { t = st.time, wt = st.waveT, h = h, a = amount, school = school, src = src, dot = isDot, out = r, how = how, shield0 = shield0 }
+		LOG.hero[#LOG.hero + 1] = { t = st.time, wt = st.waveT, h = h, a = amount, school = school, src = src, dot = isDot, out = r, how = how, shield0 = shield0, came = came }
 	end
-	return r, how
+	return r, how, came
 end end)
 hook("heal", function(orig) return function(src, tgt, amount, quiet)
 	if not finite(amount) then bad("heal amount " .. tostring(amount)) end

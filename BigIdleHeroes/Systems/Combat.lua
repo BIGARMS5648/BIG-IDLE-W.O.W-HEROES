@@ -153,18 +153,16 @@ local function recalc(u, auras)
 		end
 	end
 	local s = ns.Stats.Compute(u.id, extra)
-	local ratio = u.maxhp and u.maxhp > 0 and (u.hp / u.maxhp) or 1
 	u.s = s
 	local oldMax = u.maxhp
 	u.maxhp = s.hp
-	if not oldMax then
+	if not oldMax or oldMax <= 0 then
 		u.hp = s.hp
-	elseif s.hp > oldMax then
-		u.hp = min(s.hp, u.hp + (s.hp - oldMax)) -- gained max health comes filled
-	else
-		u.hp = min(u.hp, s.hp)
+	elseif s.hp ~= oldMax then
+		-- the same share of health as before: a buff, an aura or a piece of
+		-- gear coming and going heals nothing
+		u.hp = s.hp * max(0, min(1, u.hp / oldMax))
 	end
-	if ratio <= 0 then u.hp = 0 end
 end
 
 local function loadSkills(u)
@@ -235,7 +233,9 @@ end
 -- Status ailments (both sides)
 ------------------------------------------------------------------------
 -- src: who applied it. A damage over time keeps the stronger of the old and
--- the new; whoever's that is gets the damage it deals.
+-- the new; whoever's that is gets the damage it deals. hit: the blow that
+-- applied it as it came in, before the target's resistances and armor (its
+-- ticks go through them).
 local function applyStatus(tgt, kind, hit, power, dur, school, src)
 	if tgt.dead then return end
 	local def = ns.STATUS[kind]
@@ -343,8 +343,10 @@ end
 local towerDeath -- (below: the tower's affixes when a monster dies)
 
 -- dot: a damage-over-time tick (no floor of 1: that would add up every tick)
+-- Returns what landed and the blow as it came (before resistances).
 local function damageMob(src, m, amount, school, crit, quiet, dot)
 	if m.dead then return 0 end
+	local came = amount
 	local res = m.res and m.res[school]
 	if res then amount = amount * (1 - res / 100) end
 	if m.st.shock then amount = amount * (1 + m.st.shock.v / 100) end
@@ -381,9 +383,11 @@ local function damageMob(src, m, amount, school, crit, quiet, dot)
 		killReward(m, src)
 		if st.affix then towerDeath(m) end
 	end
-	return landed
+	return landed, came
 end
 
+-- Returns what landed, "dodge" when it missed, and the blow as it came
+-- (blocked or not, before armor and resistances).
 local function damageHero(h, amount, school, src, isDot)
 	if h.dead then return 0 end
 	local s = h.s
@@ -396,6 +400,7 @@ local function damageHero(h, amount, school, src, isDot)
 			amount = amount * 0.5
 		end
 	end
+	local came = amount
 	-- "pure": a share of health (the tower's affixes), past armor and resistances
 	if school == "phys" then
 		amount = amount * (1 - ns.Stats.ArmorDR(s.armor, st.level))
@@ -415,7 +420,7 @@ local function damageHero(h, amount, school, src, isDot)
 		h.shield = h.shield - a
 		amount = amount - a
 		if h.shieldSrc then meter(h.shieldSrc, "heal", a) end
-		if amount <= 0 then return 0 end
+		if amount <= 0 then return 0, nil, came end
 	end
 	meter(h, "taken", amount)
 	h.hp = h.hp - amount
@@ -435,7 +440,7 @@ local function damageHero(h, amount, school, src, isDot)
 		fx(h.x, "쓰러짐!", 1, 0.2, 0.2, true, "hero")
 		Combat.dirty = true -- auras from this hero end
 	end
-	return amount
+	return amount, nil, came
 end
 
 ------------------------------------------------------------------------
@@ -634,9 +639,9 @@ local function mobSkill(m, entry)
 			m.anim = 0.25
 			local name = mobSpell(m, "smash", school, { t })
 			if name then fx(m.x - 40, name .. "!", 1, 0.75, 0.4, false, "mob") end
-			local dealt = damageHero(t, m.atk * sk.mult * m.enr * st.rage * weak, school, m)
+			local dealt, _, came = damageHero(t, m.atk * sk.mult * m.enr * st.rage * weak, school, m)
 			if dealt > 0 and sk.status and random() < sk.status[2] then
-				applyStatus(t, sk.status[1], dealt)
+				applyStatus(t, sk.status[1], came)
 			end
 		end
 	elseif kind == "aoe" then
@@ -649,9 +654,9 @@ local function mobSkill(m, entry)
 		for i = 1, #heroes do
 			local t = heroes[i]
 			if not t.dead then
-				local dealt = damageHero(t, m.atk * sk.mult * m.enr * st.rage * weak, school, m)
+				local dealt, _, came = damageHero(t, m.atk * sk.mult * m.enr * st.rage * weak, school, m)
 				if dealt > 0 and sk.status and random() < sk.status[2] then
-					applyStatus(t, sk.status[1], dealt)
+					applyStatus(t, sk.status[1], came)
 				end
 			end
 		end
@@ -769,9 +774,9 @@ local function stepMob(m)
 		m.anim = 0.15
 		local weak = m.st.weaken and (1 - m.st.weaken.v / 100) or 1
 		local amount = m.atk * U.rnd(0.9, 1.1) * m.enr * st.rage * weak
-		local dealt, how = damageHero(t, amount, m.school, m)
+		local dealt, how, came = damageHero(t, amount, m.school, m)
 		if dealt > 0 and m.status and random() < m.status[2] then
-			applyStatus(t, m.status[1], dealt)
+			applyStatus(t, m.status[1], came)
 		end
 		-- thorns answer a melee blow that landed (a dodged one did not)
 		if not m.range and how ~= "dodge" and not t.dead and (t.s.thorns or 0) > 0 then
@@ -810,11 +815,11 @@ local function heroHit(u, m, mult, school, critBonus, quiet)
 	local amount = s.atk * mult * U.rnd(0.95, 1.05) * schoolMult(s, school)
 	local crit = rollCrit(s, critBonus)
 	if crit then amount = amount * s.critdmg / 100 end
-	local dealt = damageMob(u, m, amount, school, crit, quiet)
+	local dealt, came = damageMob(u, m, amount, school, crit, quiet)
 	if dealt > 0 and s.leech > 0 and not u.dead then
 		heal(nil, u, dealt * s.leech / 100)
 	end
-	return dealt
+	return dealt, came
 end
 
 local function needsMet(u, sk)
@@ -842,10 +847,10 @@ local function cast(u, sid, target)
 			for _ = 1, sk.hits or 1 do
 				local mult = v / 100
 				if sk.exec and m.hp / m.maxhp * 100 <= sk.exec[1] then mult = mult * sk.exec[2] end
-				local dealt = heroHit(u, m, mult, sk.school, sk.critBonus)
+				local dealt, came = heroHit(u, m, mult, sk.school, sk.critBonus)
 				if dealt > 0 then
 					if sk.status and random() < sk.status[2] then
-						applyStatus(m, sk.status[1], dealt, nil, nil, nil, u)
+						applyStatus(m, sk.status[1], came, nil, nil, nil, u)
 					end
 					if sk.drain and not u.dead then
 						heal(u, u, min(dealt * sk.drain / 100, u.maxhp * 0.3))
@@ -1154,9 +1159,9 @@ local function stepFields()
 			if first then
 				local list = pickTargets(first, f.sk.targets or 1)
 				for _, m in ipairs(list) do
-					local dealt = heroHit(u, m, f.mult, f.sk.school)
+					local dealt, came = heroHit(u, m, f.mult, f.sk.school)
 					if dealt > 0 and f.sk.status and random() < f.sk.status[2] then
-						applyStatus(m, f.sk.status[1], dealt, nil, nil, nil, u)
+						applyStatus(m, f.sk.status[1], came, nil, nil, nil, u)
 					end
 				end
 			end
@@ -1559,8 +1564,33 @@ function Combat.Backlog() return acc end
 ------------------------------------------------------------------------
 -- React to changes made in the UI
 ------------------------------------------------------------------------
+-- A change of party starts the stage over; the heroes who stay keep their
+-- share of health, their revival time and their cooldowns.
 ns.On("PARTY", function()
-	if ns.db then Combat.StartStage() end
+	if not ns.db then return end
+	local keep = {}
+	if st.phase == "travel" or st.phase == "fight" then
+		for i = 1, #heroes do
+			local u = heroes[i]
+			local cd = {}
+			for sid, t in pairs(u.cd or {}) do cd[sid] = t end
+			keep[u.id] = { share = u.maxhp and u.maxhp > 0 and u.hp / u.maxhp or 1,
+				dead = u.dead, reviveT = u.reviveT, cd = cd }
+		end
+	end
+	Combat.StartStage()
+	for i = 1, #heroes do
+		local u, k = heroes[i], keep[heroes[i].id]
+		if k then
+			u.hp = u.maxhp * max(0, min(1, k.share))
+			if k.dead then
+				u.hp, u.dead, u.reviveT = 0, true, k.reviveT
+			end
+			for sid, t in pairs(k.cd) do
+				if u.cd[sid] then u.cd[sid] = t end
+			end
+		end
+	end
 end)
 ns.On("STATS", function() Combat.dirty = true end)
 ns.On("SKILLS", function() Combat.dirty = true end)

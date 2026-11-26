@@ -170,4 +170,8 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   shows the result (the item before and after and what rose, or the next
   try's chance and cost) with a button to try again. A click skips the
   strikes.
+- Combat: a change of maximum health (a buff, an aura, a piece of gear)
+  keeps the share of health instead of healing; burning and bleeding go
+  through the target's resistance once, not twice; changing the party
+  keeps the health, revival time and cooldowns of the heroes who stay.
 ```
