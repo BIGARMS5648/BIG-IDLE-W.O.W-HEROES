@@ -492,7 +492,8 @@ local function drawMobs()
 			local st = ns.Combat.state
 			local bd, bi = ns.Combat.SourceOf(true) -- (a tower floor's boss comes from its own stage)
 			local bossKey = m.boss and not m.summoned and bd and (bd .. "-" .. bi) or nil
-			local fig = pickFigure(f.model, Figure.ForMonster(m.def and m.def.id, bossKey))
+			local modelId = Figure.ForMonster(m.def and m.def.id, bossKey)
+			local fig = pickFigure(f.model, modelId)
 			if fig then
 				if f.figMob ~= m or f.figIs ~= fig then
 					f.figMob, f.figIs = m, fig
@@ -520,7 +521,10 @@ local function drawMobs()
 				f.edge:Show()
 				if m.anim > 0 then px = px - 4 end
 			end
-			place(f, px, FEET + (m.boss and 0 or (m.off / 12) * 3))
+			-- the bar under the body (a worgen's middle is behind it, for its
+			-- tail); monsters face left, so forward is to the left
+			local barX = (fig and fig:IsLoaded()) and -Figure.MobBarShift(modelId) * MOB_FIG * (m.boss and 1.4 or 1) or 0
+			place(f, px + barX, FEET + (m.boss and 0 or (m.off / 12) * 3))
 			if m.dead then
 				f:SetAlpha(max(0, (m.fade or 0) / 0.4))
 				f.tint:Hide()

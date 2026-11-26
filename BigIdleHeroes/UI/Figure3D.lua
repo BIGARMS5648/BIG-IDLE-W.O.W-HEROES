@@ -221,6 +221,18 @@ function Figure.HeroBarShift(heroId, inCombat)
 	return 0
 end
 
+-- Where a monster's health bar sits, as a share of its figure's height
+-- forward of the model's middle (by the NPC it is drawn as): a worgen's long
+-- tail puts its middle behind its body.
+Figure.MOB_BAR_X = {
+	[2529] = 0.12, -- 아루갈의 후예 · Son of Arugal
+	[1770] = 0.12, -- 달분노 어둠의길잡이 · Moonrage Darkrunner
+	[3855] = 0.12, -- 그림자송곳니 검은영혼 · Shadowfang Darksoul
+}
+function Figure.MobBarShift(modelId)
+	return modelId and Figure.MOB_BAR_X[modelId] or 0
+end
+
 function Figure.ForMonster(monsterId, bossKey)
 	return usable(bossKey and ns.MODEL.boss[bossKey]) or usable(monsterId and ns.MODEL.mob[monsterId])
 end

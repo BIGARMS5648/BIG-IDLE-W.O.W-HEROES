@@ -2130,6 +2130,9 @@ do
 			if sid ~= "DRUID_FERAL" and shift ~= 0 then fail(sid .. "'s health bar should sit under its middle") end
 			ns.db.opt.druidForm = false
 			if Fig.HeroBarShift(h.id, true) ~= 0 then fail("a druid as itself has its health bar under its middle") end
+			-- a worgen's health bar under its body, forward of its middle (its tail)
+			if not (Fig.MobBarShift(ns.MODEL.boss["1-9"]) > 0) then fail("Son of Arugal's health bar should sit under its body, forward of its middle") end
+			if Fig.MobBarShift(ns.MODEL.boss["1-1"]) ~= 0 then fail("Hogger's health bar should sit under its middle") end
 			if math.abs(Fig.HeroScale(h.id, true) - raceScale) > 1e-9 then fail("a druid as itself keeps its race's size") end
 			local body = Fig.HeroBody(h.id, true)
 			if not body or body.weapons.mh ~= ns.MODEL.weaponTier[ns.GearTier()][sid].mh or Fig.ForHero(h.id, true) == want then
