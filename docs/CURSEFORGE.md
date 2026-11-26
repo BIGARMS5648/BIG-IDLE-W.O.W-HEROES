@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.2.0
+BIG IDLE HEROES v1.1.0
 ```
 
 ---
@@ -137,7 +137,7 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.2.0)
+## Changelog for this release (v1.1.0)
 
 ```
 - Enhancement opens with Mythic+ (once Mythic is cleared to its end).
