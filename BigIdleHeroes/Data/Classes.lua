@@ -396,7 +396,7 @@ ns.SPEC_TUNE = {
 	PRIEST_SHADOW = { atk = 1.24 },
 	SHAMAN_ELE = { atk = 0.81 },
 	SHAMAN_ENH = { atk = 0.96 },
-	SHAMAN_RESTO = { heal = 1.76 },
+	SHAMAN_RESTO = { heal = 0.7 }, -- heals and its totem's shield: kept level with the other healers
 	MAGE_ARCANE = { atk = 1.24 },
 	MAGE_FIRE = { atk = 0.71 },
 	MAGE_FROST = { atk = 1.13 },
