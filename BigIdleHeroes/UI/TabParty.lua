@@ -343,7 +343,7 @@ local function buildCreate()
 		end)
 	end
 	create.race = UI.Text(mid, 12)
-	create.race:SetPoint("TOP", mid, "TOP", 0, -196)
+	create.race:SetPoint("TOP", mid, "TOP", 0, -204)
 	create.race:SetJustifyH("CENTER")
 	UI.Color(create.race, UI.C.sub)
 	local nameLabel = UI.Text(mid, 11, "이름")

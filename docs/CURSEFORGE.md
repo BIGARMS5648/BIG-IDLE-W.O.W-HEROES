@@ -205,4 +205,5 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - The option to keep benched heroes' better gear from salvage and fusion is
   under the bag on the equipment screen; the forge's function buttons have
   their names centred.
+- The recruit button shows its price as a gold coin and the amount.
 ```

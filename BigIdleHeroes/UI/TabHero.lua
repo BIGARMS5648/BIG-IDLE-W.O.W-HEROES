@@ -122,9 +122,14 @@ local function buildList(page)
 	page.create:SetPoint("BOTTOMLEFT", list, "BOTTOMLEFT", 12, 12)
 	page.create.clickWhenOff = true
 	page.create.label:ClearAllPoints()
-	page.create.label:SetPoint("CENTER", page.create, "CENTER", 0, 8)
-	page.create.cost = UI.Text(page.create, 11)
-	page.create.cost:SetPoint("CENTER", page.create, "CENTER", 0, -11)
+	page.create.label:SetPoint("CENTER", page.create, "CENTER", 0, 9)
+	page.create.label:SetFont(ns.FONT, 15, "")
+	-- its price: a gold coin and the amount in gold's colour
+	page.create.cost = UI.Text(page.create, 12)
+	page.create.coin = page.create:CreateTexture(nil, "OVERLAY")
+	page.create.coin:SetSize(14, 14)
+	UI.SetIcon(page.create.coin, "INV_Misc_Coin_01")
+	page.create.coin:SetPoint("RIGHT", page.create.cost, "LEFT", -6, 0)
 	UI.Tip(page.create, function() return UI.SimpleTip("영웅 모집하기", "직업과 전문화, 이름을 정해 새 영웅을 모집합니다. 영웅이 많을수록 비용이 오릅니다.") end, "TOP")
 end
 
@@ -188,7 +193,11 @@ local function refreshList(page)
 	local full = n >= ns.ROSTER_MAX
 	page.createWhy = H.CreateWhy()
 	page.create:SetOff(page.createWhy ~= nil)
-	page.create.cost:SetText(full and "가득 참" or (cost > 0 and (U.fmt(cost) .. " 골드") or "무료"))
+	local priced = not full and cost > 0
+	page.create.cost:SetText(full and "가득 참" or (priced and U.col("ffd24a", U.fmt(cost) .. "G") or "무료"))
+	page.create.cost:ClearAllPoints()
+	page.create.cost:SetPoint("CENTER", page.create, "CENTER", priced and 10 or 0, -12)
+	page.create.coin:SetShown(priced)
 	page.create:SetBadge(page.createWhy == nil and ns.Guide.MissingRole() ~= nil)
 end
 
