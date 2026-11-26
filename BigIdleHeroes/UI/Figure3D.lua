@@ -42,8 +42,8 @@ local BODY_WAIT_MAX, BODY_TRIES = 6, 5 -- a hero's body: the longest wait betwee
 -- stays inside the frame
 local WIDE = 0.6
 
--- PlayerModel figures (no ModelScene): right = toward the monsters (checked in
--- game with /bih model: 90° faces right); tries: 1 = the display id, then the
+-- PlayerModel figures (no ModelScene): right = toward the monsters (90° faces
+-- right); tries: 1 = the display id, then the
 -- NPC id; the frame leaves room around the model
 local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0 }
 local WAIT = { 1.0, 1.5, 2.5, 4.0 }
@@ -96,7 +96,6 @@ local function formFor(specId, faction)
 	local d = form and form[faction or ns.Faction() or "ALLIANCE"]
 	return d and usable("disp:" .. d)
 end
-Figure.FormFor = formFor
 
 -- The NPC a spec is drawn as for a faction and gender (Data/Models.lua
 -- ns.MODEL.hero), else its famous NPC, else the class trainer.
@@ -619,8 +618,6 @@ local function decode(f)
 	if not (ok0 and ok1 and type(x0) == "number" and type(y0) == "number" and type(y1) == "number") then
 		return nil, "projection gave nothing"
 	end
-	f.rawProj = { x0, y0, y1, w, h }
-	Figure.lastRaw = f.rawProj
 	if y1 == y0 then return nil, "projection flat" end
 	local up = y1 > y0
 	local cands = { { kind = "frame", ex = w / 2, ey = h / 2 } }
@@ -749,7 +746,7 @@ local function calibrate(f)
 end
 Figure.Calibrate = calibrate
 
--- Forgets the measurement (the model check's reload measures again).
+-- Forgets the measurement, so the next scene measures again.
 function Figure.ResetCalibration()
 	Figure.camFix = CAM_FIX
 	Figure.camInfo = { how = "default", fix = CAM_FIX }
@@ -899,12 +896,6 @@ function scene:Look()
 end
 
 function scene:Rescaled() setCamera(self) end
-
--- Whether the scene is drawn on its own over what is under it (see newScene);
--- off for spell effects.
-function scene:SetOverlapped(v)
-	call(self, "SetAllowOverlappedModels", v and true or false)
-end
 
 -- How grey the model is (0 = its own colours, 1 = grey): scenery far off.
 function scene:SetDesaturation(v)
@@ -1148,7 +1139,6 @@ function Figure.ResetFailed()
 	for k in pairs(badNow) do badNow[k] = nil end
 	for k in pairs(sizeOf) do sizeOf[k] = nil end
 end
-Figure.SizeOf = sizeOf
 Figure.failed = failed
 Figure.bad = badNow
 Figure.SIDE, Figure.FEET_AT = SIDE, FEET_AT

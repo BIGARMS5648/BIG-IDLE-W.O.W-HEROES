@@ -56,16 +56,6 @@ for t = 1, 3 do for _ = 1, 3 + t do ns.Loot.AddChest(t, 40, 2) end end
 ns.Combat.StartStage()
 for _ = 1, 260 do Mock.Update(0.1) end
 
-local function find(pred)
-	for _, f in ipairs(Mock.frames) do
-		if f:IsVisible() and pred(f) then return f end
-	end
-end
-local function clickWhere(pred)
-	local b = find(function(f) return f.Click and pred(f) end)
-	if b then b:Click() end
-	return b
-end
 local function page(key) return ns.Main.Page(key) end
 local function show(key, opts)
 	ns.Main.ShowTab(key, opts)
@@ -142,7 +132,6 @@ S.chest_tip_boss = function() chestTipWith(true, false, 2) end
 -- the battle window during a boss fight, then after a wipe
 S.bar_boss = function()
 	ns.Main.Toggle(false)
-	local st = ns.Combat.state
 	for _ = 1, 6000 do
 		local up
 		for _, m in ipairs(ns.Combat.mobs) do if m.boss and not m.dead then up = true end end

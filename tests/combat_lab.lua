@@ -13,7 +13,7 @@
 local ns = NS
 local C = ns.Combat
 local st = C.state
-local floor, abs, max, min = math.floor, math.abs, math.max, math.min
+local abs, max = math.abs, math.max
 
 ------------------------------------------------------------------------
 -- Report

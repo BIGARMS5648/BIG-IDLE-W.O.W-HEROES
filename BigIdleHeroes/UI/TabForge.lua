@@ -8,10 +8,9 @@
 -- A function not unlocked yet shows what it needs and [해금하기].
 local _, ns = ...
 
-local floor, max, min = math.floor, math.max, math.min
+local floor, min = math.floor, math.min
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
-local K = UI.K
 
 local ForgeView = {}
 ns.ForgeView = ForgeView
@@ -554,7 +553,6 @@ local function buildSocket(kind)
 				p.lastText:SetText("")
 				return
 			end
-			local q = ns.QUALITY[it.q]
 			c.icon:Clear()
 			c.icon.data = it
 			c.icon:SetIconName(ns.Items.Icon(it))
@@ -1181,7 +1179,7 @@ local function buildSmelt(page, f)
 	end
 	p.note = note(f, -70 - SMELT_ROWS * STEP - 8, "보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 남깁니다.")
 	p.go = UI.Button(f, 220, 36, "일괄 분해", function()
-		local picked, kept = ns.Forge.PickByQuality(smeltQ())
+		local picked = ns.Forge.PickByQuality(smeltQ())
 		if #picked == 0 then
 			UI.Try(false, "분해 등급 이하인 장비가 없습니다. 등급을 올려 보세요.")
 			return

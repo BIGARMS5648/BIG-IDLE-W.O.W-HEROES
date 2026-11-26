@@ -489,7 +489,6 @@ local function drawMobs()
 			end
 			if f.mobRef ~= m then f.mobRef, f.glide = m, nil end
 			local px, moved = glide(f, laneX(m.x) - size / 2)
-			local st = ns.Combat.state
 			local bd, bi = ns.Combat.SourceOf(true) -- (a tower floor's boss comes from its own stage)
 			local bossKey = m.boss and not m.summoned and bd and (bd .. "-" .. bi) or nil
 			local modelId = Figure.ForMonster(m.def and m.def.id, bossKey)
@@ -755,9 +754,8 @@ end
 -- cast kit's hand effect), what shows on the caster itself (a nova, a
 -- shout), the missile flying to each target (spells that have one), the hit
 -- on each one reached; heals and buffs land on whom they reach. Each is the
--- spell's own effect model in a figure of its own, put up as the model check
--- (/bih model, 효과) shows them: at a fixed share of the scale of the model
--- it flies from or lands on (a hit HIT_SIZE, the hand glow HAND_SIZE, a
+-- spell's own effect model in a figure of its own, at a fixed share of the
+-- scale of the model it flies from or lands on (a hit HIT_SIZE, the hand glow HAND_SIZE, a
 -- missile MISSILE_SIZE; 1 = as big as next to a character in the game), so
 -- they grow and shrink with the window as the fighters do. An effect on its
 -- caster (a slash, a shout, the glow in its hands) faces the way the caster

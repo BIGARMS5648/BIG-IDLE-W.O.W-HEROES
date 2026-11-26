@@ -9,7 +9,7 @@
 --          own (UI/TabForgeScreen.lua).
 local _, ns = ...
 
-local floor, max, min = math.floor, math.max, math.min
+local floor = math.floor
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
 local H = ns.Heroes

@@ -46,7 +46,7 @@ end, "l")
 """
 
 
-def new_runtime(locale="koKR", partial=False, cover=False):
+def new_runtime(locale="koKR", cover=False):
     lua = lupa.LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
     lua.execute("package.path = package.path .. ';%s/?.lua'" % HERE.replace("\\", "/"))
@@ -62,17 +62,11 @@ def new_runtime(locale="koKR", partial=False, cover=False):
             return chunk(name, NS)
         end"""
     )
-    missing = []
     for rel in toc_files():
         path = os.path.join(ADDON_DIR, rel)
         if not os.path.exists(path):
-            if partial:
-                missing.append(rel)
-                continue
             raise SystemExit("TOC lists a missing file: " + rel)
         loader(path, ADDON_NAME)
-    if missing:
-        print("  (partial load, skipped: %s)" % ", ".join(missing))
     return lua
 
 
@@ -163,13 +157,6 @@ def main(argv):
         lua = new_runtime()
         ok = run_script(lua, "pace.lua", hours, party) and ok
 
-    if what == "gold":
-        # where every gold piece comes from and goes, hour by hour (tests/gold_audit.lua)
-        hours = float(argv[2]) if len(argv) > 2 else 24
-        print("== gold audit (%g simulated hours) ==" % hours)
-        lua = new_runtime()
-        ok = run_script(lua, "gold_audit.lua", hours) and ok
-
     if what == "audit":
         # every combat formula measured in controlled fights (tests/combat_audit.lua)
         print("== combat audit ==")
@@ -195,12 +182,6 @@ def main(argv):
         ok = run_script(lua, "test_ui.lua") and ok
         ok = run_script(lua, "test_balance.lua", 1) and ok
         report_coverage(lua)
-
-    if what == "partial":
-        hours = float(argv[2]) if len(argv) > 2 else 6
-        lua = new_runtime(partial=True)
-        ok = run_script(lua, "test_systems.lua") and ok
-        ok = run_script(lua, "test_balance.lua", hours) and ok
 
     print("RESULT: %s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 1

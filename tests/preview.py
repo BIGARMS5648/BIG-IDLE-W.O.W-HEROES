@@ -372,7 +372,7 @@ function draw(scene, title) {
 // ---------------------------------------------------------------------------
 const SEE_THROUGH = new Set(['icon_lock','icon_star','icon_skull','icon_crown','icon_upgrade','frame_arcana','sb_bar_v','sb_bar_h','sb_bend','sb_grip_v','sb_grip_v_hot','glow','ring','frame','corners','fade_down','fade_up','shadow','grad_h','grad_v','check','lock','star','crown','arrow','plus',
   'close','auto','skull','role_tank','role_dps','role_heal','circle','bar']);
-const SLICES = new Set(['panel','card','inset','button','pill','slot','menu']);
+const SLICES = new Set(['panel','card','inset','button','pill','slot']);
 function texName(e) { return e.tex ? String(e.tex).split('\\').pop().replace(/\.tga$/i, '') : null; }
 
 function lint(scene, title) {

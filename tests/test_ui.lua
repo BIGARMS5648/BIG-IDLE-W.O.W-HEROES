@@ -212,10 +212,6 @@ local function press(what, b, mouse)
 	if not b or not b:IsVisible() then fail("not shown: " .. what) return false end
 	return try(what, b.Click, b, mouse or "LeftButton")
 end
-local function tab(key, k)
-	local b = Main.Page(key).S.tabs:Get(k)
-	return press("tab " .. tostring(k), b)
-end
 -- answer the confirmation window
 local function confirmYes(what)
 	local yes = ns.UI.ConfirmButtons()
@@ -745,7 +741,7 @@ do
 		if (sp.lastText.__text or "") ~= "" then fail("'부여됨' should go when another item is picked: " .. tostring(sp.lastText.__text)) end
 		click("gem target again", function(b) return b.data == epic end)
 		if not (sp.lastText.__text or ""):find("부여됨", 1, true) then fail("'부여됨' should show again on the piece it was set in") end
-		ns.Items.RemoveFromBag(ns.Items.IndexInBag(other))
+		table.remove(ns.db.bag, ns.Items.IndexInBag(other))
 	end
 	-- nothing picked (no item with that socket yet): the button explains, no error
 	press("inscribe tab", ep.tabs:Get("insc"))
@@ -1169,7 +1165,7 @@ do
 	if op.screen.bar or op.game.autoSmelt then fail("settings should not have the battle window size or the bag auto break-down") end
 	press("battle window back to default", op.screen.resetPos)
 	press("reset everything", op.game.reset)
-	local yes, no = ns.UI.ConfirmButtons()
+	local _, no = ns.UI.ConfirmButtons()
 	if not (no and no:IsVisible()) then fail("resetting everything must ask first") else press("cancel the reset", no) end
 	if H.Count() == 0 then fail("cancelling the reset must keep the heroes") end
 	-- the gear in the title bar opens the settings
@@ -1197,7 +1193,7 @@ do
 		if glyphOf() ~= before then fail("toggling back should bring the first picture back") end
 		-- the chest boxes sit on the dock's middle line
 		for t, cb in ipairs(bar.chests) do
-			local p, rel, rp, x, y = cb:GetPoint(1)
+			local p, rel, _, _, y = cb:GetPoint(1)
 			if rel ~= bar.dock or p ~= "TOPLEFT" or math.abs(-y * 2 + cb:GetHeight() - bar.dock:GetHeight()) > 0.01 then
 				fail("chest box " .. t .. " should be centered in the dock (y " .. tostring(y) .. ")")
 			end
@@ -1634,7 +1630,7 @@ do
 		-- an effect drawn on its own); the fighters on their own, over the scenery
 		for _, pool in ipairs({ ns.Bar.missiles, ns.Bar.hits }) do
 			for _, ms in ipairs(pool) do
-				if ms.fig.__overlap ~= true then fail("a spell effect should be drawn as the fighters are (as the model check shows it)") break end
+				if ms.fig.__overlap ~= true then fail("a spell effect should be drawn as the fighters are") break end
 			end
 		end
 		for _, f in ipairs(heroes) do
@@ -1649,7 +1645,7 @@ do
 				fail(string.format("a hit should be as big as next to a character in the game (the target's scale) (%.3f, want %.3f)", hit.scale, hit.want))
 			end
 			if math.abs(hit.height - hit.tall) > 1e-6 then fail("a hit's figure should be as tall as its target's") end
-			-- straight in the battle scene, as the model check shows it (no clipping box)
+			-- straight in the battle scene (no clipping box)
 			if hit.parent ~= ns.Bar.Scene() then fail("a hit should be drawn straight in the battle scene") end
 		end
 		if #Mock.misuse > 0 then fail("effect calls with bad arguments: " .. table.concat(Mock.misuse, "; ")) end

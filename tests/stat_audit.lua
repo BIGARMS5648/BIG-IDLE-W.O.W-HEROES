@@ -567,9 +567,11 @@ do
 	db.forge.ops.remove = true
 	ns.Forge.RemoveSocket(it, kind, #ns.Items.SocketList(it, kind), other)
 	s = live("다른 영웅 이름으로 추출해도 실제로 낀 영웅에게", s)
-	-- enhancement
-	local wasOpen = ns.TowerOpen
-	ns.TowerOpen = function() return true end
+	-- enhancement (open with 신화+, i.e. 신화 cleared to its end)
+	local mythic = #ns.DIFFS - 1
+	local wasProg, wasGold = db.prog[mythic], db.gold
+	db.prog[mythic] = ns.STAGE_COUNT
+	db.gold = math.max(db.gold, 1e12)
 	-- (tries until one succeeds: any try can fail)
 	local function upOnce(by)
 		local n = ns.Upgrade.Level(it)
@@ -582,7 +584,7 @@ do
 	s = live("강화 → 다음 순간 전투 능력치와 영웅 화면에", s)
 	check(upOnce(other), "다른 영웅 이름으로 강화 성공")
 	s = live("다른 영웅 이름으로 강화해도 실제로 낀 영웅에게", s)
-	ns.TowerOpen = wasOpen
+	db.prog[mythic], db.gold = wasProg, wasGold
 	-- talents, runes, a level, companions
 	check(ns.Heroes.SpendPoint(H, 1, 1), "특성 찍기")
 	s = live("특성 → 다음 순간 전투 능력치와 영웅 화면에", s)

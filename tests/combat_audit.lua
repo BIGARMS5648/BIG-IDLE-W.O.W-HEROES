@@ -190,7 +190,7 @@ do -- thorns: what a melee attacker gets back
 	L.endLab()
 end
 do -- regeneration
-	local u, log = defense({ regen = 50, regenPct = 1, hp = 1e6 }, { aspd = 0.001 }, 20,
+	defense({ regen = 50, regenPct = 1, hp = 1e6 }, { aspd = 0.001 }, 20,
 		function(step, us) if step == 50 then us[1].hp = us[1].maxhp * 0.5 L.mark = us[1].hp end if step == 150 then L.mark2 = us[1].hp end end)
 	local gained = (L.mark2 - L.mark) / 10
 	check(near(gained, 50 + 1e6 * 0.01, 0.02), "초당 생명력 회복 50 + 최대의 1% → 초당 10,050", f(gained, 0) .. "/초")
@@ -223,7 +223,7 @@ local function gaps(t)
 end
 for _, case in ipairs({ { 0, 0 }, { 50, 0 }, { 0, 30 }, { 50, 30 } }) do
 	local cast, cdr = case[1], case[2]
-	local u, log = lab({ heroes = { { spec = "WARRIOR_FURY", skills = { "whirlwind" }, stats = { atk = 100, aspd = 1, cast = cast, cdr = cdr } } },
+	local _, log = lab({ heroes = { { spec = "WARRIOR_FURY", skills = { "whirlwind" }, stats = { atk = 100, aspd = 1, cast = cast, cdr = cdr } } },
 		hp = 1e12, n = 3, seconds = 120 })
 	local want = ns.SkillCooldown("whirlwind", 1) * (1 - cdr / 100) / (1 + cast / 100)
 	local g = gaps(castTimes(log, "whirlwind"))
@@ -603,7 +603,7 @@ do
 		{ spec = "MAGE_FIRE", stats = { atk = 1e6, aspd = 2, gold = 20, exp = 30 } },
 		{ spec = "WARRIOR_PROT", stats = { atk = 1, gold = 10, exp = 0 } } }, hp = 50, n = 4, seconds = 40 })
 	local goldPct = ns.Bonus("gold") + 20 + 10
-	local okGold, okXP, nk = true, true, 0
+	local okGold, nk = true, 0
 	for _, k in ipairs(log.kill) do
 		nk = nk + 1
 		local want = max(1, floor(k.m.gold * (1 + goldPct / 100) + 0.5))
@@ -641,7 +641,7 @@ do
 				heroes[k] = { spec = sid, level = 35, gear = 4, slv = 3, skills = { sk[a + 1], sk[a + 2], sk[a + 3] } }
 			end
 			runs = runs + 1
-			local u, log = lab({ heroes = heroes, realStage = true, diff = 1 + runs % 3, idx = 8 + (runs * 7) % 20, seconds = 240,
+			local _, log = lab({ heroes = heroes, realStage = true, diff = 1 + runs % 3, idx = 8 + (runs * 7) % 20, seconds = 240,
 				each = function()
 					steps = steps + 1
 					for _, h in ipairs(C.heroes) do
@@ -721,7 +721,7 @@ end
 do -- every cooldown runs down, even in the step another skill is used
 	local missed, seen = 0, 0
 	local prev
-	local u, log = lab({ heroes = { { spec = "MAGE_FIRE", skills = { "fireball", "fire_blast" }, stats = { atk = 100, aspd = 0.01 } } }, hp = 1e12, seconds = 60,
+	lab({ heroes = { { spec = "MAGE_FIRE", skills = { "fireball", "fire_blast" }, stats = { atk = 100, aspd = 0.01 } } }, hp = 1e12, seconds = 60,
 		each = function(_, units)
 			local me = units[1]
 			local casts = L.LOGF().cast

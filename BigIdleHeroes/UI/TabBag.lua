@@ -13,7 +13,6 @@ local _, ns = ...
 local floor, max, min = math.floor, math.max, math.min
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
-local K = UI.K
 
 local BagView, MatsView = {}, {}
 ns.BagView, ns.MatsView = BagView, MatsView

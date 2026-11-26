@@ -96,7 +96,6 @@ local function takenNames()
 	end
 	return t
 end
-Heroes.TakenNames = takenNames
 
 -- A name for a hero of this specialization (and the player's gender),
 -- unique in the roster.
@@ -189,14 +188,6 @@ function Heroes.Create(specId, sex, name)
 	Heroes.Deploy(h.id) -- joins the party if its role slot is free
 	ns.Fire("HEROES")
 	return true, h.id
-end
-
-function Heroes.RerollName(id)
-	local h = ns.db.heroes[id]
-	if not h then return false end
-	h.name = Heroes.RollName(h.spec)
-	ns.Fire("HEROES")
-	return true
 end
 
 function Heroes.Dismiss(id)

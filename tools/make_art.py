@@ -322,10 +322,6 @@ def glyphs():
         d.line(P(s, (16, 16), (48, 48)), fill=255, width=9 * s),
         d.line(P(s, (48, 16), (16, 48)), fill=255, width=9 * s)))
     glyph("arrow", lambda d, s: d.line(P(s, (24, 12), (44, 32), (24, 52)), fill=255, width=9 * s, joint="curve"))
-    glyph("menu", lambda d, s: (
-        d.rounded_rectangle([12 * s, 15 * s, 52 * s, 23 * s], radius=4 * s, fill=255),
-        d.rounded_rectangle([12 * s, 28 * s, 52 * s, 36 * s], radius=4 * s, fill=255),
-        d.rounded_rectangle([12 * s, 41 * s, 52 * s, 49 * s], radius=4 * s, fill=255)))
 
     def star(d, s):
         pts = []
@@ -445,7 +441,9 @@ def ridge_ruins(xs, layer, rng):
 
 
 def main():
-    made = [panel(), card(), inset(), button(), pill(), slot(), frame(), frame_arcana(), corners(), fades(), ring(), circle(), badge(), bar(), glow(), shadow(), gradients()]
+    for make in (panel, card, inset, button, pill, slot, frame, frame_arcana, corners, fades, ring, circle,
+                 badge, bar, glow, shadow, gradients):
+        make()
     glyphs()
     scenery("scene_hills", ridge_hills)
     scenery("scene_peaks", ridge_peaks)

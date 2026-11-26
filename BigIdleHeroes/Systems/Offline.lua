@@ -6,7 +6,7 @@
 -- the experience.
 local _, ns = ...
 
-local floor, max, min = math.floor, math.max, math.min
+local floor, min = math.floor, math.min
 
 local Offline = {}
 ns.Offline = Offline

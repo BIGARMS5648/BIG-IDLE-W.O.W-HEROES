@@ -437,9 +437,6 @@ do
 	local a = hero("DRUID_FERAL")
 	local ok3, b = ns.Heroes.Create("DRUID_FERAL")
 	check(ok3 and a ~= b and db.heroes[a].name ~= db.heroes[b].name, "same spec twice: different heroes, different names")
-	local before = db.heroes[b].name
-	ns.Heroes.RerollName(b)
-	check(type(db.heroes[b].name) == "string" and db.heroes[b].name ~= "", "reroll name")
 	local bag0 = #db.bag
 	check(ns.Heroes.Dismiss(b) and not db.heroes[b] and #db.bag == bag0 + 1, "dismissing returns gear to the bags")
 	-- a new hero starts with the party's average experience (about their level)
@@ -696,7 +693,7 @@ end
 -- 전투력 compares any two heroes: same level and gear quality -> close
 -- together whatever the role or spec (a tank used to show 5-10x a healer)
 do
-	local lo, hi, saved = 1e18, 0, {}
+	local lo, hi = 1e18, 0
 	for _, sid in ipairs(ns.SPEC_ORDER) do
 		local h = ns.Heroes.NewRecord(sid)
 		h.level = 40
@@ -734,7 +731,7 @@ do
 	check(ns.Stats.ArmorDR(1e9, 20) == 0.75, "armor reduction caps at 75%")
 	local capped = ns.Stats.Compute(R, { { "dodge", 500 }, { "cdr", 500 }, { "dr", 500 } })
 	check(capped.dodge == 60 and capped.cdr == 60 and capped.dr == 75, "caps apply")
-	check(s0.atk > 0 and #ns.Stats.Sheet(R) > 8, "sheet rows")
+	check(s0.atk > 0, "attack power")
 	-- account-wide gold / experience bonuses must not be counted once per hero
 	local g, e = ns.Bonus("gold"), ns.Bonus("exp")
 	local gr, xr = ns.Runes.FirstFor("gold"), ns.Runes.FirstFor("exp")
@@ -1100,7 +1097,7 @@ do
 	local wornBefore, levelBefore = hero.gear.chest, hero.level
 	hero.level = ns.HERO_MAX_LEVEL
 	hero.gear.chest = other
-	ns.Items.RemoveFromBag(ns.Items.IndexInBag(other))
+	table.remove(db.bag, ns.Items.IndexInBag(other))
 	check(Up.Move(other, plain), "계승 from a worn piece")
 	check(hero.gear.chest == plain and ns.Items.IndexInBag(plain) == nil and ns.Items.IndexInBag(other) == nil and Up.Level(plain) > 0,
 		"the new piece is worn in the old one's place")

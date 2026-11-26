@@ -13,12 +13,6 @@ ns.FACTIONS = {
 ns.FACTION_ORDER = { "ALLIANCE", "HORDE" }
 for id, f in pairs(ns.FACTIONS) do f.id = id end
 
-ns.SEXES = { "M", "F" }
-ns.SEX = {
-	M = { name = "남성", short = "남" },
-	F = { name = "여성", short = "여" },
-}
-
 -- names: which name pool the race draws from (Data/Names.lua)
 -- icons: portrait icon per gender, used until drawn portraits are added
 ns.RACES = {

@@ -8,7 +8,7 @@
 -- 배우기/강화; 특성 click = 1점, right-click = 최대까지.
 local _, ns = ...
 
-local floor, max, min = math.floor, math.max, math.min
+local floor, max = math.floor, math.max
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
 local H = ns.Heroes
@@ -155,7 +155,6 @@ local function refreshList(page)
 		c.heroId = id
 		if id and db.heroes[id] then
 			local h = db.heroes[id]
-			local sp = ns.SPECS[h.spec]
 			c.stripe:SetColor(U.rgb(roleHex(id)))
 			c.portrait:SetHero(id)
 			UI.SetHeroIcon(c.portrait.icon, id)

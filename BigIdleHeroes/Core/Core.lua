@@ -1,10 +1,9 @@
 -- BIG IDLE HEROES - core namespace, language, event bus and utilities.
-local ADDON, ns = ...
+local _, ns = ...
 ns = ns or {}
-ns.ADDON = ADDON or "BigIdleHeroes"
 ns.VERSION = "1.1.0"
 
-local floor, max, min, random = math.floor, math.max, math.min, math.random
+local floor, random = math.floor, math.random
 local format = string.format
 
 ------------------------------------------------------------------------
@@ -59,10 +58,6 @@ function U.clamp(v, lo, hi)
 	if v < lo then return lo end
 	if v > hi then return hi end
 	return v
-end
-
-function U.round(v)
-	return floor(v + 0.5)
 end
 
 local function commas(n)

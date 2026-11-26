@@ -5,31 +5,17 @@
 -- screens open them through ns.OpenCreate, ns.OpenRename, ns.PickFaction).
 local _, ns = ...
 
-local floor, max, min = math.floor, math.max, math.min
+local floor = math.floor
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
 local H = ns.Heroes
 
 local K = UI.K
 local LANE_ORDER = { 5, 4, 3, 2, 1 } -- healer at the back ... tank in front
-local ROLE_TABS = { { "ALL", "전체" }, { "TANK", "탱커" }, { "DPS", "딜러" }, { "HEALER", "힐러" } }
 
 ------------------------------------------------------------------------
 -- Helpers
 ------------------------------------------------------------------------
--- The number a card shows: the stat that matters for the hero's role, so
--- heroes of different roles are never compared by one score.
-local function roleStat(id)
-	local s = ns.Stats.Get(id)
-	local role = H.Role(id)
-	if role == "TANK" then
-		return "생명력 " .. U.col("ffd24a", U.fmt(s.hp))
-	elseif role == "HEALER" then
-		return "치유량 " .. U.col("ffd24a", "+" .. U.num(s.heal, 0) .. "%")
-	end
-	return "초당 피해 " .. U.col("ffd24a", U.fmt(ns.Stats.DPS(s)))
-end
-
 -- What the action button of a bench hero does: deploy into a free slot of its
 -- role, swap with the weakest party member of that role, or nothing.
 local function fieldAction(id)
@@ -557,7 +543,6 @@ ns.OpenCreate = function(role)
 	end
 	create.open(nil, role or ns.Guide.MissingRole())
 end
-ns.AutoForm = autoForm
 
 ------------------------------------------------------------------------
 -- Rename (modal): preview a new name before keeping it

@@ -1,7 +1,7 @@
 -- Chests: dropping, storing, opening (manual or on the auto-open timer).
 local _, ns = ...
 
-local floor, max, min, random = math.floor, math.max, math.min, math.random
+local max, min, random = math.max, math.min, math.random
 local U = ns.U
 
 local Loot = {}

@@ -10,7 +10,7 @@
 --           (only the pieces the function can use) - and the latest results.
 local _, ns = ...
 
-local floor, max, min = math.floor, math.max, math.min
+local floor, max = math.floor, math.max
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
 local K = UI.K

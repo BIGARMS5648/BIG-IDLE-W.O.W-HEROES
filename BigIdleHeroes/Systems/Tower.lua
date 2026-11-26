@@ -8,7 +8,7 @@
 -- first clear of a floor pays gold and one more chest.
 local _, ns = ...
 
-local floor, max, min = math.floor, math.max, math.min
+local floor, min = math.floor, math.min
 
 local Tower = {}
 ns.Tower = Tower

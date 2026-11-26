@@ -4,7 +4,7 @@
 -- you take along also shows in the battle window.
 local _, ns = ...
 
-local floor, max, min = math.floor, math.max, math.min
+local floor, min = math.floor, math.min
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
 local K = UI.K

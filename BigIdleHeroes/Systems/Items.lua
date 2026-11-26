@@ -434,12 +434,6 @@ function Items.AddToBag(it)
 	return true
 end
 
-function Items.RemoveFromBag(index)
-	local it = table.remove(ns.db.bag, index)
-	ns.Fire("BAG")
-	return it
-end
-
 function Items.IndexInBag(it)
 	local bag = ns.db.bag
 	for i = 1, #bag do

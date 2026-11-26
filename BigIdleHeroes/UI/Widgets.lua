@@ -38,10 +38,6 @@ UI.STYLE = {
 -- the faction picker's Alliance button: the Alliance's own blue (ns.FACTIONS)
 UI.STYLE.alliance = { ns.U.rgb("4a8cff") }
 
-function UI.RGB(hex)
-	return ns.U.rgb(hex)
-end
-
 ------------------------------------------------------------------------
 -- Textures and text
 ------------------------------------------------------------------------
@@ -91,19 +87,6 @@ function UI.SetArtOrIcon(tex, artId, iconName)
 		UI.SetIcon(tex, iconName)
 		tex.isArt = nil
 		tex:SetVertexColor(1, 1, 1)
-	end
-end
-
--- The scroll bar sheet's bar (a rounded line, drawn in a colour): a scroll
--- bar's track, the lines between stages, the role stripes.
-function UI.SetBar(tex, vertical, r, g, b, a)
-	local art = UI.ArtIcon(vertical and "sb_bar_v" or "sb_bar_h")
-	if art then
-		tex:SetTexture(art)
-		tex:SetTexCoord(0, 1, 0, 1)
-		tex:SetVertexColor(r, g, b, a or 1)
-	else
-		UI.Fill(tex, r, g, b, a)
 	end
 end
 
@@ -1053,10 +1036,6 @@ function UI.IconButton(parent, size, onClick)
 	-- an imported icon if there is one, else a game icon
 	function b:SetArtIcon(artId, iconName)
 		UI.SetArtOrIcon(self.icon, artId, iconName)
-		self.icon:Show()
-	end
-	function b:SetClass(classId)
-		UI.SetClassIcon(self.icon, classId)
 		self.icon:Show()
 	end
 	-- the quality colours both the frame and, softly, the card behind the icon

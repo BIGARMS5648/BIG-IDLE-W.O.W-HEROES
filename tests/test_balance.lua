@@ -16,7 +16,6 @@ local C = ns.Combat
 local STEP = C.STEP
 local simTime, nextBot, nextReport = 0, 0, 0
 local total = hours * 3600
-local firstClear = {}
 local lastProg = { 0, 0, 0, 0 }
 local ok, err = true, nil
 

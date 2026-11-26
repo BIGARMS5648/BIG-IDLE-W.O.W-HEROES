@@ -259,7 +259,6 @@ local function compute()
 end
 
 local function computeBadges()
-	local db = ns.db
 	local b = {}
 	-- party: an empty slot a waiting hero could fill right now; hero: a
 	-- missing role that a new hero (made on the hero screen) could fill

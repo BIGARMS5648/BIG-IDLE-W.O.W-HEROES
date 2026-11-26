@@ -1,4 +1,4 @@
--- Spell effects of the original game, for the 효과 check of /bih model: per
+-- Spell effects of the original game: per
 -- spell the visual kits of its spell visual (precast = while casting, cast =
 -- the release, impact = on the target) and the model files of its effects
 -- (missile = what flies, hand = the glow in the hands, hit = the impact).

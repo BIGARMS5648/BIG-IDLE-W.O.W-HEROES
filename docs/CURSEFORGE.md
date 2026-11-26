@@ -218,4 +218,5 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   item the chosen hero wears in that slot.
 - Unlock buttons (breaking down, forge functions, crafting tiers, seal rolls,
   extraction) carry the red dot when they can be unlocked right now.
+- Removed unused code and an unused texture.
 ```

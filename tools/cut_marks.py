@@ -8,7 +8,6 @@ top row. The biggest is made the "better gear" arrow, Media/Art/icon_upgrade.tga
 (64x64, as tools/cut_icon.py makes icons).
 """
 import os
-import struct
 import sys
 
 import numpy as np
@@ -18,13 +17,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import cut_icon  # noqa: E402
 
-OUT_TGA = os.path.join(ROOT, "BigIdleHeroes", "Media", "Art")
 OUT_PNG = os.path.join(ROOT, "tests", "out", "media")
-CUT = 40
-CELL_W, CELL_H, COLS, ROWS = 96, 64, 5, 4
-NUM_H = 56       # a number's height in its cell
-MARGIN = 2       # room at the cell's right edge
-W, H = 512, 256
+CUT = 40         # alpha below this is not the arrow
 
 
 def runs(mask):

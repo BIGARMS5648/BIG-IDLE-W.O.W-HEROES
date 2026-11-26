@@ -1498,10 +1498,6 @@ function Combat.EnterTower(f)
 	return true
 end
 
-function Combat.Restart()
-	Combat.StartStage()
-end
-
 ------------------------------------------------------------------------
 -- One fixed step
 ------------------------------------------------------------------------
