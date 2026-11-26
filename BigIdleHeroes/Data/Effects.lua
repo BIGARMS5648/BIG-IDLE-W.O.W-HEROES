@@ -203,6 +203,27 @@ ns.SKILL_FX = {
 	rebirth                = { spell = 20748, cast = 181, hit = 166704, low = true }, -- 환생 · resurrection_low_base.m2
 }
 
+-- A caster's basic attack (every ranged hero but the hunter): its school's
+-- bolt, smaller than a skill's (size), flying to the target and bursting
+-- there; a druid's nature is Wrath, the rest Lightning Bolt; holy has no
+-- bolt, Smite's light bursts on the target.
+ns.BASIC_FX_SIZE = 0.6
+ns.BASIC_FX = {
+	fire   = { missile = 166129, hit = 166583 }, -- 화염구 · moltenblast_impact_chest.m2
+	frost  = { missile = 166214, hit = 166370 }, -- 얼음 화살 · ice_impactdd_med_chest.m2
+	arcane = { missile = 165573, hit = 166525 }, -- 비전 화살 · magic_impact_chest.m2
+	shadow = { missile = 165891, hit = 165890 }, -- 어둠의 화살 · deathcoil_impact_chest.m2
+	nature = { missile = 166497, hit = 166496 }, -- 번개 화살 · lightningbolt_impact_chest.m2
+	wrath  = { missile = 167213, hit = 167212 }, -- 천벌 · wrath_impact_chest.m2
+	holy   = { hit = 166354 },                   -- 성스러운 일격 · holysmite_low_chest.m2
+}
+for _, fx in pairs(ns.BASIC_FX) do fx.size = ns.BASIC_FX_SIZE end
+function ns.BasicFx(class, school)
+	if class == "HUNTER" then return nil end
+	if class == "DRUID" and school == "nature" then return ns.BASIC_FX.wrath end
+	return ns.BASIC_FX[school]
+end
+
 -- Boss abilities by what they do and their school: the classic spell each
 -- one is (its name shows when it is used) and its visual. A summon shows the
 -- summoned monster's name.

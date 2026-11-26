@@ -1530,6 +1530,37 @@ do
 			else
 				fail("the battle check should have a hunter and a monster on screen")
 			end
+			-- a caster's basic attack: its school's small bolt (holy: Smite's
+			-- light on the target), smaller than a skill's
+			do
+				local caster, cfx
+				for _, x in ipairs(ns.Combat.heroes) do
+					local b = x.ranged and ns.BasicFx(x.class, x.school)
+					if b and b.missile and not caster then caster, cfx = x, b end
+				end
+				if caster and mob then
+					local before = ns.Bar.fxStats.missiles
+					ns.Combat.vfx[#ns.Combat.vfx + 1] = { k = "shot", u = caster, to = { mob } }
+					frames(5)
+					local seen = ns.Bar.fxStats.seen or {}
+					if (seen[cfx.missile] or 0) <= before then
+						fail("a " .. caster.spec .. "'s basic attack should fly its school's bolt: " .. tostring(ns.Bar.fxStats.lastMissile))
+					end
+					local small
+					for _, ms in ipairs(ns.Bar.missiles) do
+						if ms.active and ms.fx == cfx then small = ms end
+					end
+					if small and not (small.fig.fixedScale and small.fx.size == ns.BASIC_FX_SIZE) then
+						fail("a caster's basic bolt should be drawn smaller than a skill's")
+					end
+				else
+					fail("the battle check should have a caster with a bolt and a monster on screen")
+				end
+				if ns.BasicFx("HUNTER", "phys") ~= nil or ns.BasicFx("DRUID", "nature") ~= ns.BASIC_FX.wrath
+					or ns.BasicFx("SHAMAN", "nature") ~= ns.BASIC_FX.nature or ns.BASIC_FX.holy.missile ~= nil then
+					fail("basic bolts: none for hunters, Wrath for druids, Lightning Bolt for shamans, no bolt for holy")
+				end
+			end
 			-- the others: casters and healers cast at the target, the rest swing
 			for i, x in ipairs(ns.Combat.heroes) do
 				local want = x.class == "HUNTER" and ns.Bar.ShotOf(x).anim or (x.ranged and 53 or 17)

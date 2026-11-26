@@ -199,4 +199,7 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   shows a warning instead of opening the recruit window.
 - New Alliance and Horde crests on the faction picker (each card shows just
   the crest and the faction's name) and in the settings.
+- Casters' basic attacks fly a small bolt of their school (Fireball,
+  Frostbolt, Arcane Bolt, Shadow Bolt, Lightning Bolt, Wrath); holy casters'
+  light bursts on the target.
 ```

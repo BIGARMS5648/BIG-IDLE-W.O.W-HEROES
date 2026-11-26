@@ -821,7 +821,7 @@ local function scaleOf(fig) return fig.fixedScale or (fig.norm or 0.5) * (fig.co
 
 -- how big a hit is: a share of the scale of the model it lands on
 local function hitScale(hs)
-	return (hs.hand and HAND_SIZE or HIT_SIZE) * scaleOf(hs.tfig)
+	return (hs.hand and HAND_SIZE or HIT_SIZE) * (hs.size or 1) * scaleOf(hs.tfig)
 end
 
 -- how far in front of a figure's middle a beast's front is (k of the way
@@ -853,6 +853,7 @@ local function playHit(tfig, fx)
 	fig.id = nil
 	if not fig:SetModelFile(fx.hit) then return end
 	hs.tfig, hs.low, hs.hand, hs.own, hs.t, hs.wait, hs.active = tfig, fx.low, fx.hand, fx.own, 0, 0, true
+	hs.size = fx.size
 	fig:SetHeight2(tfig.height)
 	fig:SetFixedScale(hitScale(hs))
 	-- on its caster: the way the caster faces; on another: the way it flies
@@ -884,7 +885,7 @@ local function spellFx(u, fx, to)
 			if ms and ms.fig:SetModelFile(fx.missile) then
 				local dir = tfig.anchorX >= cfig.anchorX and 1 or -1
 				ms.fig:SetHeight2(cfig.height)
-				ms.fig:SetFixedScale(MISSILE_SIZE * scaleOf(cfig))
+				ms.fig:SetFixedScale(MISSILE_SIZE * (fx.size or 1) * scaleOf(cfig))
 				ms.fig:SetFacing(dir > 0 and "right" or "left")
 				ms.x0, ms.y0 = hand(cfig, dir)
 				ms.tfig, ms.fx, ms.t, ms.active = tfig, fx, 0, true
@@ -910,13 +911,16 @@ function Bar.ShotOf(u)
 	local kind = (mh and ns.MODEL.rangedKind[mh]) or (u.gun and "gun") or "bow"
 	return ns.MODEL.SHOT[kind]
 end
--- the arrow leaves the bow this long after the shot starts (the draw)
+-- the arrow leaves the bow this long after the shot starts (the draw); a
+-- caster's bolt leaves its hands this long after the cast starts
 local SHOT_DELAY = 0.3
+local BOLT_DELAY = 0.25
 local pendingShots = {}
 
 -- the combat's effect events: hero skills and boss abilities play their
--- spells; a hunter's basic attack flies its arrow or bullet to the target
--- (other basic attacks are not drawn)
+-- spells; a hunter's basic attack flies its arrow or bullet to the target, a
+-- caster's its school's small bolt (Data/Effects.lua ns.BASIC_FX); melee
+-- basic attacks are not drawn
 local function drawEffects()
 	local list = ns.Combat.vfx
 	local on = Figure.Enabled()
@@ -930,8 +934,10 @@ local function drawEffects()
 				fx = ns.MobFx(e.kind, e.school)
 			elseif e.k == "shot" then
 				local shot = Bar.ShotOf(e.u)
-				if shot and #pendingShots < MAX_MISSILES then
-					pendingShots[#pendingShots + 1] = { t = SHOT_DELAY, u = e.u, to = e.to, fx = { missile = shot.missile } }
+				local bolt = not shot and ns.BasicFx(e.u.class, e.u.school)
+				if (shot or bolt) and #pendingShots < MAX_MISSILES then
+					pendingShots[#pendingShots + 1] = { t = shot and SHOT_DELAY or BOLT_DELAY, u = e.u, to = e.to,
+						fx = shot and { missile = shot.missile } or bolt }
 				end
 			end
 			if fx then spellFx(e.u, fx, e.to) end
