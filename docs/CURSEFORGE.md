@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.7.0
+BIG IDLE HEROES v1.2.0
 ```
 
 ---
@@ -137,17 +137,31 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.7.0)
+## Changelog for this release (v1.2.0)
 
 ```
-- Battle window chests: with 개방의 룬 a click opens every chest of that kind
-  (one before it); Shift+click with the second 개방의 룬 still opens every
-  kind.
-- A right-click on a chest stops that kind opening by itself, and another
-  right-click starts it again; while stopped its border light is off and
-  the tooltip says so.
-- The gear line in every chest tooltip is yellow.
-- Runes: with a kind checked, the faded runes no longer let the lines behind
-  them show through.
-- The logo sits at the left of the title bar, in line with the panels below.
+- Enhancement opens with Mythic+ (once Mythic is cleared to its end).
+- Enhancement chances: 65% a try up to +10, then 60%, 55%, 50%, 45%, 40%,
+  35%, 30%, 20%, 15% and 10% for +19 to +20. A failed try only loses the
+  gold; the item keeps its step.
+- The enhancement screen in two cards: the item, its step bar and what the
+  next step gives on the left; the item now and after, the chance, the
+  cost, the average tries and the button on the right.
+- Inheritance: an enhanced item's steps move onto a new item of the same
+  slot as 70% of the gold they are worth; the old item is used up. A worn
+  old item is replaced by the new one on that hero.
+- Item slots: item level top left, a green arrow top right for better gear,
+  the enhancement step bottom right.
+- Grades 8 and 9 are Divine (soft yellow) and Celestial (cyan).
+- The first rune is the Rune of Beginnings, with the hearthstone icon.
+- Offline rewards: the clock in an icon slot, the amounts in green.
+- Stage screen: the act boss crown is a new gold crown; the path sits on a
+  dark panel like the other screens; the endless tower card shows Dalaran
+  and its floor picker Zephra's Isle.
+- Balance: monster strength set stage by stage for Normal 64 h, Heroic
+  75 h, Mythic 90 h and Mythic+ 333 h; the tower grows less each floor;
+  stages of level 90 and up give more experience; monster resistances are
+  at most 20%.
+- Worgen monsters (Son of Arugal and others): the health bar sits under
+  the body.
 ```
