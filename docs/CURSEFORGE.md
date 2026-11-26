@@ -177,4 +177,6 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - Inheritance takes the gems, enchants and inscriptions of the old item
   along, into the new item's free sockets; a protected item is never used
   up by inheritance.
+- New heroes start with their first two skills (the skill point of level 4
+  comes at level 1), so every specialization clears the first stage alone.
 ```

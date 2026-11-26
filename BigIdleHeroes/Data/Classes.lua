@@ -108,8 +108,10 @@ local function tree(arch, a, b, g)
 	return t
 end
 
--- Hero level at which each of a specialization's six skills opens.
-ns.SKILL_UNLOCK = { 1, 3, 10, 20, 30, 40 }
+-- Hero level at which each of a specialization's six skills opens (the first
+-- two from the start, so every specialization starts with one that fights or
+-- heals: some open with a buff or a debuff).
+ns.SKILL_UNLOCK = { 1, 1, 10, 20, 30, 40 }
 
 ------------------------------------------------------------------------
 -- Specializations

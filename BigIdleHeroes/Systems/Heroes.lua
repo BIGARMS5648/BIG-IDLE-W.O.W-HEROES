@@ -107,9 +107,12 @@ function Heroes.NewRecord(specId, _, name)
 	}
 	-- starter weapon so a fresh hero is never empty-handed
 	h.gear.mh = ns.Items.New("mh", 1, 1, sp.mh[1])
-	-- the first skill is learned and slotted for free
-	h.sk[sp.skills[1]] = 1
-	h.skills[1] = sp.skills[1]
+	-- the first two skills are learned and slotted from the start (the skill
+	-- points of level 1 and of level 4, Heroes.SkillPointsTotal)
+	for i = 1, 2 do
+		h.sk[sp.skills[i]] = 1
+		h.skills[i] = sp.skills[i]
+	end
 	db.heroes[h.id] = h
 	return h
 end
@@ -350,7 +353,8 @@ end
 
 ------------------------------------------------------------------------
 -- Skills: six per specialization, opened by hero level, learned and raised
--- with skill points (one at level 1, then one every 4 levels)
+-- with skill points (one at level 1, then one every 4 levels; the one of
+-- level 4 comes at level 1, for the second skill)
 ------------------------------------------------------------------------
 function Heroes.SkillList(id)
 	return Heroes.Spec(id).skills
@@ -369,7 +373,7 @@ function Heroes.SkillUnlocked(id, skillId)
 end
 
 function Heroes.SkillPointsTotal(id)
-	return 1 + floor(ns.db.heroes[id].level / 4)
+	return max(2, 1 + floor(ns.db.heroes[id].level / 4))
 end
 
 function Heroes.SkillPointsSpent(id)

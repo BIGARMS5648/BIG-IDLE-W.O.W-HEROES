@@ -802,5 +802,26 @@ do -- a change of party keeps the health, revival time and cooldowns of who stay
 	L.endLab()
 end
 
+do -- every specialization's first hero clears the first stage alone
+	local lost = {}
+	local specs = {}
+	for id in pairs(ns.SPECS) do specs[#specs + 1] = id end
+	table.sort(specs)
+	for _, spec in ipairs(specs) do
+		math.randomseed(1001)
+		BigWowIdleDB = nil
+		ns.InitDB()
+		ns.db.faction = "HORDE"
+		ns.db.opt.retreat, ns.db.opt.retry, ns.db.opt.auto = false, false, false
+		ns.Heroes.Create(spec)
+		ns.Combat.StartStage()
+		local st = ns.Combat.state
+		local steps = 0
+		while st.phase ~= "result" and steps < 6000 do ns.Combat.Step() steps = steps + 1 end
+		if st.result ~= "win" then lost[#lost + 1] = spec end
+	end
+	check(#lost == 0, "모든 전문화: 1레벨 첫 영웅 혼자 1-1을 깸 (" .. #specs .. "개)", #lost > 0 and table.concat(lost, ", ") or nil)
+end
+
 print(string.format("\n  결과: %d개 통과, %d개 실패", L.R.pass, L.R.fail))
 return L.R.fail == 0

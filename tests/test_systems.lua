@@ -508,14 +508,14 @@ local before = db.heroes[H].level
 ns.Heroes.AddXP(H, 5000000)
 check(db.heroes[H].level > before + 15, "experience grants levels")
 check(ns.Heroes.PointsFree(H) == db.heroes[H].level, "one talent point per level, all free")
-check(ns.Heroes.SkillPointsFree(H) == ns.Heroes.SkillPointsTotal(H) - 1, "skill points are separate (the first skill is pre-learned)")
+check(ns.Heroes.SkillPointsFree(H) == ns.Heroes.SkillPointsTotal(H) - 2, "skill points are separate (the first two skills are pre-learned)")
 check(not ns.Heroes.SpendPoint(H, 2, 1), "tier 2 locked before 10 points")
 for _ = 1, 3 do check(ns.Heroes.SpendPoint(H, 1, 2), "spend on passive") end
 for _ = 1, 7 do ns.Heroes.SpendPoint(H, 1, 1) end
 check(ns.Heroes.TierOpen(H, 2), "tier 2 opens after 10 points")
-check(ns.Heroes.SkillPointsFree(H) == ns.Heroes.SkillPointsTotal(H) - 1, "talents do not use skill points")
+check(ns.Heroes.SkillPointsFree(H) == ns.Heroes.SkillPointsTotal(H) - 2, "talents do not use skill points")
 local sp2 = ns.Heroes.SkillList(H)[2]
-check(ns.Heroes.LearnSkill(H, sp2), "learn second skill")
+check(ns.Heroes.SkillPoints(H, sp2) == 1, "the second skill is learned from the start")
 check(ns.Heroes.LearnSkill(H, sp2) and ns.Heroes.SkillPoints(H, sp2) == 2, "raise a skill")
 check(#ns.Heroes.ActiveSkills(H) == 2, "two skills active with two slots")
 do
