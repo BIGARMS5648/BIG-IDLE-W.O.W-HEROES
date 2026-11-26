@@ -791,6 +791,19 @@ do
 		Main.CloseModal()
 		epic.up = before > 0 and before or nil
 	end
+	-- /bih fx: the strikes and a result window, nothing spent or changed
+	do
+		local gold, step, tries = ns.db.gold, epic.up, ns.db.stat.upTries
+		fx.Demo(true)
+		if not (fx.run and fx.run.demo and fx.anim:IsShown()) then fail("/bih fx should play the strikes") end
+		fx.anim.skip:Click()
+		if not (fx.res:IsShown() and (fx.res.title.__text or ""):find("성공!", 1, true)) then fail("/bih fx should end on a success window") end
+		fx.res.again:Click()
+		fx.Finish()
+		if not (fx.res.title.__text or ""):find("실패...", 1, true) then fail("its button should show the other result") end
+		Main.CloseModal()
+		if ns.db.gold ~= gold or epic.up ~= step or ns.db.stat.upTries ~= tries then fail("/bih fx should spend and change nothing") end
+	end
 	-- the icons show the item level; the step goes before the name in the
 	-- tooltip ("+3 <name>")
 	Main.ShowTab("equip", { sub = "bag" })

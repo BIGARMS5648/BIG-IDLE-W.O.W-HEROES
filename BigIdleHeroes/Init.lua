@@ -169,6 +169,9 @@ local function slash(msg)
 	elseif msg == "reset" then
 		ns.Bar.ResetPosition()
 		ns.Bar.Toggle(true)
+	elseif msg == "fx" or msg == "fx fail" then
+		-- (for now) the 강화 strikes and result window, nothing spent
+		ns.ForgeView.UpFx.Demo(msg == "fx")
 	elseif msg == "ground" or msg == "땅" then
 		local total, missing = ns.Bar.CheckGrounds()
 		if #missing == 0 then
@@ -178,7 +181,7 @@ local function slash(msg)
 			for _, m in ipairs(missing) do ns.Log("  " .. m) end
 		end
 	else
-		ns.Print("/bih (메뉴) · /bih bar (전투 창 표시/숨김) · /bih reset (전투 창 위치 초기화) · /bih ground (땅 그림 확인)")
+		ns.Print("/bih (메뉴) · /bih bar (전투 창 표시/숨김) · /bih reset (전투 창 위치 초기화) · /bih ground (땅 그림 확인) · /bih fx (강화 연출 보기, 실패는 /bih fx fail)")
 	end
 end
 
