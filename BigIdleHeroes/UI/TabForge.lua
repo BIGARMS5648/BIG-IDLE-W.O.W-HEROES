@@ -841,7 +841,7 @@ function UpFx.Finish()
 		row[2]:SetText(rows[i] and rows[i][2] or "")
 	end
 	c.again:SetLabel(r.success and "계속 강화" or "다시 강화")
-	c.again:SetOff(not r.demo and Up.Why(it) ~= nil)
+	c.again:SetOff(Up.Why(it) ~= nil)
 	UpFx.again = r.again
 	Main.ShowModal(c)
 end
@@ -854,25 +854,6 @@ function UpFx.Play(it, success, from, n, again)
 	UpFx.Pose(0)
 	if UpFx.anim.spark then UpFx.anim.spark:Hide() end
 	Main.ShowModal(UpFx.anim, function() UpFx.run = nil end)
-end
-
--- (for checking the strikes in the game: /bih fx, /bih fx fail) the strikes
--- and a result window for the piece picked on 강화 (else the first worn
--- one), spending nothing and changing nothing; its button shows the other
--- result
-function UpFx.Demo(success)
-	Main.Toggle(true)
-	local it = ForgeView.Target()
-	if not it then
-		local id = ns.db.party[1]
-		local h = id and ns.db.heroes[id]
-		if h then for _, slot in ipairs(ns.SLOTS) do if h.gear[slot] then it = h.gear[slot] break end end end
-	end
-	it = it or ns.Items.New("chest", 50, 5)
-	local Up = ns.Upgrade
-	local from = min(Up.Level(it), Up.MAX - 1)
-	UpFx.Play(it, success, from, success and from + 1 or from, function() UpFx.Demo(not success) end)
-	UpFx.run.demo = true
 end
 
 local function buildUpgrade(page, f)

@@ -1505,7 +1505,7 @@ end
 local MENU = {
 	{ "hero",  "INV_Helmet_06",          "영웅", "icon_hero" },
 	{ "equip", "INV_Chest_Chain_05",     "장비", "icon_bag" },
-	{ "forge", "Trade_BlackSmithing",    "대장간", "icon_forge" },
+	{ "forge", "Trade_BlackSmithing",    "대장간", "icon_forge", 1.5 }, -- (its icon a touch higher in the ring)
 	{ "party", "INV_Misc_GroupNeedMore", "편성", "icon_party" },
 	{ "runes", "INV_Misc_Rune_01",       "룬", "icon_runes" },
 	{ "map",   "INV_Misc_Map_01",        "스테이지", "icon_map" },
@@ -1805,6 +1805,10 @@ function Bar.Create()
 	for i, m in ipairs(MENU) do
 		local mb = UI.MenuButton(dock, 36, m[2], ns.N(m[3]), function(self) Bar.OpenMenu(self.key) end, m[4])
 		mb.key = m[1]
+		if m[5] then
+			mb.icon:ClearAllPoints()
+			mb.icon:SetPoint("CENTER", mb.disc, "CENTER", 0, m[5])
+		end
 		-- 44 apart: the captions (스테이지 is the widest) keep clear of each other
 		mb:SetPoint("TOPLEFT", auto, "TOPRIGHT", 8 + #ns.CHEST * 41 + 2 + (i - 1) * 44, 0)
 		frame.menu[i] = mb

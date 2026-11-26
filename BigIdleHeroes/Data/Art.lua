@@ -1,7 +1,7 @@
 -- Interface pictures of this add-on (Media/Art, cut from the icon sheet by
 -- tools/cut_icons.py): white icons drawn tinted. The menu screens' icons
 -- (icon_<screen>), the forge's functions (forge_<function>), settings, the
--- 대장간 (icon_forge, tools/cut_icon.py from tools/art/forge_house.png), the
+-- 대장간 (icon_forge, tools/cut_forge_icon.py from tools/art/forge_house.png), the
 -- lock (icon_lock, tools/cut_icon.py) on everything locked, the
 -- recommendation star and the boss skull (icon_star, icon_skull: painted,
 -- never tinted), and the scroll bar pieces (sb_*).
