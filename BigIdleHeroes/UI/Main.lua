@@ -328,7 +328,7 @@ function Main.Create()
 				end
 			end
 			if #lines == 1 then lines[2] = { "아직 없습니다. 상자에서 얻습니다.", nil, 0.7, 0.7, 0.7 } end
-			lines[#lines + 1] = { "클릭: 용광로 > 재료에서 보기", nil, 0.45, 0.8, 1 }
+			lines[#lines + 1] = { "클릭: 대장간 > 재료에서 보기", nil, 0.45, 0.8, 1 }
 			return lines
 		end)
 		frame.currency[i] = p

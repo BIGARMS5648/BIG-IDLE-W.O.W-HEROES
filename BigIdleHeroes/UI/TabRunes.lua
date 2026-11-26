@@ -4,7 +4,7 @@
 -- the mouse wheel zooms in and out around the cursor, dragging moves it.
 --
 -- A rune's border colour is its kind (전투 · 골드 · 경험치 · 상자 · 가방 · 해금
--- · 용광로, the key under the map; a kind's box there can be checked, and the
+-- · 대장간, the key under the map; a kind's box there can be checked, and the
 -- runes of the checked kinds then stand out, the others fade); a rune that cannot be learned yet is
 -- grey; a rune at its top level has a green check in its lower right corner.
 -- Click a rune to see it in the card on the right and learn it there; the

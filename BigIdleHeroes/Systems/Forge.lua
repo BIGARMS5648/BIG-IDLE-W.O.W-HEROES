@@ -47,7 +47,7 @@ function Forge.AddXP(n)
 		leveled = true
 	end
 	if leveled then
-		ns.Toast(string.format("티탄 용광로 %d레벨 달성!", f.level))
+		ns.Toast(string.format("티탄 대장간 %d레벨 달성!", f.level))
 	end
 	ns.Fire("FORGE")
 end
@@ -66,7 +66,7 @@ function Forge.Unlock(op)
 	local d = Forge.OpDef(op)
 	if not d or Forge.Unlocked(op) then return false end
 	if ns.db.forge.level < d.level then
-		return false, string.format("용광로 %d레벨이 필요합니다.", d.level)
+		return false, string.format("대장간 %d레벨이 필요합니다.", d.level)
 	end
 	if not ns.SpendGold(d.cost) then
 		return false, "골드가 부족합니다."
@@ -353,7 +353,7 @@ function Forge.UnlockCraftTier(tier)
 	local d = ns.CRAFT_TIERS[tier]
 	if not d or Forge.CraftTierUnlocked(tier) then return false end
 	if ns.db.forge.level < d.forge then
-		return false, string.format("용광로 %d레벨이 필요합니다.", d.forge)
+		return false, string.format("대장간 %d레벨이 필요합니다.", d.forge)
 	end
 	if not ns.SpendGold(d.gold * 5) then
 		return false, "골드가 부족합니다."

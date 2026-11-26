@@ -1,4 +1,4 @@
--- The Titan Forge (용광로) as tabs of the equipment screen (UI/TabEquip.lua):
+-- The Titan Forge (대장간) as tabs of the equipment screen (UI/TabEquip.lua):
 --   융합 (합성): grade chips, the bag's items of that grade (the next nine
 --         to be used framed in gold), 1회 / 가능한 만큼, the last result;
 --   제작: part chips, the tiers, what a tier needs, 제작하기;
@@ -282,7 +282,7 @@ local function buildCraft(page, f)
 		local t = ns.CRAFT_TIERS[p.tier]
 		if not ns.Forge.CraftTierUnlocked(p.tier) then
 			if ns.db.forge.level < t.forge then
-				UI.Try(false, string.format("용광로 Lv %d에 열립니다.", t.forge))
+				UI.Try(false, string.format("대장간 Lv %d에 열립니다.", t.forge))
 				return
 			end
 			UI.Confirm({ title = "제작 단계 해금", ok = "해금", style = "primary",
@@ -312,7 +312,7 @@ local function buildCraft(page, f)
 			elseif ns.db.forge.level >= t.forge then
 				row.sub:SetText(U.col("ffd24a", "해금 " .. U.fmt(t.gold * 5) .. " G"))
 			else
-				row.sub:SetText(U.col("9a8f78", string.format("용광로 Lv %d 필요", t.forge)))
+				row.sub:SetText(U.col("9a8f78", string.format("대장간 Lv %d 필요", t.forge)))
 			end
 			local best = 0
 			for q = 1, ns.MAX_QUALITY do if (t.q[q] or 0) > 0 then best = q end end
@@ -359,7 +359,7 @@ local function buildCraft(page, f)
 			p.go:SetOff(not ns.CanAfford(t.gold * 5))
 			if not ns.CanAfford(t.gold * 5) then p.why:SetText("골드가 부족합니다.") end
 		else
-			p.go:SetLabel(string.format("용광로 Lv %d에 열림", t.forge))
+			p.go:SetLabel(string.format("대장간 Lv %d에 열림", t.forge))
 			p.go:SetOff(true)
 		end
 	end
@@ -627,6 +627,234 @@ local function chanceHex(c)
 	if c >= 0.6 then return UP_GREEN elseif c >= 0.3 then return UP_YELLOW end
 	return UP_RED
 end
+------------------------------------------------------------------------
+-- A try's result: the hammer comes down on the anvil three times (the
+-- anvil still, the hammer swung about its handle's end; pictures cut from
+-- the old forge icon by tools/cut_anvil.py), the game's strike sparks where
+-- it lands, then a small window with how it went. A click during the
+-- strikes shows the result at once.
+------------------------------------------------------------------------
+local UpFx = {}
+ForgeView.UpFx = UpFx
+UpFx.TIME = 2.0                    -- the strikes, then the result
+UpFx.STRIKES = { 0.45, 1.05, 1.65 } -- when the hammer lands
+UpFx.SPARK = 166986                -- strike_impact_chest.m2 (a warrior's strike)
+-- (tools/cut_anvil.py) the handle's end in the anvil's square (from its top
+-- left), the hammer's square, and how far it turns down onto the anvil
+UpFx.HAMMER = { x = 0.861, y = 0.411, size = 1.042, down = 19.0 }
+UpFx.LIFT = 25                     -- how far above its rest it is raised (degrees)
+UpFx.HIT = { x = 0.47, y = 0.47 }  -- where the head meets the anvil
+local ANVIL = 96                   -- the anvil's square on the window
+
+-- turns a square picture about its middle, anticlockwise by deg (a
+-- negative deg turns it clockwise)
+local function turn(tex, deg)
+	local a = math.rad(deg)
+	local c, s = math.cos(a), math.sin(a)
+	local function at(x, y)
+		return 0.5 + x * c + y * s, 0.5 - (-x * s + y * c)
+	end
+	local ulx, uly = at(-0.5, 0.5)
+	local llx, lly = at(-0.5, -0.5)
+	local urx, ury = at(0.5, 0.5)
+	local lrx, lry = at(0.5, -0.5)
+	tex:SetTexCoord(ulx, uly, llx, lly, urx, ury, lrx, lry)
+end
+
+local function buildStrikes()
+	local c = Main.ModalContent(340, 226)
+	UpFx.anim = c
+	-- a click anywhere on the window shows the result: the strikes are drawn
+	-- on a button over all of it
+	local b = CreateFrame("Button", nil, c)
+	c.skip = b
+	b:SetAllPoints(Main.Frame().modal)
+	b:SetFrameLevel(c:GetFrameLevel() + 20)
+	b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	b:SetScript("OnClick", function() UpFx.Finish() end)
+	c.anvil = b:CreateTexture(nil, "ARTWORK")
+	c.anvil:SetSize(ANVIL, ANVIL)
+	c.anvil:SetPoint("CENTER", c, "CENTER", 0, 16)
+	UI.SetArtOrIcon(c.anvil, "fx_anvil", "Trade_BlackSmithing")
+	local H = UpFx.HAMMER
+	c.hammer = b:CreateTexture(nil, "OVERLAY")
+	c.hammer:SetSize(ANVIL * H.size, ANVIL * H.size)
+	c.hammer:SetPoint("CENTER", c.anvil, "TOPLEFT", ANVIL * H.x, -ANVIL * H.y)
+	c.hammer:SetTexture(UI.ArtIcon("fx_hammer"))
+	c.text = UI.Text(b, 13, "강화하는 중...")
+	c.text:SetPoint("TOP", c, "CENTER", 0, -44)
+	UI.Color(c.text, UI.C.sub)
+	-- the sparks where the hammer lands (the game's own effect)
+	local Fig = ns.Figure3D
+	if Fig and Fig.Enabled() then
+		c.spark = Fig.New(b, ANVIL)
+		c.spark:Hide()
+	end
+	c:SetScript("OnUpdate", function(_, dt) UpFx.Step(dt) end)
+end
+
+-- the hammer's turn at time t (degrees, anticlockwise from its rest): raised
+-- slowly, brought down fast onto the anvil, held a moment, back to rest
+function UpFx.Angle(t)
+	local down, lift = UpFx.HAMMER.down, UpFx.LIFT
+	local prev, nxt
+	for _, s in ipairs(UpFx.STRIKES) do
+		if t < s then nxt = s break end
+		prev = s
+	end
+	if prev and t - prev < 0.05 then return down end
+	if prev and t - prev < 0.15 then return down * (1 - (t - prev - 0.05) / 0.1) end
+	if not nxt then return 0 end
+	local from, slam = prev and prev + 0.15 or 0, nxt - 0.12
+	if t < slam then return -lift * (t - from) / (slam - from) end
+	return -lift + (down + lift) * (t - slam) / 0.12
+end
+function UpFx.Pose(t)
+	turn(UpFx.anim.hammer, UpFx.Angle(t))
+end
+
+local function spark()
+	local fig = UpFx.anim.spark
+	if not fig then return end
+	fig.id = nil
+	if not fig:SetModelFile(UpFx.SPARK) then return end
+	fig:SetHeight2(ANVIL)
+	fig:SetFixedScale(0.6)
+	fig:SetFacing("left")
+	-- (from the window's bottom left: the anvil's square sits 16 above its middle)
+	local x = 170 - ANVIL / 2 + ANVIL * UpFx.HIT.x
+	local y = 113 + 16 + ANVIL / 2 - ANVIL * UpFx.HIT.y
+	fig:PlaceFeet(UpFx.anim, x, y)
+	fig:SetAlpha(1)
+	fig:Show()
+end
+
+function UpFx.Step(dt)
+	local r = UpFx.run
+	if not r then return end
+	local t0 = r.t
+	r.t = r.t + dt
+	for _, s in ipairs(UpFx.STRIKES) do
+		if t0 < s and r.t >= s then spark() end
+	end
+	if UpFx.anim.spark then UpFx.anim.spark:Step(dt) end
+	UpFx.Pose(r.t)
+	if r.t >= UpFx.TIME then UpFx.Finish() end
+end
+
+local function buildResult()
+	local c = Main.ModalContent(340, 226)
+	UpFx.res = c
+	c.title = UI.Title(c, "", 16)
+	c.title:SetPoint("TOP", c, "TOP", 0, 0)
+	c.a = UI.IconButton(c, 44)
+	c.b = UI.IconButton(c, 44)
+	c.arrow = c:CreateTexture(nil, "ARTWORK")
+	c.arrow:SetSize(14, 14)
+	UI.SetArrow(c.arrow, "right", 0.75, 0.8, 0.92)
+	c.arrow:SetPoint("TOP", c, "TOP", 0, -45)
+	c.name = UI.Text(c, 13)
+	c.name:SetPoint("TOP", c, "TOP", 0, -82)
+	c.name:SetWidth(300)
+	c.name:SetJustifyH("CENTER")
+	c.name:SetWordWrap(false)
+	c.rows = {}
+	for i = 1, 3 do
+		local l = UI.Text(c, 12)
+		l:SetPoint("TOPLEFT", c, "TOPLEFT", 20, -106 - (i - 1) * 20)
+		UI.Color(l, UI.C.sub)
+		local r = UI.Text(c, 12)
+		r:SetPoint("TOPRIGHT", c, "TOPRIGHT", -20, -106 - (i - 1) * 20)
+		c.rows[i] = { l, r }
+	end
+	c.close = UI.Button(c, 164, 30, "확인", function() Main.CloseModal() end, "dark")
+	c.close:SetPoint("BOTTOMLEFT", c, "BOTTOMLEFT", 0, 0)
+	c.again = UI.Button(c, 164, 30, "", function()
+		local fn = UpFx.again
+		Main.CloseModal()
+		if fn then fn() end
+	end, "primary")
+	c.again:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", 0, 0)
+	c.again.clickWhenOff = true
+end
+
+local function showPiece(b, it, step)
+	b:Clear()
+	b.data = it
+	b:SetIconName(ns.Items.Icon(it))
+	b:SetQuality(it.q)
+	local was = it.up
+	it.up = step > 0 and step or nil
+	b:SetItemMarks(it)
+	it.up = was
+end
+
+-- the result window: success shows the piece before » after and what rose;
+-- a failure the next try's chance and cost
+function UpFx.Finish()
+	local r = UpFx.run
+	if not r then return end
+	UpFx.run = nil
+	if UpFx.anim.spark then UpFx.anim.spark:Hide() end
+	if not UpFx.res then buildResult() end
+	local c, it, Up = UpFx.res, r.it, ns.Upgrade
+	local G, R = "60e070", "ff6a5a"
+	c.title:SetText(r.success and U.col(G, "성공!") or U.col(R, "실패..."))
+	c.name:SetText(ns.QText(it.q, ns.Items.Name(it)))
+	c.a:ClearAllPoints()
+	if r.success then
+		showPiece(c.a, it, r.from)
+		showPiece(c.b, it, r.n)
+		c.a:SetPoint("TOP", c, "TOP", -46, -30)
+		c.b:SetPoint("TOP", c, "TOP", 46, -30)
+		c.b:Show()
+		c.arrow:Show()
+	else
+		showPiece(c.a, it, r.n)
+		c.a:SetPoint("TOP", c, "TOP", 0, -30)
+		c.b:Hide()
+		c.arrow:Hide()
+	end
+	local rows = {}
+	if r.success then
+		local function pct(k) return floor((Up.Bonus(k) - 1) * 100 + 0.5) end
+		rows[1] = { "기본 능력치", "+" .. pct(r.from) .. "%  →  " .. U.col(G, "+" .. pct(r.n) .. "%") }
+		local now = ns.Items.BaseStats(it)
+		local was = it.up
+		it.up = r.from > 0 and r.from or nil
+		local before = ns.Items.BaseStats(it)
+		it.up = was
+		for i = 1, min(2, #now) do
+			local text = ns.Stats.ModText(before[i][1], before[i][2])
+			local num, name = text:match("^%+?([%d,%.%%]+)%s+(.+)$")
+			local num2 = ns.Stats.ModText(now[i][1], now[i][2]):match("^%+?([%d,%.%%]+)")
+			rows[#rows + 1] = { name or "", (num or text) .. "  →  " .. U.col(G, num2 or "") }
+		end
+	elseif r.n < Up.MAX then
+		local chance = Up.Chance(r.n)
+		rows[1] = { "다음 성공 확률", U.col(chance >= 0.6 and G or (chance >= 0.3 and "ffd24a" or R), U.num(chance * 100, 0) .. "%") }
+		rows[2] = { "비용", U.col(ns.CanAfford(Up.Cost(it, r.n)) and "ffd24a" or R, U.fmt(Up.Cost(it, r.n)) .. " G") }
+	end
+	for i, row in ipairs(c.rows) do
+		row[1]:SetText(rows[i] and rows[i][1] or "")
+		row[2]:SetText(rows[i] and rows[i][2] or "")
+	end
+	c.again:SetLabel(r.success and "계속 강화" or "다시 강화")
+	c.again:SetOff(Up.Why(it) ~= nil)
+	UpFx.again = r.again
+	Main.ShowModal(c)
+end
+
+-- the strikes for a try that went `success` (from step `from` to `n`),
+-- then its result; again() tries once more
+function UpFx.Play(it, success, from, n, again)
+	if not UpFx.anim then buildStrikes() end
+	UpFx.run = { t = 0, it = it, success = success, from = from, n = n, again = again }
+	UpFx.Pose(0)
+	if UpFx.anim.spark then UpFx.anim.spark:Hide() end
+	Main.ShowModal(UpFx.anim, function() UpFx.run = nil end)
+end
+
 local function buildUpgrade(page, f)
 	local p = {}
 	local Up = ns.Upgrade
@@ -724,20 +952,28 @@ local function buildUpgrade(page, f)
 	R.ch = UI.Text(R, 30)
 	R.ch:SetPoint("TOP", R, "TOP", 0, -96)
 	R.rows = { row(R, -150, CW - 24), row(R, -172, CW - 24) }
-	p.go = UI.Button(R, CW - 24, 36, "강화하기", function()
-		local it = p.picked
-		local ok, success, n = Up.Try(it, p.pickedHero)
+	-- one try: the gold is spent and the step rolled now; the strikes and the
+	-- result window follow
+	function p.tryOnce()
+		local it, hero = p.picked, p.pickedHero
+		local from = Up.Level(it)
+		local ok, success, n = Up.Try(it, hero)
 		if UI.Try(ok, success) then
 			if success then
-				p.last, p.lastFor = U.col(UP_GREEN, string.format("성공! +%d", n)), it
 				ForgeView.Log(U.col(UP_GREEN, string.format("강화 성공 +%d", n)) .. " · " .. ns.Items.Name(it))
 			else
-				p.last, p.lastFor = U.col(UP_RED, string.format("실패 · +%d 그대로", n)), it
 				ForgeView.Log(U.col(UP_RED, string.format("강화 실패 +%d", n)) .. " · " .. ns.Items.Name(it))
 			end
+			Main.Refresh()
+			UpFx.Play(it, success, from, n, function()
+				-- (the same piece, if it is still the one picked)
+				if p.picked == it then p.tryOnce() end
+			end)
+			return
 		end
 		Main.Refresh()
-	end, "primary")
+	end
+	p.go = UI.Button(R, CW - 24, 36, "강화하기", function() p.tryOnce() end, "primary")
 	p.go:SetPoint("BOTTOM", R, "BOTTOM", 0, 12)
 	p.go.clickWhenOff = true
 	-- why it cannot be tried now, or how the last try went
@@ -998,10 +1234,10 @@ local function buildLocked(page, f)
 		local d = ns.Forge.OpDef(op)
 		local lvl = ns.db.forge.level
 		local okLevel = lvl >= d.level
-		p.text:SetText(string.format("'%s'은(는) 아직 잠겨 있습니다.\n%s\n\n필요한 용광로 레벨: %s  ·  해금 비용: %s G\n(용광로 레벨은 장비를 분해·융합·제작하면 오릅니다)",
+		p.text:SetText(string.format("'%s'은(는) 아직 잠겨 있습니다.\n%s\n\n필요한 대장간 레벨: %s  ·  해금 비용: %s G\n(대장간 레벨은 장비를 분해·융합·제작하면 오릅니다)",
 			ns.N(d.name), ns.N(d.desc), U.col(okLevel and "6af07a" or "ff6a5a", tostring(d.level)),
 			U.col(ns.CanAfford(d.cost) and "ffd24a" or "ff6a5a", U.fmt(d.cost))))
-		p.go:SetLabel(okLevel and ("해금하기  " .. U.fmt(d.cost) .. " G") or string.format("용광로 Lv %d에 열림", d.level))
+		p.go:SetLabel(okLevel and ("해금하기  " .. U.fmt(d.cost) .. " G") or string.format("대장간 Lv %d에 열림", d.level))
 		p.go:SetOff(not okLevel or not ns.CanAfford(d.cost))
 	end
 	return p

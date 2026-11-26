@@ -25,7 +25,7 @@ SCENES = [
     "hero", "hero_res_tip", "hero_skills", "hero_tree", "hero_bench", "hero_tank", "hero_reset", "hero_dismiss", "hero_scroll",
     "equip", "equip_tooltip", "equip_top_tip", "equip_slot", "equip_bank", "equip_smelt_list", "equip_view_list", "equip_smelt_all", "equip_max",
     "equip_sockets_tip", "equip_mixed_tip", "equip_slot_tip",
-    "fuse", "fuse_ready", "fuse_list", "fuse_high", "craft", "craft_locked", "craft_far", "gem", "gem_stress", "ench", "insc_locked", "up", "up_move", "up_move_confirm", "up_locked", "smelt", "seal",
+    "fuse", "fuse_ready", "fuse_list", "fuse_high", "craft", "craft_locked", "craft_far", "gem", "gem_stress", "ench", "insc_locked", "up", "up_move", "up_move_confirm", "upfx", "upfx_ok", "upfx_fail", "up_locked", "smelt", "seal",
     "mats", "mats_gem", "mats_seal", "mats_seal_some", "mats_page2", "mats_seal_locked", "gem_remove_locked", "bag_smelt_locked",
     "party", "party_open",
     "runes", "runes_kind", "runes_locked", "runes_far", "runes_full", "runes_full_end",
@@ -668,7 +668,8 @@ def main(argv):
     scene = run.run_script(lua, "preview_scene.lua")
     mock = lua.globals().WoWMock
     data = []
-    for name in SCENES:
+    names = os.environ["SCENES"].split(",") if os.environ.get("SCENES") else SCENES
+    for name in names:
         scene(name)
         data.append([name, json.loads(mock.ExportJSON())])
     out_dir = os.path.join(run.HERE, "out")

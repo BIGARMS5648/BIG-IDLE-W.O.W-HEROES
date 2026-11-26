@@ -29,7 +29,7 @@ ns.ForgeUnlock = Unlock
 function Unlock.Label(op, verb)
 	local d = ns.Forge.OpDef(op)
 	if ns.db.forge.level < d.level then
-		return string.format("용광로 Lv %d 필요", d.level), true, "dark"
+		return string.format("대장간 Lv %d 필요", d.level), true, "dark"
 	end
 	return string.format("%s 해금 %s G", verb, U.fmt(d.cost)), not ns.CanAfford(d.cost), "primary"
 end
@@ -38,7 +38,7 @@ end
 function Unlock.Ask(op)
 	local d = ns.Forge.OpDef(op)
 	if ns.db.forge.level < d.level then
-		UI.Try(false, string.format("'%s'은(는) 용광로 Lv %d에 열립니다. 장비를 융합·제작·분해하면 용광로 레벨이 오릅니다.", ns.N(d.name), d.level))
+		UI.Try(false, string.format("'%s'은(는) 대장간 Lv %d에 열립니다. 장비를 융합·제작·분해하면 대장간 레벨이 오릅니다.", ns.N(d.name), d.level))
 		return
 	end
 	if not ns.CanAfford(d.cost) then
@@ -46,7 +46,7 @@ function Unlock.Ask(op)
 		return
 	end
 	UI.Confirm({ title = ns.N(d.name) .. " 해금", ok = "해금", style = "primary",
-		text = string.format("용광로의 '%s'을(를) 해금하시겠습니까?\n%s\n%s 골드가 듭니다.", ns.N(d.name), ns.N(d.desc), U.fmt(d.cost)),
+		text = string.format("대장간의 '%s'을(를) 해금하시겠습니까?\n%s\n%s 골드가 듭니다.", ns.N(d.name), ns.N(d.desc), U.fmt(d.cost)),
 		onOk = function()
 			if UI.Try(ns.Forge.Unlock(op)) then ns.Toast(string.format("'%s'을(를) 해금했습니다.", ns.N(d.name))) end
 		end })
@@ -55,7 +55,7 @@ end
 -- the tooltip line for a locked function
 function Unlock.Tip(op)
 	local d = ns.Forge.OpDef(op)
-	return string.format("아직 잠겨 있습니다: 용광로 Lv %d · 해금 %s G", d.level, U.fmt(d.cost))
+	return string.format("아직 잠겨 있습니다: 대장간 Lv %d · 해금 %s G", d.level, U.fmt(d.cost))
 end
 
 local W = UI.K.EQUIP_BODY_W -- body width

@@ -1,4 +1,4 @@
--- Forge screen (용광로).
+-- Forge screen (대장간).
 --   left:   the forge level, then every function (융합 · 제작 · 보석 ·
 --           마법부여 · 주문각인 · 강화 · 분해 · 재료; seals are rolled on
 --           the materials' seal tab), a lock on
@@ -31,7 +31,7 @@ local LOG_LINES = 6
 -- op: the forge operation that unlocks it (none: always open, or 강화 with
 -- the endless tower); target: works on a piece picked on the right
 local FUNCS = {
-	{ key = "smelt", name = "분해",       op = "smelt", desc = "장비를 골드와 용광로 경험치로 바꿉니다." },
+	{ key = "smelt", name = "분해",       op = "smelt", desc = "장비를 골드와 대장간 경험치로 바꿉니다." },
 	{ key = "fuse",  name = "융합",       op = "fuse",  desc = "같은 등급 장비 9개를 합쳐 장비 1개를 만듭니다." },
 	{ key = "craft", name = "제작",       op = "craft", desc = "재료로 원하는 부위의 무작위 장비를 만듭니다." },
 	{ key = "gem",   name = "보석",       op = "gem",   target = true, desc = "장비의 보석 홈에 무작위 능력치를 부여합니다." },
@@ -65,7 +65,7 @@ local function buildLeft(page)
 	page.forgeBar.text:SetFont(ns.FONT, 10, "OUTLINE")
 	page.forgeBar:EnableMouse(true)
 	UI.Tip(page.forgeBar, function()
-		local lines = { { "용광로 레벨", nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
+		local lines = { { "대장간 레벨", nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
 			{ "장비를 분해·융합·제작하면 경험치가 오릅니다. 레벨이 오르면 새 기능과 제작 단계가 열립니다.", nil, 1, 1, 1, true } }
 		for _, d in ipairs(ns.FORGE_OPS) do
 			local open = ns.Forge.Unlocked(d.key)
@@ -106,7 +106,7 @@ local function buildLeft(page)
 					lines[#lines + 1] = { ns.Upgrade.LOCKED_TEXT, nil, 1, 0.5, 0.3 }
 				else
 					local op = ns.Forge.OpDef(d.op)
-					lines[#lines + 1] = { string.format("용광로 %d레벨 · 해금 %s G", op.level, U.fmt(op.cost)), nil, 1, 0.5, 0.3 }
+					lines[#lines + 1] = { string.format("대장간 %d레벨 · 해금 %s G", op.level, U.fmt(op.cost)), nil, 1, 0.5, 0.3 }
 				end
 			end
 			return lines
@@ -138,7 +138,7 @@ end
 
 local function refreshLeft(page)
 	local f = ns.db.forge
-	page.level:SetText(string.format("용광로 Lv %d", f.level))
+	page.level:SetText(string.format("대장간 Lv %d", f.level))
 	if f.level >= ns.FORGE_MAX then
 		page.forgeBar:SetValue(1)
 		page.forgeBar:SetLabel("최고 레벨")
@@ -390,7 +390,7 @@ local function open(page, opts)
 end
 
 Main.RegisterTab({
-	key = "forge", title = "용광로", sub = "융합, 제작, 보석, 분해, 재료, 강화", art = "icon_forge",
+	key = "forge", title = "대장간", sub = "융합, 제작, 보석, 분해, 재료, 강화", art = "icon_forge",
 	icon = "Trade_BlackSmithing", build = build, refresh = refresh, open = open,
 	events = { "HEROES", "PARTY", "LEVEL", "GEAR", "BAG", "MATS", "STATS", "FORGE", "RESET", "PROGRESS" },
 	gold = true,

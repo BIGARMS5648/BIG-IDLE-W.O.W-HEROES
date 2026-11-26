@@ -164,4 +164,10 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   at most 20%.
 - Worgen monsters (Son of Arugal and others): the health bar sits under
   the body.
+- The forge is called 대장간 (smithy) in game, with a new smithy icon in the
+  menus.
+- Enhancing: a hammer strikes the anvil three times, then a small window
+  shows the result (the item before and after and what rose, or the next
+  try's chance and cost) with a button to try again. A click skips the
+  strikes.
 ```

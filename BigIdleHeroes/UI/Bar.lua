@@ -1505,7 +1505,7 @@ end
 local MENU = {
 	{ "hero",  "INV_Helmet_06",          "영웅", "icon_hero" },
 	{ "equip", "INV_Chest_Chain_05",     "장비", "icon_bag" },
-	{ "forge", "Trade_BlackSmithing",    "용광로", "icon_forge" },
+	{ "forge", "Trade_BlackSmithing",    "대장간", "icon_forge" },
 	{ "party", "INV_Misc_GroupNeedMore", "편성", "icon_party" },
 	{ "runes", "INV_Misc_Rune_01",       "룬", "icon_runes" },
 	{ "map",   "INV_Misc_Map_01",        "스테이지", "icon_map" },

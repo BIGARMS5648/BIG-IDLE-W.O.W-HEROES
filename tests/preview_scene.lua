@@ -388,6 +388,26 @@ local function upMove()
 end
 S.up_move = function() upMove() end
 S.up_move_confirm = function() local p = upMove() p.forge.up.move.btn:Click() end
+-- the strikes at a moment, and the result window after a try
+local function upFx(ok, at)
+	setProg(ns.STAGE_COUNT)
+	local undo = S.restore
+	mixedItem()
+	local was = mixed.up
+	mixed.up = ok and 13 or 12
+	ns.ForgeView.SetTarget(mixed)
+	forge("up")
+	ns.Main.Refresh()
+	local tf = _G.BigIdleHeroesToast
+	if tf then for _, r in ipairs(tf.rows) do r:Hide() r.t = 0 end tf:Hide() end
+	local fx = ns.ForgeView.UpFx
+	fx.Play(mixed, ok, 12, ok and 13 or 12, function() end)
+	if at then fx.Pose(at) else fx.Finish() end
+	S.restore = function() fx.run = nil ns.Main.CloseModal() undo() mixed.up = was end
+end
+S.upfx = function() upFx(true, 0.46) end
+S.upfx_ok = function() upFx(true) end
+S.upfx_fail = function() upFx(false) end
 S.mats = function() local p = forge("mats") p.matTab = "mat_craft" ns.Main.Refresh() end
 S.mats_gem = function() local p = forge("mats") p.matTab = "mat_gem" ns.Main.Refresh() end
 S.mats_seal = function() local p = forge("mats") p.matTab = "mat_seal" ns.Main.Refresh() end

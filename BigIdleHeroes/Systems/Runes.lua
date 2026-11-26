@@ -55,7 +55,7 @@ ns.RUNE_STAT = {
 	UnlockOfflineReward = { key = "offlineOn", flag = true, text = "오프라인 보상: 접속하지 않은 동안에도 골드와 경험치를 얻습니다", sum = "오프라인 보상 받기", icon = "Spell_Nature_Sleep" },
 	OfflineRewardGoldPercent = { key = "offGold", k = 0.1, text = "오프라인 보상 골드 +%s%%", icon = "INV_Misc_Coin_05" },
 	OfflineRewardExpPercent = { key = "offExp", k = 0.1, text = "오프라인 보상 경험치 +%s%%", icon = "INV_Misc_Book_10" },
-	CubeExpPercent = { key = "forgeExp", k = 0.1, text = "용광로 경험치 +%s%%", icon = "Trade_BlackSmithing" },
+	CubeExpPercent = { key = "forgeExp", k = 0.1, text = "대장간 경험치 +%s%%", icon = "Trade_BlackSmithing" },
 	CubeAlchemyGoldPercent = { key = "smeltGold", k = 0.1, text = "분해 골드 +%s%%", icon = "Trade_Alchemy" },
 	WaveCountReduction = { key = "waves", text = "스테이지마다 웨이브 -%s", icon = "Spell_Nature_TimeStop" },
 }
@@ -69,7 +69,7 @@ ns.RUNE_GROUPS = {
 	{ key = "chest", name = "상자", rgb = { 0.78, 0.5, 1 } },
 	{ key = "bag", name = "가방", rgb = { 0.3, 0.88, 0.76 } },
 	{ key = "unlock", name = "해금", rgb = { 1, 0.5, 0.78 } },
-	{ key = "forge", name = "용광로", rgb = { 0.95, 0.56, 0.2 } },
+	{ key = "forge", name = "대장간", rgb = { 0.95, 0.56, 0.2 } },
 }
 ns.RUNE_GROUP_OF = {
 	atk = "fight", atkPct = "fight", aspd = "fight", move = "fight", armor = "fight", armorPct = "fight", waves = "fight",
@@ -96,7 +96,7 @@ ns.BONUS_TEXT = {
 	gold        = "몬스터 처치 골드 +%s%%",
 	exp         = "경험치 획득 +%s%%",
 	smeltGold   = "분해 골드 +%s%%",
-	forgeExp    = "용광로 경험치 +%s%%",
+	forgeExp    = "대장간 경험치 +%s%%",
 	offline     = "오프라인 보상 +%s%%",
 	chestChance = "몬스터 상자가 나올 확률 +%s%%",
 	chestCap    = "상자 보관 한도 +%s",

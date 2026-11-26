@@ -640,7 +640,7 @@ do
 	for _ = 1, 27 do ns.Items.AddToBag(ns.Items.New("head", 20, 2)) end
 	Main.ShowTab("forge", { sub = "fuse" })
 	local ep = Main.Page("forge")
-	if not ep.forgeBar:IsVisible() or not (ep.level.__text or ""):find("용광로 Lv", 1, true) then fail("the forge screen should show the forge level") end
+	if not ep.forgeBar:IsVisible() or not (ep.level.__text or ""):find("대장간 Lv", 1, true) then fail("the forge screen should show the forge level") end
 	local fp = ep.forge.fuse
 	if not ep.bodies.fuse:IsVisible() then fail("the fuse tab did not open") end
 	local before = #ns.db.bag
@@ -759,13 +759,38 @@ do
 	local up = ep.forge.up
 	click("enhance target", function(b) return b.data == epic end)
 	if up.picked ~= epic then fail("clicking an item in the 강화 tab should choose it") end
-	-- (a try can fail: pressed until the piece is at +3)
+	-- each try: the strikes, then a click shows the result window (성공! or
+	-- 실패...); a try can fail, so pressed until the piece is at +3
+	local fx = ns.ForgeView.UpFx
+	local sawWin, sawFail = false, false
 	for _ = 1, 200 do
 		if (epic.up or 0) >= 3 then break end
+		local before = epic.up or 0
 		press("enhance", up.go)
+		if not (fx.anim and fx.anim:IsShown() and fx.run) then fail("a try should show the strikes") break end
+		if not (fx.Angle(fx.STRIKES[1]) > 0 and fx.Angle(fx.STRIKES[1] - 0.2) < 0) then fail("the hammer should be raised before it lands and down on the anvil as it lands") end
+		fx.anim.skip:Click()
+		if fx.run or not (fx.res and fx.res:IsShown()) then fail("a click on the strikes should show the result window") break end
+		local title = fx.res.title.__text or ""
+		local won = (epic.up or 0) > before
+		if won and not title:find("성공!", 1, true) then fail("a success should say 성공!: " .. title) end
+		if not won and not title:find("실패...", 1, true) then fail("a failure should say 실패...: " .. title) end
+		sawWin, sawFail = sawWin or won, sawFail or not won
+		Main.CloseModal()
 	end
 	if (epic.up or 0) ~= 3 then fail("강화하기 should raise the piece to +3: " .. tostring(epic.up)) end
-	if not (up.lastText.__text or ""):find("+3", 1, true) then fail("the 강화 tab should say how the last try went") end
+	-- 계속 강화 / 다시 강화 tries the same piece once more
+	if sawWin or sawFail then
+		local before = epic.up or 0
+		press("enhance", up.go)
+		fx.anim.skip:Click()
+		local tries = ns.db.stat.upTries
+		fx.res.again:Click()
+		if ns.db.stat.upTries ~= tries + 1 or not fx.run then fail("계속/다시 강화 should try once more with the strikes") end
+		fx.Finish()
+		Main.CloseModal()
+		epic.up = before > 0 and before or nil
+	end
 	-- the icons show the item level; the step goes before the name in the
 	-- tooltip ("+3 <name>")
 	Main.ShowTab("equip", { sub = "bag" })
