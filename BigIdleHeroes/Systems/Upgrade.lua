@@ -2,7 +2,9 @@
 -- one step a try, bought with gold. Each step raises the item's base stats;
 -- from +0 to +10 every try succeeds, from +10 on a try can fail (the gold is
 -- gone, the item stays as it was). Opens with 신화+, once 신화 is cleared to
--- its end.
+-- its end. An item's steps can be moved onto another piece of the same slot
+-- (계승): 70% of what they are worth in gold becomes steps on the new piece,
+-- and the old piece is used up.
 -- Stored on the item as it.up (nil = +0).
 local _, ns = ...
 
@@ -18,6 +20,7 @@ Upgrade.CHANCE = { [10] = 0.9, [11] = 0.8, [12] = 0.7, [13] = 0.6, [14] = 0.5,
 	[15] = 0.4, [16] = 0.35, [17] = 0.3, [18] = 0.25, [19] = 0.2 }
 Upgrade.GROWTH = 1.3 -- each step costs this much more than the one before
 Upgrade.BASE = 400 -- the first step: this many level-l monsters' gold
+Upgrade.KEEP = 0.7 -- 계승: this share of the old piece's worth goes on
 
 -- Base stats times this at +n: 4% a step up to +10, 6% a step after.
 function Upgrade.Bonus(n)
@@ -82,5 +85,98 @@ function Upgrade.Try(it, heroId)
 	end
 	ns.Fire("BAG")
 	return true, success, Upgrade.Level(it)
+end
+
+------------------------------------------------------------------------
+-- 계승: moving the steps of one piece onto another of the same slot
+------------------------------------------------------------------------
+-- the gold the steps up to +n cost on average (failed tries counted)
+function Upgrade.Worth(it, n)
+	n = n or Upgrade.Level(it)
+	local total = 0
+	for k = 0, n - 1 do total = total + Upgrade.Cost(it, k) / Upgrade.Chance(k) end
+	return total
+end
+
+-- the step `to` ends at with `from`'s steps moved onto it: its own worth plus
+-- KEEP of `from`'s, spent on its own steps from where it is
+function Upgrade.MoveResult(from, to)
+	local n = Upgrade.Level(to)
+	local have = Upgrade.Worth(to, n)
+	local gold = have + Upgrade.Worth(from) * Upgrade.KEEP
+	while n < Upgrade.MAX do
+		local step = Upgrade.Cost(to, n) / Upgrade.Chance(n)
+		if have + step > gold then break end
+		have, n = have + step, n + 1
+	end
+	return n
+end
+
+-- worn by a hero or in the bag (not the bank)
+local function reachable(it)
+	return ns.Items.Wearer(it) ~= nil or ns.Items.IndexInBag(it) ~= nil
+end
+
+function Upgrade.CanMove(from, to)
+	if not Upgrade.Open() then return false, lockedText() end
+	if not from or not to or from == to then return false, "계승할 장비가 없습니다." end
+	if from.s ~= to.s then return false, "같은 부위의 장비끼리만 계승할 수 있습니다." end
+	if Upgrade.Level(from) == 0 then return false, "계승할 강화 단계가 없습니다." end
+	if not reachable(from) or not reachable(to) then return false, "착용한 장비나 가방의 장비만 계승할 수 있습니다." end
+	if Upgrade.MoveResult(from, to) <= Upgrade.Level(to) then return false, "계승해도 강화 단계가 오르지 않습니다." end
+	return true
+end
+
+-- The piece of the same slot (worn by any hero or in the bag) whose steps
+-- would take `to` the highest, the one worth less on a tie; nil when none
+-- would raise it.
+function Upgrade.SourceFor(to)
+	if not to then return nil end
+	local best, bestN, bestWorth
+	local function consider(it)
+		if it ~= to and it.s == to.s and Upgrade.Level(it) > 0 then
+			local n, w = Upgrade.MoveResult(it, to), Upgrade.Worth(it)
+			if n > Upgrade.Level(to) and (not best or n > bestN or (n == bestN and w < bestWorth)) then
+				best, bestN, bestWorth = it, n, w
+			end
+		end
+	end
+	for _, h in pairs(ns.db.heroes) do
+		for _, it in pairs(h.gear) do consider(it) end
+	end
+	for _, it in ipairs(ns.db.bag) do consider(it) end
+	return best
+end
+
+-- Moves the steps; the old piece is gone (with whatever was socketed in it).
+-- When it was worn and the new piece was in the bag, the new piece takes its
+-- place on that hero if the hero can wear it. Returns true and the new step.
+function Upgrade.Move(from, to)
+	local ok, why = Upgrade.CanMove(from, to)
+	if not ok then return false, why end
+	local n = Upgrade.MoveResult(from, to)
+	local db = ns.db
+	local fromHero, toHero = ns.Items.Wearer(from), ns.Items.Wearer(to)
+	if fromHero then
+		db.heroes[fromHero].gear[from.s] = nil
+	else
+		table.remove(db.bag, ns.Items.IndexInBag(from))
+	end
+	to.up = n
+	if fromHero and not toHero and ns.Items.CanEquip(fromHero, to) then
+		ns.Items.Equip(fromHero, ns.Items.IndexInBag(to))
+	end
+	db.stat.upMoves = (db.stat.upMoves or 0) + 1
+	-- the heroes wearing pieces now (the old piece's hero, the new piece's)
+	local done = {}
+	for _, id in pairs({ fromHero or false, toHero or false, ns.Items.Wearer(to) or false }) do
+		if id and not done[id] then
+			done[id] = true
+			ns.Stats.Invalidate(id)
+			ns.Fire("GEAR", id)
+		end
+	end
+	ns.Fire("BAG")
+	return true, n
 end
 

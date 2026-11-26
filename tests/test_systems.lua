@@ -1068,6 +1068,46 @@ do
 	-- an enhanced piece is kept out of auto salvage and fusion
 	local picks = ns.Forge.PickByQuality(ns.MAX_QUALITY)
 	for _, x in ipairs(picks) do check(x ~= it, "an enhanced piece is not salvaged automatically") end
+	-- 계승: 70% of the old piece's worth in steps on a piece of the same
+	-- slot, no gold, the old piece used up
+	local other = ns.Items.New("chest", 100, ns.MAX_QUALITY)
+	ns.Items.AddToBag(other)
+	check(Up.SourceFor(other) == it, "the enhanced chest is the one to move from")
+	local n = Up.MoveResult(it, other)
+	local worth = Up.Worth(it) * Up.KEEP
+	check(n > Up.SAFE and n < Up.MAX and Up.Worth(other, n) <= worth and Up.Worth(other, n + 1) > worth,
+		"the new step is the highest the kept worth pays for: +" .. n)
+	local g = db.gold
+	local okMove, got = Up.Move(it, other)
+	check(okMove and got == n and Up.Level(other) == n and db.gold == g, "계승 costs no gold and gives that step")
+	check(ns.Items.IndexInBag(it) == nil and ns.Items.IndexInBag(other) ~= nil, "the old piece is used up")
+	local ring = ns.Items.New("ring", 100, 5)
+	ns.Items.AddToBag(ring)
+	check(not Up.CanMove(other, ring) and Up.SourceFor(ring) == nil, "steps move only between pieces of the same slot")
+	local plain = ns.Items.New("chest", 100, ns.MAX_QUALITY)
+	ns.Items.AddToBag(plain)
+	check(not Up.CanMove(plain, other), "a piece at +0 has nothing to move")
+	-- a cheap piece's steps are worth little on a dear one
+	local cheap = ns.Items.New("chest", 5, 1)
+	cheap.up = Up.MAX
+	ns.Items.AddToBag(cheap)
+	check(Up.MoveResult(cheap, plain) < Up.SAFE, "+20 on a level 5 piece moves as a few steps: +" .. Up.MoveResult(cheap, plain))
+	-- the target's own steps count too
+	local same = ns.Items.New("chest", 100, ns.MAX_QUALITY)
+	same.up = 15
+	check(Up.MoveResult(other, same) >= math.max(15, n), "the target's own steps are kept and added to")
+	-- from a worn piece: the new piece takes its place on that hero
+	local H = db.party[1]
+	local hero = db.heroes[H]
+	local wornBefore, levelBefore = hero.gear.chest, hero.level
+	hero.level = ns.HERO_MAX_LEVEL
+	hero.gear.chest = other
+	ns.Items.RemoveFromBag(ns.Items.IndexInBag(other))
+	check(Up.Move(other, plain), "계승 from a worn piece")
+	check(hero.gear.chest == plain and ns.Items.IndexInBag(plain) == nil and ns.Items.IndexInBag(other) == nil and Up.Level(plain) > 0,
+		"the new piece is worn in the old one's place")
+	hero.gear.chest, hero.level = wornBefore, levelBefore
+	ns.Stats.Invalidate(H)
 	db.prog[1], db.prog[2], db.prog[3], db.prog[4] = savedProg[1], savedProg[2], savedProg[3], savedProg[4]
 	db.gold, db.bag = savedGold, savedBag
 end
