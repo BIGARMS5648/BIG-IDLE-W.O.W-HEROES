@@ -1374,6 +1374,12 @@ local function victory()
 	st.timer = 1.5
 	db.stat.clears = db.stat.clears + 1
 	updateRate()
+	if not st.tower then
+		-- what hunting this stage over and over pays a second (the pause
+		-- before the next run counted): the offline reward goes by it
+		local t = st.time + st.timer
+		db.hunt[st.diff .. "-" .. st.idx] = { g = st.gGold / t, x = st.gXP / t }
+	end
 	if st.tower then
 		-- the first clear of a floor: a new best, gold and one more chest
 		local f, tw = st.tower, db.tower

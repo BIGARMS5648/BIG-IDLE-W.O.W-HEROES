@@ -84,7 +84,7 @@ Build a party of five heroes, send them along a route through the original game'
 - **Enhancement** (+1 to +20) once Mythic+ opens: every step raises an item's base stats; any try can fail (only the gold is lost): 65% a step up to +10, then lower and lower, down to 10% for the last step. Inheritance moves an enhanced item's steps onto a new item of the same slot, as 70% of the gold they are worth, with its gems, enchants and inscriptions; the old item is used up. The tooltip shows the step before the name (+10 Iron Helm); item icons show the item level.
 - **Rune tree**: 197 account-wide runes bought with gold, spreading from the center of a map you zoom with the mouse wheel and drag around. They open party seats, skill slots, offline rewards, automatic chest opening, bigger bags and more.
 - **Companions** that join the party.
-- **Offline rewards** for the time you were away.
+- **Offline rewards** for the time you were away: what your party earns hunting the highest stage it has cleared.
 - A **"Recommended" hint** always points at the next useful thing to do, and red dots show where something is waiting.
 
 ### Stage screen
@@ -188,4 +188,7 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   inscriptions that move along.
 - The gear score (auto-equip, upgrade arrows, protection) no longer depends
   on the stage being fought: an item scores the same everywhere.
+- Offline rewards pay what the party earns hunting the highest stage it has
+  cleared (that stage's last clear), and the experience cut for heroes far
+  below that stage shrinks as they level while away.
 ```

@@ -1240,14 +1240,68 @@ check(#C.fx <= 40, "visual event list stays bounded")
 
 ------------------------------------------------------------------------
 section("offline rewards")
-db.rate = { gold = 10, xp = 5, level = 5 }
+-- what hunting the highest cleared stage pays (its last clear), not the
+-- income of late
+db.rate = { gold = 999, xp = 999, level = 5 }
+db.prog = { 3, 0, 0, 0 }
+db.hunt = { ["1-3"] = { g = 10, x = 5 }, ["1-2"] = { g = 500, x = 500 } }
 db.lastSeen = 1000
 check(ns.Offline.Claim(1000 + 3600) == nil, "no offline rewards before the 안식 rune")
 check(learnRune(11001) and ns.OfflineOn(), "the 안식 rune turns offline rewards on")
 db.lastSeen = 1000
 local g1 = db.gold
 local r = ns.Offline.Claim(1000 + 3600)
-check(r and r.gold == math.floor(10 * 3600 * ns.Offline.Efficiency()) and db.gold == g1 + r.gold, "one hour away pays the measured rate")
+check(r and r.gold == math.floor(10 * ns.GameSpeed() * 3600 * ns.Offline.Efficiency()) and db.gold == g1 + r.gold,
+	"one hour away pays an hour of hunting the highest cleared stage (1-3)")
+-- a stage cleared on a later difficulty is the higher one
+db.prog = { 30, 2, 0, 0 }
+db.hunt["2-2"] = { g = 40, x = 5 }
+db.lastSeen = 1000
+r = ns.Offline.Claim(1000 + 3600)
+check(r and r.gold == math.floor(40 * ns.GameSpeed() * 3600 * ns.Offline.Efficiency()), "the highest cleared stage is on the latest difficulty (2-2)")
+-- no clear on record there (a save from before): the income measured while playing
+db.hunt["2-2"] = nil
+db.rate = { gold = 10, xp = 5, level = 5 }
+db.lastSeen = 1000
+r = ns.Offline.Claim(1000 + 3600)
+check(r and r.gold == math.floor(10 * 3600 * ns.Offline.Efficiency()), "without a record the measured income stands in")
+-- a hero far below the stage: the cut shrinks as it levels while away
+do
+	local id = db.party[1] or db.party[2]
+	local h = db.heroes[id]
+	local keepLv, keepXp = h.level, h.xp
+	local keepParty = { db.party[1], db.party[2], db.party[3], db.party[4], db.party[5] }
+	db.party = { false, false, false, false, false }
+	db.party[keepParty[1] and 1 or 2] = id
+	local stageLv = ns.StageLevel(1, 30)
+	h.level, h.xp = stageLv - 14, 0 -- 20% less experience at first
+	db.prog = { 30, 0, 0, 0 }
+	db.hunt = { ["1-30"] = { g = 10, x = 3000 } }
+	ns.Stats.Invalidate(id)
+	local startLv = h.level
+	local s = ns.Stats.Get(id)
+	local fixed = 3000 * ns.GameSpeed() * ns.Offline.ExpEfficiency() * 3600 * (1 + (ns.Bonus("exp") + (s.exp or 0)) / 100) * ns.Heroes.XPFactor(startLv, stageLv)
+	db.lastSeen = 1000
+	r = ns.Offline.Claim(1000 + 3600)
+	check(r and r.levels > 0 and r.xp > fixed * 1.01, "levelling while away lowers the cut for a hero far below the stage: "
+		.. tostring(r and math.floor(r.xp)) .. " > " .. math.floor(fixed))
+	h.level, h.xp = keepLv, keepXp
+	db.party = keepParty
+	ns.Stats.Invalidate(id)
+	db.prog = { 3, 0, 0, 0 }
+	db.hunt = { ["1-3"] = { g = 10, x = 5 } }
+end
+-- nothing cleared yet: nothing to hunt
+db.prog = { 0, 0, 0, 0 }
+db.lastSeen = 1000
+check(ns.Offline.Claim(1000 + 3600) == nil, "no stage cleared pays nothing")
+db.prog = { 3, 0, 0, 0 }
+-- a clear records what hunting that stage pays a second
+do
+	local found
+	for k, v in pairs(db.hunt) do found = found or (v.g > 0 and v.x > 0) end
+	check(found, "a stage's clear is on record")
+end
 db.lastSeen = 1000
 r = ns.Offline.Claim(1000 + 20 * 3600)
 check(r and r.counted == ns.Offline.Cap(), "rewards are capped")

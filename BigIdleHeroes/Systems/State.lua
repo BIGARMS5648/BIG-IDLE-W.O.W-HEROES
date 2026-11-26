@@ -107,7 +107,8 @@ local DEFAULTS = {
 	opt = { auto = true, retreat = true, retry = true, druidForm = true, scenery = true, keepBench = false },
 	ui = { scale = 1, locked = false, shown = true, sound = true },
 	stat = { kills = 0, gold = 0, clears = 0, wipes = 0, time = 0, chests = 0 },
-	rate = { gold = 0, xp = 0 }, -- smoothed income per second, used for offline rewards
+	rate = { gold = 0, xp = 0 }, -- smoothed income per second (the stage screen's recent income)
+	hunt = {},                   -- ["diff-idx"] = { g =, x = }: kill gold and experience per second of the stage's last clear (offline rewards)
 	autoT = { 0, 0, 0 },         -- auto-open timers per chest type
 	autoStop = {},               -- [chest type] = true: its auto-open stopped by hand
 	retry = 0,                   -- clears since the last failed push
