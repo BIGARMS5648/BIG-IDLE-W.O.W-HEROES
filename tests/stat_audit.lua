@@ -570,9 +570,17 @@ do
 	-- enhancement
 	local wasOpen = ns.TowerOpen
 	ns.TowerOpen = function() return true end
-	check(ns.Upgrade.Try(it, H), "강화 시도")
+	-- (tries until one succeeds: any try can fail)
+	local function upOnce(by)
+		local n = ns.Upgrade.Level(it)
+		for _ = 1, 200 do
+			if ns.Upgrade.Level(it) > n or not ns.Upgrade.Try(it, by) then break end
+		end
+		return ns.Upgrade.Level(it) > n
+	end
+	check(upOnce(H), "강화 성공")
 	s = live("강화 → 다음 순간 전투 능력치와 영웅 화면에", s)
-	check(ns.Upgrade.Try(it, other), "다른 영웅 이름으로 강화 시도")
+	check(upOnce(other), "다른 영웅 이름으로 강화 성공")
 	s = live("다른 영웅 이름으로 강화해도 실제로 낀 영웅에게", s)
 	ns.TowerOpen = wasOpen
 	-- talents, runes, a level, companions

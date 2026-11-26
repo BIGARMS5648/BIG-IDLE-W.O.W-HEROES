@@ -759,8 +759,12 @@ do
 	local up = ep.forge.up
 	click("enhance target", function(b) return b.data == epic end)
 	if up.picked ~= epic then fail("clicking an item in the 강화 tab should choose it") end
-	for _ = 1, 3 do press("enhance", up.go) end
-	if (epic.up or 0) ~= 3 then fail("강화하기 should raise the piece three steps: " .. tostring(epic.up)) end
+	-- (a try can fail: pressed until the piece is at +3)
+	for _ = 1, 200 do
+		if (epic.up or 0) >= 3 then break end
+		press("enhance", up.go)
+	end
+	if (epic.up or 0) ~= 3 then fail("강화하기 should raise the piece to +3: " .. tostring(epic.up)) end
 	if not (up.lastText.__text or ""):find("+3", 1, true) then fail("the 강화 tab should say how the last try went") end
 	-- the icons show the item level; the step goes before the name in the
 	-- tooltip ("+3 <name>")

@@ -1,7 +1,7 @@
 -- Equipment enhancement (강화): every piece starts at +0 and goes up to +20,
--- one step a try, bought with gold. Each step raises the item's base stats;
--- from +0 to +10 every try succeeds, from +10 on a try can fail (the gold is
--- gone, the item stays as it was). Opens with 신화+, once 신화 is cleared to
+-- one step a try, bought with gold. Each step raises the item's base stats.
+-- Any try can fail (the gold is gone, the item stays as it was): 65% a step
+-- up to +10, then lower and lower, 10% for the last. Opens with 신화+, once 신화 is cleared to
 -- its end. An item's steps can be moved onto another piece of the same slot
 -- (계승): 70% of what they are worth in gold becomes steps on the new piece,
 -- and the old piece is used up.
@@ -14,10 +14,11 @@ local Upgrade = {}
 ns.Upgrade = Upgrade
 
 Upgrade.MAX = 20
-Upgrade.SAFE = 10 -- every try up to this step succeeds
+Upgrade.SAFE = 10 -- up to this step every try has the same chance
+Upgrade.LOW = 0.65 -- that chance
 -- the chance of a try from +n (n = 10 .. 19) to +n+1
-Upgrade.CHANCE = { [10] = 0.9, [11] = 0.8, [12] = 0.7, [13] = 0.6, [14] = 0.5,
-	[15] = 0.4, [16] = 0.35, [17] = 0.3, [18] = 0.25, [19] = 0.2 }
+Upgrade.CHANCE = { [10] = 0.6, [11] = 0.55, [12] = 0.5, [13] = 0.45, [14] = 0.4,
+	[15] = 0.35, [16] = 0.3, [17] = 0.2, [18] = 0.15, [19] = 0.1 }
 Upgrade.GROWTH = 1.3 -- each step costs this much more than the one before
 Upgrade.BASE = 400 -- the first step: this many level-l monsters' gold
 Upgrade.KEEP = 0.7 -- 계승: this share of the old piece's worth goes on
@@ -38,7 +39,7 @@ function Upgrade.Open()
 end
 
 function Upgrade.Chance(n)
-	if n < Upgrade.SAFE then return 1 end
+	if n < Upgrade.SAFE then return Upgrade.LOW end
 	return Upgrade.CHANCE[n] or 0
 end
 

@@ -680,7 +680,7 @@ local function buildUpgrade(page, f)
 	p.empty:SetWidth(W - 40)
 	p.empty:SetJustifyH("CENTER")
 	UI.Color(p.empty, UI.C.sub)
-	p.rule = note(f, -288, string.format("장비는 +0에서 시작합니다. +0에서 +%d까지는 항상 성공하고, +%d부터는 성공 확률이 낮아집니다. 실패하면 쓴 골드만 사라지고 장비와 강화 단계는 그대로입니다. 강화는 기본 능력치를 올립니다. 강화한 장비는 자동 분해·융합에 쓰이지 않습니다. 같은 부위 장비의 강화를 계승하면, 그 강화에 드는 골드의 %d%%만큼 이 장비의 강화 단계가 오르고 원래 장비는 사라집니다.", Up.SAFE, Up.SAFE, floor(Up.KEEP * 100 + 0.5)))
+	p.rule = note(f, -288, string.format("장비는 +0에서 시작합니다. +%d까지는 성공 확률이 %d%%이고, 그 뒤로는 단계가 오를수록 낮아집니다. 실패하면 쓴 골드만 사라지고 장비와 강화 단계는 그대로입니다. 강화는 기본 능력치를 올립니다. 강화한 장비는 자동 분해·융합에 쓰이지 않습니다. 같은 부위 장비의 강화를 계승하면, 그 강화에 드는 골드의 %d%%만큼 이 장비의 강화 단계가 오르고 원래 장비는 사라집니다.", Up.SAFE, floor(Up.LOW * 100 + 0.5), floor(Up.KEEP * 100 + 0.5)))
 	p.go = UI.Button(f, 220, 36, "강화하기", function()
 		local it = p.picked
 		local ok, success, n = Up.Try(it, p.pickedHero)

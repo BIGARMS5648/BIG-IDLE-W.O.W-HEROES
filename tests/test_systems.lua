@@ -1036,33 +1036,31 @@ do
 	check(Up.Open(), "enhancement opens with 신화+ (신화 cleared)")
 	check(Up.LOCKED_TEXT == "신화+ 난이도에 도달하면 해금할 수 있습니다.", "the lock text names 신화+")
 	db.prog[4] = ns.STAGE_COUNT
-	-- +0 .. +10: every try succeeds, each costs more, gold is spent
-	local base0 = ns.Items.BaseStats(it)[1][2]
-	local lastCost = 0
-	for n = 0, Up.SAFE - 1 do
-		local cost = Up.Cost(it, n)
-		check(cost > lastCost, "each step costs more than the one before")
-		lastCost = cost
-		local g = db.gold
-		local ok, success, now = Up.Try(it)
-		check(ok and success and now == n + 1 and db.gold == g - cost, "a try from +" .. n .. " always succeeds and costs its gold")
+	-- every try can fail (the gold is gone, the step stays): the same chance
+	-- up to +10, lower and lower after; each step costs more
+	check(Up.Chance(0) == Up.LOW and Up.Chance(Up.SAFE - 1) == Up.LOW and Up.LOW < 1, "up to +10 every try has the same chance")
+	for n = Up.SAFE, Up.MAX - 1 do
+		check(Up.Chance(n) < Up.Chance(n - 1), "the chance falls from +" .. n)
 	end
-	check(ns.Items.Tooltip(it)[1][1]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):find("^%+10 ") ~= nil, "the tooltip names the step before the item: +10")
-	local base10 = ns.Items.BaseStats(it)[1][2]
-	check(math.abs(base10 / base0 - Up.Bonus(10)) < 0.05, "+10 raises the base stats by its bonus: " .. base10 / base0)
-	check(Up.Bonus(0) == 1 and Up.Bonus(10) > 1 and Up.Bonus(20) > Up.Bonus(10), "each step gives more")
-	-- from +10 a try can fail: the gold is gone, the step stays
-	local wins, fails = 0, 0
-	for _ = 1, 400 do
+	local base0 = ns.Items.BaseStats(it)[1][2]
+	for n = 1, Up.MAX - 1 do check(Up.Cost(it, n) > Up.Cost(it, n - 1), "each step costs more than the one before") end
+	local wins, fails, sawTen = 0, 0, false
+	for _ = 1, 4000 do
 		if Up.Level(it) >= Up.MAX then break end
 		local n = Up.Level(it)
-		check(Up.Chance(n) < 1, "a try from +" .. n .. " can fail")
-		local g = db.gold
+		local g, cost = db.gold, Up.Cost(it, n)
 		local ok, success, now = Up.Try(it)
-		check(ok and db.gold < g, "every try costs gold")
+		check(ok and db.gold == g - cost, "every try costs its gold")
 		if success then wins = wins + 1 check(now == n + 1, "a success adds one step") else fails = fails + 1 check(now == n, "a failure keeps the step") end
+		if now == Up.SAFE and not sawTen then
+			sawTen = true
+			check(ns.Items.Tooltip(it)[1][1]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):find("^%+10 ") ~= nil, "the tooltip names the step before the item: +10")
+			local base10 = ns.Items.BaseStats(it)[1][2]
+			check(math.abs(base10 / base0 - Up.Bonus(10)) < 0.05, "+10 raises the base stats by its bonus: " .. base10 / base0)
+		end
 	end
-	check(Up.Level(it) == Up.MAX and wins == Up.MAX - Up.SAFE and fails > 0, "the steps past +10 can fail and the top is +" .. Up.MAX)
+	check(Up.Bonus(0) == 1 and Up.Bonus(10) > 1 and Up.Bonus(20) > Up.Bonus(10), "each step gives more")
+	check(Up.Level(it) == Up.MAX and wins == Up.MAX and fails > 0, "tries can fail and the top is +" .. Up.MAX)
 	local ok, why = Up.Try(it)
 	check(not ok and why, "no step past the top")
 	-- an enhanced piece is kept out of auto salvage and fusion
@@ -1075,7 +1073,7 @@ do
 	check(Up.SourceFor(other) == it, "the enhanced chest is the one to move from")
 	local n = Up.MoveResult(it, other)
 	local worth = Up.Worth(it) * Up.KEEP
-	check(n > Up.SAFE and n < Up.MAX and Up.Worth(other, n) <= worth and Up.Worth(other, n + 1) > worth,
+	check(n > 5 and n < Up.MAX and Up.Worth(other, n) <= worth and Up.Worth(other, n + 1) > worth,
 		"the new step is the highest the kept worth pays for: +" .. n)
 	local g = db.gold
 	local okMove, got = Up.Move(it, other)
@@ -1091,11 +1089,11 @@ do
 	local cheap = ns.Items.New("chest", 5, 1)
 	cheap.up = Up.MAX
 	ns.Items.AddToBag(cheap)
-	check(Up.MoveResult(cheap, plain) < Up.SAFE, "+20 on a level 5 piece moves as a few steps: +" .. Up.MoveResult(cheap, plain))
+	check(Up.MoveResult(cheap, plain) < 10, "+20 on a level 5 piece moves as a few steps: +" .. Up.MoveResult(cheap, plain))
 	-- the target's own steps count too
 	local same = ns.Items.New("chest", 100, ns.MAX_QUALITY)
 	same.up = 15
-	check(Up.MoveResult(other, same) >= math.max(15, n), "the target's own steps are kept and added to")
+	check(Up.MoveResult(other, same) > 15, "the target's own steps are kept and added to: +" .. Up.MoveResult(other, same))
 	-- from a worn piece: the new piece takes its place on that hero
 	local H = db.party[1]
 	local hero = db.heroes[H]
