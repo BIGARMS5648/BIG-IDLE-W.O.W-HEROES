@@ -16,6 +16,8 @@ for _, id in ipairs({
 	"icon_lock", "icon_star", "icon_skull", "icon_crown",
 	-- item slots (tools/cut_marks.py, painted): the better-gear arrow
 	"icon_upgrade",
+	-- the faction picker's crests (tools/cut_faction_logos.py, painted)
+	"icon_alliance", "icon_horde",
 	-- 강화's strikes (tools/cut_anvil.py): the anvil, and the hammer swung
 	-- about its handle's end
 	"fx_anvil", "fx_hammer",

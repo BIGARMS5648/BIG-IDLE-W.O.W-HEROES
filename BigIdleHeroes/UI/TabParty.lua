@@ -191,20 +191,11 @@ UI.HeroFigure = heroFigure
 ------------------------------------------------------------------------
 local faction = {}
 
-local function raceLines(fid)
-	local parts = {}
-	for _, cid in ipairs(ns.CLASS_ORDER) do
-		local race = ns.RACES[ns.ClassRace(cid, fid)]
-		parts[#parts + 1] = U.col(ns.CLASSES[cid].hex, ns.N(ns.CLASSES[cid].name)) .. " " .. race.name
-	end
-	-- two per line
-	local lines = {}
-	for i = 1, #parts, 2 do
-		lines[#lines + 1] = parts[i] .. (parts[i + 1] and ("   ·   " .. parts[i + 1]) or "")
-	end
-	return table.concat(lines, "\n")
-end
-
+-- the crest's size, and how far down the card it starts: the crest and the
+-- name under it (24 high, 10 apart) centred in the card above its button
+-- (40 high, 18 from the bottom)
+local CREST = 124
+local CREST_Y = math.floor((360 - 18 - 40 - (CREST + 10 + 24)) / 2)
 local function buildFaction()
 	local c = Main.ModalContent(800, 440)
 	faction.frame = c
@@ -220,26 +211,19 @@ local function buildFaction()
 		local half = UI.Panel(c, 392, 360, "card")
 		half:SetPoint("TOPLEFT", c, "TOPLEFT", (i - 1) * 408, -64)
 		half.bg:SetColor(r * 0.35 + 0.1, g * 0.35 + 0.1, b * 0.35 + 0.12, 1)
+		-- the faction's crest (the user's logo, its own colours) and its name,
+		-- in the middle of the card above the button
+		local crest = half:CreateTexture(nil, "ARTWORK")
+		crest:SetSize(CREST, CREST)
+		crest:SetPoint("TOP", half, "TOP", 0, -CREST_Y)
+		UI.SetArtOrIcon(crest, "icon_" .. fid:lower(), f.icon)
 		local glow = UI.Art(half, "glow", "BORDER", r, g, b, 0.35)
 		glow:SetSize(260, 200)
-		glow:SetPoint("TOP", half, "TOP", 0, 10)
-		local crest = half:CreateTexture(nil, "ARTWORK")
-		crest:SetSize(72, 72)
-		crest:SetPoint("TOP", half, "TOP", 0, -18)
-		UI.SetArtOrIcon(crest, "icon_" .. fid:lower(), f.icon)
+		glow:SetPoint("CENTER", crest, "CENTER", 0, 0)
 		local name = UI.Text(half, 24, ns.N(f.name))
 		name:SetPoint("TOP", crest, "BOTTOM", 0, -10)
 		name:SetJustifyH("CENTER")
 		name:SetTextColor(r, g, b)
-		local desc = UI.Text(half, 12, ns.N(f.desc))
-		desc:SetPoint("TOP", name, "BOTTOM", 0, -8)
-		desc:SetWidth(360)
-		desc:SetJustifyH("CENTER")
-		local races = UI.Text(half, 11, raceLines(fid))
-		races:SetPoint("TOP", desc, "BOTTOM", 0, -14)
-		races:SetWidth(370)
-		races:SetJustifyH("CENTER")
-		races:SetSpacing(4)
 		local go = UI.Button(half, 220, 40, ns.N(f.name) .. "로 시작", function()
 			local first = ns.db.faction == nil
 			ns.db.faction = fid
