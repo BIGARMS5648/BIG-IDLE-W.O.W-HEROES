@@ -77,6 +77,17 @@ function Heroes.CreateCost()
 	return ns.HERO_COST[n] or ns.HERO_COST[#ns.HERO_COST]
 end
 
+-- Why a hero cannot be recruited now (a full roster, too little gold), or
+-- nil when one can.
+function Heroes.CreateWhy()
+	if Heroes.Count() >= ns.ROSTER_MAX then
+		return string.format("영웅은 %d명까지 둘 수 있습니다.", ns.ROSTER_MAX)
+	end
+	local cost = Heroes.CreateCost()
+	if cost > 0 and not ns.CanAfford(cost) then return "골드가 부족합니다." end
+	return nil
+end
+
 local function takenNames()
 	local t = {}
 	for _, h in pairs(ns.db.heroes) do

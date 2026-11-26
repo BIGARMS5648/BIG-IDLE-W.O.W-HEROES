@@ -1830,6 +1830,12 @@ end
 -- Carry out the guide's suggestion, or open the screen where it is done.
 function Bar.FollowGoal()
 	local goal = ns.Guide.Current()
+	-- recruiting a hero that cannot be paid for: only the warning
+	local why = goal.create and ns.Heroes.CreateWhy()
+	if why then
+		UI.Try(false, why)
+		return
+	end
 	if goal.act then
 		goal.act()
 		ns.Guide.Invalidate()

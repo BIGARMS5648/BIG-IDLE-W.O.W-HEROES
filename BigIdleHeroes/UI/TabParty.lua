@@ -564,7 +564,15 @@ ns.CreateHeroDialog = create.open
 ns.HeroTip = heroTip
 ns.HeroField = function(id) field(id) end
 ns.HeroFieldBlocked = fieldBlocked
-ns.OpenCreate = function(role) create.open(nil, role or ns.Guide.MissingRole()) end
+-- The recruit window, or a warning when no hero can be recruited now.
+ns.OpenCreate = function(role)
+	local why = H.CreateWhy()
+	if why then
+		UI.Try(false, why)
+		return
+	end
+	create.open(nil, role or ns.Guide.MissingRole())
+end
 ns.AutoForm = autoForm
 
 ------------------------------------------------------------------------
@@ -904,7 +912,7 @@ end
 
 local function open(page, opts)
 	if opts and opts.create then
-		create.open(nil, opts.create ~= true and opts.create or ns.Guide.MissingRole())
+		ns.OpenCreate(opts.create ~= true and opts.create or nil)
 	end
 end
 

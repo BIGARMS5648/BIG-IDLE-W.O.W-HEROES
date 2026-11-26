@@ -186,8 +186,7 @@ local function refreshList(page)
 	end
 	local cost = H.CreateCost()
 	local full = n >= ns.ROSTER_MAX
-	page.createWhy = full and string.format("영웅은 %d명까지 둘 수 있습니다.", ns.ROSTER_MAX)
-		or (not ns.CanAfford(cost) and "골드가 부족합니다." or nil)
+	page.createWhy = H.CreateWhy()
 	page.create:SetOff(page.createWhy ~= nil)
 	page.create.cost:SetText(full and "가득 참" or (cost > 0 and (U.fmt(cost) .. " 골드") or "무료"))
 	page.create:SetBadge(page.createWhy == nil and ns.Guide.MissingRole() ~= nil)

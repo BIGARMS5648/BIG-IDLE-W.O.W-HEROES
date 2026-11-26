@@ -195,4 +195,6 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   as well as a holy priest or a holy paladin.
 - Restoration shamans heal and shield less: they kept parties alive far
   better than every other healer.
+- Recruiting a hero from the recommendation without enough gold now only
+  shows a warning instead of opening the recruit window.
 ```

@@ -1261,6 +1261,30 @@ do
 		Main.Toggle(false)
 		try("goal", bar.goal.Click, bar.goal, "LeftButton")
 		if not (Main.IsShown() and Main.Current() == "hero") then fail("the goal button should open the hero screen for talent points") end
+		-- recruiting from the recommendation without the gold: the warning
+		-- only, neither the menu nor the recruit window opens
+		do
+			local realCurrent, gold = ns.Guide.Current, ns.db.gold
+			ns.Guide.Current = function()
+				return { text = "탱커 영웅 모집하기 (300 G)", tab = "hero", create = "TANK", wait = true }
+			end
+			ns.db.gold = 0
+			local said
+			ns.On("TOAST", function(m) said = said or m end)
+			Main.CloseModal()
+			Main.Toggle(false)
+			try("goal without gold", bar.goal.Click, bar.goal, "LeftButton")
+			local modal = Main.Frame().modal
+			if Main.IsShown() or modal:IsShown() then fail("recruiting without the gold should not open the menu or the recruit window") end
+			if not (said and said:find("골드가 부족합니다", 1, true)) then fail("recruiting without the gold should say so: " .. tostring(said)) end
+			-- the same from the hero screen's own paths
+			Main.Toggle(true)
+			ns.OpenCreate("TANK")
+			if modal:IsShown() then fail("the recruit window should not open without the gold") end
+			ns.Guide.Current = realCurrent
+			ns.db.gold = gold
+			ns.Guide.Invalidate()
+		end
 		-- every goal fits its box: the text stops clear of the » on the right
 		-- and runs to two lines at most (no gold amount after a rune's name)
 		do
