@@ -308,32 +308,45 @@ end
 ------------------------------------------------------------------------
 -- 능력치
 ------------------------------------------------------------------------
--- the left column: the hero standing (its 3D model)
-local MODEL_H, MODEL_FEET = 250, 46 -- the model's height, its feet up from the bottom
-local TURN_PER_PX = 0.012 -- a drag across the column turns it about half round
+-- the left part: the hero standing (its 3D model) in the middle of its
+-- equipment, laid out as on the equipment screen; only to look at (a hover
+-- shows the item), the stats to the right of it
+local SLOT, SLOT_STEP = 48, 60
+local PD_W = 264 -- the equipment and the model
+local PD_CX = PD_W / 2 -- the model's middle
+local LEFT_SLOTS = { "head", "neck", "chest", "wrist" }
+local RIGHT_SLOTS = { "hands", "feet", "ring", "trinket" }
+local WEAPON_SLOTS = { "mh", "oh" }
+local MODEL_H, MODEL_FEET = 250, 62 -- the model's height, its feet up from the bottom
+-- the side columns' first row: the four rows' middle level with the model's
+-- middle (the weapons stay at the bottom)
+local SIDE_Y = -floor((BODY_H - MODEL_FEET - MODEL_H / 2) - (3 * SLOT_STEP + SLOT) / 2 + 0.5)
+local TURN_PER_PX = 0.012 -- a drag across the model turns it about half round
+local STAT_COLS = { { x = 276, w = 164 }, { x = 452, w = 164 } }
+local STAT_LABEL = 0.66 -- of a row, the name's share (재사용 대기시간 감소 fits)
 
 local function buildStats(page, f)
 	page.stage = UI.Art(f, "glow", "BORDER", 0.55, 0.7, 1, 0.22)
-	page.stage:SetSize(200, 46)
-	page.stage:SetPoint("CENTER", f, "BOTTOMLEFT", 110, MODEL_FEET)
+	page.stage:SetSize(150, 30)
+	page.stage:SetPoint("CENTER", f, "BOTTOMLEFT", PD_CX, MODEL_FEET)
 	page.standIcon = UI.Portrait(f, 110)
-	page.standIcon:SetPoint("CENTER", f, "BOTTOMLEFT", 110, MODEL_FEET + MODEL_H / 2)
+	page.standIcon:SetPoint("CENTER", f, "BOTTOMLEFT", PD_CX, MODEL_FEET + MODEL_H / 2)
 	page.standIcon:EnableMouse(false)
 	page.standIcon.lvl:Hide()
 	page.stand = ns.Figure3D.New(f, MODEL_H)
 	if page.stand then
 		page.stand:SetFacing("front")
-		-- (the frame no wider than the column and the stats' edge)
+		-- (the frame no wider than the room between the slot columns and a little)
 		if page.stand.SetRoom then page.stand:SetRoom(1, 0.06) end
 		-- the class circle stays until the model is in, so nothing blinks
 		page.stand:SetScript("OnUpdate", function(self, dt)
 			self:Step(dt)
 			page.standIcon:SetShown(not self:IsLoaded())
 		end)
-		-- dragged with the mouse, the model turns round
+		-- dragged with the mouse, the model turns round (between the slots)
 		local pad = CreateFrame("Button", nil, f)
-		pad:SetSize(220, BODY_H)
-		pad:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+		pad:SetSize(PD_W - 2 * SLOT - 8, BODY_H - SLOT - 8)
+		pad:SetPoint("TOPLEFT", f, "TOPLEFT", SLOT + 4, 0)
 		pad:SetFrameLevel(page.stand:GetFrameLevel() + 5)
 		pad:RegisterForClicks("LeftButtonUp")
 		pad:SetScript("OnMouseDown", function(self)
@@ -349,14 +362,38 @@ local function buildStats(page, f)
 		end)
 		page.turnPad = pad
 	end
+	-- the equipment around it: a hover shows the item, nothing else
+	page.gearSlots = {}
+	local function slot(key, x, y)
+		local b = UI.IconButton(f, SLOT)
+		b.slot = key
+		b:SetPoint("TOPLEFT", f, "TOPLEFT", x, y)
+		-- (over the model: turned round, it goes behind the slots)
+		b:SetFrameLevel((page.stand and page.stand:GetFrameLevel() or f:GetFrameLevel()) + 10)
+		b.empty = UI.Text(b, 10, ns.N(ns.SLOT[key].name))
+		b.empty:SetPoint("CENTER", b, "CENTER", 0, 0)
+		b.empty:SetWidth(SLOT - 4)
+		b.empty:SetJustifyH("CENTER")
+		UI.Color(b.empty, UI.C.dim)
+		UI.Tip(b, function(self)
+			local id = page.standFor
+			local it = id and ns.db.heroes[id] and ns.db.heroes[id].gear[self.slot]
+			if it then return ns.Items.Tooltip(it, id) end
+			return { { ns.N(ns.SLOT[self.slot].name), nil, UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] }, { "비어 있음", nil, 0.7, 0.7, 0.7 } }
+		end)
+		page.gearSlots[key] = b
+	end
+	for i, key in ipairs(LEFT_SLOTS) do slot(key, 0, SIDE_Y - (i - 1) * SLOT_STEP) end
+	for i, key in ipairs(RIGHT_SLOTS) do slot(key, PD_W - SLOT, SIDE_Y - (i - 1) * SLOT_STEP) end
+	for i, key in ipairs(WEAPON_SLOTS) do slot(key, PD_CX - SLOT - 6 + (i - 1) * (SLOT + 12), -(BODY_H - SLOT)) end
 	-- the stats in four groups, two columns
 	page.groups = {}
-	local cols = { { x = 236, w = 182 }, { x = 434, w = 182 } }
+	local cols = STAT_COLS
 	for gi = 1, 4 do
 		local col = cols[gi <= 2 and 1 or 2]
 		local g = { head = UI.Section(f, col.w), rows = {}, col = col, f = f }
 		for r = 1, 7 do
-			local row = UI.StatRow(f, col.w, nil, nil, 0.6)
+			local row = UI.StatRow(f, col.w, nil, nil, STAT_LABEL)
 			row:SetHeight(19)
 			-- some rows explain themselves on hover (원소 저항: each element)
 			row:EnableMouse(true)
@@ -383,12 +420,27 @@ local function refreshStats(page, id)
 	page.standFor = id
 	if fig and ((body and fig:SetBody(body)) or (mid and fig:SetModelId(mid))) then
 		fig:SetHeight2(MODEL_H * (F.RACE_SCALE[H.Race(id)] or 1))
-		fig:PlaceFeet(page.bodies.stats, 110, MODEL_FEET)
+		fig:PlaceFeet(page.bodies.stats, PD_CX, MODEL_FEET)
 		fig:Show()
 		page.standIcon:SetShown(not fig:IsLoaded())
 	else
 		if fig then fig:Hide() end
 		page.standIcon:Show()
+	end
+	-- what the hero wears
+	local gear = ns.db.heroes[id].gear
+	for key, b in pairs(page.gearSlots) do
+		local it = gear[key]
+		b:Clear()
+		if it then
+			b:SetIconName(ns.Items.Icon(it))
+			b:SetQuality(it.q)
+			b:SetItemMarks(it)
+			b:SetLocked(it.lock)
+			b.empty:Hide()
+		else
+			b.empty:Show()
+		end
 	end
 	local groups = ns.Stats.Groups(id)
 	local y = { 0, 0 }

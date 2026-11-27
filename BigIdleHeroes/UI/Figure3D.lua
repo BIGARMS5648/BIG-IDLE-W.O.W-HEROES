@@ -47,7 +47,7 @@ local WIDE = 0.6
 -- PlayerModel figures (no ModelScene): right = toward the monsters (90° faces
 -- right); tries: 1 = the display id, then the
 -- NPC id; the frame leaves room around the model
-local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0, frontLeft = -pi / 6 }
+local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0, frontRight = pi / 6 }
 local WAIT = { 1.0, 1.5, 2.5, 4.0 }
 local FRAME_W, FRAME_H = 2.4, 1.6
 local FEET_UP = 0.06
@@ -599,9 +599,9 @@ local function setCamera(f)
 	-- "right" it looks to the screen's left, so right is the other way.
 	local side = atan2(ry, rx)
 	local front = atan2(-fy, -fx)
-	-- frontLeft: from the front a third of the way to the left (30 degrees)
-	local toLeft = (side - front + pi) % (2 * pi) - pi
-	f.yaws = { right = side + pi, left = side, front = front, frontLeft = front + toLeft / 3 }
+	-- frontRight: from the front a third of the way to the right (30 degrees)
+	local toRight = (side + pi - front + pi) % (2 * pi) - pi
+	f.yaws = { right = side + pi, left = side, front = front, frontRight = front + toRight / 3 }
 	f.camRight = { rx, ry, rz }
 	-- light from in front, above and a little to the left
 	local lx, ly, lz = fx * 0.6 + rx * 0.35, fy * 0.6 + ry * 0.35, fz * 0.6 + rz * 0.35 - 0.7

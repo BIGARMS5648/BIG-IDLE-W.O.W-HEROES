@@ -317,15 +317,31 @@ do
 	if hp.sub ~= "stats" or not hp.bodies.stats:IsVisible() then fail("the stats tab did not open") end
 	if not hp.groups[4].head:IsVisible() then fail("the stats tab should show four groups of stats") end
 	-- the header shows the hero's face (its 3D model, close), turned 30
-	-- degrees to the screen's left
+	-- degrees to the screen's right
 	local face = hp.head.portrait.fig
 	if face then
-		if face.bust ~= "face" or face.facing ~= "frontLeft" then fail("the hero's header should show its face, turned to the left: " .. tostring(face.bust) .. " / " .. tostring(face.facing)) end
+		if face.bust ~= "face" or face.facing ~= "frontRight" then fail("the hero's header should show its face, turned to the right: " .. tostring(face.bust) .. " / " .. tostring(face.facing)) end
 		if face.yaws then
 			local function norm(a) return (a + math.pi) % (2 * math.pi) - math.pi end
-			local d, l = norm(face.yaws.frontLeft - face.yaws.front), norm(face.yaws.left - face.yaws.front)
-			if math.abs(math.abs(d) - math.pi / 6) > 1e-6 or (d > 0) ~= (l > 0) then fail("the face should turn 30 degrees from the front toward the left: " .. d) end
+			local d, r = norm(face.yaws.frontRight - face.yaws.front), norm(face.yaws.right - face.yaws.front)
+			if math.abs(math.abs(d) - math.pi / 6) > 1e-6 or (d > 0) ~= (r > 0) then fail("the face should turn 30 degrees from the front toward the right: " .. d) end
 		end
+	end
+	-- the hero's equipment around the model, as on the equipment screen: in
+	-- front of the model, only to look at (a click changes nothing)
+	if not (hp.gearSlots and hp.gearSlots.head and hp.gearSlots.mh) then
+		fail("the stats tab should show the hero's equipment slots")
+	else
+		local worn = 0
+		for _ in pairs(ns.db.heroes[id].gear) do worn = worn + 1 end
+		for key, b in pairs(hp.gearSlots) do
+			if hp.stand and b:GetFrameLevel() <= hp.stand:GetFrameLevel() then fail("the " .. key .. " slot should be drawn over the model") end
+			b.__scripts.OnClick(b, "LeftButton")
+			b.__scripts.OnClick(b, "RightButton")
+		end
+		local after = 0
+		for _ in pairs(ns.db.heroes[id].gear) do after = after + 1 end
+		if after ~= worn or ns.Main.Current() ~= "hero" then fail("the hero tab's equipment slots should only show the items") end
 	end
 	-- the hero stands as its 3D model; dragged with the mouse it turns round
 	if hp.stand and hp.turnPad then

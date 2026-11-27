@@ -186,9 +186,10 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - Hunters shoot their bow or gun for their skills as well, not a spell cast.
 - The moonkin's spells and bolts leave its hands, not its head.
 - Hero screen: the header shows the hero's face, its 3D model close and
-  turned a little to the left; the stats page ("Stats") shows the hero
-  standing as its 3D model, which turns round as you drag it, in place of
-  the specialization card and description.
+  turned a little to the right; the stats page ("Stats") shows the hero
+  standing as its 3D model, which turns round as you drag it, in the middle
+  of its equipment laid out as on the equipment screen (hover a slot to see
+  the item), in place of the specialization card and description.
 - Difficulty colours: Heroic purple, Mythic yellow and the endless tower
   red, the same on the stage screen's cards and tooltips and on the battle
   window's badge.
