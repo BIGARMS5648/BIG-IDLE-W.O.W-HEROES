@@ -1332,7 +1332,10 @@ do
 		-- the goal button either acts or opens a screen; give it something to do
 		-- (the clockwork runes learned, so they do not lead the goals)
 		local clockWas = {}
-		for _, rid in ipairs(ns.Guide.CLOCK_RUNES) do clockWas[rid] = ns.db.runes[rid] ns.db.runes[rid] = 1 end
+		-- (the first goals out of the way: the clockwork runes and 각성의 룬 learned)
+		local firstRunes = { 27 }
+		for _, rid in ipairs(ns.Guide.CLOCK_RUNES) do firstRunes[#firstRunes + 1] = rid end
+		for _, rid in ipairs(firstRunes) do clockWas[rid] = ns.db.runes[rid] ns.db.runes[rid] = 1 end
 		ns.Runes.Invalidate()
 		local hid = ns.db.party[2]
 		ns.Heroes.AddXP(hid, ns.XPForLevel(ns.db.heroes[hid].level) + 1)
@@ -1340,7 +1343,7 @@ do
 		Main.Toggle(false)
 		try("goal", bar.goal.Click, bar.goal, "LeftButton")
 		if not (Main.IsShown() and Main.Current() == "hero") then fail("the goal button should open the hero screen for talent points") end
-		for _, rid in ipairs(ns.Guide.CLOCK_RUNES) do ns.db.runes[rid] = clockWas[rid] end
+		for _, rid in ipairs(firstRunes) do ns.db.runes[rid] = clockWas[rid] end
 		ns.Runes.Invalidate()
 		-- recruiting from the recommendation without the gold: the warning
 		-- only, neither the menu nor the recruit window opens

@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.3
+BIG IDLE HEROES v1.1.4
 ```
 
 ---
@@ -137,15 +137,11 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.3)
+## Changelog for this release (v1.1.4)
 
 ```
-- Shadow, holy and arcane damage on gems, enchants and inscriptions: nine
-  new gems (Void Crystal, Twilight Amethyst and Dark Obsidian for shadow;
-  Pearl of Light, Sunstone and Naaru Crystal for holy; Mana Agate, Mana Jade
-  and Mana Ruby for arcane) at the fire, frost and nature gems' grades, and
-  the enchanting reagents and scrolls that give fire, frost or nature damage
-  give these three too.
-- The act boss chest's clockwork rune sits after the 6th expansion rune and
-  costs 50,000 gold; its oil rune moves along beside it.
+- The recommendation suggests the Rune of Awakening (a third skill slot for
+  every hero) once a party hero reaches level 10, where the third skill
+  opens: beside the next hero and the boss chest's clockwork rune, the
+  cheapest first, and saved up for on its own once those are done.
 ```

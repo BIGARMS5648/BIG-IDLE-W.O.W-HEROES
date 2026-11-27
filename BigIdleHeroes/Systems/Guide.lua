@@ -159,7 +159,8 @@ Guide.CLOCK_RUNES = { 13002, 15001 }
 
 Guide.CLOCK_AFTER_HEROES = 3 -- party heroes before the clockwork runes join
 
--- The next rune on the way to a clockwork rune not learned yet, as a goal.
+-- The next rune on the way to a rune not learned yet (a clockwork rune,
+-- 각성의 룬), as a goal.
 local function clockStep(rid)
 	local node = ns.Runes.byId[rid]
 	if not node or ns.Runes.Level(rid) >= node.max then return nil end
@@ -170,10 +171,25 @@ local function clockStep(rid)
 		wait = not ns.CanAfford(cost), cost = cost }
 end
 
+-- 각성의 룬 (one more skill slot for every hero): wanted once a party hero
+-- has reached the level of the skill that has no slot yet (the 3rd skill,
+-- level 10).
+function Guide.WantsSkillSlot()
+	local slots = ns.SkillSlots()
+	local id = ns.Runes.FirstFor("skillSlot")
+	if not id or slots >= 3 then return nil end
+	local need = ns.SKILL_UNLOCK[slots + 1]
+	if not need then return nil end
+	for _, hid in ipairs(partyHeroes()) do
+		if ns.db.heroes[hid].level >= need then return id end
+	end
+	return nil
+end
+
 -- The first goals, in turn: the heroes up to the third alone; then the
 -- monster chest's clockwork rune alone; then the step that brings the next
--- hero in and the boss chest's clockwork rune side by side, the cheapest
--- first (one goal per rune).
+-- hero in, the boss chest's clockwork rune and (once a hero has a skill with
+-- no slot) 각성의 룬 side by side, the cheapest first (one goal per rune).
 local function firstGoals(heroes)
 	local recruit = nextRecruit(heroes)
 	if ns.Heroes.PartyCount() < Guide.CLOCK_AFTER_HEROES then
@@ -186,8 +202,11 @@ local function firstGoals(heroes)
 		list[#list + 1] = recruit
 		if recruit.rune then seen[recruit.rune] = true end
 	end
-	for i = 2, #Guide.CLOCK_RUNES do
-		local g = clockStep(Guide.CLOCK_RUNES[i])
+	local runes = {}
+	for i = 2, #Guide.CLOCK_RUNES do runes[#runes + 1] = Guide.CLOCK_RUNES[i] end
+	runes[#runes + 1] = Guide.WantsSkillSlot()
+	for _, rid in ipairs(runes) do
+		local g = clockStep(rid)
 		if g and not seen[g.rune] then
 			seen[g.rune] = true
 			list[#list + 1] = g

@@ -2009,6 +2009,35 @@ do
 	local both = 0
 	for _, x in ipairs(c) do if x.rune == seat or x.rune == bStep then both = both + 1 end end
 	check(ok and (seat == bStep or both == 2), "then the next seat and the boss chest's rune, the cheaper first: " .. texts())
+	-- 각성의 룬 joins them once a party hero reaches the 3rd skill's level
+	do
+		local awake = ns.Runes.FirstFor("skillSlot")
+		-- (the way to it learned, so its own step is 각성의 룬 itself)
+		local keepRunes = {}
+		for k, v in pairs(g.runes) do keepRunes[k] = v end
+		local c0 = awake
+		while ns.Runes.prev[c0] do
+			c0 = ns.Runes.prev[c0]
+			g.runes[c0] = math.max(g.runes[c0] or 0, ns.Runes.Need(awake) > 0 and ns.Runes.byId[c0].max or 1)
+		end
+		ns.Runes.Invalidate()
+		local aStep = ns.Runes.NextStepTo(awake)
+		local function has(list)
+			for _, x in ipairs(list) do if x.rune == aStep then return true end end
+			return false
+		end
+		local hid = g.party[1]
+		local keepLevel = g.heroes[hid].level
+		local keepLv = {}
+		for _, pid in ipairs(g.party) do if pid then keepLv[pid] = g.heroes[pid].level g.heroes[pid].level = ns.SKILL_UNLOCK[3] - 1 end end
+		check(ns.Guide.WantsSkillSlot() == nil and not has(firsts()), "below level 10, 각성의 룬 is not recommended: " .. texts())
+		for pid, lv in pairs(keepLv) do g.heroes[pid].level = lv end
+		g.heroes[hid].level = ns.SKILL_UNLOCK[3]
+		check(ns.Guide.WantsSkillSlot() == awake and aStep == awake and has(firsts()), "a hero at level 10: 각성의 룬 joins the first goals: " .. texts())
+		g.heroes[hid].level = keepLevel
+		g.runes = keepRunes
+		ns.Runes.Invalidate()
+	end
 	-- the two clockwork runes: 500 and 10,000 gold, near the start
 	check(ns.Runes.Cost(13002, 1) == 500 and ns.Runes.Cost(15001, 1) == 10000, "the clockwork runes cost 500 and 10,000 gold")
 	check(ns.Runes.prev[13002] == 12 and ns.Runes.prev[15001] == 14 and ns.Runes.Need(13002) == 1 and ns.Runes.Need(15001) == 1,
