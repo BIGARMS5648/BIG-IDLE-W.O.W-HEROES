@@ -205,6 +205,11 @@ end
 Figure.FORM_BAR_X = { cat = 0.15 }
 -- the forms that go on four legs, long and low
 Figure.BEAST = { cat = true, bear = true }
+-- where a form's casting hand is, as shares of its figure's height (x
+-- forward of its middle, y up from its feet): the moonkin stoops, its big
+-- head where a man's hands are and its hands well under it. Its spells and
+-- bolts leave from there; others' from a man's hands (UI/Bar.lua hand).
+Figure.FORM_HAND = { moonkin = { x = 0.32, y = 0.38 } }
 -- the form a hero fights in (cat, bear, moonkin ...), nil when it stands as
 -- itself
 function Figure.HeroForm(heroId, inCombat)

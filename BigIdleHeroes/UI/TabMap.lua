@@ -241,15 +241,17 @@ local function build(page)
 			-- (a line from one stage's ring to the next: it runs from disc to
 			-- disc under them, so it meets both rings; the disc's middle: its
 			-- column's middle, 28 below its row's top)
+			-- (one sublevel over the inset, drawn on the page too: on the same
+			-- sublevel the game may draw either first, and it hid the bracket)
 			local link = { lines = {} }
 			local cy = PATH_Y - row * (NODE_H + 8) - 28
 			local function line(vertical, x, y, len)
-				local l = UI.Line3(page, "BACKGROUND")
+				local l = UI.Line3(page, "BACKGROUND", 1)
 				l:Place(page, "TOPLEFT", vertical, x, y, len, T, true, true)
 				link.lines[#link.lines + 1] = l
 			end
 			local function bend(x, y, up)
-				local l = UI.Bend(page, "BACKGROUND")
+				local l = UI.Bend(page, "BACKGROUND", 1)
 				l:Place(page, "TOPLEFT", x, y, T, up)
 				link.lines[#link.lines + 1] = l
 			end

@@ -1039,6 +1039,23 @@ do
 	if ns.db.stage.idx ~= 3 or ns.db.stage.diff ~= 1 then fail("travelling from the stage screen did not work") end
 	click("world Outland", function(b) return b.d == 2 end)
 	hoverAll()
+	-- the path's lines (the bracket down to the second row too) lie over the
+	-- inset: the same layer and sublevel would leave the order to the game
+	do
+		local pg = Main.Page("map")
+		local LAYER = { BACKGROUND = 1, BORDER = 2, ARTWORK = 3, OVERLAY = 4, HIGHLIGHT = 5 }
+		local function rank(t) return LAYER[t.__layer] * 100 + (t.__sub or 0) end
+		local top = -1
+		for i = 1, 9 do top = math.max(top, rank(pg.pathBg[i])) end
+		for n, link in pairs(pg.links) do
+			for _, ln in ipairs(link.lines) do
+				for _, t in ipairs(ln.t.__widget and { ln.t } or ln.t) do
+					if rank(t) <= top then fail("stage " .. n .. "'s path line is not drawn over the inset") end
+				end
+			end
+		end
+		if #pg.links[6].lines ~= 5 then fail("the bracket from stage 5 to 6 should be five pieces") end
+	end
 	-- the endless tower: closed, then open; pick a floor, go, come back
 	do
 		local pg = Main.Page("map")
@@ -1604,6 +1621,7 @@ do
 				local kind = ns.MODEL.rangedKind[body.weapons.mh]
 				if not (kind and shot == ns.MODEL.SHOT[kind]) then fail("a hunter's shot should follow the weapon in its hands: " .. tostring(kind)) end
 				if hf.figIs:AnimId("attack") ~= shot.anim then fail("a hunter should attack with its bow or rifle animation: " .. tostring(hf.figIs:AnimId("attack"))) end
+				if hf.figIs:AnimId("cast") ~= shot.anim then fail("a hunter's skills should shoot its bow or rifle too: " .. tostring(hf.figIs:AnimId("cast"))) end
 				local before = ns.Bar.fxStats.missiles
 				ns.Combat.vfx[#ns.Combat.vfx + 1] = { k = "shot", u = hu, to = { mob } }
 				frames(5)
@@ -1651,6 +1669,10 @@ do
 				local want = x.class == "HUNTER" and ns.Bar.ShotOf(x).anim or (x.ranged and 53 or 17)
 				if heroes[i].figIs and heroes[i].figIs:AnimId("attack") ~= want then
 					fail("a " .. x.spec .. "'s attack should be animation " .. want .. ": " .. tostring(heroes[i].figIs:AnimId("attack")))
+				end
+				local cast = x.class == "HUNTER" and want or 53
+				if heroes[i].figIs and heroes[i].figIs:AnimId("cast") ~= cast then
+					fail("a " .. x.spec .. "'s skill should be animation " .. cast .. ": " .. tostring(heroes[i].figIs:AnimId("cast")))
 				end
 			end
 		end
@@ -1811,6 +1833,51 @@ do
 					fail(string.format("a hit on a beast should land on its chest: %s, want %.2f", tostring(onX), 0.4 * ch))
 				end
 				if cfig.beast or bfig.beast then fail("a hero out of its form should not be a beast") end
+				-- a moonkin's spells leave its hands, under its big head: the glow
+				-- in its hands and the bolt it sends both start there
+				local hand = Fig.FORM_HAND.moonkin
+				Fig.HeroForm = function(id, c)
+					if id == war.id then return "moonkin" end
+					return was(id, c)
+				end
+				frames(1)
+				if cfig.handAt ~= hand or cfig.beast then fail("a moonkin should cast from its own hands, standing (not a beast)") end
+				local dir = cfig.facing == "left" and -1 or 1
+				local wrath = ns.SKILL_FX.wrath
+				ns.Combat.VFX({ k = "skill", u = war, sid = "wrath", to = { mob } })
+				local glowX, glowY, boltX, boltY
+				for _ = 1, 3 do
+					frames(1)
+					for _, hs in ipairs(ns.Bar.hits) do
+						if hs.active and hs.hand and hs.tfig == cfig and hs.fig:IsShown() then
+							glowX, glowY = hs.fig.anchorX - cfig.anchorX, hs.fig.anchorY - cfig.anchorY
+						end
+					end
+					for _, ms in ipairs(ns.Bar.missiles) do
+						if ms.active and ms.fx and ms.fx.missile == wrath.missile and ms.tfig ~= cfig then
+							boltX, boltY = ms.x0 - cfig.anchorX, ms.y0 - cfig.anchorY
+						end
+					end
+				end
+				Fig.HeroForm = was
+				frames(1)
+				local wx, wy = cfig.height * hand.x * dir, cfig.height * hand.y
+				if not glowX or math.abs(glowX - wx) > 1e-6 or math.abs(glowY - wy) > 1e-6 then
+					fail(string.format("a moonkin's cast glow should be in its hands: %s, %s, want %.2f, %.2f", tostring(glowX), tostring(glowY), wx, wy))
+				end
+				if not boltX or math.abs(boltX - wx) > 1e-6 or math.abs(boltY - wy) > 1e-6 then
+					fail(string.format("a moonkin's bolt should leave its hands: %s, %s, want %.2f, %.2f", tostring(boltX), tostring(boltY), wx, wy))
+				end
+				if cfig.handAt then fail("a hero out of its form should cast from a man's hands") end
+				local _, manY = ns.Bar.Hand(cfig, 1)
+				if not (wy < manY - cfig.anchorY) then fail("a moonkin's hands should be under where a man's are") end
+				-- (its glow, bolt and hit put away: the next check needs room for its own)
+				local mine = { ["file:" .. tostring(ns.KIT_HAND[wrath.cast])] = true, ["file:" .. wrath.hit] = true, ["file:" .. wrath.missile] = true }
+				for _, pool in ipairs({ ns.Bar.hits, ns.Bar.missiles }) do
+					for _, e in ipairs(pool) do
+						if e.active and mine[e.fig.actor.__display or ""] then e.active = false e.fig:Hide() end
+					end
+				end
 			else
 				fail("the beast check should have a warrior, another hero and a monster")
 			end
@@ -1832,17 +1899,14 @@ do
 			local sp = ns.MobFx("aoe", "shadow")
 			Mock.kits = {}
 			ns.Combat.VFX({ k = "mob", u = boss, kind = "aoe", school = "shadow", to = { ns.Combat.heroes[1] } })
+			-- (seen while it plays: its slot goes to the next effect once it is over)
 			local sawHit
+			local castOk = ns.KIT_HAND[sp.cast] == nil
 			for _ = 1, 30 do
 				frames(1)
 				for _, hs in ipairs(ns.Bar.hits) do
 					if hs.active and hs.fig.actor.__display == "file:" .. sp.hit then sawHit = true end
-				end
-			end
-			local castOk = ns.KIT_HAND[sp.cast] == nil
-			for _ = 1, 3 do
-				for _, hs in ipairs(ns.Bar.hits) do
-					if hs.hand and hs.fig.actor.__display == "file:" .. tostring(ns.KIT_HAND[sp.cast]) then castOk = true end
+					if hs.active and hs.hand and hs.fig.actor.__display == "file:" .. tostring(ns.KIT_HAND[sp.cast]) then castOk = true end
 				end
 			end
 			if not castOk then fail("a boss ability should show its spell's cast in the boss's hands") end

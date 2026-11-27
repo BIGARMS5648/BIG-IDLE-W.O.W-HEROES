@@ -163,7 +163,7 @@ function Texture:SetVertexColor(r, g, b, a)
 	self.__vertex = { r, g, b, a or 1 }
 end
 function Texture:SetBlendMode(m) check(m == "ADD" or m == "BLEND" or m == "DISABLE" or m == "MOD" or m == "ALPHAKEY", "SetBlendMode: bad mode") end
-function Texture:SetDrawLayer(l, sub) check(LAYERS[l], "SetDrawLayer: bad layer") self.__layer = l end
+function Texture:SetDrawLayer(l, sub) check(LAYERS[l], "SetDrawLayer: bad layer") self.__layer = l self.__sub = sub or 0 end
 function Texture:SetDesaturated(v) self.__desat = v and true or nil end
 function Texture:SetRotation(r) check(type(r) == "number", "SetRotation: number expected") self.__rot = r end
 function Texture:GetRotation() return self.__rot or 0 end
@@ -248,7 +248,7 @@ function Frame:UnregisterAllEvents() self.__events = {} end
 function Frame:CreateTexture(name, layer, template, sub)
 	check(layer == nil or LAYERS[layer], "CreateTexture: bad layer " .. tostring(layer))
 	local t = setmetatable({ __widget = true, __type = "Texture", __points = {}, __anchors = {}, __shown = true, __parent = self, __name = name,
-		__layer = layer or "ARTWORK" }, { __index = Texture })
+		__layer = layer or "ARTWORK", __sub = sub or 0 }, { __index = Texture })
 	self.__regions[#self.__regions + 1] = t
 	return t
 end
