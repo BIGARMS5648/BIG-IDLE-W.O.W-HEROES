@@ -493,9 +493,9 @@ end
 -- part of the climb takes, about 250 hours to the end of 신화+ on average
 -- (일반 32 h, 영웅 43 h, 신화 55 h, 신화+ 120 h, each timed from the
 -- difficulty's start), every stage a little longer than the one before and
--- each act's raid boss about 1.5 times its neighbours. Fitted by play runs of
--- eight parties (tests/pace.lua). The endless tower starts from the last
--- stage's.
+-- each act's raid boss about 1.5 times its neighbours. From the 250-hour
+-- design (docs/BALANCE_250H.md), fitted there by play runs of eight parties.
+-- The endless tower starts from the last stage's.
 ns.MIGHT = {
 	{ -- 일반
 		0.517, 0.6535, 0.8261, 1.3, 1.8, 2.425, 2.591, 2.779, 2.991, 2.429,

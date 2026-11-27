@@ -61,7 +61,7 @@ Build a party of five heroes, send them along a route through the original game'
 - A route through **the original game's zones, dungeons and raids in recommended-level order**: Elwynn Forest, Dun Morogh, the Deadmines, Scarlet Monastery, Uldaman, Blackrock Depths, Scholomance, Stratholme, Zul'Gurub, Ahn'Qiraj, and on to Molten Core, Onyxia's Lair, Blackwing Lair, the Temple of Ahn'Qiraj and **Naxxramas**.
 - **Four difficulty tiers** (Normal, Heroic, Mythic, Mythic+), each with 30 stages in three acts.
 - Every stage is a long run of monster waves ending in a boss, with stage levels from 1 to 95. The last stage of each act is its raid boss alone, with its own abilities.
-- A long climb: about 64 hours to clear Normal, about 115 hours to reach the last act of Mythic+, and around 330 hours to clear everything and reach level 100 (measured with eight different parties played automatically).
+- A long climb, designed for about 250 hours from the first stage to the end of Mythic+: about 32 hours for Normal, 43 for Heroic, 55 for Mythic and 120 for Mythic+. In the endless tower every hero reaches level 100 in about ten hours.
 
 ### A living battle window
 - Heroes, monsters, bosses, summons and companions are **the game's own 3D models**, animated: they stand, walk, attack, cast, get hit and die.
@@ -158,10 +158,20 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - Stage screen: the act boss crown is a new gold crown; the path sits on a
   dark panel like the other screens; the endless tower card shows Dalaran
   and its floor picker Zephra's Isle.
-- Balance: monster strength set stage by stage for Normal 64 h, Heroic
-  75 h, Mythic 90 h and Mythic+ 333 h; the tower grows less each floor;
-  stages of level 90 and up give more experience; monster resistances are
-  at most 20%.
+- Balance: a smooth climb of about 250 hours (Normal 32 h, Heroic 43 h,
+  Mythic 55 h, Mythic+ 120 h), every stage a little longer than the one
+  before and each raid boss about 1.5 times its neighbours; heroes stay
+  about two levels above the stages they push; the tower grows less each
+  floor; monster resistances are at most 20%.
+- Stages harder than their numbers (ranged monsters, status effects, boss
+  skills) are made as easy as their neighbours, in the tower too.
+- Kill gold and experience follow the stage's level, not the monster's
+  own health, so neighbouring stages pay alike.
+- Mythic and Mythic+ stages have half as many monsters (a run of about
+  twenty minutes); their boss chests come half as often per boss, as many
+  per hour as before.
+- In the endless tower every hero reaches level 100 in about ten hours.
+- Holy paladins and holy priests heal more.
 - Worgen monsters (Son of Arugal and others): the health bar sits under
   the body.
 - The forge is called 대장간 (smithy) in game, with a new smithy icon in the
