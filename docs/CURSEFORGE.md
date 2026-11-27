@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.0
+BIG IDLE HEROES v1.1.1
 ```
 
 ---
@@ -137,42 +137,22 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.0)
+## Changelog for this release (v1.1.1)
 
 ```
-- Enhancement opens with Mythic+ (once Mythic is cleared to its end).
-- Enhancement chances: 65% a try up to +10, then 60%, 55%, 50%, 45%, 40%,
-  35%, 30%, 20%, 15% and 10% for +19 to +20. A failed try only loses the
-  gold; the item keeps its step.
-- The enhancement screen in two cards: the item, its step bar and what the
-  next step gives on the left; the item now and after, the chance, the
-  cost, the average tries and the button on the right.
-- Inheritance: an enhanced item's steps move onto a new item of the same
-  slot as 70% of the gold they are worth; the old item is used up. A worn
-  old item is replaced by the new one on that hero.
-- Item slots: item level top left, a green arrow top right for better gear,
-  the enhancement step bottom right.
-- Grades 8 and 9 are Divine (soft yellow) and Celestial (cyan).
-- The first rune is the Rune of Beginnings, with the hearthstone icon; it
-  gives kill gold and experience +5% and belongs to none of the kinds.
-- Offline rewards: the clock in an icon slot, the amounts in green.
-- Stage screen: the act boss crown is a new gold crown; the path sits on a
-  dark panel like the other screens; the endless tower card shows Dalaran
-  and its floor picker Zephra's Isle.
-- Balance: a smooth climb of about 250 hours (Normal 32 h, Heroic 43 h,
-  Mythic 55 h, Mythic+ 120 h), every stage a little longer than the one
-  before and each raid boss about 1.5 times its neighbours; heroes stay
-  about two levels above the stages they push; the tower grows less each
-  floor; monster resistances are at most 20%.
+- Balance: a smooth climb of about 250 hours from the first stage to the end
+  of Mythic+ (Normal 32 h, Heroic 43 h, Mythic 55 h, Mythic+ 120 h): every
+  stage a little longer than the one before, each raid boss about 1.5 times
+  its neighbours, heroes about two levels above the stages they push.
 - Stages harder than their numbers (ranged monsters, status effects, boss
   skills) are made as easy as their neighbours, in the tower too.
-- Kill gold and experience follow the stage's level, not the monster's
-  own health, so neighbouring stages pay alike.
+- Kill gold and experience follow the stage's level, not the monster's own
+  health, so neighbouring stages pay alike.
 - Mythic and Mythic+ stages have half as many monsters (a run of about
   twenty minutes); their boss chests come half as often per boss, as many
   per hour as before.
-- In the endless tower every hero reaches level 100 in about ten hours.
 - Holy paladins and holy priests heal more.
+- In the endless tower every hero reaches level 100 in about ten hours.
 - The endless tower's chests give the grade of their floor's range: Epic
   below floor 20, then Legendary, Immortal (40), Transcendent (50), Divine
   (80) and Celestial (90), now and then one grade lower. Fuse what a floor
@@ -181,81 +161,6 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - Automatic fusion: set a grade under the bag and turn it on, and every
   nine pieces of that grade or higher are fused as chests are opened.
   The bag shows 50 slots a page.
-- Worgen monsters (Son of Arugal and others): the health bar sits under
-  the body.
-- The forge is called 대장간 (smithy) in game, with a new smithy icon in the
-  menus.
-- Enhancing: a hammer strikes the anvil three times, then a small window
-  shows the result (the item before and after and what rose, or the next
-  try's chance and cost) with a button to try again. A click skips the
-  strikes.
-- Combat: a change of maximum health (a buff, an aura, a piece of gear)
-  keeps the share of health instead of healing; burning and bleeding go
-  through the target's resistance once, not twice; changing the party
-  keeps the health, revival time and cooldowns of the heroes who stay.
-- Inheritance takes the gems, enchants and inscriptions of the old item
-  along, into the new item's free sockets; a protected item is never used
-  up by inheritance.
-- New heroes start with their first two skills (the skill point of level 4
-  comes at level 1), so every specialization clears the first stage alone.
-- Melee heroes behind the tank walk up and line up behind it, and hit only
-  what they reach from where they stand.
-- Stage screen: the boss chest chance includes the rune bonus; the extra
-  boss chest from the companion shows on stages and tower floors; the
-  experience hint says how far above the heroes a stage may be before
-  experience drops. The inheritance window lists the gems, enchants and
-  inscriptions that move along.
-- The gear score (auto-equip, upgrade arrows, protection) no longer depends
-  on the stage being fought: an item scores the same everywhere.
-- Offline rewards pay what the party earns hunting the highest stage it has
-  cleared (that stage's last clear), and the experience cut for heroes far
-  below that stage shrinks as they level while away.
-- Discipline priests heal and shield much more, keeping a party alive about
-  as well as a holy priest or a holy paladin.
-- Restoration shamans heal and shield less: they kept parties alive far
-  better than every other healer.
-- Recruiting a hero from the recommendation without enough gold now only
-  shows a warning instead of opening the recruit window.
-- New Alliance and Horde crests on the faction picker (each card shows just
-  the crest and the faction's name) and in the settings.
-- Casters' basic attacks fly a small bolt of their school (Fireball,
-  Frostbolt, Arcane Bolt, Shadow Bolt, Lightning Bolt, Wrath); holy casters'
-  light bursts on the target.
-- The option to keep benched heroes' better gear from salvage and fusion is
-  under the bag on the equipment screen; the forge's function buttons have
-  their names centred.
-- The recruit button shows its price as a gold coin and the amount.
-- Early on (until five heroes fight) the recommendation puts the next hero
-  first and, while saving up for it, suggests nothing else that costs gold.
-- No red dot on the equipment menu for chests waiting.
-- The recommendation recruits the healer third (a damage dealer first: tank,
-  healer, damage, damage; a tank first: damage, healer, damage, damage).
-- In a boss fight the boss's skull stays at the left of its health bar,
-  pulsing.
-- The Alliance start button on the faction picker is the Alliance's blue.
-- Hovering a bag item on the equipment screen also shows, beside it, the
-  item the chosen hero wears in that slot.
-- Unlock buttons (breaking down, forge functions, crafting tiers, seal rolls,
-  extraction) carry the red dot when they can be unlocked right now.
-- Removed unused code and an unused texture.
-- A minimap button with the add-on's logo: click for the menu window, right
-  click for the battle window, drag to move it around the minimap. It can be
-  hidden in the settings.
-- Boss chests can hold accessories too, as often as the act boss chest of
-  their level.
-- The stage screen's options and notes sit at the bottom of the stage list,
-  and each chest's reward line is in its chest's colour (bronze, silver,
-  gold). The boss chest's silver is a little darker.
-- The recruit cost reads "300 G".
-- The last party seat's rune (60,000 gold) is recommended once Normal 1-10
-  is cleared.
-- Normal 1-6 to 1-9 now rise evenly in difficulty instead of jumping at 1-6.
-- The clockwork runes of the monster and boss chests sit nearer the start and
-  cost 500 and 10,000 gold. The recommendation goes: the heroes up to the
-  third, then the monster chest's clockwork rune, then the next heroes and
-  the boss chest's clockwork rune, the cheapest first.
-- The start rune has a silver border, and the battle window's boss skull is
-  drawn darker while it waits; on the boss's turn it pulses at full
-  brightness.
-- A new, slightly bigger green arrow marks better gear on item slots.
+- The Rune of Beginnings gives kill gold and experience +5% (instead of +1
+  attack) and belongs to none of the rune kinds.
 ```
