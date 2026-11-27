@@ -221,6 +221,7 @@ local function forge(func, opts)
 	return p
 end
 S.equip = function() ns.Main.SelectHero(db.party[2]) equip("bag") end
+S.equip_fuse = function() ns.db.opt.autoFuse, ns.db.ui.autoFuseQ = 5, 5 ns.Main.SelectHero(db.party[2]) equip("bag") end
 -- the item marks: level top left, the better-gear arrow top right, the
 -- enhancement step bottom right (a protected one's lock bottom left)
 S.equip_marks = function()

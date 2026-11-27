@@ -177,6 +177,30 @@ end
 ------------------------------------------------------------------------
 -- Fusion: 9 of a quality -> 1 (usually) better
 ------------------------------------------------------------------------
+-- Fusion by itself (ns.db.opt.autoFuse: the lowest grade it fuses, 0 =
+-- off): after chests are opened, and when one's reward does not fit, every
+-- nine of a grade from that one up are fused, the lower grades first (so a
+-- result can join the next grade's nine), weapons and armour apart from
+-- accessories. What fusion keeps out (protected, enhanced, socketed, better
+-- for a hero) stays. Returns how many fusions were made.
+Forge.AUTO_FUSE_MAX = 200 -- fusions at most each time
+function Forge.AutoFuse()
+	local q0 = ns.db.opt.autoFuse or 0
+	if q0 <= 0 then return 0 end
+	local n = 0
+	for q = q0, ns.MAX_QUALITY - 1 do
+		for _, cat in ipairs({ "gear", "accessory" }) do
+			while n < Forge.AUTO_FUSE_MAX do
+				local list = Forge.PickForFusion(q, cat)
+				if not list or not Forge.Fuse(list) then break end
+				n = n + 1
+			end
+		end
+	end
+	if n > 0 then ns.Log(string.format("자동 융합: %d번", n)) end
+	return n
+end
+
 function Forge.CanFuse(items)
 	if #items ~= Forge.FUSE_COUNT then
 		return false, string.format("같은 등급 장비 %d개가 필요합니다.", Forge.FUSE_COUNT)

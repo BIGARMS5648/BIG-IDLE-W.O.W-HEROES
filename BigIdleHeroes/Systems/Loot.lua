@@ -94,7 +94,8 @@ end
 -- the entry) or a material. Returns { item = it } or { mat = id, n = n }.
 -- level: the gear's item level instead of the entry's (the tower's chests);
 -- luck: better grades weighed up more (times this per grade above 2).
-function Loot.RollBox(key, level, luck)
+-- grade: the gear's grade instead of the box's (the tower's chests).
+function Loot.RollBox(key, level, luck, grade)
 	local b = ns.TBH.BOXES[key]
 	-- the luck bonus weighs gear of the better grades up (more the better)
 	luck = (1 + ns.Bonus("luck") / 100) * (luck or 1)
@@ -114,7 +115,7 @@ function Loot.RollBox(key, level, luck)
 			fam = U.weighted(pick).fam
 		end
 		local slot = fam == "armor" and ARMOR[random(#ARMOR)] or (fam == "weapon" and "mh") or (fam == "offhand" and "oh") or fam
-		return { item = ns.Items.New(slot, level or e[4], e[3]) }
+		return { item = ns.Items.New(slot, level or e[4], grade or e[3]) }
 	end
 	local id, n = Loot.MatFor(e[2], e[3])
 	return { mat = id, n = n }
@@ -167,13 +168,14 @@ local function openAt(index)
 	local def = ns.CHEST[ch.t]
 	-- a chest needs a free bag slot whatever it turns out to hold, so a full
 	-- bag cannot be used to fish for materials
+	if ns.Items.BagFree() <= 0 and ns.Forge then ns.Forge.AutoFuse() end
 	if ns.Items.BagFree() <= 0 and not (ns.Forge and ns.Forge.AutoSmelt()) then
 		return nil, "full"
 	end
 	-- its TBH box (a chest kept from before: the box of its kind and level)
 	local box = ch.box and ns.TBH.BOXES[ch.box] and ch.box or Loot.BoxFor(def.box, ch.l)
 	local tf = tonumber(ch.tf)
-	local result = tf and Loot.RollBox(box, ns.Tower.ITEM_LEVEL, ns.Tower.Luck(tf)) or Loot.RollBox(box)
+	local result = tf and Loot.RollBox(box, ns.Tower.ITEM_LEVEL, nil, ns.Tower.RollGrade(tf)) or Loot.RollBox(box)
 	if result.item then
 		ns.Items.AddToBag(result.item)
 	else
@@ -214,6 +216,7 @@ function Loot.OpenAll(chestType, limit)
 		end
 	end
 	if sum.opened > 0 then
+		if ns.Forge then ns.Forge.AutoFuse() end
 		ns.Fire("CHESTS")
 		ns.Fire("BAG")
 		ns.Sound("loot")

@@ -934,6 +934,27 @@ do
 	end
 	check(same > 100 and up > 80, "epic fusion can fail or succeed (" .. same .. "/" .. up .. ")")
 end
+-- fusion by itself: off fuses nothing; on, every nine from its grade up
+-- (weapons and armour apart from accessories), a protected piece kept
+do
+	db.bag = {}
+	for _ = 1, 18 do ns.Items.AddToBag(ns.Items.New("head", 12, 5)) end
+	for _ = 1, 9 do ns.Items.AddToBag(ns.Items.New("head", 12, 4)) end
+	db.bag[1].lock = true
+	db.opt.autoFuse = 0
+	check(F.AutoFuse() == 0 and #db.bag == 27, "auto fusion off fuses nothing")
+	db.opt.autoFuse = 5
+	local n = F.AutoFuse()
+	local q4, locked, heads5 = 0, false, 0
+	for _, x in ipairs(db.bag) do
+		if x.q == 4 then q4 = q4 + 1 end
+		if x.lock then locked = true end
+		if x.q == 5 and ns.Items.FuseCat(x) == "gear" and not x.lock then heads5 = heads5 + 1 end
+	end
+	check(n >= 2 and q4 == 9 and locked and heads5 < 9, "auto fusion fuses from its grade up and keeps the protected piece (" .. n .. " fusions)")
+	db.opt.autoFuse = 0
+	db.bag = {}
+end
 db.party = savedParty
 db.mats = {}
 ns.AddMat("bar1", 9)
@@ -1509,6 +1530,22 @@ do
 	check(T.Kills(10) == 0 and T.Waves(10) == 1 and T.Kills(1) == T.WAVES * T.MobsPerWave()
 		and T.Kills(41) > T.Kills(39), "a raid floor is its boss alone; 무리 brings more monsters")
 	check(T.HPMult(30) > T.HPMult(29) and T.AtkMult(30) > T.AtkMult(29) and T.GoldMult(30) > T.GoldMult(1), "monsters grow stronger and richer every floor")
+	-- past floor 80 they grow half as much a floor
+	check(math.abs(T.HPMult(81) / T.HPMult(80) - T.EASE_HP) < 1e-9 and math.abs(T.HPMult(80) / T.HPMult(79) - T.GROW_HP) < 1e-9
+		and math.abs(T.AtkMult(90) / T.AtkMult(89) - T.EASE_ATK) < 1e-9, "past floor 80 the monsters grow half as much a floor")
+	-- each floor range's chests give its main grade, else one grade below
+	local want = { [1] = 4, [19] = 4, [20] = 5, [39] = 5, [40] = 6, [50] = 7, [79] = 7, [80] = 8, [90] = 9, [130] = 9 }
+	local gradesOk = true
+	for f, q in pairs(want) do if T.MainGrade(f) ~= q then gradesOk = false end end
+	check(gradesOk, "the floors' main grades: 1 영웅, 20 전설, 40 불멸, 50 초월, 80 신성, 90 천상")
+	do
+		local main, below, other = 0, 0, 0
+		for _ = 1, 2000 do
+			local q = T.RollGrade(45)
+			if q == 6 then main = main + 1 elseif q == 5 then below = below + 1 else other = other + 1 end
+		end
+		check(other == 0 and main > 1450 and main < 1750, "floor 45: about 80% 불멸, the rest 전설 (" .. main .. "/" .. below .. ")")
+	end
 	for _, a in ipairs(ns.TOWER_AFFIXES) do
 		check(T.FX[a.key] and type(a.text) == "string" and a.icon, "affix " .. a.key .. ": its effect, text and icon")
 	end
@@ -1520,7 +1557,7 @@ do
 	for _, f in ipairs({ 1, 80 }) do
 		local sum, k = 0, 0
 		for _ = 1, 3000 do
-			local r = ns.Loot.RollBox(T.Box(2), T.ITEM_LEVEL, T.Luck(f))
+			local r = ns.Loot.RollBox(T.Box(2), T.ITEM_LEVEL, nil, T.RollGrade(f))
 			if r.item then
 				levels[r.item.l] = true
 				sum, k = sum + r.item.q, k + 1

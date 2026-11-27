@@ -4,7 +4,7 @@
 -- tenth floor is a raid boss alone. Monsters grow a little stronger
 -- every floor, and every fifth floor adds the next Mythic+ affix
 -- (ns.TOWER_AFFIXES, in order). Every chest from the tower holds gear of
--- item level 100, the better grades more often the higher the floor. The
+-- item level 100 of the floor's main grade (Tower.GRADES), mostly. The
 -- first clear of a floor pays gold and one more chest.
 local _, ns = ...
 
@@ -18,10 +18,17 @@ Tower.ITEM_LEVEL = 100      -- the gear in its chests
 Tower.WAVES = 5             -- waves of monsters before the boss (a raid floor: the boss alone)
 Tower.AFFIX_EVERY = 5       -- one more affix every this many floors
 Tower.RAID_EVERY = 10       -- a raid boss every this many floors
-Tower.GROW_HP, Tower.GROW_ATK = 1.055, 1.04 -- monsters' health and attack, times this every floor (about 30 floors in its first 100 hours)
+Tower.GROW_HP, Tower.GROW_ATK = 1.055, 1.04 -- monsters' health and attack, times this every floor up to EASE_FROM
+Tower.EASE_FROM = 80        -- past this floor the monsters grow half as much a floor
+Tower.EASE_HP, Tower.EASE_ATK = 1.0275, 1.02
 Tower.GOLD_STEP = 0.04      -- monster gold +4% every floor
 Tower.MRATE, Tower.BRATE = 20, 1000 -- chest chances, per thousand: each monster, the boss
-Tower.LUCK_STEP = 0.03      -- better grades: their weight times (1 + this x floor) per grade above 2
+-- The grade a floor's chests give (its gear): the main grade of the floor's
+-- range, MAIN_SHARE of the time (a little more with the luck bonus), else
+-- one grade below. A party hunts the floors it can clear for the grade it
+-- wears and fuses it into the next (nine of a grade make one).
+Tower.GRADES = { { 1, 4 }, { 20, 5 }, { 40, 6 }, { 50, 7 }, { 80, 8 }, { 90, 9 } } -- { from floor, grade }
+Tower.MAIN_SHARE = 0.8
 Tower.FIRST_GOLD = 3000     -- the first clear's gold: a monster of this much health, times the floor's step
 Tower.FIRST_STEP = 0.1
 Tower.XP_HOURS = 10         -- a hero reaches the top level in about this many hours in the tower
@@ -145,9 +152,15 @@ function Tower.Roll(f)
 	return r
 end
 
--- Monster strength of a floor on top of the last stage's level.
-function Tower.HPMult(f) return Tower.GROW_HP ^ (f - 1) end
-function Tower.AtkMult(f) return Tower.GROW_ATK ^ (f - 1) end
+-- Monster strength of a floor on top of the last stage's level: it grows
+-- every floor, half as much a floor past EASE_FROM.
+local function grow(f, step, ease)
+	local e = Tower.EASE_FROM
+	if f <= e then return step ^ (f - 1) end
+	return step ^ (e - 1) * ease ^ (f - e)
+end
+function Tower.HPMult(f) return grow(f, Tower.GROW_HP, Tower.EASE_HP) end
+function Tower.AtkMult(f) return grow(f, Tower.GROW_ATK, Tower.EASE_ATK) end
 function Tower.GoldMult(f) return 1 + Tower.GOLD_STEP * (f - 1) end
 
 -- Monsters before the boss (none on a raid floor), how many at once, waves
@@ -174,9 +187,20 @@ end
 function Tower.Drops(f)
 	return { mbox = Tower.Box(1), mrate = Tower.MRATE, bbox = Tower.Box(Tower.IsRaid(f) and 3 or 2), brate = Tower.BRATE }
 end
--- the weight of a grade above 2 is raised this much per grade
-function Tower.Luck(f)
-	return 1 + Tower.LUCK_STEP * f
+-- the main grade of a floor's chests
+function Tower.MainGrade(f)
+	local q = Tower.GRADES[1][2]
+	for _, g in ipairs(Tower.GRADES) do
+		if f >= g[1] then q = g[2] end
+	end
+	return q
+end
+-- a grade for a piece of gear from a chest of this floor
+function Tower.RollGrade(f)
+	local q = Tower.MainGrade(f)
+	local main = Tower.MAIN_SHARE * (1 + ns.Bonus("luck") / 100)
+	if math.random() * (main + 1 - Tower.MAIN_SHARE) < main then return q end
+	return math.max(1, q - 1)
 end
 
 -- The first clear of a floor: gold, and one more chest of its boss's kind.

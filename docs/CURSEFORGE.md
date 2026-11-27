@@ -172,6 +172,14 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   per hour as before.
 - In the endless tower every hero reaches level 100 in about ten hours.
 - Holy paladins and holy priests heal more.
+- The endless tower's chests give the grade of their floor's range: Epic
+  below floor 20, then Legendary, Immortal (40), Transcendent (50), Divine
+  (80) and Celestial (90), now and then one grade lower. Fuse what a floor
+  gives into the next grade to climb on; past floor 80 the monsters grow
+  half as much a floor.
+- Automatic fusion: set a grade under the bag and turn it on, and every
+  nine pieces of that grade or higher are fused as chests are opened.
+  The bag shows 50 slots a page.
 - Worgen monsters (Son of Arugal and others): the health bar sits under
   the body.
 - The forge is called 대장간 (smithy) in game, with a new smithy icon in the
