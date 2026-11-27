@@ -1388,6 +1388,18 @@ do
 	C.StartStage()
 	untilClear()
 	check(db.retry == 0 and db.stage.idx == 6, "the last counted clear goes back up a stage")
+	-- about twenty minutes of farming go back up too, clears left or not
+	db.stage = { diff = 1, idx = 5 }
+	db.opt.auto, db.opt.retry, db.retry, db.retryT = true, true, 7, C.RETRY_TIME - 1
+	C.StartStage()
+	untilClear()
+	check(db.retry == 0 and db.stage.idx == 6, "twenty minutes of farming go back up a stage before the eighth clear")
+	db.stage = { diff = 1, idx = 5 }
+	db.opt.auto, db.opt.retry, db.retry, db.retryT = true, true, 7, 0
+	C.StartStage()
+	untilClear()
+	check(db.retry == 6 and db.stage.idx == 5, "a short farm keeps counting clears")
+	db.retry = 0
 	-- auto off: no countdown starts after a retreat
 	db.opt.auto, db.opt.retreat, db.opt.retry = false, true, true
 	db.prog = { 30, 30, 9, 0 }
@@ -1586,6 +1598,43 @@ do
 	for _ = 1, 6000 do C.Step() if db.stat.wipes > w0 then break end end
 	check(db.tower.floor == 29 and not db.opt.auto, "without the retry option the floor below is repeated")
 	T.HPMult, T.AtkMult = hp, atk
+	-- the tower's experience: any hero comes to the top level in about ten
+	-- hours there, whatever its level when it first fought there
+	for _, lv in ipairs({ 89, 95, 99 }) do
+		local h = { level = lv, xp = 0 }
+		local rate = T.XPRate(h)
+		check(math.abs(rate * T.XP_HOURS * 3600 - ns.Heroes.XPToMax(h)) < 1 and h.towerXP == rate,
+			"level " .. lv .. ": the tower's experience is what it lacks of the top level over ten hours")
+	end
+	do
+		local id = db.party[1]
+		local h = db.heroes[id]
+		local keepL, keepX, keepT = h.level, h.xp, h.towerXP
+		h.level, h.xp, h.towerXP = 92, 0, nil
+		local rate = T.XPRate(h)
+		ns.Heroes.AddXP(id, rate * 9.9 * 3600)
+		local below = h.level < ns.HERO_MAX_LEVEL
+		ns.Heroes.AddXP(id, rate * 0.2 * 3600)
+		check(below and h.level == ns.HERO_MAX_LEVEL, "ten hours of it take a level 92 hero to the top level")
+		h.level, h.xp, h.towerXP = keepL, keepX, keepT
+		ns.Stats.Invalidate()
+	end
+	-- and it is paid with the kills, for the time spent on the floor
+	do
+		db.tower.floor, db.opt.auto, db.opt.retry, db.retry = 1, false, false, 0
+		T.HPMult, T.AtkMult = function() return 1e-9 end, function() return 1e-9 end
+		C.StartStage()
+		local id = db.party[1]
+		local h = db.heroes[id]
+		local keepL, keepX, keepT = h.level, h.xp, h.towerXP
+		h.level, h.xp, h.towerXP = 92, 0, nil
+		local k0 = db.stat.kills
+		for _ = 1, 6000 do C.Step() if db.stat.kills > k0 + 3 then break end end
+		check(h.towerXP and h.xp > 0, "a kill in the tower pays its time's experience")
+		T.HPMult, T.AtkMult = hp, atk
+		h.level, h.xp, h.towerXP = keepL, keepX, keepT
+		ns.Stats.Invalidate()
+	end
 	-- a trip to a stage leaves the tower
 	db.opt.auto = true
 	check(C.Travel(1, 1) and not db.tower.on and not st.tower, "travelling to a stage leaves the tower")

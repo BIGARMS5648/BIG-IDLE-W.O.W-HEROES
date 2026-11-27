@@ -24,6 +24,17 @@ Tower.MRATE, Tower.BRATE = 20, 1000 -- chest chances, per thousand: each monster
 Tower.LUCK_STEP = 0.03      -- better grades: their weight times (1 + this x floor) per grade above 2
 Tower.FIRST_GOLD = 3000     -- the first clear's gold: a monster of this much health, times the floor's step
 Tower.FIRST_STEP = 0.1
+Tower.XP_HOURS = 10         -- a hero reaches the top level in about this many hours in the tower
+
+-- The experience a hero gets for every second in the tower on top of its
+-- kills': what it lacked of the top level the first time it fought here,
+-- spread over XP_HOURS, so any hero comes to the top in about that long.
+function Tower.XPRate(h)
+	if not h.towerXP then
+		h.towerXP = ns.Heroes.XPToMax(h) / (Tower.XP_HOURS * 3600)
+	end
+	return h.towerXP
+end
 
 -- the Mythic+ affixes, one more every AFFIX_EVERY floors
 ns.TOWER_AFFIXES = {

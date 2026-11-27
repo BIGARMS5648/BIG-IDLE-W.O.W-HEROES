@@ -8,7 +8,8 @@
 -- globals: PACE_PARTY (spec ids), PACE_LOAD (a checkpoint to start from),
 -- PACE_SAVE + PACE_SAVE_AT (hours, "tower" or "stop") to write one,
 -- PACE_STOP_DIFF + PACE_STOP_STAGE (end once that stage is first cleared),
--- PACE_SEED, PACE_EVERY (every stage's first clear, not only every tenth)
+-- PACE_SEED, PACE_EVERY (every stage's first clear, not only every tenth),
+-- PACE_BOT_EVERY (seconds between the player's visits, 30 unless set)
 local ns = NS
 local hours, party = ...
 local Bot = dofile(debug.getinfo(1, "S").source:sub(2):gsub("pace%.lua$", "bot.lua"))
@@ -73,7 +74,7 @@ while t < total do
 	t = t + dt
 	ns.Loot.Tick(dt)
 	if t >= nextBot then
-		nextBot = t + 30
+		nextBot = t + (PACE_BOT_EVERY or 30)
 		Bot.Tick()
 		-- every rune at its top level
 		if not PACE_RUNES_DONE then

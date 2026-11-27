@@ -134,6 +134,13 @@ function Heroes.TotalXP(h)
 	return t
 end
 
+-- The experience a hero still lacks of the top level.
+function Heroes.XPToMax(h)
+	local t = -(h.xp or 0)
+	for l = h.level, ns.HERO_MAX_LEVEL - 1 do t = t + ns.XPForLevel(l) end
+	return math.max(0, t)
+end
+
 -- Level and experience for `total` experience earned from level 1.
 local function levelFor(total)
 	local level = 1

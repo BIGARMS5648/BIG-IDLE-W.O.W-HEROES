@@ -428,11 +428,21 @@ end
 -- the boss alone.
 ns.WAVE_CAP = { 4, 5, 6, 7 }
 ns.MAX_WAVE_MOBS = 7
+-- 신화 and 신화+ stages hold half of TBH's monsters (a run of about twenty
+-- minutes, not forty), and their bosses drop their chests half as often, so
+-- an hour there pays as many chests as before
+ns.KILL_SHARE = { 1, 1, 0.5, 0.5 }
 function ns.StageKills(diff, idx)
 	local t = ns.TBH.STAGES[diff][idx]
 	-- (a rune takes a wave off every stage)
 	local fewer = ns.db and ns.Bonus and math.min(t.waves - 1, ns.Bonus("waves")) or 0
-	return (t.waves - fewer) * t.per
+	return math.floor((t.waves - fewer) * t.per * (ns.KILL_SHARE[diff] or 1))
+end
+-- how much of TBH's boss chest chance a stage's boss keeps (an act boss
+-- always drops its chest)
+function ns.BossShare(diff, idx)
+	if ns.STAGES[diff][idx].raid then return 1 end
+	return ns.KILL_SHARE[diff] or 1
 end
 function ns.MobsPerWave(diff, idx)
 	return math.min(ns.WAVE_CAP[diff] or ns.MAX_WAVE_MOBS, ns.TBH.STAGES[diff][idx].per)
@@ -479,33 +489,67 @@ function ns.StageNorm(diff, idx)
 end
 
 -- Monster strength on top of the base growth, stage by stage (each
--- difficulty's 30 stages in order). It sets how long each part of the climb
--- takes, each difficulty timed from its start as in TBH: 일반 about 64 h,
--- 영웅 75 h, 신화 90 h, 신화+ 333 h (its 20th stage at 115 h). Fitted by long
--- play runs of several parties (tests/pace.lua). The endless tower starts
--- from the last stage's.
+-- difficulty's 30 stages in order): a smooth curve that sets how long each
+-- part of the climb takes, about 250 hours to the end of 신화+ on average
+-- (일반 32 h, 영웅 43 h, 신화 55 h, 신화+ 120 h, each timed from the
+-- difficulty's start), every stage a little longer than the one before and
+-- each act's raid boss about 1.5 times its neighbours. Fitted by play runs of
+-- eight parties (tests/pace.lua). The endless tower starts from the last
+-- stage's.
 ns.MIGHT = {
 	{ -- 일반
-		0.517, 0.6535, 0.8261, 1.32, 1.456, 1.792, 2.323, 3.2, 4.276, 3.887,
-		4.962, 5.029, 5.244, 4.787, 5.121, 5.5, 5.598, 6.073, 6.104, 6.096,
-		7.32, 7.606, 8.393, 8.413, 8.442, 9.245, 9.622, 10.16, 10.63, 11.09,
+		0.517, 0.6535, 0.8261, 1.3, 1.8, 2.425, 2.591, 2.779, 2.991, 2.429,
+		3.232, 3.503, 3.798, 4.119, 4.473, 4.861, 5.28, 5.721, 6.159, 4.922,
+		6.555, 6.878, 7.12, 7.295, 7.433, 7.577, 7.753, 7.964, 8.187, 6.441,
 	},
 	{ -- 영웅
-		8.379, 7.802, 7.695, 8.421, 9.375, 9.48, 8.744, 7.759, 7.777, 8.415,
-		10.02, 10.78, 12.35, 12.08, 12.53, 11.76, 13.35, 13.01, 14.58, 13.97,
-		14.99, 15.85, 16.88, 17.74, 19.15, 19.77, 21.8, 21.98, 22.88, 22.73,
+		8.379, 8.528, 8.624, 8.669, 8.741, 8.918, 9.239, 9.757, 10.46, 8.441,
+		11.25, 11.96, 12.51, 12.74, 12.65, 12.32, 11.92, 11.46, 11.09, 8.592,
+		10.84, 10.7, 10.69, 10.79, 10.96, 11.18, 11.44, 11.67, 11.84, 9.258,
 	},
 	{ -- 신화
-		24.92, 22.75, 20.76, 18.95, 17.29, 15.78, 16.19, 16.19, 16.61, 16.61,
-		17.04, 17.48, 17.93, 18.4, 18.86, 19.46, 20.09, 20.71, 21.37, 21.37,
-		22.06, 21.25, 20.48, 19.75, 19.04, 18.36, 17.69, 17.69, 17.05, 17.05,
+		11.96, 12.04, 12.1, 12.16, 12.23, 12.29, 12.34, 12.38, 12.39, 9.663,
+		12.39, 12.41, 12.48, 12.63, 12.9, 13.29, 13.78, 14.29, 14.71, 11.51,
+		15.02, 15.08, 14.87, 14.47, 13.95, 13.35, 12.88, 12.53, 12.38, 9.779,
 	},
 	{ -- 신화+
-		16.73, 17.5, 18.31, 19.17, 20.05, 20.97, 21.94, 21.94, 22.97, 20.67,
-		24.08, 24.08, 25.25, 25.25, 26.48, 26.48, 27.77, 27.77, 29.12, 29.12,
-		28.01, 28.01, 26.95, 26.95, 25.92, 25.92, 25.98, 26.78, 29.16, 25.66,
+		12.47, 12.8, 13.31, 14.03, 14.92, 15.93, 17.01, 18.12, 19.25, 15.34,
+		20.3, 21.16, 21.79, 22.19, 22.37, 22.42, 22.49, 22.64, 22.87, 17.98,
+		22.9, 23, 23.1, 23.13, 23.07, 22.92, 22.7, 22.41, 22.11, 17.01,
 	},
 }
+-- How much easier a stage is made than its strength says, stage by stage
+-- (health and attack both): measured by play, the stages that are harder
+-- than their numbers (their ranged monsters, their status effects, their
+-- boss's skills) come down to their neighbours, as the weaker parties find
+-- them; the easier ones are left as they are. The tower's floors take it
+-- from the stages they borrow.
+ns.STAGE_EVEN = {
+	{ -- 일반
+		1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 0.80, 0.81, 0.92, 0.74,
+		1.00, 1.00, 0.76, 1.00, 0.75, 1.00, 1.00, 0.59, 1.00, 0.88,
+		1.00, 1.00, 0.97, 0.79, 0.96, 0.93, 0.86, 0.90, 1.00, 1.00,
+	},
+	{ -- 영웅
+		1.00, 1.00, 0.94, 0.99, 0.92, 0.98, 0.87, 0.70, 0.56, 1.00,
+		1.00, 1.00, 1.00, 0.99, 0.70, 0.87, 0.91, 1.00, 0.97, 1.00,
+		0.71, 0.86, 0.94, 0.83, 0.86, 1.00, 1.00, 0.82, 0.94, 0.91,
+	},
+	{ -- 신화
+		1.00, 0.80, 0.97, 0.93, 0.89, 0.94, 0.96, 0.76, 0.85, 0.88,
+		1.00, 1.00, 0.82, 0.75, 1.00, 0.57, 0.84, 0.78, 0.91, 0.94,
+		1.00, 1.00, 1.00, 0.88, 0.98, 0.89, 0.79, 0.91, 0.94, 0.72,
+	},
+	{ -- 신화+
+		0.92, 0.73, 0.74, 0.86, 0.94, 1.00, 0.79, 0.84, 1.00, 0.54,
+		0.82, 0.75, 1.00, 1.00, 1.00, 0.53, 0.89, 1.00, 0.62, 0.84,
+		0.83, 0.85, 1.00, 0.80, 0.90, 0.61, 0.33, 1.00, 0.99, 0.54,
+	},
+}
+function ns.StageEven(diff, idx)
+	local r = ns.STAGE_EVEN[diff]
+	return r and r[idx] or 1
+end
 function ns.StageMight(diff, idx) return ns.MIGHT[diff][idx] end
 local function knots(k, l)
 	if l <= k[1][1] then return k[1][2] end
@@ -519,10 +563,13 @@ local function knots(k, l)
 	return k[#k][2]
 end
 -- Experience on top of TBH's growth, by stage level (same kind of points):
--- fewer monsters come at once here than in TBH's big waves, so later
--- stages give more for each one.
+-- as much as keeps the heroes about two levels above the stage they push,
+-- level 98 at the last boss.
 ns.EXP_GROW = {
-	{ 1, 0.45 }, { 32, 0.45 }, { 40, 1.14 }, { 52, 1.9 }, { 65, 1.8 }, { 77, 1.5 }, { 85, 0.45 }, { 90, 0.25 }, { 100, 0.2 },
+	{ 1, 0.45 }, { 6, 0.45 }, { 11, 0.52 }, { 14, 0.79 }, { 17, 1.14 }, { 21, 1.21 }, { 25, 1.19 },
+	{ 30, 1.13 }, { 34, 0.91 }, { 38, 0.65 }, { 42, 0.59 }, { 46, 0.77 }, { 50, 1.17 }, { 54, 1.71 },
+	{ 58, 2.07 }, { 62, 2.4 }, { 66, 2.52 }, { 70, 2.3 }, { 75, 2.43 }, { 79, 2.75 }, { 83, 2.93 },
+	{ 87, 3.17 }, { 90, 2.74 }, { 93, 1.68 }, { 100, 1.68 },
 }
 function ns.ExpGrow(l) return knots(ns.EXP_GROW, l) end
 -- The gear level a party has at stage level l: boxes give gear in TBH's

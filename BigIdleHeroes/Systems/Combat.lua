@@ -309,10 +309,14 @@ local function killReward(m, killer)
 	Combat.earn.x = Combat.earn.x + exp
 
 	local expBonus = ns.Bonus("exp")
+	-- the tower's own experience, for the time spent there since the last kill
+	local towerSec = 0
+	if st.tower then towerSec, Combat.towerT = Combat.towerT, 0 end
 	for i = 1, #heroes do
 		local u = heroes[i]
 		local h = db.heroes[u.id]
 		local amount = exp * (1 + (expBonus + (u.s.exp or 0)) / 100) * ns.Heroes.XPFactor(h.level, st.level)
+		if st.tower then amount = amount + ns.Tower.XPRate(h) * towerSec end
 		if ns.Heroes.AddXP(u.id, amount) > 0 then
 			fx(u.x, "레벨 업!", 1, 0.85, 0.1, true, "hero")
 			ns.Sound("level")
@@ -333,10 +337,11 @@ local function killReward(m, killer)
 	local lvl = tf and ns.Tower.ITEM_LEVEL or st.level
 	if m.boss then
 		local chest = st.raid and 3 or 2
-		if random() * 1000 < tb.brate * (1 + ns.Bonus("bossRate") / 100) then
+		local share = tf and 1 or ns.BossShare(st.diff, st.idx)
+		if random() * 1000 < tb.brate * share * (1 + ns.Bonus("bossRate") / 100) then
 			if not ns.Loot.AddChest(chest, lvl, st.diff, tb.bbox, tf) then ns.Loot.Lost(chest) end
 		end
-		if random() * 100 < ns.Bonus("bossChest") then
+		if random() * 100 < ns.Bonus("bossChest") * share then
 			if not ns.Loot.AddChest(chest, lvl, st.diff, tb.bbox, tf) then ns.Loot.Lost(chest) end
 		end
 	elseif not m.summoned and tb.mbox then
@@ -554,10 +559,21 @@ local function newMob(def, isBoss, index, summoned)
 	local hp, atk = ns.MobHP(def.hp, l, st.might), ns.MobAtk(def.atk, l, st.might)
 	-- a stage of the game (not a test's): its monsters on one footing
 	local sd, si = sourceOf(isBoss)
-	local norm = not summoned and ns.Stage(sd, si) == ns.STAGES[sd][si] and ns.StageNorm(sd, si)
+	local game = ns.Stage(sd, si) == ns.STAGES[sd][si]
+	local norm = not summoned and game and ns.StageNorm(sd, si)
+	-- the health its gold and experience go by: the stage's footing, so a
+	-- stage pays by its level like its neighbours, a big monster more
+	local payHP = def.hp
 	if norm then
-		hp = hp * (isBoss and norm.bossHP or norm.hp)
+		local k = isBoss and norm.bossHP or norm.hp
+		hp = hp * k
 		atk = atk * (isBoss and norm.bossAtk or norm.atk)
+		payHP = def.hp * k
+	end
+	-- a stage harder than its numbers made as easy as its neighbours
+	if game then
+		local e = ns.StageEven(sd, si)
+		hp, atk = hp * e, atk * e
 	end
 	-- a floor of the endless tower: stronger every floor, and 폭군 / 경화
 	local tf = st.tower
@@ -575,7 +591,7 @@ local function newMob(def, isBoss, index, summoned)
 		mob = true, def = def, name = def.name, icon = def.icon, type = def.type, boss = isBoss, summoned = summoned,
 		hp = hp, maxhp = hp, atk = atk, aspd = def.aspd, range = def.range,
 		school = def.school, move = def.move, res = def.res, status = def.status,
-		gold = ns.MobGold(1 + def.hp / 14, l), exp = ns.MobExp(1 + def.hp / 10, l),
+		gold = ns.MobGold(1 + payHP / 14, l), exp = ns.MobExp(1 + payHP / 10, l),
 		x = LANE + (index - 1) * 45 + random(0, 20), off = ((index - 1) % 4) * 12,
 		atkT = 0.3 + random() * 0.6, st = {}, enr = 1, drT = 0, dr = 0, flash = 0, anim = 0,
 	}
@@ -1316,6 +1332,7 @@ end
 local earn = { g = 0, x = 0, t = 0 }
 Combat.earn = earn
 local stepReal = STEP -- real seconds per step at the current game speed
+Combat.towerT = 0     -- real seconds in the tower not yet paid in its experience
 
 function Combat.FoldRate(minTime)
 	local db = ns.db
@@ -1337,6 +1354,11 @@ local function updateRate()
 	Combat.FoldRate(5)
 end
 
+-- after a failed push: the clears, or the seconds of farming, before the
+-- next try (whichever is reached first)
+Combat.RETRY_RUNS = 8
+Combat.RETRY_TIME = 20 * 60
+
 local function nextAfterVictory()
 	local db = ns.db
 	if not db.opt.auto then
@@ -1351,9 +1373,12 @@ local function nextAfterVictory()
 			ns.Fire("OPTIONS")
 			return
 		end
-		-- farming after a failed push: count clears, then try again
+		-- farming after a failed push: eight clears or about twenty minutes
+		-- of it, whichever comes first, then try again
 		db.retry = db.retry - 1
-		if db.retry > 0 then return end
+		db.retryT = (db.retryT or 0) + st.time + st.timer
+		if db.retry > 0 and db.retryT < Combat.RETRY_TIME then return end
+		db.retry = 0
 	end
 	if st.tower then
 		db.tower.floor = st.tower + 1
@@ -1423,12 +1448,12 @@ local function defeat()
 	updateRate()
 	if st.tower then
 		-- the tower: one floor down, that floor again (then, with the retry
-		-- option, up again after eight clears)
+		-- option, up again after eight clears or about twenty minutes)
 		local label = ns.Tower.Label(st.tower)
 		if st.tower > 1 then
 			db.tower.floor = st.tower - 1
 			if db.opt.retry and db.opt.auto then
-				db.retry = 8
+				db.retry, db.retryT = Combat.RETRY_RUNS, 0
 				ns.Toast(string.format("%s 실패. %d층에서 힘을 기릅니다.", label, st.tower - 1))
 			else
 				db.opt.auto = false
@@ -1449,7 +1474,7 @@ local function defeat()
 			db.stage.idx = ns.STAGE_COUNT
 		end
 		if db.opt.retry and db.opt.auto then
-			db.retry = 8
+			db.retry, db.retryT = Combat.RETRY_RUNS, 0
 			ns.Toast(string.format("%s 공략 실패. 힘을 기른 뒤 다시 도전합니다.", label))
 		else
 			db.opt.auto = false
@@ -1509,6 +1534,7 @@ function Combat.Step()
 	if Combat.dirty then recalcAll() end
 	st.time = st.time + STEP
 	earn.t = earn.t + stepReal
+	if st.tower then Combat.towerT = Combat.towerT + stepReal end
 	if earn.t >= 60 then Combat.FoldRate(60) end
 
 	if st.phase == "travel" then

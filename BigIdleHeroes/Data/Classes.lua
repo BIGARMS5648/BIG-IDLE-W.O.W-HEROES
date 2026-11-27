@@ -382,7 +382,7 @@ ns.SPEC_TUNE = {
 	WARRIOR_ARMS = { atk = 1.37 },
 	WARRIOR_FURY = { atk = 0.89 },
 	WARRIOR_PROT = { hp = 0.79 },
-	PALADIN_HOLY = { heal = 0.71 },
+	PALADIN_HOLY = { heal = 0.80 },
 	PALADIN_PROT = { hp = 1.00 },
 	PALADIN_RET = { atk = 1.39 },
 	HUNTER_BM = { atk = 0.89 },
@@ -392,7 +392,7 @@ ns.SPEC_TUNE = {
 	ROGUE_OUTLAW = { atk = 0.74 },
 	ROGUE_SUB = { atk = 0.76 },
 	PRIEST_DISC = { heal = 2.8 }, -- its heals are atonement and shields: kept level with the other priests and paladins
-	PRIEST_HOLY = { heal = 0.96 },
+	PRIEST_HOLY = { heal = 1.08 },
 	PRIEST_SHADOW = { atk = 1.24 },
 	SHAMAN_ELE = { atk = 0.81 },
 	SHAMAN_ENH = { atk = 0.96 },

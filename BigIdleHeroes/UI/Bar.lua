@@ -695,7 +695,8 @@ local function updateInfo()
 
 	-- retry note under the banner
 	if (db.retry or 0) > 0 and db.opt.auto then
-		frame.note:SetText(string.format("힘을 기르는 중 · 재도전까지 %d회", db.retry))
+		local left = math.max(1, math.ceil((ns.Combat.RETRY_TIME - (db.retryT or 0)) / 60))
+		frame.note:SetText(string.format("힘을 기르는 중 · 재도전까지 %d회 또는 %d분", db.retry, left))
 	elseif st.phase == "idle" then
 		frame.note:SetText("영웅을 모집해 파티에 넣으세요")
 	else
