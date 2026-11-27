@@ -9,7 +9,7 @@ local floor = math.floor
 local UI, U = ns.UI, ns.U
 local Main = ns.Main
 
-local NODE_W, NODE_H = 96, 98
+local NODE_W, NODE_H = 88, 98 -- a stage's button (its name may run a little wider)
 -- how experience goes by the stage's level (Heroes.XPFactor)
 local XP_RULE = "스테이지 레벨이 영웅보다 10 넘게 높으면 1레벨마다 경험치가 5%씩 줄어듭니다."
 local PATH_Y = -112
@@ -186,7 +186,13 @@ local function build(page)
 		page.acts[a] = c
 	end
 
-	-- stage path: two rows of five
+	-- stage path: two rows of five, every STEP apart; the whole path (the
+	-- names under the first column to the bracket right of the last) sits in
+	-- the middle of the inset
+	local STEP, NAME_W, T = 98, 96, 6
+	local BRACKET = NAME_W / 2 + 3 + T / 2 -- the bracket's middle from the last column's middle: clear of its name
+	local span = 4 * STEP + NAME_W / 2 + BRACKET + T / 2
+	local PATH_X = floor((DETAIL_X - 8 - span) / 2 + NAME_W / 2 - NODE_W / 2 + 0.5) -- the first column's left edge
 	page.links = {}
 	page.nodes = {}
 	for n = 1, ns.STAGES_PER_ACT do
@@ -194,7 +200,7 @@ local function build(page)
 		if row == 1 then col = 4 - col end -- snake back on the second row
 		local b = CreateFrame("Button", nil, page)
 		b:SetSize(NODE_W, NODE_H)
-		b:SetPoint("TOPLEFT", page, "TOPLEFT", 4 + col * (NODE_W + 8), PATH_Y - row * (NODE_H + 8))
+		b:SetPoint("TOPLEFT", page, "TOPLEFT", PATH_X + col * STEP, PATH_Y - row * (NODE_H + 8))
 		b.ringT = UI.Art(b, "ring", "ARTWORK")
 		b.ringT:SetSize(52, 52)
 		b.ringT:SetPoint("TOP", b, "TOP", 0, -2)
@@ -219,7 +225,7 @@ local function build(page)
 		b.name = UI.Text(b, 11)
 		b.name:SetPoint("TOP", b.num, "BOTTOM", 0, -1)
 		b.name:SetJustifyH("CENTER")
-		b.name:SetWidth(NODE_W + 6)
+		b.name:SetWidth(NAME_W)
 		b.name:SetWordWrap(false)
 		b.n = n
 		b:RegisterForClicks("LeftButtonUp")
@@ -232,15 +238,14 @@ local function build(page)
 		if n > 1 then
 			local prevCol = ((n - 2) % 5)
 			local prevRow = floor((n - 2) / 5)
-			-- (a rounded line from just clear of one stage's ring to the next;
-			-- the disc's middle: its column's middle, 28 below its row's top)
+			-- (a line from one stage's ring to the next: it runs from disc to
+			-- disc under them, so it meets both rings; the disc's middle: its
+			-- column's middle, 28 below its row's top)
 			local link = { lines = {} }
 			local cy = PATH_Y - row * (NODE_H + 8) - 28
-			local T = 6
-			local GAP = 28 -- from a ring's middle: just clear of the ring and its shadow
-			local function line(vertical, x, y, len, squareA, squareB)
+			local function line(vertical, x, y, len)
 				local l = UI.Line3(page, "BACKGROUND")
-				l:Place(page, "TOPLEFT", vertical, x, y, len, T, squareA, squareB)
+				l:Place(page, "TOPLEFT", vertical, x, y, len, T, true, true)
 				link.lines[#link.lines + 1] = l
 			end
 			local function bend(x, y, up)
@@ -248,21 +253,22 @@ local function build(page)
 				l:Place(page, "TOPLEFT", x, y, T, up)
 				link.lines[#link.lines + 1] = l
 			end
+			local function middle(c) return PATH_X + c * STEP + NODE_W / 2 end
 			if prevRow == row then
 				local c1 = (row == 1) and (4 - prevCol) or prevCol
-				local cx1 = math.min(c1, col) * (NODE_W + 8) + NODE_W / 2
-				line(false, cx1 + GAP, cy, NODE_W + 8 - 2 * GAP)
+				local x1 = middle(math.min(c1, col))
+				line(false, x1, cy, STEP)
 			else
-				-- from stage 5 down to stage 6: a bracket to the right of the column,
-				-- clear of stage 5's name; square ends meet a bend at each corner
-				local cx = 4 * (NODE_W + 8) + NODE_W / 2
+				-- from stage 5 down to stage 6: a bracket to the right of the
+				-- column, clear of stage 5's name; a bend at each corner
+				local cx = middle(4)
 				local y1, y2 = PATH_Y - 28, PATH_Y - (NODE_H + 8) - 28
-				local bx = 4 * (NODE_W + 8) + NODE_W + 6
-				line(false, cx + GAP, y1, bx - T / 2 - (cx + GAP), false, true)
+				local bx = cx + BRACKET
+				line(false, cx, y1, BRACKET - T / 2)
 				bend(bx, y1)
-				line(true, bx, y1 - T / 2, y1 - y2 - T, true, true)
+				line(true, bx, y1 - T / 2, y1 - y2 - T)
 				bend(bx, y2, true)
-				line(false, cx + GAP, y2, bx - T / 2 - (cx + GAP), false, true)
+				line(false, cx, y2, BRACKET - T / 2)
 			end
 			page.links[n] = link
 		end

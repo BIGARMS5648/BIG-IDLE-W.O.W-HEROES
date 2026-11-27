@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.4
+BIG IDLE HEROES v1.1.5
 ```
 
 ---
@@ -137,11 +137,10 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.4)
+## Changelog for this release (v1.1.5)
 
 ```
-- The recommendation suggests the Rune of Awakening (a third skill slot for
-  every hero) once a party hero reaches level 10, where the third skill
-  opens: beside the next hero and the boss chest's clockwork rune, the
-  cheapest first, and saved up for on its own once those are done.
+- Stage screen: the path's lines meet every stage's ring, and the bend down
+  to the second row sits beside the fifth stage, the whole path in the
+  middle of its panel.
 ```
