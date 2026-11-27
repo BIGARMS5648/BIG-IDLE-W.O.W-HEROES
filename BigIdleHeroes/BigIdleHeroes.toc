@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: BIG IDLE HEROES |cff9d9d9d(방치형 영웅단)|r
 ## Notes: 화면 한켠의 전투 창에서 저절로 싸우는 방치형 5인 파티 RPG. /bih
-## Version: 1.1.5
+## Version: 1.1.1
 ## SavedVariables: BigWowIdleDB, BigWowHeroesDB, BigIdleWoWHeroesDB
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## AddonCompartmentFunc: BigIdleHeroes_OnAddonCompartmentClick

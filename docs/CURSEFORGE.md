@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.5
+BIG IDLE HEROES v1.1.1
 ```
 
 ---
@@ -137,9 +137,49 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.5)
+## Changelog for this release (v1.1.1)
 
 ```
+- Balance: a smooth climb of about 250 hours from the first stage to the end
+  of Mythic+ (Normal 32 h, Heroic 43 h, Mythic 55 h, Mythic+ 120 h): every
+  stage a little longer than the one before, each raid boss about 1.5 times
+  its neighbours, heroes about two levels above the stages they push.
+- Stages harder than their numbers (ranged monsters, status effects, boss
+  skills) are made as easy as their neighbours, in the tower too.
+- Kill gold and experience follow the stage's level, not the monster's own
+  health, so neighbouring stages pay alike.
+- Mythic and Mythic+ stages have half as many monsters (a run of about
+  twenty minutes); their boss chests come half as often per boss, as many
+  per hour as before.
+- Holy paladins and holy priests heal more.
+- In the endless tower every hero reaches level 100 in about ten hours.
+- The endless tower's chests give the grade of their floor's range: Epic
+  below floor 20, then Legendary, Immortal (40), Transcendent (50), Divine
+  (80) and Celestial (90), now and then one grade lower. Fuse what a floor
+  gives into the next grade to climb on; past floor 80 the monsters grow
+  half as much a floor.
+- Automatic fusion: set a grade under the bag and turn it on, and every
+  nine pieces of that grade or higher are fused as chests are opened.
+  The bag shows 50 slots a page.
+- The Rune of Beginnings gives kill gold and experience +5% (instead of +1
+  attack) and belongs to none of the rune kinds.
+- A batch fusion button under the bag, beside the fusion grade: it fuses
+  every nine pieces of that grade or higher at once, the lower grades
+  first, after asking. The button shows how many fusions are ready.
+- The forge's fusion screen calls its "as many as possible" button
+  "batch fusion".
+- Shadow, holy and arcane damage on gems, enchants and inscriptions: nine
+  new gems (Void Crystal, Twilight Amethyst and Dark Obsidian for shadow;
+  Pearl of Light, Sunstone and Naaru Crystal for holy; Mana Agate, Mana Jade
+  and Mana Ruby for arcane) at the fire, frost and nature gems' grades, and
+  the enchanting reagents and scrolls that give fire, frost or nature damage
+  give these three too.
+- The act boss chest's clockwork rune sits after the 6th expansion rune and
+  costs 50,000 gold; its oil rune moves along beside it.
+- The recommendation suggests the Rune of Awakening (a third skill slot for
+  every hero) once a party hero reaches level 10, where the third skill
+  opens: beside the next hero and the boss chest's clockwork rune, the
+  cheapest first, and saved up for on its own once those are done.
 - Stage screen: the path's lines meet every stage's ring, and the bend down
   to the second row sits beside the fifth stage, the whole path in the
   middle of its panel.
