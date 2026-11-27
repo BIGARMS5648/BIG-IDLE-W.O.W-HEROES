@@ -549,12 +549,15 @@ local function refresh(page)
 	end
 
 	-- every learned rune added up, by what it gives (companions have their own screen)
-	local sums, some = {}, {}
+	-- (the first rune's gold and experience go into those lines)
+	local sums = {}
 	for rid, lv in pairs(ns.db.runes) do
 		local n = R.byId[rid]
 		if n and lv > 0 then
-			sums[n.kind] = (sums[n.kind] or 0) + R.Amount(rid, lv)
-			some[n.kind] = some[n.kind] or rid
+			local amount = R.Amount(rid, lv)
+			for _, kind in ipairs(n.def.adds or { n.kind }) do
+				sums[kind] = (sums[kind] or 0) + amount
+			end
 		end
 	end
 	local kinds = {}
@@ -563,15 +566,15 @@ local function refresh(page)
 	local order = {}
 	for i, gr in ipairs(ns.RUNE_GROUPS) do order[gr.key] = i end
 	local texts = {}
-	for _, k in ipairs(kinds) do texts[k] = R.Text(some[k], sums[k], true) end
+	for _, k in ipairs(kinds) do texts[k] = R.StatText(ns.RUNE_STAT[k], sums[k], true) end
 	table.sort(kinds, function(a, b)
-		local ga, gb = order[R.byId[some[a]].group.key], order[R.byId[some[b]].group.key]
+		local ga, gb = order[ns.RUNE_STAT[a].group.key] or 0, order[ns.RUNE_STAT[b].group.key] or 0
 		if ga ~= gb then return ga < gb end
 		return texts[a] < texts[b]
 	end)
 	local parts = {}
 	for _, k in ipairs(kinds) do
-		local gr = R.byId[some[k]].group
+		local gr = ns.RUNE_STAT[k].group
 		parts[#parts + 1] = U.col(U.hex(gr.rgb[1], gr.rgb[2], gr.rgb[3]), "■ ") .. texts[k]
 	end
 	if #parts == 0 then parts[1] = U.col("8a90a2", "아직 배운 룬이 없습니다.") end

@@ -348,7 +348,7 @@ do
 	check(n == 197 and #reach == n, "TBH's 197 runes, all reached from the first: " .. n .. " / " .. #reach)
 	check(R.byId[ns.RUNE_FIRST].x == 0 and R.byId[ns.RUNE_FIRST].y == 0, "the first rune stands in the middle")
 	for _, def in pairs(ns.RUNE_STAT) do
-		check(def.flag or def.time or ns.BONUS_TEXT[def.key], "rune stat " .. def.key .. ": no text")
+		check(def.flag or def.time or def.adds or ns.BONUS_TEXT[def.key], "rune stat " .. def.key .. ": no text")
 		if def.flag then check(def.sum, "rune stat " .. def.key .. ": no short line") end
 	end
 end
@@ -409,7 +409,7 @@ do
 	check(learnRune(20, 2) and not R.Available(21), "a rune with no level named needs its rune before at the top")
 	check(learnRune(20, 3) and R.Available(21), "... and opens at it")
 	check(g0 - db.gold == R.Spent() and R.Spent() == total - R.Cost(21, 1), "gold spent is what the runes cost")
-	check(R.Text(1, R.Amount(1, 1)):find("+1", 1, true), "a rune reads its amount")
+	check(R.Text(1, R.Amount(1, 1)):find("+5%", 1, true), "a rune reads its amount")
 end
 check(learnRune(21) and ns.PartyLimit() == 4, "a 지휘 rune adds a party seat")
 check(learnRune(24) and ns.PartyLimit() == 5, "the second 지휘 rune fills the party")
@@ -2159,6 +2159,21 @@ end
 -- (the other 전쟁의 룬 keeps its name)
 check(ns.Runes.byId[1].name == "시작의 룬" and ns.Runes.byId[1].icon == "INV_Misc_Rune_01", "the first rune is 시작의 룬 with the hearthstone")
 check(ns.Runes.byId[4031].name == "전쟁의 룬", "the other 전쟁의 룬 keeps its name")
+-- it gives kill gold and experience +5% and is of none of the kinds
+do
+	local keep = ns.db.runes
+	ns.db.runes = {}
+	ns.Runes.Invalidate()
+	local g0, x0, a0 = ns.Bonus("gold"), ns.Bonus("exp"), ns.Bonus("atk")
+	ns.db.runes = { [1] = 1 }
+	ns.Runes.Invalidate()
+	local inKinds = false
+	for _, g in ipairs(ns.RUNE_GROUPS) do if g.key == ns.Runes.byId[1].group.key then inKinds = true end end
+	check(ns.Bonus("gold") - g0 == 5 and ns.Bonus("exp") - x0 == 5 and ns.Bonus("atk") == a0 and not inKinds,
+		"시작의 룬: kill gold and experience +5%, no attack, in none of the kinds")
+	ns.db.runes = keep
+	ns.Runes.Invalidate()
+end
 -- a reset takes the runes' bonuses with it
 BigWowIdleDB = { v = 6, heroes = {}, party = { false, false, false, false, false } }
 ns.InitDB()

@@ -153,7 +153,8 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - Item slots: item level top left, a green arrow top right for better gear,
   the enhancement step bottom right.
 - Grades 8 and 9 are Divine (soft yellow) and Celestial (cyan).
-- The first rune is the Rune of Beginnings, with the hearthstone icon.
+- The first rune is the Rune of Beginnings, with the hearthstone icon; it
+  gives kill gold and experience +5% and belongs to none of the kinds.
 - Offline rewards: the clock in an icon slot, the amounts in green.
 - Stage screen: the act boss crown is a new gold crown; the path sits on a
   dark panel like the other screens; the endless tower card shows Dalaran

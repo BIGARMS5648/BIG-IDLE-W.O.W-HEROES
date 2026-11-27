@@ -471,6 +471,7 @@ end
 -- 룬
 S.runes = function() show("runes", { rune = 11 }) end
 S.runes_locked = function() show("runes", { rune = 12821 }) end
+S.runes_start = function() db.runes = { [1] = 1 } ns.Runes.Invalidate() show("runes", { rune = 1 }) end
 -- zoomed all the way out: the whole tree in the box
 S.runes_far = function()
 	show("runes")

@@ -58,6 +58,8 @@ ns.RUNE_STAT = {
 	CubeExpPercent = { key = "forgeExp", k = 0.1, text = "대장간 경험치 +%s%%", icon = "Trade_BlackSmithing" },
 	CubeAlchemyGoldPercent = { key = "smeltGold", k = 0.1, text = "분해 골드 +%s%%", icon = "Trade_Alchemy" },
 	WaveCountReduction = { key = "waves", text = "스테이지마다 웨이브 -%s", icon = "Spell_Nature_TimeStop" },
+	-- the first rune: its amount goes to each of these stats' bonuses
+	StartGoldExp = { key = "start", k = 0.1, adds = { "IncreaseGoldAmount", "IncreaseExpAmount" }, text = "몬스터 처치 골드·경험치 획득 +%s%%", icon = "INV_Misc_Rune_01" },
 }
 
 -- The kinds of rune (the colour of a rune's border on the tree), in the
@@ -82,9 +84,14 @@ ns.RUNE_GROUP_OF = {
 	party = "unlock", skillSlot = "unlock", offlineOn = "unlock",
 	forgeExp = "forge", smeltGold = "forge",
 }
+-- the first rune's own kind: in none of the kinds under the map (no check
+-- lights it up), its border silver
+ns.RUNE_START_GROUP = { key = "start", name = "시작", rgb = { 0.78, 0.82, 0.88 } }
 do
 	local byKey = {}
 	for _, g in ipairs(ns.RUNE_GROUPS) do byKey[g.key] = g end
+	byKey.start = ns.RUNE_START_GROUP
+	ns.RUNE_GROUP_OF.start = "start"
 	for _, def in pairs(ns.RUNE_STAT) do
 		def.group = byKey[ns.RUNE_GROUP_OF[def.key]]
 		if not def.group then error("rune stat " .. def.key .. " has no kind") end
@@ -105,7 +112,7 @@ ns.BONUS_TEXT = {
 }
 -- (a rune stat's own key reads as the rune does)
 for _, def in pairs(ns.RUNE_STAT) do
-	if not ns.BONUS_TEXT[def.key] and not def.flag and not def.time then ns.BONUS_TEXT[def.key] = def.text end
+	if not ns.BONUS_TEXT[def.key] and not def.flag and not def.time and not def.adds then ns.BONUS_TEXT[def.key] = def.text end
 end
 
 function ns.BonusText(key, value)
@@ -163,6 +170,12 @@ function Runes.Amount(id, lvl)
 	return sum
 end
 
+-- How an amount of a stat reads (short: as a line of the totals list).
+function Runes.StatText(def, amount, short)
+	if def.flag then return ns.N(short and def.sum or def.text) end
+	if def.time then return string.format(ns.N(def.text), ns.U.time(amount)) end
+	return string.format(ns.N(def.text), ns.U.num(amount, 2))
+end
 -- How an amount of a rune's stat reads (short: as a line of the totals list).
 function Runes.Text(id, amount, short)
 	local def = Runes.byId[id].def
@@ -184,7 +197,15 @@ local function build()
 	for id, lvl in pairs(db.runes) do
 		local node = Runes.byId[id]
 		if node and lvl > 0 then
-			cache[node.stat] = (cache[node.stat] or 0) + Runes.Amount(id, lvl)
+			local amount = Runes.Amount(id, lvl)
+			if node.def.adds then
+				for _, kind in ipairs(node.def.adds) do
+					local k = ns.RUNE_STAT[kind].key
+					cache[k] = (cache[k] or 0) + amount
+				end
+			else
+				cache[node.stat] = (cache[node.stat] or 0) + amount
+			end
 		end
 	end
 	for _, pet in ipairs(ns.PETS) do

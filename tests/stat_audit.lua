@@ -170,13 +170,20 @@ do
 	for sid, sp in pairs(ns.SPECS) do
 		for _, tier in ipairs(sp.tree) do for _, node in ipairs(tier) do if node.p then need("특성 " .. sid, node.p) end end end
 	end
-	for id, node in pairs(ns.Runes.byId) do if node.stat then need("룬 " .. id, node.stat, true) end end
+	-- (the first rune gives the bonuses of the stats it lists)
+	local function runeKeys(node)
+		if not node.def.adds then return { node.stat } end
+		local out = {}
+		for _, kind in ipairs(node.def.adds) do out[#out + 1] = ns.RUNE_STAT[kind].key end
+		return out
+	end
+	for id, node in pairs(ns.Runes.byId) do for _, k in ipairs(runeKeys(node)) do need("룬 " .. id, k, true) end end
 	for _, pet in ipairs(ns.PETS) do for k in pairs(pet.bonus) do need("동료 " .. pet.id, k, true) end end
 	for sid, sk in pairs(ns.SKILLS) do for _, m in ipairs(sk.mods or {}) do need("기술 " .. sid, m[1]) end end
 	check(#bad == 0, "장비·옵션·보석·마법부여·주문각인·특성·룬·동료·기술이 주는 능력치 이름이 모두 있는 이름", #bad > 0 and list(bad, 10) or nil)
 	-- an account bonus nobody gives is a typo somewhere
 	local given = {}
-	for _, node in pairs(ns.Runes.byId) do if node.stat then given[node.stat] = true end end
+	for _, node in pairs(ns.Runes.byId) do for _, k in ipairs(runeKeys(node)) do given[k] = true end end
 	for _, pet in ipairs(ns.PETS) do for k in pairs(pet.bonus) do given[k] = true end end
 	local unused = {}
 	for k in pairs(given) do if not ns.AFFIX[k] and not ACCOUNT[k] then unused[#unused + 1] = k end end
@@ -413,7 +420,13 @@ do
 			ns.Runes.Invalidate()
 			local v = ns.Runes.Amount(rid, node.max)
 			tested = tested + 1
-			if math.abs(ns.Bonus(node.stat) - v) > 1e-9 then acct[#acct + 1] = rid .. " " .. node.stat .. " " .. ns.Bonus(node.stat) .. "/" .. v end
+			for _, k in ipairs(node.def.adds and {} or { node.stat }) do
+				if math.abs(ns.Bonus(k) - v) > 1e-9 then acct[#acct + 1] = rid .. " " .. k .. " " .. ns.Bonus(k) .. "/" .. v end
+			end
+			for _, kind in ipairs(node.def.adds or {}) do
+				local k = ns.RUNE_STAT[kind].key
+				if math.abs(ns.Bonus(k) - v) > 1e-9 then acct[#acct + 1] = rid .. " " .. k .. " " .. ns.Bonus(k) .. "/" .. v end
+			end
 			for i, id in ipairs({ H, H2 }) do
 				local got = ns.Stats.Get(id)
 				local want = before[i]

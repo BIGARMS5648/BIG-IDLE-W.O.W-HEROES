@@ -9,12 +9,13 @@
 -- Not as TBH: the clockwork runes of the monster and boss chests (13002,
 -- 15001) sit one rune nearer the start (after the 2nd and 4th 확장의 룬, at
 -- their first level) and cost a quarter and an eighth of TBH's; the oil
--- rune after the monster one moves with it.
+-- rune after the monster one moves with it. The first rune gives kill gold
+-- and experience +5% (TBH: attack +1) and is of no kind.
 local _, ns = ...
 
 ns.RUNE_FIRST = 1
 ns.RUNES = {
-	[1] = { n = "전쟁의 룬", x = 0, y = 0, m = 1, s = "AllHeroAttackDamage", v = { 1 }, c = { 100 } },
+	[1] = { n = "전쟁의 룬", x = 0, y = 0, m = 1, s = "StartGoldExp", v = { 50 }, c = { 100 } },
 	[10] = { n = "재물의 룬", x = 0, y = 1, m = 3, p = 1, s = "AdditionalGoldStageBoss", v = { 10, 10, 10 }, c = { 200, 300, 500 } },
 	[20] = { n = "성장의 룬", x = 0, y = -1, m = 3, p = 1, s = "AdditionalExpStageBoss", v = { 10, 10, 10 }, c = { 200, 300, 500 } },
 	[11] = { n = "확장의 룬", x = 0, y = 2, m = 3, p = 10, s = "MaxInventorySlot", v = { 1, 1, 1 }, c = { 300, 350, 400 } },
