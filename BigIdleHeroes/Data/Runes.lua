@@ -9,12 +9,13 @@
 -- Not as TBH: the cells and lines are TBH's, but the runes stand by kind
 -- (ns.RUNE_GROUP_OF): gold, experience, fight and chest runes each fill the
 -- branch that leaves the first rune on a diagonal, the bag runes the one
--- that goes straight up; the unlock runes hang off the experience branch
--- and the forge runes off the bag row's left end. In each kind the
--- cheapest runes stand nearest the first rune. A few lines join a branch
--- in one piece (the rune under the first one to the fight branch, three
--- runes each to the gold and experience branches, the right half of the
--- bag row to the chest branch). A rune needs the one before it at its top
+-- that goes straight up; the unlock runes hang off the experience branch.
+-- The forge runes leave the first rune to its left, on cells of their own:
+-- six in a row, the last two side by side at its end. In each kind the
+-- cheapest runes stand nearest the first rune (the forge's: its experience
+-- rune first). A few lines join a branch in one piece (the rune under the
+-- first one to the fight branch, three runes each to the gold and
+-- experience branches, the right half of the bag row to the chest branch). A rune needs the one before it at its top
 -- level when both give the same, else at its first level. The clockwork
 -- runes of the monster, boss and act boss chests (13002, 15001, 1902001)
 -- cost a quarter, an eighth and an eighth of TBH's. The first rune gives
@@ -140,7 +141,7 @@ ns.RUNES = {
 	[1071] = { n = "금고의 룬", x = 5, y = 7, m = 1, p = 109, q = 1, s = "MaxAmountStageBossChest", v = { 1 }, c = { 500000 } },
 	[212] = { n = "재물의 룬", x = -8, y = 5, m = 5, p = 180201, q = 1, s = "IncreaseGoldAmount", v = { 50, 50, 50, 50, 50 }, c = { 2000000, 3000000, 4000000, 5000000, 6000000 } },
 	[2111] = { n = "재물의 룬", x = -9, y = 4, m = 5, p = 180201, q = 1, s = "AdditionalGold", v = { 1, 1, 1, 1, 1 }, c = { 1000000, 2000000, 3000000, 4000000, 5000000 } },
-	[3032] = { n = "연금의 룬", x = -5, y = 7, m = 5, p = 1908, q = 1, s = "CubeAlchemyGoldPercent", v = { 40, 40, 40, 40, 40 }, c = { 10000, 12000, 14000, 17000, 20000 } },
+	[3032] = { n = "연금의 룬", x = -2, y = 0, m = 5, p = 2032, q = 1, s = "CubeAlchemyGoldPercent", v = { 40, 40, 40, 40, 40 }, c = { 10000, 12000, 14000, 17000, 20000 } },
 	[312] = { n = "성장의 룬", x = -9, y = -4, m = 5, p = 180301, q = 1, s = "IncreaseExpAmount", v = { 50, 50, 50, 50, 50 }, c = { 2000000, 3000000, 4000000, 5000000, 6000000 } },
 	[4101] = { n = "질풍의 룬", x = 9, y = -4, m = 5, p = 414, q = 1, s = "AllHeroMoveSpeed", v = { 20, 20, 20, 20, 20 }, c = { 1000000, 1100000, 1200000, 1300000, 1400000 } },
 	[1101] = { n = "수납의 룬", x = 9, y = 4, m = 1, p = 1091, s = "MaxAmountNormalChest", v = { 1 }, c = { 500000 } },
@@ -149,8 +150,8 @@ ns.RUNES = {
 	[112] = { n = "정복의 룬", x = 4, y = 7, m = 5, p = 1071, s = "DropChanceStageBossChestPercent", v = { 100, 100, 100, 100, 100 }, c = { 700000, 750000, 800000, 850000, 900000 } },
 	[113] = { n = "탐색의 룬", x = 6, y = 7, m = 5, p = 1071, s = "DropChanceNormalChestPercent", v = { 50, 50, 50, 50, 50 }, c = { 900000, 990000, 1080000, 1170000, 1260000 } },
 	[213] = { n = "재물의 룬", x = -10, y = 4, m = 5, p = 2111, q = 1, s = "AdditionalGoldStageBoss", v = { 2000, 2000, 2000, 2000, 2000 }, c = { 3000000, 3300000, 3600000, 3900000, 4200000 } },
-	[2031] = { n = "연금의 룬", x = -6, y = 7, m = 1, p = 3032, s = "CubeAlchemyGoldPercent", v = { 100 }, c = { 20000 } },
-	[2032] = { n = "조합의 룬", x = -5, y = 6, m = 5, p = 3032, q = 1, s = "CubeExpPercent", v = { 40, 40, 40, 40, 40 }, c = { 10000, 15000, 20000, 25000, 30000 } },
+	[2031] = { n = "연금의 룬", x = -3, y = 0, m = 1, p = 3032, s = "CubeAlchemyGoldPercent", v = { 100 }, c = { 20000 } },
+	[2032] = { n = "조합의 룬", x = -1, y = 0, m = 5, p = 1, s = "CubeExpPercent", v = { 40, 40, 40, 40, 40 }, c = { 10000, 15000, 20000, 25000, 30000 } },
 	[313] = { n = "성장의 룬", x = -8, y = -5, m = 5, p = 312, q = 1, s = "AdditionalExpStageBoss", v = { 2000, 2000, 2000, 2000, 2000 }, c = { 3000000, 3300000, 3600000, 3900000, 4200000 } },
 	[3151] = { n = "성장의 룬", x = -10, y = -4, m = 5, p = 312, q = 1, s = "AdditionalExp", v = { 5, 5, 5, 5, 5 }, c = { 5000000, 5500000, 6000000, 6500000, 7000000 } },
 	[4082] = { n = "질풍의 룬", x = 10, y = -4, m = 1, p = 4101, s = "AllHeroMoveSpeed", v = { 50 }, c = { 5000000 } },
@@ -163,9 +164,9 @@ ns.RUNES = {
 	[214] = { n = "재물의 룬", x = -11, y = 4, m = 5, p = 213, q = 1, s = "IncreaseGoldAmount", v = { 50, 50, 50, 50, 50 }, c = { 20000000, 25000000, 30000000, 35000000, 40000000 } },
 	[180401] = { n = "비축의 룬", x = -11, y = 3, m = 5, p = 213, q = 1, s = "OfflineRewardGoldPercent", v = { 100, 100, 100, 100, 100 }, c = { 5000000, 5500000, 6000000, 6500000, 7000000 } },
 	[180601] = { n = "비축의 룬", x = -10, y = 3, m = 5, p = 213, q = 1, s = "OfflineRewardGoldPercent", v = { 100, 100, 100, 100, 100 }, c = { 10000000, 11000000, 12000000, 13000000, 14000000 } },
-	[2132] = { n = "조합의 룬", x = -7, y = 7, m = 5, p = 2031, s = "CubeExpPercent", v = { 50, 50, 50, 50, 50 }, c = { 1000000, 2000000, 3000000, 4000000, 5000000 } },
-	[3121] = { n = "조합의 룬", x = -6, y = 8, m = 5, p = 2031, s = "CubeExpPercent", v = { 50, 50, 50, 50, 50 }, c = { 1000000, 2000000, 3000000, 4000000, 5000000 } },
-	[3031] = { n = "조합의 룬", x = -4, y = 6, m = 1, p = 2032, s = "CubeExpPercent", v = { 100 }, c = { 35000 } },
+	[2132] = { n = "조합의 룬", x = -5, y = 0, m = 5, p = 3031, s = "CubeExpPercent", v = { 50, 50, 50, 50, 50 }, c = { 1000000, 2000000, 3000000, 4000000, 5000000 } },
+	[3121] = { n = "조합의 룬", x = -6, y = 0, m = 5, p = 2132, s = "CubeExpPercent", v = { 50, 50, 50, 50, 50 }, c = { 1000000, 2000000, 3000000, 4000000, 5000000 } },
+	[3031] = { n = "조합의 룬", x = -4, y = 0, m = 1, p = 2031, s = "CubeExpPercent", v = { 100 }, c = { 35000 } },
 	[180501] = { n = "수련의 룬", x = -8, y = -6, m = 5, p = 313, q = 1, s = "OfflineRewardExpPercent", v = { 100, 100, 100, 100, 100 }, c = { 5000000, 5500000, 6000000, 6500000, 7000000 } },
 	[180701] = { n = "수련의 룬", x = -11, y = -4, m = 5, p = 3151, q = 1, s = "OfflineRewardExpPercent", v = { 100, 100, 100, 100, 100 }, c = { 10000000, 11000000, 12000000, 13000000, 14000000 } },
 	[1171] = { n = "단축의 룬", x = 10, y = -5, m = 1, p = 4082, s = "WaveCountReduction", v = { 1 }, c = { 20000000 } },
@@ -177,8 +178,8 @@ ns.RUNES = {
 	[1142] = { n = "수납의 룬", x = 4, y = 6, m = 1, p = 190302, q = 1, s = "MaxAmountNormalChest", v = { 1 }, c = { 3000000 } },
 	[117] = { n = "탐색의 룬", x = 8, y = 7, m = 5, p = 1111, s = "DropChanceNormalChestPercent", v = { 50, 50, 50, 50, 50 }, c = { 4400000, 4730000, 5070000, 5400000, 5750000 } },
 	[2152] = { n = "재물의 룬", x = -11, y = 5, m = 5, p = 214, q = 1, s = "AdditionalGoldActBoss", v = { 50000, 50000, 50000, 50000, 50000 }, c = { 30000000, 40000000, 50000000, 60000000, 70000000 } },
-	[2131] = { n = "연금의 룬", x = -7, y = 8, m = 3, p = 2132, q = 1, s = "CubeAlchemyGoldPercent", v = { 100, 100, 100 }, c = { 5000000, 7000000, 10000000 } },
-	[3122] = { n = "연금의 룬", x = -8, y = 7, m = 5, p = 2132, q = 1, s = "CubeAlchemyGoldPercent", v = { 50, 50, 50, 50, 50 }, c = { 2000000, 2200000, 2400000, 2600000, 2800000 } },
+	[2131] = { n = "연금의 룬", x = -7, y = 1, m = 3, p = 3121, q = 1, s = "CubeAlchemyGoldPercent", v = { 100, 100, 100 }, c = { 5000000, 7000000, 10000000 } },
+	[3122] = { n = "연금의 룬", x = -7, y = 0, m = 5, p = 3121, q = 1, s = "CubeAlchemyGoldPercent", v = { 50, 50, 50, 50, 50 }, c = { 2000000, 2200000, 2400000, 2600000, 2800000 } },
 	[3152] = { n = "성장의 룬", x = -11, y = -5, m = 5, p = 180701, q = 1, s = "AdditionalExpActBoss", v = { 2000, 2000, 2000, 2000, 2000 }, c = { 10000000, 20000000, 30000000, 40000000, 50000000 } },
 	[1133] = { n = "무한의 룬", x = 11, y = 5, m = 1, p = 116, q = 1, s = "MaxAmountActBossChest", v = { 1 }, c = { 5000000 } },
 	[1141] = { n = "금고의 룬", x = 9, y = 6, m = 1, p = 116, q = 1, s = "MaxAmountStageBossChest", v = { 1 }, c = { 5000000 } },

@@ -2065,11 +2065,11 @@ do
 	check(ns.Runes.Cost(13002, 1) == 500 and ns.Runes.Cost(15001, 1) == 10000 and ns.Runes.Cost(1902001, 1) == 50000,
 		"the clockwork runes cost 500, 10,000 and 50,000 gold")
 	-- the tree by kind: each rune's way to the first rune stays in its kind,
-	-- but for the unlock runes (off the experience branch) and the forge
-	-- runes (off the bag row); the gold, experience, fight and chest branches
-	-- leave the first rune on the diagonals, the bag branch straight up
+	-- but for the unlock runes (off the experience branch); the gold,
+	-- experience, fight and chest branches leave the first rune on the
+	-- diagonals, the bag branch straight up, the forge branch to the left
 	do
-		local JOIN = { unlock = "exp", forge = "bag" }
+		local JOIN = { unlock = "exp" }
 		local bad
 		for id, node in pairs(ns.Runes.byId) do
 			if id ~= ns.RUNE_FIRST then
@@ -2088,10 +2088,16 @@ do
 		local from = {}
 		for _, id in ipairs(ns.Runes.kids[ns.RUNE_FIRST]) do
 			local n = ns.Runes.byId[id]
-			from[n.group.key] = (n.x ~= 0 and n.y ~= 0) and "diagonal" or "straight"
+			from[n.group.key] = (n.x ~= 0 and n.y ~= 0) and "diagonal" or (n.y > 0 and "up" or (n.x < 0 and "left" or "other"))
 		end
 		check(from.gold == "diagonal" and from.exp == "diagonal" and from.fight == "diagonal" and from.chest == "diagonal"
-			and from.bag == "straight", "the four kinds leave the first rune on the diagonals, the bag straight up")
+			and from.bag == "up" and from.forge == "left", "the four kinds leave the first rune on the diagonals, the bag straight up, the forge to the left")
+		-- the forge's experience rune is its first: cheap to reach
+		local first
+		for _, id in ipairs(ns.Runes.kids[ns.RUNE_FIRST]) do
+			if ns.Runes.byId[id].group.key == "forge" then first = id end
+		end
+		check(first and ns.Runes.byId[first].stat == "forgeExp", "the forge branch begins with its experience rune")
 	end
 	do
 		local at, clash = {}, nil
