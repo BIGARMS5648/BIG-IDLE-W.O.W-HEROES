@@ -39,7 +39,7 @@ local function themeRGB(theme)
 	return th, th.rgb[1], th.rgb[2], th.rgb[3]
 end
 
-local TOWER_HEX = "b48cff"
+local TOWER_HEX = ns.TOWER_HEX
 local K_SEL = UI.K.SEL -- what is chosen
 local AFFIX_ROW = 34
 

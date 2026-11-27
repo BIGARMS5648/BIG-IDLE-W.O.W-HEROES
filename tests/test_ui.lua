@@ -312,10 +312,40 @@ do
 		try("scroll up", hp.list.__scripts.OnMouseWheel, hp.list, 1)
 		if (hp.offset or 0) ~= 0 then fail("scrolling back up should return to the top") end
 	end
-	-- 능력치 · 전문화
+	-- 능력치
 	press("stats tab", hp.subTabs:Get("stats"))
 	if hp.sub ~= "stats" or not hp.bodies.stats:IsVisible() then fail("the stats tab did not open") end
 	if not hp.groups[4].head:IsVisible() then fail("the stats tab should show four groups of stats") end
+	-- the header shows the hero's face (its 3D model, close), turned 30
+	-- degrees to the screen's left
+	local face = hp.head.portrait.fig
+	if face then
+		if face.bust ~= "face" or face.facing ~= "frontLeft" then fail("the hero's header should show its face, turned to the left: " .. tostring(face.bust) .. " / " .. tostring(face.facing)) end
+		if face.yaws then
+			local function norm(a) return (a + math.pi) % (2 * math.pi) - math.pi end
+			local d, l = norm(face.yaws.frontLeft - face.yaws.front), norm(face.yaws.left - face.yaws.front)
+			if math.abs(math.abs(d) - math.pi / 6) > 1e-6 or (d > 0) ~= (l > 0) then fail("the face should turn 30 degrees from the front toward the left: " .. d) end
+		end
+	end
+	-- the hero stands as its 3D model; dragged with the mouse it turns round
+	if hp.stand and hp.turnPad then
+		if not hp.stand:IsShown() then fail("the stats tab should show the hero's 3D model") end
+		local cur = _G.GetCursorPosition
+		local cx = 400
+		_G.GetCursorPosition = function() return cx, 300 end
+		hp.turnPad.__scripts.OnMouseDown(hp.turnPad, "LeftButton")
+		cx = 400 + 100 * hp.turnPad:GetEffectiveScale()
+		frames(1)
+		local t = hp.stand.turn or 0
+		hp.turnPad.__scripts.OnMouseUp(hp.turnPad, "LeftButton")
+		cx = 100
+		frames(1)
+		_G.GetCursorPosition = cur
+		if math.abs(t - 1.2) > 1e-6 then fail("dragging the hero's model 100 to the right should turn it 1.2: " .. tostring(t)) end
+		if (hp.stand.turn or 0) ~= t then fail("the model should stop turning when the mouse is let go") end
+	else
+		fail("the stats tab should have the hero's 3D model and its turning pad")
+	end
 	-- 특성: click spends one point, right-click fills the talent
 	ns.db.heroes[id].tree = {}
 	ns.db.heroes[id].skills = {}
@@ -1854,7 +1884,8 @@ do
 						end
 					end
 					for _, ms in ipairs(ns.Bar.missiles) do
-						if ms.active and ms.fx and ms.fx.missile == wrath.missile and ms.tfig ~= cfig then
+						-- (in the frame it leaves: the moonkin may walk on after)
+						if not boltX and ms.active and ms.fx and ms.fx.missile == wrath.missile and ms.tfig ~= cfig then
 							boltX, boltY = ms.x0 - cfig.anchorX, ms.y0 - cfig.anchorY
 						end
 					end

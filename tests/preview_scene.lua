@@ -82,6 +82,19 @@ S.bar = function()
 	Mock.Update(0.05)
 end
 
+-- the battle window on a Mythic stage
+S.bar_mythic = function()
+	local was = { db.stage.diff, db.stage.idx, db.prog[1], db.prog[2] }
+	db.prog[1], db.prog[2] = 30, 30
+	db.stage.diff, db.stage.idx = 3, 1
+	ns.Combat.StartStage()
+	S.bar()
+	S.restore = function()
+		db.stage.diff, db.stage.idx, db.prog[1], db.prog[2] = was[1], was[2], was[3], was[4]
+		ns.Combat.StartStage()
+	end
+end
+
 -- every chest opening by itself: a light runs round each box's border
 S.bar_chest_auto = function()
 	ns.Main.Toggle(false)
@@ -512,6 +525,11 @@ S.runes_full = function()
 end
 S.runes_full_end = function() S.runesOff = 999 S.runes_full() S.runesOff = nil end
 S.map = function() show("map") end
+-- hovering the Mythic world card
+S.map_mythic_tip = function()
+	local p = show("map")
+	p.worlds[3].__scripts.OnEnter(p.worlds[3])
+end
 S.map_heroic = function()
 	local p = show("map")
 	p.diff, p.act, p.idx = 2, 2, 15

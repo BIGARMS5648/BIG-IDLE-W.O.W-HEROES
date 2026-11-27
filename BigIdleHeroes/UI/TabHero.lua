@@ -207,8 +207,12 @@ local function buildHeader(page, rp)
 	local hc = UI.Panel(rp, RIGHT_W - 24, 104, "card")
 	hc:SetPoint("TOPLEFT", rp, "TOPLEFT", 12, -12)
 	page.head = hc
-	hc.portrait = UI.Portrait(hc, 76)
+	-- the hero's face (its 3D model, close) in a dark square
+	hc.faceBg = UI.Panel(hc, 76, 76, "inset")
+	hc.faceBg:SetPoint("TOPLEFT", hc, "TOPLEFT", 14, -14)
+	hc.portrait = UI.HeroFigure(hc, 76, true)
 	hc.portrait:SetPoint("TOPLEFT", hc, "TOPLEFT", 14, -14)
+	hc.portrait:SetFrameLevel(hc.faceBg:GetFrameLevel() + 2)
 	hc.portrait:EnableMouse(false)
 	hc.portrait.lvl:Hide()
 	hc.name = UI.Text(hc, 18)
@@ -274,8 +278,7 @@ local function refreshHeader(page, id)
 	local h = ns.db.heroes[id]
 	local sp = ns.SPECS[h.spec]
 	local race = ns.RACES[H.Race(id)]
-	hc.portrait:SetHero(id)
-	UI.SetHeroIcon(hc.portrait.icon, id)
+	hc.portrait:SetHeroFigure(id)
 	hc.portrait.lvl:Hide()
 	hc.name:SetText(U.col("ffb84a", H.Name(id)))
 	hc.info:SetText(string.format("Lv %d · %s · %s · %s", h.level, race.name,
@@ -303,33 +306,49 @@ local function refreshHeader(page, id)
 end
 
 ------------------------------------------------------------------------
--- 능력치 · 전문화
+-- 능력치
 ------------------------------------------------------------------------
+-- the left column: the hero standing (its 3D model)
+local MODEL_H, MODEL_FEET = 250, 46 -- the model's height, its feet up from the bottom
+local TURN_PER_PX = 0.012 -- a drag across the column turns it about half round
+
 local function buildStats(page, f)
-	page.specHead = UI.Section(f, 220, "전문화")
-	page.specHead:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
-	local sc = UI.Panel(f, 220, 58, "card")
-	sc:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -28)
-	page.specCard = sc
-	sc.icon = UI.IconButton(sc, 40)
-	sc.icon:SetPoint("LEFT", sc, "LEFT", 9, 0)
-	sc.icon:EnableMouse(false)
-	sc.name = UI.Text(sc, 13)
-	sc.name:SetPoint("TOPLEFT", sc, "TOPLEFT", 58, -12)
-	sc.name:SetWidth(154)
-	sc.name:SetWordWrap(false)
-	sc.sub = UI.Text(sc, 11)
-	sc.sub:SetPoint("TOPLEFT", sc, "TOPLEFT", 58, -32)
-	sc.sub:SetWidth(154)
-	sc.sub:SetWordWrap(false)
-	UI.Color(sc.sub, UI.C.sub)
-	page.descHead = UI.Section(f, 220, "특징")
-	page.descHead:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -100)
-	page.desc = UI.Text(f, 11)
-	page.desc:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -126)
-	page.desc:SetWidth(220)
-	page.desc:SetJustifyV("TOP")
-	page.desc:SetSpacing(3)
+	page.stage = UI.Art(f, "glow", "BORDER", 0.55, 0.7, 1, 0.22)
+	page.stage:SetSize(200, 46)
+	page.stage:SetPoint("CENTER", f, "BOTTOMLEFT", 110, MODEL_FEET)
+	page.standIcon = UI.Portrait(f, 110)
+	page.standIcon:SetPoint("CENTER", f, "BOTTOMLEFT", 110, MODEL_FEET + MODEL_H / 2)
+	page.standIcon:EnableMouse(false)
+	page.standIcon.lvl:Hide()
+	page.stand = ns.Figure3D.New(f, MODEL_H)
+	if page.stand then
+		page.stand:SetFacing("front")
+		-- (the frame no wider than the column and the stats' edge)
+		if page.stand.SetRoom then page.stand:SetRoom(1, 0.06) end
+		-- the class circle stays until the model is in, so nothing blinks
+		page.stand:SetScript("OnUpdate", function(self, dt)
+			self:Step(dt)
+			page.standIcon:SetShown(not self:IsLoaded())
+		end)
+		-- dragged with the mouse, the model turns round
+		local pad = CreateFrame("Button", nil, f)
+		pad:SetSize(220, BODY_H)
+		pad:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+		pad:SetFrameLevel(page.stand:GetFrameLevel() + 5)
+		pad:RegisterForClicks("LeftButtonUp")
+		pad:SetScript("OnMouseDown", function(self)
+			self.x0 = GetCursorPosition() / self:GetEffectiveScale()
+			self.t0 = page.stand.turn or 0
+		end)
+		pad:SetScript("OnMouseUp", function(self) self.x0 = nil end)
+		pad:SetScript("OnHide", function(self) self.x0 = nil end)
+		pad:SetScript("OnUpdate", function(self)
+			if not self.x0 then return end
+			local x = GetCursorPosition() / self:GetEffectiveScale()
+			page.stand:SetTurn(self.t0 + (x - self.x0) * TURN_PER_PX)
+		end)
+		page.turnPad = pad
+	end
 	-- the stats in four groups, two columns
 	page.groups = {}
 	local cols = { { x = 236, w = 182 }, { x = 434, w = 182 } }
@@ -351,13 +370,26 @@ local function buildStats(page, f)
 end
 
 local function refreshStats(page, id)
-	local h = ns.db.heroes[id]
-	local sp = ns.SPECS[h.spec]
-	local sc = page.specCard
-	sc.icon:SetIconName(sp.icon or "INV_Misc_QuestionMark")
-	sc.name:SetText(U.col(ns.CLASSES[sp.class].hex, ns.SpecLabel(h.spec)))
-	sc.sub:SetText(ns.N(ns.ROLE[sp.role].name) .. " · " .. ns.N(ns.SCHOOL[ns.Stats.Get(id).school].name) .. " 공격")
-	page.desc:SetText(ns.N(sp.desc or ""))
+	-- the hero standing as itself (a druid out of its forms), weapons in hand
+	local F = ns.Figure3D
+	local fig = page.stand
+	local body = F.Enabled() and F.HeroBody(id, false)
+	local mid = F.Enabled() and F.ForHero(id, false)
+	page.standIcon:SetHero(id)
+	UI.SetHeroIcon(page.standIcon.icon, id)
+	page.standIcon.lvl:Hide()
+	-- another hero faces the front again
+	if fig and page.standFor ~= id then fig:SetTurn(0) end
+	page.standFor = id
+	if fig and ((body and fig:SetBody(body)) or (mid and fig:SetModelId(mid))) then
+		fig:SetHeight2(MODEL_H * (F.RACE_SCALE[H.Race(id)] or 1))
+		fig:PlaceFeet(page.bodies.stats, 110, MODEL_FEET)
+		fig:Show()
+		page.standIcon:SetShown(not fig:IsLoaded())
+	else
+		if fig then fig:Hide() end
+		page.standIcon:Show()
+	end
 	local groups = ns.Stats.Groups(id)
 	local y = { 0, 0 }
 	for gi, g in ipairs(page.groups) do
@@ -638,7 +670,7 @@ end
 ------------------------------------------------------------------------
 -- Build and refresh
 ------------------------------------------------------------------------
-local SUBS = { { "stats", "능력치 · 전문화" }, { "skills", "기술" }, { "tree", "특성" } }
+local SUBS = { { "stats", "능력치" }, { "skills", "기술" }, { "tree", "특성" } }
 
 local function build(page)
 	page.sub = "stats"

@@ -130,15 +130,16 @@ end
 
 -- A portrait that shows the hero as the game's 3D model when it can: only
 -- the head and chest, inside the portrait's square (nothing reaches the
--- writing around it); no role ring or role mark behind the model.
-local function heroFigure(parent, size)
+-- writing around it); no role ring or role mark behind the model. With face:
+-- the head alone, close, turned a little to the left.
+local function heroFigure(parent, size, face)
 	local p = UI.Portrait(parent, size)
 	p.ringT:Hide()
 	-- the model belongs to the portrait, so hiding the portrait hides it too
 	p.fig = ns.Figure3D.New(p, size)
 	if p.fig then
-		p.fig:SetFacing("front")
-		p.fig:SetBust(size)
+		p.fig:SetFacing(face and "frontLeft" or "front")
+		p.fig:SetBust(size, face)
 		p.fig:ClearAllPoints()
 		p.fig:SetAllPoints(p)
 		-- the class circle stays until the model is in, so nothing blinks

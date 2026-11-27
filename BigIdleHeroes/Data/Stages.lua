@@ -11,14 +11,16 @@
 -- a raid boss with its own abilities.
 local _, ns = ...
 
+-- the endless tower's colour (its card, its "도전" badge in the battle window)
+ns.TOWER_HEX = "ff4a4a"
 ns.DIFFS = {
 	{ name = "일반",   hex = "e8e8e8",
 		world = "모험의 시작",
 		acts = { "불모의 땅", "그림자송곳니 성채", "붉은십자군 수도원" } },
-	{ name = "영웅",   hex = "3ddc5a",
+	{ name = "영웅",   hex = "b266ff",
 		world = "넓어지는 세계",
 		acts = { "울다만", "아탈학카르 신전", "검은바위 첨탑 하층" } },
-	{ name = "신화",   hex = "b266ff",
+	{ name = "신화",   hex = "ffd14a",
 		world = "깨어나는 위협",
 		acts = { "검은바위 첨탑 상층", "줄구룹", "세계의 우두머리" } },
 	{ name = "신화+", hex = "ff9326",

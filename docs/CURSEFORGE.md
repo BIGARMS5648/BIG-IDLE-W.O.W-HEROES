@@ -182,5 +182,15 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   cheapest first, and saved up for on its own once those are done.
 - Stage screen: the path's lines meet every stage's ring, and the bend down
   to the second row sits beside the fifth stage, the whole path in the
-  middle of its panel.
+  middle of its panel; the bend's upright now shows in game too.
+- Hunters shoot their bow or gun for their skills as well, not a spell cast.
+- The moonkin's spells and bolts leave its hands, not its head.
+- Hero screen: the header shows the hero's face, its 3D model close and
+  turned a little to the left; the stats page ("Stats") shows the hero
+  standing as its 3D model, which turns round as you drag it, in place of
+  the specialization card and description.
+- Difficulty colours: Heroic purple, Mythic yellow and the endless tower
+  red, the same on the stage screen's cards and tooltips and on the battle
+  window's badge.
+- The battle window shows your gold in yellow, as the menu does.
 ```

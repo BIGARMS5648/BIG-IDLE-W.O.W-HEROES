@@ -33,6 +33,8 @@ local SIDE, FEET_AT, FOV = 3.0, 0.32, 0.3
 -- a bust (SetBust): the frame is the portrait and shows the top of the
 -- model, from mid-chest to just over the head (in model heights)
 local BUST_SIDE, BUST_TZ = 0.62, 0.74
+-- a face (SetBust with face): from the neck to just over the head
+local FACE_SIDE, FACE_TZ = 0.34, 0.86
 -- a display id is asked for up to SCENE_TRIES times, given SCENE_WAIT
 -- seconds the first time and twice as long each time after (a model the game
 -- has can be slow the first time: its files are read from disk)
@@ -45,7 +47,7 @@ local WIDE = 0.6
 -- PlayerModel figures (no ModelScene): right = toward the monsters (90° faces
 -- right); tries: 1 = the display id, then the
 -- NPC id; the frame leaves room around the model
-local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0 }
+local FACE = { right = pi / 2, left = 3 * pi / 2, front = 0, frontLeft = -pi / 6 }
 local WAIT = { 1.0, 1.5, 2.5, 4.0 }
 local FRAME_W, FRAME_H = 2.4, 1.6
 local FEET_UP = 0.06
@@ -548,6 +550,14 @@ function base:SetFacing(dir)
 	self:Look()
 end
 
+-- Turned from its facing by rad, its front toward the screen's right (a
+-- model dragged round with the mouse); 0 faces as SetFacing says.
+function base:SetTurn(rad)
+	if (self.turn or 0) == rad then return end
+	self.turn = rad
+	self:Look()
+end
+
 ------------------------------------------------------------------------
 -- ModelScene figures
 ------------------------------------------------------------------------
@@ -578,6 +588,7 @@ local function setCamera(f)
 	local side = f.side or SIDE
 	local tz = side / 2 - (f.feetAt or FEET_AT)
 	if f.bust then side, tz = BUST_SIDE, BUST_TZ end
+	if f.bust == "face" then side, tz = FACE_SIDE, FACE_TZ end
 	f.viewSide, f.viewTz = side, tz
 	local d = side / (2 * tan(FOV / 2)) * Figure.camFix
 	call(f, "SetCameraFieldOfView", FOV)
@@ -587,7 +598,10 @@ local function setCamera(f)
 	-- a model faces +x at yaw 0. Seen in game: turned toward the camera's
 	-- "right" it looks to the screen's left, so right is the other way.
 	local side = atan2(ry, rx)
-	f.yaws = { right = side + pi, left = side, front = atan2(-fy, -fx) }
+	local front = atan2(-fy, -fx)
+	-- frontLeft: from the front a third of the way to the left (30 degrees)
+	local toLeft = (side - front + pi) % (2 * pi) - pi
+	f.yaws = { right = side + pi, left = side, front = front, frontLeft = front + toLeft / 3 }
 	f.camRight = { rx, ry, rz }
 	-- light from in front, above and a little to the left
 	local lx, ly, lz = fx * 0.6 + rx * 0.35, fy * 0.6 + ry * 0.35, fz * 0.6 + rz * 0.35 - 0.7
@@ -886,6 +900,11 @@ end
 function scene:Look()
 	local a = self.actor
 	local yaw = (self.yaws and self.yaws[self.facing or "right"]) or 0
+	if self.turn and self.turn ~= 0 and self.yaws then
+		-- (which way the yaw turns the front to the screen's right)
+		local toRight = (self.yaws.right - self.yaws.front + pi) % (2 * pi) - pi
+		yaw = yaw + self.turn * (toRight >= 0 and 1 or -1)
+	end
 	call(a, "SetYaw", yaw)
 	if not self.loaded then return end
 	-- a fixed scale (SetFixedScale) keeps the model's own size and origin
@@ -947,9 +966,10 @@ function scene:SetRoom(side, feetAt)
 end
 
 -- Only the head and chest, in a square of px (the caller places the frame,
--- e.g. over a portrait): nothing is drawn outside it.
-function scene:SetBust(px)
-	self.bust = true
+-- e.g. over a portrait): nothing is drawn outside it. With face: only the
+-- head, close.
+function scene:SetBust(px, face)
+	self.bust = face and "face" or true
 	self.height = px
 	self:SetSize(px, px)
 	setCamera(self)
@@ -1070,7 +1090,7 @@ function model:Measure() end
 -- camera distance and facing
 function model:Look()
 	call(self, "SetCamDistanceScale", FRAME_H)
-	call(self, "ModelFacing", FACE[self.facing or "right"] or FACE.right)
+	call(self, "ModelFacing", (FACE[self.facing or "right"] or FACE.right) + (self.turn or 0))
 end
 
 -- the game fits the model to the frame when it is put up: done again for
@@ -1106,8 +1126,8 @@ function model:PlayKit(kit)
 end
 
 -- Only the head and chest, in a square of px (the game's portrait framing).
-function model:SetBust(px)
-	self.bust = true
+function model:SetBust(px, face)
+	self.bust = face and "face" or true
 	self.height = px
 	self:SetSize(px, px)
 	call(self, "SetPortraitZoom", 1)
