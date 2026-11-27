@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.2
+BIG IDLE HEROES v1.1.3
 ```
 
 ---
@@ -80,7 +80,7 @@ Build a party of five heroes, send them along a route through the original game'
 - **Gear in 10 grades**, from Common to Arcana (the top grade's names and item frames run through cyan, periwinkle and orchid), in fixed item levels (1, 5, 10, 15, 20, 30, 40, 50, 65, 80, 100). A hero wears an item from its own level, so gear above your heroes waits in the bag until they catch up.
 - **Three kinds of chests**: monster chests, boss chests and act boss chests. Each stage has its own chests, drop chances and contents, shown on the stage screen.
 - **The Forge**, a screen of its own: every function in a list on the left (fuse, craft, gems, enchant, inscription, enhance, salvage, lucky seals, materials), the work in the middle, and on the right the hero and item you work on plus a log of the latest results. Bags fill up, so auto-salvage helps keep them clear.
-- **Gems, enchanting and inscription** work like Task Bar Hero's cube: 36 gems, 33 enchanting reagents and 10 inscription scrolls, each giving its own stats by gear type (weapon, armor or accessory) at tiers 1 to 10. Better grades give higher tiers; nine of one material fuse into a random one of the next grade.
+- **Gems, enchanting and inscription** work like Task Bar Hero's cube: 45 gems, 33 enchanting reagents and 10 inscription scrolls, each giving its own stats by gear type (weapon, armor or accessory) at tiers 1 to 10. Better grades give higher tiers; nine of one material fuse into a random one of the next grade.
 - **Enhancement** (+1 to +20) once Mythic+ opens: every step raises an item's base stats; any try can fail (only the gold is lost): 65% a step up to +10, then lower and lower, down to 10% for the last step. Inheritance moves an enhanced item's steps onto a new item of the same slot, as 70% of the gold they are worth, with its gems, enchants and inscriptions; the old item is used up. The tooltip shows the step before the name (+10 Iron Helm); item icons show the item level.
 - **Rune tree**: 197 account-wide runes bought with gold, spreading from the center of a map you zoom with the mouse wheel and drag around. They open party seats, skill slots, offline rewards, automatic chest opening, bigger bags and more.
 - **Companions** that join the party.
@@ -137,12 +137,15 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.2)
+## Changelog for this release (v1.1.3)
 
 ```
-- A batch fusion button under the bag, beside the fusion grade: it fuses
-  every nine pieces of that grade or higher at once, the lower grades
-  first, after asking. The button shows how many fusions are ready.
-- The forge's fusion screen calls its "as many as possible" button
-  "batch fusion".
+- Shadow, holy and arcane damage on gems, enchants and inscriptions: nine
+  new gems (Void Crystal, Twilight Amethyst and Dark Obsidian for shadow;
+  Pearl of Light, Sunstone and Naaru Crystal for holy; Mana Agate, Mana Jade
+  and Mana Ruby for arcane) at the fire, frost and nature gems' grades, and
+  the enchanting reagents and scrolls that give fire, frost or nature damage
+  give these three too.
+- The act boss chest's clockwork rune sits after the 6th expansion rune and
+  costs 50,000 gold; its oil rune moves along beside it.
 ```

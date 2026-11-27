@@ -252,6 +252,10 @@ ns.SOCKET_STAT = {
 	["IncreaseSummonDamage:ADDITIVE"]      = { "dmg_all", div = 20 },
 	["SkillDurationIncrease:ADDITIVE"]     = { "cdr", div = 30 },
 	["SkillHealIncrease:ADDITIVE"]         = { "heal", div = 10 },
+	-- (not TBH's: added below for the shadow, holy and arcane gems)
+	["ShadowDamagePercent:FLAT"]           = { "dmg_shadow", div = 10 },
+	["HolyDamagePercent:FLAT"]             = { "dmg_holy", div = 10 },
+	["ArcaneDamagePercent:FLAT"]           = { "dmg_arcane", div = 10 },
 }
 
 -- Our stat and its value for a TBH stat mod rolled at a tier (raw: TBH's
@@ -334,6 +338,16 @@ local SOCKET_MAT = {
 	[118002] = { "산의 피", "INV_Misc_Gem_Bloodstone_03" },
 	[119001] = { "대지폭풍 다이아몬드", "INV_Misc_Gem_Diamond_01" },
 	[119002] = { "하늘불꽃 다이아몬드", "INV_Misc_Gem_Diamond_02" },
+	-- (not TBH's: the shadow, holy and arcane gems added below)
+	[110006] = { "공허 수정", "INV_Misc_Gem_Amethyst_03" },
+	[110007] = { "빛의 진주", "INV_Misc_Gem_Stone_01" },
+	[110008] = { "마나 마노", "INV_Misc_Gem_Crystal_03" },
+	[112006] = { "황혼의 자수정", "INV_Misc_Gem_Amethyst_01" },
+	[112007] = { "태양석", "INV_Misc_Gem_01" },
+	[112008] = { "마나 비취", "INV_Misc_Gem_Emerald_01" },
+	[115005] = { "어둠의 흑요석", "INV_Misc_Gem_03" },
+	[115006] = { "나루의 결정", "INV_Misc_Gem_02" },
+	[115007] = { "마나 루비", "INV_Misc_Gem_Ruby_03" },
 	-- 마법부여 재료 (세공)
 	[120001] = { "이상한 가루", "INV_Enchant_DustStrange" },
 	[120002] = { "하급 마법 정수", "INV_Enchant_EssenceMagicSmall" },
@@ -380,6 +394,48 @@ local SOCKET_MAT = {
 	[138001] = { "천상의 주문서", "INV_Scroll_06" },
 	[139001] = { "태초의 주문서", "INV_Scroll_03" },
 }
+-- Not as TBH: shadow, holy and arcane damage (TBH's materials know only
+-- physical, fire, cold and lightning). Their stat mods are fire's; every
+-- enchanting reagent and scroll that gives fire, frost or nature damage
+-- gives these three too, at the same tiers; and nine gems of their own sit
+-- at the grades of the fire, frost and nature gems (1, 3 and 6), each with
+-- its school's damage on weapons.
+do
+	local T = ns.TBH
+	local NEW = { 902801, 902901, 903001 }
+	for i, stat in ipairs({ "ShadowDamagePercent", "HolyDamagePercent", "ArcaneDamagePercent" }) do
+		local m = { stat = stat, mod = "FLAT" }
+		for t, r in ipairs(T.STAT_MODS[102501]) do m[t] = { r[1], r[2] } end
+		T.STAT_MODS[NEW[i]] = m
+	end
+	local ELEMENT = { FireDamagePercent = true, ColdDamagePercent = true, LightningDamagePercent = true }
+	for _, sm in pairs(T.SOCKET_MATS) do
+		if sm.kind ~= "gem" then
+			for _, cat in ipairs({ "weapon", "armor", "accessory", "any" }) do
+				local l = sm[cat]
+				local first
+				for _, o in ipairs(l or {}) do
+					if not first and ELEMENT[T.STAT_MODS[o[1]].stat] then first = o end
+				end
+				if first then
+					for _, mod in ipairs(NEW) do l[#l + 1] = { mod, first[2], first[3] } end
+				end
+			end
+		end
+	end
+	-- { grade, weapon tier, armour and accessory tier }, then each school's
+	-- damage, armour and accessory stats (암흑: 암흑 저항, 생명력 흡수;
+	-- 신성: 초당 생명력 회복, 치유량; 비전: 모든 원소 저항, 치명타 피해)
+	local GRADES = { { 110006, 1, 2, 1 }, { 112006, 3, 3, 3 }, { 115005, 6, 7, 6 } }
+	local SCHOOLS = { { 902801, 101501, 102101 }, { 902901, 102301, 105901 }, { 903001, 105201, 100401 } }
+	for _, g in ipairs(GRADES) do
+		for i, sc in ipairs(SCHOOLS) do
+			T.SOCKET_MATS[g[1] + i - 1] = { kind = "gem", grade = g[2],
+				weapon = { { sc[1], g[3], g[3] } }, armor = { { sc[2], g[4], g[4] } }, accessory = { { sc[3], g[4], g[4] } } }
+		end
+	end
+end
+
 -- id = kind .. TBH id (gem110001); tier = the TBH grade, which is also its colour
 ns.SOCKET_MATS_BY = { gem = {}, dust = {}, scroll = {} } -- [kind][grade] = { id, ... }
 do

@@ -6,10 +6,11 @@
 --   p = the rune before it, q = the level it must have (none: its top
 --   level), s = what it gives (Systems/Runes.lua ns.RUNE_STAT),
 --   v = value at each level, c = TBH's gold cost of each level }
--- Not as TBH: the clockwork runes of the monster and boss chests (13002,
--- 15001) sit one rune nearer the start (after the 2nd and 4th 확장의 룬, at
--- their first level) and cost a quarter and an eighth of TBH's; the oil
--- rune after the monster one moves with it. The first rune gives kill gold
+-- Not as TBH: the clockwork runes of the monster, boss and act boss chests
+-- (13002, 15001, 1902001) sit nearer the start (after the 2nd, 4th and 6th
+-- 확장의 룬, at their first level) and cost a quarter, an eighth and an
+-- eighth of TBH's; the oil runes after them move along (the boss chest's one
+-- a row up, beside it, to make room). The first rune gives kill gold
 -- and experience +5% (TBH: attack +1) and is of no kind.
 local _, ns = ...
 
@@ -77,7 +78,7 @@ ns.RUNES = {
 	[1801] = { n = "확장의 룬", x = -1, y = 7, m = 3, p = 16, s = "MaxInventorySlot", v = { 1, 1, 1 }, c = { 1000000, 1200000, 1400000 } },
 	[1901] = { n = "확장의 룬", x = 1, y = 7, m = 3, p = 16, s = "MaxInventorySlot", v = { 1, 1, 1 }, c = { 1000000, 1200000, 1400000 } },
 	[16001] = { n = "보관의 룬", x = 0, y = 8, m = 1, p = 16, s = "UnlockStashPageCount", v = { 1 }, c = { 3000000 } },
-	[150011] = { n = "윤활의 룬", x = 2, y = 6, m = 3, p = 15001, s = "ReduceAutoOpenStageBossChestTime", v = { 5, 5, 5 }, c = { 100000, 150000, 200000 } },
+	[150011] = { n = "윤활의 룬", x = 2, y = 5, m = 3, p = 15001, s = "ReduceAutoOpenStageBossChestTime", v = { 5, 5, 5 }, c = { 100000, 150000, 200000 } },
 	[150021] = { n = "수련의 룬", x = -2, y = 6, m = 3, p = 15002, s = "OfflineRewardExpPercent", v = { 100, 100, 100 }, c = { 75000, 100000, 125000 } },
 	[107] = { n = "탐색의 룬", x = 5, y = 3, m = 5, p = 106, s = "DropChanceNormalChestPercent", v = { 50, 50, 50, 50, 50 }, c = { 60000, 65000, 70000, 75000, 80000 } },
 	[1061] = { n = "수납의 룬", x = 4, y = 2, m = 1, p = 106, s = "MaxAmountNormalChest", v = { 1 }, c = { 100000 } },
@@ -104,7 +105,7 @@ ns.RUNES = {
 	[1803] = { n = "확장의 룬", x = -3, y = 7, m = 3, p = 1802, s = "MaxInventorySlot", v = { 1, 1, 1 }, c = { 1690000, 2030000, 2370000 } },
 	[180201] = { n = "비축의 룬", x = -2, y = 8, m = 5, p = 1802, s = "OfflineRewardGoldPercent", v = { 100, 100, 100, 100, 100 }, c = { 1000000, 1200000, 1400000, 1600000, 1800000 } },
 	[1903] = { n = "확장의 룬", x = 3, y = 7, m = 3, p = 1902, s = "MaxInventorySlot", v = { 1, 1, 1 }, c = { 1690000, 2030000, 2370000 } },
-	[1902001] = { n = "태엽의 룬: 막 우두머리 상자", x = 2, y = 8, m = 1, p = 1902, s = "UnlockAutoOpenActBossChest", v = { 60 }, c = { 1000000 } },
+	[1902001] = { n = "태엽의 룬: 막 우두머리 상자", x = 1, y = 6, m = 1, p = 15, q = 1, s = "UnlockAutoOpenActBossChest", v = { 60 }, c = { 125000 } },
 	[109] = { n = "탐색의 룬", x = 7, y = 3, m = 5, p = 108, s = "DropChanceNormalChestPercent", v = { 50, 50, 50, 50, 50 }, c = { 150000, 170000, 190000, 210000, 230000 } },
 	[209] = { n = "재물의 룬", x = -7, y = 3, m = 5, p = 208, s = "AdditionalGoldStageBoss", v = { 500, 500, 500, 500, 500 }, c = { 200000, 220000, 240000, 260000, 280000 } },
 	[309] = { n = "성장의 룬", x = -7, y = -3, m = 5, p = 308, s = "AdditionalExpStageBoss", v = { 500, 500, 500, 500, 500 }, c = { 200000, 220000, 240000, 260000, 280000 } },
@@ -115,7 +116,7 @@ ns.RUNES = {
 	[1904] = { n = "확장의 룬", x = 4, y = 7, m = 3, p = 1903, s = "MaxInventorySlot", v = { 1, 1, 1 }, c = { 2200000, 2640000, 3080000 } },
 	[190301] = { n = "윤활의 룬", x = 3, y = 6, m = 5, p = 1903, s = "ReduceAutoOpenNormalChestTime", v = { 2, 2, 2, 2, 2 }, c = { 1000000, 1200000, 1400000, 1600000, 1800000 } },
 	[190302] = { n = "윤활의 룬", x = 4, y = 6, m = 5, p = 1903, s = "ReduceAutoOpenStageBossChestTime", v = { 4, 4, 4, 4, 4 }, c = { 1000000, 1200000, 1400000, 1600000, 1800000 } },
-	[19020011] = { n = "윤활의 룬", x = 3, y = 8, m = 3, p = 1902001, s = "ReduceAutoOpenActBossChestTime", v = { 1, 1, 1 }, c = { 500000, 700000, 900000 } },
+	[19020011] = { n = "윤활의 룬", x = 2, y = 6, m = 3, p = 1902001, s = "ReduceAutoOpenActBossChestTime", v = { 1, 1, 1 }, c = { 500000, 700000, 900000 } },
 	[110] = { n = "정복의 룬", x = 8, y = 3, m = 5, p = 109, s = "DropChanceStageBossChestPercent", v = { 100, 100, 100, 100, 100 }, c = { 250000, 450000, 650000, 850000, 1050000 } },
 	[1091] = { n = "수납의 룬", x = 7, y = 4, m = 1, p = 109, s = "MaxAmountNormalChest", v = { 1 }, c = { 300000 } },
 	[210] = { n = "재물의 룬", x = -8, y = 3, m = 5, p = 209, s = "IncreaseGoldAmount", v = { 50, 50, 50, 50, 50 }, c = { 500000, 600000, 700000, 800000, 900000 } },

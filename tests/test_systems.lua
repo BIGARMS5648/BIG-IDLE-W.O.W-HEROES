@@ -316,7 +316,25 @@ do
 			end
 		end
 	end
-	check(counts.gem == 36 and counts.dust == 33 and counts.scroll == 10, "TBH's 36 decoration, 33 engraving and 10 inscription materials")
+	check(counts.gem == 45 and counts.dust == 33 and counts.scroll == 10, "TBH's 36 decoration (and our 9 shadow, holy and arcane gems), 33 engraving and 10 inscription materials")
+	-- every school's damage from some gem on a weapon, and from enchanting and inscription
+	local schools = {}
+	for k, sm in pairs(ns.TBH.SOCKET_MATS) do
+		for _, cat in ipairs({ "weapon", "any" }) do
+			for _, o in ipairs(sm[cat] or {}) do
+				local mod = ns.TBH.STAT_MODS[o[1]]
+				local d = ns.SOCKET_STAT[mod.stat .. ":" .. mod.mod]
+				if d[1]:find("^dmg_") then schools[sm.kind .. " " .. d[1]] = true end
+			end
+		end
+	end
+	local missing = {}
+	for _, kind in ipairs({ "gem", "dust", "scroll" }) do
+		for _, sch in ipairs({ "fire", "frost", "nature", "shadow", "holy", "arcane", "phys" }) do
+			if not schools[kind .. " dmg_" .. sch] then missing[#missing + 1] = kind .. " " .. sch end
+		end
+	end
+	check(#missing == 0, "gems, enchanting and inscription give every school's damage: missing " .. table.concat(missing, ", "))
 end
 -- TBH's rune tree: every rune on its own cell, joined to the first rune,
 -- each level with a value and a price, every stat read and coloured
@@ -1995,6 +2013,18 @@ do
 	check(ns.Runes.Cost(13002, 1) == 500 and ns.Runes.Cost(15001, 1) == 10000, "the clockwork runes cost 500 and 10,000 gold")
 	check(ns.Runes.prev[13002] == 12 and ns.Runes.prev[15001] == 14 and ns.Runes.Need(13002) == 1 and ns.Runes.Need(15001) == 1,
 		"the clockwork runes follow the 2nd and 4th 확장의 룬 at their first level")
+	-- the act boss chest's: 50,000 gold after the 6th 확장의 룬, its oil rune beside it
+	check(ns.Runes.Cost(1902001, 1) == 50000 and ns.Runes.prev[1902001] == 15 and ns.Runes.Need(1902001) == 1
+		and ns.Runes.prev[19020011] == 1902001, "the act boss chest's clockwork rune: 50,000 gold after the 6th 확장의 룬 at its first level")
+	do
+		local at, clash = {}, nil
+		for id, n in pairs(ns.Runes.byId) do
+			local k = n.x .. "," .. n.y
+			if at[k] then clash = k end
+			at[k] = id
+		end
+		check(clash == nil, "no two runes share a cell: " .. tostring(clash))
+	end
 	-- the party full: the usual order again
 	ns.db, BigWowIdleDB = savedDB, savedGlobal
 	ns.Runes.Invalidate()
