@@ -319,6 +319,17 @@ do
 	-- the header shows the hero's face (its 3D model, close), turned 30
 	-- degrees to the screen's right
 	local face = hp.head.portrait.fig
+	-- (a model is cut square: it stays inside the dark square's round corners,
+	-- centred in it)
+	do
+		local p, bg = hp.head.portrait, hp.head.faceBg
+		local _, _, _, px, py = p:GetPoint(1)
+		local _, _, _, bx, by = bg:GetPoint(1)
+		local inX, inY = px - bx, by - py
+		if not (inX >= 5 and inY >= 5 and math.abs(p:GetWidth() + 2 * inX - bg:GetWidth()) < 1e-6 and math.abs(p:GetHeight() + 2 * inY - bg:GetHeight()) < 1e-6) then
+			fail("the face model should sit inside its square's round corners, in the middle: " .. tostring(inX) .. ", " .. tostring(inY))
+		end
+	end
 	if face then
 		if face.bust ~= "face" or face.facing ~= "frontRight" then fail("the hero's header should show its face, turned to the right: " .. tostring(face.bust) .. " / " .. tostring(face.facing)) end
 		if face.yaws then

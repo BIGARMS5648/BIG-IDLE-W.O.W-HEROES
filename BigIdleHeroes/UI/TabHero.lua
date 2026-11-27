@@ -203,15 +203,18 @@ end
 ------------------------------------------------------------------------
 -- Right: the header card
 ------------------------------------------------------------------------
+local FACE_IN = 6 -- the face model's square, inside the dark square's round corners
+
 local function buildHeader(page, rp)
 	local hc = UI.Panel(rp, RIGHT_W - 24, 104, "card")
 	hc:SetPoint("TOPLEFT", rp, "TOPLEFT", 12, -12)
 	page.head = hc
-	-- the hero's face (its 3D model, close) in a dark square
+	-- the hero's face (its 3D model, close) in a dark square with round
+	-- corners; a model is cut square, so it sits FACE_IN inside, clear of them
 	hc.faceBg = UI.Panel(hc, 76, 76, "inset")
 	hc.faceBg:SetPoint("TOPLEFT", hc, "TOPLEFT", 14, -14)
-	hc.portrait = UI.HeroFigure(hc, 76, true)
-	hc.portrait:SetPoint("TOPLEFT", hc, "TOPLEFT", 14, -14)
+	hc.portrait = UI.HeroFigure(hc, 76 - 2 * FACE_IN, true)
+	hc.portrait:SetPoint("TOPLEFT", hc, "TOPLEFT", 14 + FACE_IN, -14 - FACE_IN)
 	hc.portrait:SetFrameLevel(hc.faceBg:GetFrameLevel() + 2)
 	hc.portrait:EnableMouse(false)
 	hc.portrait.lvl:Hide()
