@@ -201,4 +201,6 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - The battle window shows your gold in yellow, as the menu does.
 - The bottom menu's seven buttons are all one size, evenly spaced.
 - An empty bag or bank shows no message.
+- The menu and battle windows' shadows stay under them, so the windows no
+  longer turn dark at times.
 ```

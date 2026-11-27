@@ -1538,8 +1538,9 @@ function Bar.Create()
 	frame:SetSize(W, 8 + SCENE_H + 4 + DOCK_H + 6)
 	frame:SetFrameStrata("MEDIUM")
 	frame:SetClampedToScreen(true)
-	UI.Slice(frame, "shadow", "BACKGROUND", nil, 12)
+	frame.shadow = UI.Slice(frame, "shadow", "BACKGROUND", nil, 12)
 	local body = UI.Slice(frame, "panel", "BACKGROUND")
+	frame.bg = body
 	if UI.ArtUI("ui_battle_frame") then body:SetArt(UI.ArtUI("ui_battle_frame")) end
 	frame:SetMovable(true)
 	frame:EnableMouse(true)

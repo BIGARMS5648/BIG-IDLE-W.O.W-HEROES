@@ -1108,6 +1108,20 @@ do
 	if ns.db.stage.idx ~= 3 or ns.db.stage.diff ~= 1 then fail("travelling from the stage screen did not work") end
 	click("world Outland", function(b) return b.d == 2 end)
 	hoverAll()
+	-- the windows' shadows lie under their panels: on the same layer and
+	-- sublevel the game picks the order, and the shadow darkens the window
+	do
+		local LAYER = { BACKGROUND = 1, BORDER = 2, ARTWORK = 3, OVERLAY = 4, HIGHLIGHT = 5 }
+		local function rank(t) return LAYER[t.__layer] * 100 + (t.__sub or 0) end
+		local modal = ns.UI.Panel(UIParent, 100, 100, "panel", true)
+		for name, f in pairs({ menu = Main.Frame(), battle = BigIdleHeroesBar, panel = modal }) do
+			local low = math.huge
+			for i = 1, 9 do low = math.min(low, rank(f.bg[i])) end
+			for i = 1, 9 do
+				if rank(f.shadow[i]) >= low then fail("the " .. name .. " window's shadow is not drawn under its panel") end
+			end
+		end
+	end
 	-- the path's lines (the bracket down to the second row too) lie over the
 	-- inset: the same layer and sublevel would leave the order to the game
 	do

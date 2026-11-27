@@ -492,6 +492,10 @@ function UI.Slice(frame, art, layer, d, out, on)
 	for r = 1, 3 do
 		for c = 1, 3 do
 			local t = (on or frame):CreateTexture(nil, layer or "BACKGROUND")
+			-- a window's shadow lies under everything on its layer: on the
+			-- same layer and sublevel as the window's own panel the game
+			-- picks the order, and the shadow (black, 80%) could darken it
+			if art == "shadow" then t:SetDrawLayer(layer or "BACKGROUND", -8) end
 			t:SetTexture(path)
 			t:SetTexCoord(us[c][1], us[c][2], vs[r][1], vs[r][2])
 			s[(r - 1) * 3 + c] = t
