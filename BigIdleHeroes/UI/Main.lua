@@ -13,6 +13,9 @@ Main.W, Main.H = 940, 690
 Main.PAGE_X, Main.PAGE_Y = 10, -64
 Main.PAGE_W, Main.PAGE_H = 920, 550
 local NAV_H = 66
+-- the bottom menu: its buttons' gaps, and the room round the row (with seven
+-- buttons, 11 makes every button 126 wide, 54 high)
+local NAV_GAP, NAV_PAD = 6, 11
 -- old screen names that now live elsewhere
 local ALIAS = { bag = "equip" }
 -- the materials shown in the title bar, by group (Data/Items.lua kinds)
@@ -352,12 +355,15 @@ function Main.Create()
 	for _, def in ipairs(tabs) do
 		if def.nav ~= false then navTabs[#navTabs + 1] = def end
 	end
+	-- the buttons all as wide as each other, with the same room (NAV_PAD)
+	-- over, under and beside them: under the page, to the window's edges
 	local n = #navTabs
-	local bw = math.floor((Main.W - 32 - (n - 1) * 6) / n)
+	local navBottom = Main.H + Main.PAGE_Y - Main.PAGE_H -- the page's bottom, up from the window's
+	local bw = (Main.W - 2 * NAV_PAD - (n - 1) * NAV_GAP) / n
 	for i, def in ipairs(navTabs) do
 		local b = CreateFrame("Button", nil, frame)
-		b:SetSize(bw, NAV_H - 12)
-		b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16 + (i - 1) * (bw + 6), 8)
+		b:SetSize(bw, navBottom - 2 * NAV_PAD)
+		b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", NAV_PAD + (i - 1) * (bw + NAV_GAP), NAV_PAD)
 		b.key = def.key
 		b.glow = UI.Art(b, "glow", "BACKGROUND", 0.25, 0.55, 1, 0.7)
 		b.glow:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 10)
