@@ -323,7 +323,7 @@ local WEAPON_SLOTS = { "mh", "oh" }
 -- the whole of it (slots, model, weapons) lifted from the bottom so the room
 -- over it (under the tabs) and under it (to the panel's edge) is alike
 local PD_LIFT = 30
-local MODEL_H, MODEL_FEET = 250, 62 + PD_LIFT -- the model's height, its feet up from the bottom
+local MODEL_H, MODEL_FEET = 225, 62 + PD_LIFT -- the model's height, its feet up from the bottom
 local WEAPON_Y = -(BODY_H - SLOT - PD_LIFT) -- the weapons' row
 -- the side columns' first row: the four rows' middle level with the model's
 -- middle (the weapons stay at the bottom)
@@ -343,8 +343,12 @@ local function buildStats(page, f)
 	page.stand = ns.Figure3D.New(f, MODEL_H)
 	if page.stand then
 		page.stand:SetFacing("front")
-		-- (the frame no wider than the room between the slot columns and a little)
-		if page.stand.SetRoom then page.stand:SetRoom(1, 0.06) end
+		-- the frame: from a little under the feet to a little over the head.
+		-- The model is drawn as tall as the figure, and the frame cuts what
+		-- lies outside it: a side of 1 with the feet 0.06 up reached only
+		-- 0.94 of the figure over the feet and cut the top of the head
+		-- (humans', night elves'); 1.14 leaves 0.08 over it.
+		if page.stand.SetRoom then page.stand:SetRoom(1.14, 0.06) end
 		-- the class circle stays until the model is in, so nothing blinks
 		page.stand:SetScript("OnUpdate", function(self, dt)
 			self:Step(dt)
