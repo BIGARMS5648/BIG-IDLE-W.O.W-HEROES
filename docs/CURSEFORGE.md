@@ -142,4 +142,5 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 ```
 - Fusion (by hand, in a batch or automatically) also uses gear a hero
   could wear at a higher level; breaking gear down still keeps it.
+- Heroes and monsters no longer flinch when struck; the hit effects stay.
 ```

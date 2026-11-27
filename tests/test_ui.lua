@@ -2250,17 +2250,31 @@ do
 		local hf = heroes[1].model
 		if hf and hf.GetAllowOverlappedModels and not hf:GetAllowOverlappedModels() then fail("hero scenes should clear their own depth") end
 	end
-	-- an attack plays the hero's attack animation (a swing, a cast, a shot)
-	local attacked = false
+	-- an attack plays the hero's attack animation (a swing, a cast, a shot);
+	-- a struck fighter plays no motion of its own (no 'hit', game animation 9)
+	local attacked, struck = false, false
 	for _ = 1, 400 do -- until the party has met the monsters and fought a while
 		frames(1)
 		for _, f in ipairs(heroes) do
 			local m = f.model
 			if m and m:IsShown() and m.AnimId and animOf(m) == m:AnimId("attack") and m:Playing() == "attack" then attacked = true end
+			if m and m:IsShown() and (m:Playing() == "hit" or animOf(m) == 9) then struck = true end
 		end
 		if attacked then break end
 	end
 	if not attacked then fail("heroes should play their attack animation in battle") end
+	if struck then fail("a struck hero should play no hit motion") end
+	do
+		local mobHit = false
+		for _ = 1, 200 do
+			frames(1)
+			for _, f in ipairs(mobs) do
+				local m = f.model
+				if m and m:IsShown() and (m:Playing() == "hit" or animOf(m) == 9) then mobHit = true end
+			end
+		end
+		if mobHit then fail("a struck monster should play no hit motion") end
+	end
 	ns.PartyLimit = partyLimit
 	-- off in the settings: icons again
 	ns.db.opt.models = false

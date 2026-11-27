@@ -23,8 +23,9 @@ local Figure = {}
 ns.Figure3D = Figure
 
 -- animation ids of the game's models, and how long the one-shots last
-local ANIM_ID = { idle = 0, walk = 4, attack = 17, cast = 53, hit = 9, death = 1, dead = 6 }
-local ONESHOT = { attack = 0.7, cast = 0.9, hit = 0.35, death = 1.2 }
+-- (no hit: a struck fighter plays no motion of its own)
+local ANIM_ID = { idle = 0, walk = 4, attack = 17, cast = 53, death = 1, dead = 6 }
+local ONESHOT = { attack = 0.7, cast = 0.9, death = 1.2 }
 
 -- ModelScene figures: a square frame SIDE model heights across, the feet
 -- FEET_AT above its bottom; a narrow camera straight from the front, far

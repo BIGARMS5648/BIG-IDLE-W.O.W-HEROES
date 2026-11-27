@@ -147,9 +147,10 @@ local function pickHero(model, heroId)
 	return pickFigure(model, Figure.ForHero(heroId, true))
 end
 
--- Picks the animation for a unit, letting a started attack, skill or hit
--- finish before idling or walking again.
-local ONESHOT = { attack = true, cast = true, hit = true }
+-- Picks the animation for a unit, letting a started attack or skill finish
+-- before idling or walking again. (A unit that is struck plays no motion of
+-- its own: only the strike's effect shows.)
+local ONESHOT = { attack = true, cast = true }
 local function animate(sp, want)
 	local cur, done = sp:Playing()
 	if ONESHOT[cur] and not done and (want == "idle" or want == "walk") then
@@ -290,7 +291,6 @@ local function drawHeroes(now)
 				if u.dead then want = "death"
 				elseif (u.castT or 0) > 0.6 then want = "cast"
 				elseif u.anim > 0 then want = "attack"
-				elseif u.flash > 0.05 then want = "hit"
 				elseif ns.Combat.state.phase == "travel" or moving then want = "walk" end
 				animate(fig, want)
 				fig:PlaceFeet(frame.scene, px + UNIT / 2, FEET + 2)
@@ -505,7 +505,6 @@ local function drawMobs()
 				local want = "idle"
 				if m.dead then want = "death"
 				elseif m.anim > 0 then want = "attack"
-				elseif m.flash > 0.05 then want = "hit"
 				elseif moving then want = "walk" end
 				animate(fig, want)
 				fig:PlaceFeet(frame.scene, px + size / 2, FEET + (m.boss and 0 or (m.off / 12) * 3))
