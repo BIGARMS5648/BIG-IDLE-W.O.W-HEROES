@@ -213,17 +213,32 @@ local function runeNode(page, node)
 	return b
 end
 
+-- How far a line stays from the middle of the runes it joins: it ends on a
+-- rune's outer edge, so nothing of it lies under the border (its soft inner
+-- edge, or the whole border while the rune is faded, let it show through).
+-- A slanted line meets the border's rounded corner (Media/frame.tga: a
+-- radius of 8 of its 64 pixels), its end's two corners on the curve.
+local EDGE = NODE / 2
+local CORNER_R = NODE * 8 / 64
+local EDGE_SLANT = (EDGE - CORNER_R) * sqrt(2) + sqrt(CORNER_R * CORNER_R - (LINK_W / 2) ^ 2)
+local function edgeDist(dx, dy)
+	if dx == 0 or dy == 0 then return EDGE end
+	if math.abs(dx) == math.abs(dy) then return EDGE_SLANT end
+	return EDGE / max(math.abs(dx), math.abs(dy)) * sqrt(dx * dx + dy * dy)
+end
+
 -- The line from the rune before (a) to a rune (b), under the runes.
 local function link(canvas, a, b)
 	local dx, dy = (b.x - a.x) * CELL, (b.y - a.y) * CELL
+	local len = sqrt(dx * dx + dy * dy) - 2 * edgeDist(dx, dy)
 	local t = canvas:CreateTexture(nil, "BORDER")
 	t:SetPoint("CENTER", canvas, "CENTER", (a.x + b.x) / 2 * CELL, (a.y + b.y) / 2 * CELL)
 	if dx == 0 then
-		t:SetSize(LINK_W, math.abs(dy))
+		t:SetSize(LINK_W, len)
 	elseif dy == 0 then
-		t:SetSize(math.abs(dx), LINK_W)
+		t:SetSize(len, LINK_W)
 	else
-		t:SetSize(sqrt(dx * dx + dy * dy), LINK_W)
+		t:SetSize(len, LINK_W)
 		t:SetRotation(atan2(dy, dx))
 	end
 	return t

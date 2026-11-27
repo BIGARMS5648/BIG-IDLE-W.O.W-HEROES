@@ -300,7 +300,7 @@ local function candidates()
 				add({ text = string.format("'%s' 해금 (장비 > 가방, %s G)", ns.N(op.name), ns.U.fmt(op.cost)), tab = "equip", sub = "bag",
 					wait = not ns.CanAfford(op.cost) })
 			else
-				local where = ({ remove = "보석", seal = "재료", fuse = "융합", craft = "제작",
+				local where = ({ remove = "보석", seal = "행운의 인장", fuse = "융합", craft = "제작",
 					gem = "보석", ench = "마법부여", insc = "주문각인" })[op.key] or ""
 				add({ text = string.format("'%s' 해금 (대장간 > %s, %s G)", ns.N(op.name), where, ns.U.fmt(op.cost)), tab = "forge",
 					sub = op.key == "remove" and "gem" or op.key, wait = not ns.CanAfford(op.cost) })

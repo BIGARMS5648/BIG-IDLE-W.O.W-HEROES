@@ -1,7 +1,6 @@
 -- Forge screen (대장간).
---   left:   the forge level, then every function (융합 · 제작 · 보석 ·
---           마법부여 · 주문각인 · 강화 · 분해 · 재료; seals are rolled on
---           the materials' seal tab), a lock on
+--   left:   the forge level, then every function (분해 · 융합 · 제작 ·
+--           보석 · 마법부여 · 주문각인 · 행운의 인장 · 재료 · 강화), a lock on
 --           the ones not open yet.
 --   middle: the chosen function (UI/TabForge.lua; the materials are
 --           UI/TabBag.lua's), what it does on top; a locked one says what
@@ -37,6 +36,7 @@ local FUNCS = {
 	{ key = "gem",   name = "보석",       op = "gem",   target = true, desc = "장비의 보석 홈에 무작위 능력치를 부여합니다." },
 	{ key = "ench",  name = "마법부여",   op = "ench",  target = true, desc = "전설 등급 이상 장비의 마법 홈에 마법을 부여합니다." },
 	{ key = "insc",  name = "주문각인",    op = "insc",  target = true, desc = "불멸 등급 이상 장비의 주문각인 홈에 주문서의 힘을 새깁니다." },
+	{ key = "seal",  name = "행운의 인장", op = "seal",  desc = "행운의 인장과 골드로 장비를 하나 얻습니다." },
 	{ key = "mats",  name = "재료",       desc = "재료를 모아 융합하거나 골드로 바꿉니다." },
 	{ key = "up",    name = "강화",       target = true, desc = "골드로 장비의 기본 능력치를 +20까지 올립니다." },
 }
@@ -95,6 +95,11 @@ local function buildLeft(page)
 		b.label:ClearAllPoints()
 		b.label:SetPoint("CENTER", b, "CENTER", 0, 0)
 		b.label:SetJustifyH("CENTER")
+		-- a name too long to sit in the middle clear of the icon moves right
+		-- just enough (행운의 인장)
+		local room = (LIST_W - 20 - b.label:GetStringWidth()) / 2
+		local need = 8 + 22 + 6
+		if room < need then b.label:SetPoint("CENTER", b, "CENTER", need - room, 0) end
 		-- a locked function shows a lock where its icon is
 		b.lock = UI.Glyph(b, "lock", 16, 0.95, 0.82, 0.5)
 		b.lock:SetPoint("CENTER", b, "LEFT", 19, 0)
@@ -155,11 +160,6 @@ local function refreshLeft(page)
 		local op = d.op and ns.Forge.OpDef(d.op)
 		page.tabs:SetBadge(d.key, not open and op and ns.Guide.CanUnlock(d.op) or false)
 	end
-	-- 인장 굴리기 is on the materials' seal tab
-	local sl = ns.Forge.OpDef("seal")
-	if not ns.Forge.Unlocked("seal") and f.level >= sl.level and ns.CanAfford(sl.cost) and ns.Guide.UnlockUseful("seal") then
-		page.tabs:SetBadge("mats", true)
-	end
 	-- 추출 sits on the gem sockets' lines
 	local rm = ns.Forge.OpDef("remove")
 	if ns.Forge.Unlocked("gem") and not ns.Forge.Unlocked("remove") and f.level >= rm.level and ns.CanAfford(rm.cost) and ns.Guide.UnlockUseful("remove") then
@@ -191,7 +191,7 @@ local function buildMiddle(page)
 		return f
 	end
 	page.forge = {}
-	for _, key in ipairs({ "fuse", "craft", "gem", "ench", "insc", "up", "smelt" }) do
+	for _, key in ipairs({ "fuse", "craft", "gem", "ench", "insc", "seal", "up", "smelt" }) do
 		page.forge[key] = ns.ForgeView.Build[key](page, body(key))
 	end
 	ns.MatsView.Build(page, body("mats"))
@@ -376,12 +376,11 @@ function refresh(page)
 	refreshSide(page)
 end
 
--- opts.sub: a function ("fuse", "gem", "up", "mats" …; "remove" opens 보석,
--- "seal" the materials on the seals); opts.tab: a materials tab
-local OLD_SUB = { remove = "gem", seal = "mats" }
+-- opts.sub: a function ("fuse", "gem", "seal", "up", "mats" …; "remove"
+-- opens 보석); opts.tab: a materials tab
+local OLD_SUB = { remove = "gem" }
 local function open(page, opts)
 	if not opts then return end
-	if opts.sub == "seal" and not opts.tab then opts.tab = "mat_seal" end
 	local sub = OLD_SUB[opts.sub] or opts.sub
 	if opts.tab and ns.MatsView.KINDS_OF[opts.tab] then sub = "mats" end
 	if sub and FUNC_BY[sub] then page.func = sub end

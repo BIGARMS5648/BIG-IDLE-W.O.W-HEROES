@@ -654,7 +654,8 @@ do
 		confirmYes("break all down")
 		if ns.MatCount("bar1") ~= 0 then fail("confirming should break every bar down") end
 	end
-	-- the lucky seals roll an item (unlocked from the row itself)
+	-- the lucky seals: their rows on the materials only unlock rolling; the
+	-- rolls are the forge's own 행운의 인장, right under 주문각인
 	Main.ShowTab("forge", { sub = "mats", tab = "mat_seal" })
 	-- only the seals in the bag have a row
 	for _, d in ipairs(ns.SEAL) do ns.AddMat(d.mat, -ns.MatCount(d.mat)) end
@@ -667,25 +668,47 @@ do
 	Main.Refresh()
 	local s = rowOf("seal1")
 	if not (s and s.roll:IsVisible()) then
-		fail("a seal row should have a roll button")
+		fail("a locked seal row should offer to unlock rolling")
 	else
 		if not (label(s.roll) or ""):find("해금", 1, true) then fail("a locked roll should offer to unlock it, got " .. tostring(label(s.roll))) end
 		if dotOn(s.roll) ~= ns.Guide.CanUnlock("seal") then fail("[굴리기 해금] should have the red dot exactly when it can unlock now") end
+		local before = #ns.db.bag
 		press("unlock the roll", s.roll)
 		confirmYes("unlock the roll")
-		if not ns.Forge.Unlocked("seal") then fail("the roll button should unlock 인장 굴리기") end
+		if not ns.Forge.Unlocked("seal") then fail("the row's button should unlock 인장 굴리기") end
+		if #ns.db.bag ~= before then fail("unlocking must not roll a seal") end
 		Main.Refresh()
-		if dotOn(s.roll) then fail("the roll button has no red dot once unlocked") end
-		local before = #ns.db.bag
-		press("roll", s.roll)
-		if #ns.db.bag ~= before + 1 then fail("rolling a seal should add one item") end
+		if s.roll:IsVisible() then fail("once unlocked, the materials' seal rows have no roll button") end
 	end
-	-- seals are rolled on the materials' seal tab: the forge has no list
-	-- entry of its own for it (an old link to it opens that tab)
+	-- the forge list: 행운의 인장 right under 주문각인
 	Main.ShowTab("forge", { sub = "seal" })
 	local fp = Main.Page("forge")
-	if fp.matTab ~= "mat_seal" or fp.func ~= "mats" then fail("a link to 인장 굴리기 should open the materials on the seals: " .. tostring(fp.matTab) .. " " .. tostring(fp.func)) end
-	if fp.tabs:Get("seal") then fail("the forge list should have no 인장 굴리기 entry") end
+	if fp.func ~= "seal" then fail("a link to 인장 굴리기 should open the forge's 행운의 인장: " .. tostring(fp.func)) end
+	local order = {}
+	for i, b in ipairs(fp.tabs.buttons) do order[b.key] = i end
+	if not (order.seal and order.insc and order.seal == order.insc + 1) then fail("행운의 인장 should sit right under 주문각인") end
+	-- a row per seal; [굴리기] gives one piece for one seal and its gold
+	local view = fp.forge.seal
+	local row = view.rows[1]
+	if not row:IsVisible() then fail("the 행운의 인장 page should show the seals") end
+	ns.AddMat("seal1", 2)
+	ns.AddGold(ns.SEAL[1].gold * 2)
+	Main.Refresh()
+	local before, seals = #ns.db.bag, ns.MatCount("seal1")
+	press("roll", row.go)
+	if #ns.db.bag ~= before + 1 then fail("rolling a seal should add one item") end
+	if ns.MatCount("seal1") ~= seals - 1 then fail("rolling should use one seal") end
+	if not view.result.item then fail("the roll's piece should show under 최근 결과") end
+	-- without a seal the button is off
+	ns.AddMat("seal1", -ns.MatCount("seal1"))
+	Main.Refresh()
+	if not row.go.off then fail("[굴리기] should be off without that seal") end
+	-- locked: the page offers to unlock it
+	ns.db.forge.ops.seal = nil
+	Main.Refresh()
+	if not fp.bodies.locked:IsVisible() then fail("a locked 행운의 인장 should show how to unlock it") end
+	ns.db.forge.ops.seal = true
+	Main.ShowTab("forge", { sub = "mats", tab = "mat_seal" })
 	click("craft materials tab", labelIs("제작 재료"))
 	if fp.matTab ~= "mat_craft" or fp.func ~= "mats" then fail("picking another tab should show those materials: " .. tostring(fp.matTab) .. " " .. tostring(fp.func)) end
 	hoverAll()

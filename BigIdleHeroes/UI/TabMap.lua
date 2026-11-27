@@ -336,13 +336,17 @@ local function build(page)
 	tv.record:SetPoint("LEFT", tv.top, "RIGHT", 12, 0)
 	tv.record:SetWidth(DETAIL_X - 12 - (34 + 6 + 104 + 6 + 34 + 6 + 96 + 12))
 	tv.record:SetWordWrap(false)
-	tv.head = UI.Section(tv, DETAIL_X - 16, "속성")
-	tv.head:SetPoint("TOPLEFT", tv, "TOPLEFT", 0, -40)
+	-- the affixes and options sit inside the dark inset with the same margin
+	-- as the stage path's (K.PAD on every side)
+	local pad = UI.K.PAD
+	local inW = DETAIL_X - 8 - 2 * pad
+	tv.head = UI.Section(tv, inW, "속성")
+	tv.head:SetPoint("TOPLEFT", tv, "TOPLEFT", pad, -42)
 	tv.rows = {}
 	for i, a in ipairs(ns.TOWER_AFFIXES) do
 		local r = CreateFrame("Frame", nil, tv)
-		r:SetSize(DETAIL_X - 16, AFFIX_ROW - 2)
-		r:SetPoint("TOPLEFT", tv, "TOPLEFT", 0, -64 - (i - 1) * AFFIX_ROW)
+		r:SetSize(inW, AFFIX_ROW - 2)
+		r:SetPoint("TOPLEFT", tv, "TOPLEFT", pad, -66 - (i - 1) * AFFIX_ROW)
 		r.icon = r:CreateTexture(nil, "ARTWORK")
 		r.icon:SetSize(24, 24)
 		r.icon:SetPoint("LEFT", r, "LEFT", 2, 0)
@@ -355,11 +359,10 @@ local function build(page)
 		r.from:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -1)
 		r.from:SetWidth(64)
 		r.text = UI.Text(r, 10, ns.N(a.text))
-		r.text:SetPoint("LEFT", r, "LEFT", 104, 0)
-		r.text:SetWidth(DETAIL_X - 16 - 108)
+		r.text:SetPoint("LEFT", r, "LEFT", 100, 0)
+		r.text:SetWidth(inW - 100)
 		tv.rows[i] = r
 	end
-	local ty = -64 - #ns.TOWER_AFFIXES * AFFIX_ROW - 6
 	tv.checks = {
 		UI.Check(tv, "자동 진행 - 깨면 다음 층으로",
 			function() return ns.db.opt.auto end, function(v) ns.db.opt.auto = v ns.db.retry = 0 ns.Fire("OPTIONS") end),
@@ -373,8 +376,9 @@ local function build(page)
 				ns.Fire("OPTIONS")
 			end),
 	}
+	-- at the bottom of the inset, where the stage view has its options
 	for i, c in ipairs(tv.checks) do
-		c:SetPoint("TOPLEFT", tv, "TOPLEFT", 4, ty - (i - 1) * 24)
+		c:SetPoint("BOTTOMLEFT", tv, "BOTTOMLEFT", pad, pad + (#tv.checks - i) * 24)
 	end
 
 	-- detail card

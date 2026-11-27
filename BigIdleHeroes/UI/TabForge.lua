@@ -191,7 +191,7 @@ local function buildFuse(page, f)
 	p.all:SetPoint("LEFT", p.one, "RIGHT", 8, 0)
 	p.all.clickWhenOff = true
 	p.result = addResult(f, 372, -304)
-	p.note = note(f, -384, "같은 등급 장비 9개 → 장비 1개. 가장 낮은 레벨부터 쓰고, 보호한 장비(가방에서 Alt+클릭), 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올리면 더 좋은 장비는 쓰지 않습니다. 결과의 레벨은 재료의 평균 부근, 부위는 같은 종류 안에서 무작위입니다.")
+	p.note = note(f, -384, "같은 등급 장비 9개 → 장비 1개. 가장 낮은 레벨부터 쓰고, 보호한 장비(가방에서 Alt+클릭), 보석·마법부여·주문각인이 붙은 장비, 영웅에게 더 좋은 장비는 쓰지 않습니다. 결과의 레벨은 재료의 평균 부근, 부위는 같은 종류 안에서 무작위입니다.")
 	p.refresh = function()
 		p.pick:Refresh()
 		p.kinds:Select(p.cat)
@@ -1224,6 +1224,75 @@ local function buildSmelt(page, f)
 end
 
 ------------------------------------------------------------------------
+-- 행운의 인장: a row per seal (how many, the grades it rolls, [굴리기]),
+-- the level of the piece it gives, and the last piece rolled
+------------------------------------------------------------------------
+local SEAL_ROW_H, SEAL_ROW_STEP = 62, 68
+local function buildSeal(page, f)
+	local p = { rows = {} }
+	p.head = UI.Section(f, W, "인장")
+	p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+	for i, s in ipairs(ns.SEAL) do
+		local r = UI.Panel(f, W, SEAL_ROW_H, "card")
+		r:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -28 - (i - 1) * SEAL_ROW_STEP)
+		r.icon = UI.IconButton(r, 40)
+		r.icon:SetPoint("LEFT", r, "LEFT", 10, 0)
+		r.icon.data = s.mat
+		UI.Tip(r.icon, function(self) return ns.Items.MatTooltip(self.data) end)
+		r.name = UI.Text(r, 13)
+		r.name:SetPoint("TOPLEFT", r, "TOPLEFT", 60, -12)
+		r.name:SetWidth(W - 60 - 180)
+		r.name:SetWordWrap(false)
+		r.odds = UI.Text(r, 10)
+		r.odds:SetPoint("TOPLEFT", r, "TOPLEFT", 60, -36)
+		r.odds:SetWidth(W - 60 - 180)
+		r.odds:SetWordWrap(false)
+		r.go = UI.Button(r, 160, 32, "", function()
+			local ok, it = ns.Forge.BonusRoll(i)
+			if UI.Try(ok, it) then
+				ns.Toast("굴림 결과: " .. ns.Items.ColorName(it))
+				p.result:Set(it, ns.N(ns.MATS[s.mat].name))
+			end
+			Main.Refresh()
+		end, "primary")
+		r.go:SetPoint("RIGHT", r, "RIGHT", -12, 0)
+		r.go.clickWhenOff = true
+		UI.Tip(r.go, function()
+			local body = "인장 1개와 골드로 장비를 하나 얻습니다. 부위는 무작위이고, 영웅보다 레벨이 높은 장비는 영웅이 그 레벨이 될 때까지 가방에 남겨 둡니다."
+			if ns.MatCount(s.mat) <= 0 then
+				body = body .. "\n" .. U.col("ff9a7a", "이 인장이 없습니다. 상자에서 얻을 수 있습니다.")
+			elseif ns.Items.BagFree() <= 0 then
+				body = body .. "\n" .. U.col("ff9a7a", "가방이 가득 찼습니다. 장비를 분해하거나 정리하면 굴릴 수 있습니다.")
+			elseif not ns.CanAfford(s.gold) then
+				body = body .. "\n" .. U.col("ff9a7a", string.format("골드가 부족합니다. %s G가 필요합니다.", U.fmt(s.gold)))
+			end
+			return UI.SimpleTip("굴리기", body)
+		end, "TOP")
+		r.odds:SetText(qualityOdds(s.q))
+		p.rows[i] = r
+	end
+	local y = -28 - #ns.SEAL * SEAL_ROW_STEP - 6
+	p.result = addResult(f, 0, y)
+	p.refresh = function()
+		p.head:Set("인장", string.format("나오는 장비 Lv %d", ns.Forge.SealLevel()))
+		local full = ns.Items.BagFree() <= 0
+		for i, s in ipairs(ns.SEAL) do
+			local r = p.rows[i]
+			local m = ns.MATS[s.mat]
+			local count = ns.MatCount(s.mat)
+			r.icon:SetIconName(m.icon)
+			r.icon:SetQuality(m.q)
+			r.icon:SetDim(count <= 0)
+			r.name:SetText(ns.QText(m.q, ns.N(m.name)) .. "  " .. U.col(count > 0 and "ffffff" or "8a90a2", U.fmt(count) .. "개"))
+			r.go:SetLabel(full and "가방이 가득 참" or ("굴리기  " .. U.fmt(s.gold) .. " G"))
+			r.go:SetOff(full or count <= 0 or not ns.CanAfford(s.gold))
+		end
+		p.result:Refresh()
+	end
+	return p
+end
+
+------------------------------------------------------------------------
 -- A function not unlocked yet
 ------------------------------------------------------------------------
 local function buildLocked(page, f)
@@ -1263,6 +1332,6 @@ end
 ForgeView.Build = {
 	fuse = buildFuse, craft = buildCraft,
 	gem = buildSocket("gem"), ench = buildSocket("ench"), insc = buildSocket("insc"),
-	up = buildUpgrade, smelt = buildSmelt, locked = buildLocked,
+	up = buildUpgrade, smelt = buildSmelt, seal = buildSeal, locked = buildLocked,
 }
 ForgeView.W, ForgeView.H = W, H

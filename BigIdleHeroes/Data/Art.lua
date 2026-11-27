@@ -13,6 +13,8 @@ ns.ART = { icons = {}, ui = {} }
 for _, id in ipairs({
 	"icon_hero", "icon_bag", "icon_forge", "icon_party", "icon_runes", "icon_map", "icon_pets", "icon_settings",
 	"forge_fuse", "forge_craft", "forge_gem", "forge_ench", "forge_insc", "forge_up", "forge_smelt", "forge_mats",
+	-- 행운의 인장 (tools/cut_icon.py from tools/art/seal_chips.png)
+	"forge_seal",
 	"icon_lock", "icon_star", "icon_skull", "icon_crown",
 	-- item slots (tools/cut_icon.py from tools/art/upgrade_arrow.png, painted): the better-gear arrow
 	"icon_upgrade",

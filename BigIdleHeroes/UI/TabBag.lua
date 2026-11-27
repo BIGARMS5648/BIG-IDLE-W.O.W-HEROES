@@ -1,14 +1,15 @@
 -- The bag, the storage and the materials: tabs of the equipment screen
 -- (UI/TabEquip.lua).
 --   가방: "가방 43 / 70" [보기 ▾] [정리], the grid (pages of 50),
---         and at the bottom: 융합 등급 [▾] [일괄 융합] [자동 융합] over
---         분해 등급 [▾] [일괄 분해] [자동 분해].
+--         and at the bottom: 분해 등급 [▾] [일괄 분해] [자동 분해] over
+--         융합 등급 [▾] [일괄 융합] [자동 융합].
 --         On an item: click = 장착 (the hero on the left), right-click =
 --         분해, Alt+click = 보호, Shift+click = 창고.
 --   창고: the same grid over the storage (db.bank): "창고 3 / 20" [정리];
 --         click = back to the bag.
 --   재료: one tab per kind of material; a row per material with fusing
---         (9 → 1), breaking down for gold, and for the seals a bonus roll.
+--         (9 → 1) and breaking down for gold; a seal's row unlocks rolling
+--         (the rolls are the forge's 행운의 인장).
 local _, ns = ...
 
 local floor, max, min = math.floor, math.max, math.min
@@ -220,7 +221,7 @@ function BagView.Build(page, f)
 
 	-- breaking down: the grade, now, or by itself when the bag is full
 	page.smeltLabel = UI.Text(f, 12, "분해 등급")
-	page.smeltLabel:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 10)
+	page.smeltLabel:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 54)
 	page.smeltPick = UI.Dropdown(f, 150, 32, function()
 		local out = {}
 		for q = 1, ns.MAX_QUALITY do out[#out + 1] = { q, ns.QText(q, ns.N(ns.QUALITY[q].name)) .. " 이하" } end
@@ -229,7 +230,7 @@ function BagView.Build(page, f)
 		ns.db.ui.smeltQ = q
 		if autoSmeltOn() then ns.db.opt.autoSmelt = q end
 	end, "")
-	page.smeltPick:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 72, 0)
+	page.smeltPick:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 72, 44)
 	page.smeltPick.openUp = true
 	page.smeltPick.tipTitle = "분해 등급"
 	page.smeltPick.tipText = "일괄 분해와 자동 분해가 이 등급 이하의 장비만 분해합니다."
@@ -279,7 +280,7 @@ function BagView.Build(page, f)
 	local function autoFuseQ() return U.clamp(ns.db.ui.autoFuseQ or 5, 1, ns.MAX_QUALITY - 1) end
 	local function autoFuseOn() return (ns.db.opt.autoFuse or 0) > 0 end
 	page.fuseLabel = UI.Text(f, 12, "융합 등급")
-	page.fuseLabel:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 54)
+	page.fuseLabel:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 10)
 	page.fusePick = UI.Dropdown(f, 150, 32, function()
 		local out = {}
 		for q = 1, ns.MAX_QUALITY - 1 do out[#out + 1] = { q, ns.QText(q, ns.N(ns.QUALITY[q].name)) .. " 이상" } end
@@ -291,7 +292,7 @@ function BagView.Build(page, f)
 			if ns.Forge.AutoFuse() > 0 then ns.Fire("BAG") end
 		end
 	end, "")
-	page.fusePick:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 72, 44)
+	page.fusePick:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 72, 0)
 	page.fusePick.openUp = true
 	page.fusePick.tipTitle = "융합 등급"
 	page.fusePick.tipText = "일괄 융합과 자동 융합이 이 등급 이상의 장비만 융합합니다."
@@ -304,7 +305,7 @@ function BagView.Build(page, f)
 			return
 		end
 		UI.Confirm({ title = "일괄 융합", ok = "융합", style = "primary",
-			text = string.format("정말 %s 이상의 장비를 9개씩 일괄 융합하시겠습니까?\n재료로 쓴 장비는 사라집니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 쓰지 않습니다.",
+			text = string.format("정말 %s 이상의 장비를 9개씩 일괄 융합하시겠습니까?\n재료로 쓴 장비는 사라집니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 더 좋은 장비는 쓰지 않습니다.",
 				ns.QText(q, ns.N(ns.QUALITY[q].name))),
 			onOk = function()
 				local done = ns.Forge.FuseFrom(q)
@@ -318,7 +319,7 @@ function BagView.Build(page, f)
 	page.fuseGo.clickWhenOff = true
 	UI.Tip(page.fuseGo, function()
 		local q = autoFuseQ()
-		return UI.SimpleTip("일괄 융합", string.format("%s 이상의 장비를 같은 등급·같은 종류로 9개씩 지금 융합합니다. 낮은 등급부터 융합하고, 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 쓰지 않습니다.", ns.QText(q, ns.N(ns.QUALITY[q].name))))
+		return UI.SimpleTip("일괄 융합", string.format("%s 이상의 장비를 같은 등급·같은 종류로 9개씩 지금 융합합니다. 낮은 등급부터 융합하고, 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 더 좋은 장비는 쓰지 않습니다.", ns.QText(q, ns.N(ns.QUALITY[q].name))))
 	end, "TOP")
 	page.autoFuse = UI.Check(f, "자동 융합", autoFuseOn, function(v)
 		ns.db.opt.autoFuse = v and autoFuseQ() or 0
@@ -328,12 +329,12 @@ function BagView.Build(page, f)
 	page.autoFuse:SetPoint("LEFT", page.fuseGo, "RIGHT", 16, 0)
 	UI.Tip(page.autoFuse, function()
 		local q = autoFuseQ()
-		return UI.SimpleTip("자동 융합", string.format("켜 두면 상자를 열 때마다 %s 이상의 장비가 같은 등급·같은 종류로 9개 모이면 저절로 융합합니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 쓰지 않습니다.", ns.QText(q, ns.N(ns.QUALITY[q].name))))
+		return UI.SimpleTip("자동 융합", string.format("켜 두면 상자를 열 때마다 %s 이상의 장비가 같은 등급·같은 종류로 9개 모이면 저절로 융합합니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 더 좋은 장비는 쓰지 않습니다.", ns.QText(q, ns.N(ns.QUALITY[q].name))))
 	end, "TOP")
 	page.fusePick.tipTitle = "자동 융합 등급"
 	page.fusePick.tipText = "자동 융합이 이 등급 이상의 장비만 융합합니다."
 	UI.Tip(page.keepBench, function()
-		return UI.SimpleTip("대기 영웅의 장비 지키기", "켜면 파티 밖에서 기다리는 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비도 일괄 분해·자동 분해·융합에 쓰지 않습니다. 가방이 더 빨리 찰 수 있습니다.")
+		return UI.SimpleTip("대기 영웅의 장비 지키기", "켜면 파티 밖에서 기다리는 영웅에게 지금 더 좋은 장비는 분해와 융합에, 레벨을 올린 뒤 더 좋은 장비는 분해에 쓰지 않습니다. 가방이 더 빨리 찰 수 있습니다.")
 	end, "TOP")
 	UI.Tip(page.autoSmelt, function()
 		local q = ns.QUALITY[smeltQ()]
@@ -439,7 +440,7 @@ local MAT_KINDS_OF = {
 }
 local MAT_USE = {
 	mat_craft = "장비 '제작'에 씁니다", mat_gem = "장비 '보석'에 씁니다", mat_ench = "장비 '마법부여'에 씁니다",
-	mat_insc = "장비 '주문각인'에 씁니다", mat_seal = "[굴리기]로 장비 1개",
+	mat_insc = "장비 '주문각인'에 씁니다", mat_seal = "대장간 '행운의 인장'에 씁니다",
 }
 MatsView.KINDS_OF = MAT_KINDS_OF
 local ROW_H, ROW_STEP, LIST_Y, MAT_ROWS = 54, 58, -70, 6
@@ -526,33 +527,12 @@ function MatsView.Build(page, f)
 		end, "blue")
 		r.one:SetPoint("RIGHT", r.all, "LEFT", -6, 0)
 		r.one.clickWhenOff = true
-		-- seals: a bonus roll instead of fusing
-		r.roll = UI.Button(r, 2 * MAT_BTN + 6, 26, "", function()
-			if not ns.Forge.Unlocked("seal") then Unlock.Ask("seal") return end
-			local si = sealIndex(r.id)
-			local ok, it = ns.Forge.BonusRoll(si)
-			if UI.Try(ok, it) then ns.Toast("굴림 결과: " .. ns.Items.ColorName(it)) end
-			Main.Refresh()
-		end, "primary")
+		-- seals: unlocking the rolls (rolled on the forge's 행운의 인장)
+		r.roll = UI.Button(r, 2 * MAT_BTN + 6, 26, "", function() Unlock.Ask("seal") end, "primary")
 		r.roll:SetPoint("RIGHT", r.smelt, "LEFT", -6, 0)
 		r.roll.clickWhenOff = true
 		UI.Tip(r.roll, function()
-			local s = ns.SEAL[sealIndex(r.id) or 1]
-			local parts = {}
-			for q = 1, ns.MAX_QUALITY do
-				if (s.q[q] or 0) > 0 then parts[#parts + 1] = ns.QText(q, ns.N(ns.QUALITY[q].name) .. " " .. s.q[q] .. "%") end
-			end
-			local body = "인장 1개와 골드로 장비를 하나 얻습니다. 레벨은 지금까지 간 가장 높은 스테이지를 따릅니다. 영웅보다 레벨이 높은 장비는 영웅이 그 레벨이 될 때까지 가방에 남겨 둡니다.\n" .. table.concat(parts, "  ")
-			if not ns.Forge.Unlocked("seal") then
-				body = body .. "\n" .. U.col("ff9a7a", Unlock.Tip("seal"))
-			elseif ns.MatCount(s.mat) <= 0 then
-				body = body .. "\n" .. U.col("ff9a7a", "이 인장이 없습니다. 상자에서 얻을 수 있습니다.")
-			elseif ns.Items.BagFree() <= 0 then
-				body = body .. "\n" .. U.col("ff9a7a", "가방이 가득 찼습니다. 장비를 분해하거나 정리하면 굴릴 수 있습니다.")
-			elseif not ns.CanAfford(s.gold) then
-				body = body .. "\n" .. U.col("ff9a7a", string.format("골드가 부족합니다 (%s G 필요).", U.fmt(s.gold)))
-			end
-			return UI.SimpleTip("굴리기", body)
+			return UI.SimpleTip("굴리기 해금", "인장 1개와 골드로 장비를 하나 얻는 대장간 '행운의 인장'을 엽니다.\n" .. U.col("ff9a7a", Unlock.Tip("seal")))
 		end, "TOP")
 		r.isRow = true -- the same buttons on every row
 		page.matRows[i] = r
@@ -573,7 +553,8 @@ end
 function MatsView.Refresh(page)
 	local kinds = MAT_KINDS_OF[page.matTab]
 	page.matTabs:Select(page.matTab)
-	page.matNote:SetText(MAT_USE[page.matTab] .. " · 같은 재료 9개 → 다음 단계 1개 · 남는 재료는 골드로 분해")
+	-- (seals are not fused)
+	page.matNote:SetText(MAT_USE[page.matTab] .. (kinds.seal and "" or " · 같은 재료 9개 → 다음 단계 1개") .. " · 남는 재료는 골드로 분해")
 	page.autoFuse:SetOff(ns.Forge.MatFusionsReady(kinds) == 0)
 	local list = {}
 	for _, id in ipairs(ns.MAT_ORDER) do
@@ -607,24 +588,17 @@ function MatsView.Refresh(page)
 			end
 			r.smelt:SetBadge(not smelt and ns.Guide.CanUnlock("smelt"))
 			local seal = sealIndex(id)
-			r.roll:SetShown(seal ~= nil)
+			r.roll:SetShown(seal ~= nil and not ns.Forge.Unlocked("seal"))
 			r.one:SetShown(seal == nil and not top)
 			r.all:SetShown(seal == nil and not top)
 			if seal then
 				local s = ns.SEAL[seal]
 				r.sub:SetText("굴리면 장비 1개 · 비용 " .. U.fmt(s.gold) .. " G")
 				r.roll:SetBadge(ns.Guide.CanUnlock("seal"))
-				if ns.Forge.Unlocked("seal") then
-					local full = ns.Items.BagFree() <= 0
-					r.roll:SetStyle("primary")
-					r.roll:SetLabel(full and "가방이 가득 참" or ("굴리기 " .. U.fmt(s.gold) .. " G"))
-					r.roll:SetOff(full or not ns.CanAfford(s.gold))
-				else
-					local label, off, style = Unlock.Label("seal", "굴리기")
-					r.roll:SetStyle(style)
-					r.roll:SetLabel(label)
-					r.roll:SetOff(off)
-				end
+				local label, off, style = Unlock.Label("seal", "굴리기")
+				r.roll:SetStyle(style)
+				r.roll:SetLabel(label)
+				r.roll:SetOff(off)
 			elseif top then
 				r.sub:SetText("가장 높은 단계 (융합 없음)")
 			else

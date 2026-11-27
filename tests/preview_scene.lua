@@ -391,7 +391,15 @@ S.gem = function() mixedItem() ns.ForgeView.SetTarget(mixed) forge("gem") end
 S.gem_stress = function() stressRing() ns.ForgeView.SetTarget(stress) forge("gem") end
 S.ench = function() mixedItem() ns.ForgeView.SetTarget(mixed) forge("ench") end
 S.smelt = function() forge("smelt") end
-S.seal = function() local p = forge("mats") ns.MatsView.Open(p, { tab = "mat_seal" }) ns.Main.Refresh() end
+S.seal = function() forge("seal") end
+-- a seal just rolled: the piece it gave under the seals
+S.seal_rolled = function()
+	local p = forge("seal")
+	local it = ns.Items.New("chest", ns.Forge.SealLevel(), 5)
+	ns.Items.AddToBag(it)
+	p.forge.seal.result:Set(it, "낡은 행운의 인장")
+	ns.Main.Refresh()
+end
 S.insc_locked = function() forge("insc") end
 -- 강화: locked before the last difficulty is cleared; open with a piece at +12
 local function setProg(n)
@@ -486,6 +494,7 @@ S.mats_seal_some = function()
 	S.restore = function() for id, n in pairs(had) do ns.AddMat(id, n) end end
 end
 S.mats_seal_locked = locked("seal", function() local p = forge("mats") ns.MatsView.Open(p, { tab = "mat_seal" }) ns.Main.Refresh() end)
+S.seal_locked = locked("seal", function() forge("seal") end)
 S.gem_remove_locked = locked("remove", function() forge("gem") end)
 S.bag_smelt_locked = locked("smelt", function() ns.Main.SelectHero(db.party[2]) equip("bag") end)
 
