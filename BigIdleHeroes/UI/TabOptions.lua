@@ -115,11 +115,11 @@ local function build(page)
 	gm.factionName = UI.Text(gm, K.F_TITLE)
 	gm.factionName:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD + 50, -174)
 	gm.factionText = note(gm, K.PAD + 50, -194, "")
-	-- under the end of the faction's text
+	-- under the faction's text, at the right end of its row
 	gm.faction = UI.Button(gm, 96, 22, "진영 바꾸기", function()
 		ns.PickFaction(function() Main.ShowTab("options") end)
 	end, "dark")
-	gm.faction:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD + 50, -234)
+	gm.faction:SetPoint("TOPRIGHT", gm, "TOPRIGHT", -K.PAD, -234)
 	gm.head5 = section(gm, -272, "통계")
 	gm.rows = {}
 	local half = (W - 24) / 2
@@ -143,8 +143,8 @@ local function build(page)
 	end, "red")
 	gm.resetNote = note(gm, K.PAD, -408, "처음부터 다시 시작하려면 모든 진행 상황을 지웁니다. " ..
 		U.col("ff9a7a", "영웅, 장비, 골드, 룬, 진행도가 모두 사라지며 되돌릴 수 없습니다."))
-	-- under the end of the note
-	gm.reset:SetPoint("TOPLEFT", gm, "TOPLEFT", K.PAD, -448)
+	-- under the note, at the right end of its row
+	gm.reset:SetPoint("TOPRIGHT", gm, "TOPRIGHT", -K.PAD, -448)
 end
 
 local stats -- below

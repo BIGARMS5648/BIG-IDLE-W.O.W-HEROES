@@ -16,7 +16,8 @@
 -- cheapest runes stand nearest the first rune (the forge's: its experience
 -- rune first). A few lines join a branch in one piece (the rune under the
 -- first one to the fight branch, three runes each to the gold and
--- experience branches, the right half of the bag row to the chest branch). A rune needs the one before it at its top
+-- experience branches - the experience ones on the slant to its left -
+-- the right half of the bag row to the chest branch). A rune needs the one before it at its top
 -- level when both give the same, else at its first level. The clockwork
 -- runes of the monster, boss and act boss chests (13002, 15001, 1902001)
 -- cost a quarter, an eighth and an eighth of TBH's. The first rune gives
@@ -70,14 +71,14 @@ ns.RUNES = {
 	[15] = { n = "확장의 룬", x = 2, y = 4, m = 3, p = 13001, s = "MaxInventorySlot", v = { 1, 1, 1 }, c = { 100000, 110000, 120000 } },
 	[24] = { n = "지휘의 룬", x = 4, y = 0, m = 1, p = 27, s = "UnlockArrangeSlotCount", v = { 1 }, c = { 150000 } },
 	[304] = { n = "성장의 룬", x = -5, y = -1, m = 1, p = 26, q = 1, s = "AdditionalExpNormalMonster", v = { 1 }, c = { 15000 } },
-	[305] = { n = "성장의 룬", x = -1, y = -3, m = 3, p = 303, q = 1, s = "AdditionalExpActBoss", v = { 100, 100, 100 }, c = { 6000, 7000, 8000 } },
+	[305] = { n = "성장의 룬", x = -4, y = -4, m = 3, p = 303, q = 1, s = "AdditionalExpActBoss", v = { 100, 100, 100 }, c = { 6000, 7000, 8000 } },
 	[407] = { n = "방패의 룬", x = 5, y = -1, m = 5, p = 406, q = 1, s = "AllHeroArmorPercent", v = { 20, 20, 20, 20, 20 }, c = { 20000, 22000, 24000, 27000, 30000 } },
 	[130021] = { n = "윤활의 룬", x = 5, y = 1, m = 3, p = 13002, s = "ReduceAutoOpenNormalChestTime", v = { 3, 3, 3 }, c = { 5000, 10000, 15000 } },
 	[207] = { n = "재물의 룬", x = -5, y = 2, m = 5, p = 206, q = 1, s = "AdditionalGoldStageBoss", v = { 100, 100, 100, 100, 100 }, c = { 50000, 55000, 60000, 65000, 70000 } },
 	[1801] = { n = "확장의 룬", x = 1, y = 5, m = 3, p = 16, s = "MaxInventorySlot", v = { 1, 1, 1 }, c = { 1000000, 1200000, 1400000 } },
 	[1901] = { n = "확장의 룬", x = 0, y = 6, m = 3, p = 16, s = "MaxInventorySlot", v = { 1, 1, 1 }, c = { 1000000, 1200000, 1400000 } },
 	[307] = { n = "성장의 룬", x = -6, y = -1, m = 5, p = 304, s = "AdditionalExpStageBoss", v = { 100, 100, 100, 100, 100 }, c = { 50000, 55000, 60000, 65000, 70000 } },
-	[306] = { n = "성장의 룬", x = -1, y = -4, m = 5, p = 305, q = 1, s = "IncreaseExpAmount", v = { 50, 50, 50, 50, 50 }, c = { 30000, 50000, 70000, 90000, 110000 } },
+	[306] = { n = "성장의 룬", x = -5, y = -4, m = 5, p = 305, q = 1, s = "IncreaseExpAmount", v = { 50, 50, 50, 50, 50 }, c = { 30000, 50000, 70000, 90000, 110000 } },
 	[408] = { n = "전쟁의 룬", x = 5, y = -2, m = 5, p = 407, q = 1, s = "AllHeroAttackDamagePercent", v = { 30, 30, 30, 30, 30 }, c = { 20000, 22000, 24000, 27000, 30000 } },
 	[104] = { n = "정복의 룬", x = 6, y = 1, m = 5, p = 130021, q = 1, s = "DropChanceStageBossChestPercent", v = { 150, 150, 150, 150, 150 }, c = { 8000, 8500, 9000, 9500, 10000 } },
 	[1055] = { n = "개방의 룬", x = 5, y = 2, m = 1, p = 130021, q = 1, s = "OpenAllTypeChestAllAtOnce", v = { 1 }, c = { 10000 } },
@@ -88,7 +89,7 @@ ns.RUNES = {
 	[1903] = { n = "확장의 룬", x = 0, y = 7, m = 3, p = 1901, s = "MaxInventorySlot", v = { 1, 1, 1 }, c = { 1690000, 2030000, 2370000 } },
 	[308] = { n = "성장의 룬", x = -6, y = -2, m = 5, p = 307, q = 1, s = "IncreaseExpAmount", v = { 50, 50, 50, 50, 50 }, c = { 150000, 200000, 250000, 300000, 350000 } },
 	[309] = { n = "성장의 룬", x = -7, y = -1, m = 5, p = 307, s = "AdditionalExpStageBoss", v = { 500, 500, 500, 500, 500 }, c = { 200000, 220000, 240000, 260000, 280000 } },
-	[150021] = { n = "수련의 룬", x = -1, y = -5, m = 3, p = 306, q = 1, s = "OfflineRewardExpPercent", v = { 100, 100, 100 }, c = { 75000, 100000, 125000 } },
+	[150021] = { n = "수련의 룬", x = -6, y = -4, m = 3, p = 306, q = 1, s = "OfflineRewardExpPercent", v = { 100, 100, 100 }, c = { 75000, 100000, 125000 } },
 	[4031] = { n = "전쟁의 룬", x = 6, y = -2, m = 1, p = 408, q = 1, s = "AllHeroAttackDamage", v = { 1 }, c = { 30000 } },
 	[4061] = { n = "광분의 룬", x = 5, y = -3, m = 3, p = 408, q = 1, s = "AllHeroAttackSpeed", v = { 20, 20, 20 }, c = { 25000, 28000, 33000 } },
 	[105] = { n = "탐색의 룬", x = 6, y = 2, m = 5, p = 104, q = 1, s = "DropChanceNormalChestPercent", v = { 70, 70, 70, 70, 70 }, c = { 30000, 33000, 36000, 39000, 42000 } },

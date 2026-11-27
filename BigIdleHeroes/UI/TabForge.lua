@@ -1227,66 +1227,129 @@ end
 -- 행운의 인장: a row per seal (how many, the grades it rolls, [굴리기]),
 -- the level of the piece it gives, and the last piece rolled
 ------------------------------------------------------------------------
-local SEAL_ROW_H, SEAL_ROW_STEP = 62, 68
-local function buildSeal(page, f)
-	local p = { rows = {} }
-	p.head = UI.Section(f, W, "인장")
-	p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
-	for i, s in ipairs(ns.SEAL) do
-		local r = UI.Panel(f, W, SEAL_ROW_H, "card")
-		r:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -28 - (i - 1) * SEAL_ROW_STEP)
-		r.icon = UI.IconButton(r, 40)
-		r.icon:SetPoint("LEFT", r, "LEFT", 10, 0)
-		r.icon.data = s.mat
-		UI.Tip(r.icon, function(self) return ns.Items.MatTooltip(self.data) end)
-		r.name = UI.Text(r, 13)
-		r.name:SetPoint("TOPLEFT", r, "TOPLEFT", 60, -12)
-		r.name:SetWidth(W - 60 - 180)
-		r.name:SetWordWrap(false)
-		r.odds = UI.Text(r, 10)
-		r.odds:SetPoint("TOPLEFT", r, "TOPLEFT", 60, -36)
-		r.odds:SetWidth(W - 60 - 180)
-		r.odds:SetWordWrap(false)
-		r.go = UI.Button(r, 160, 32, "", function()
-			local ok, it = ns.Forge.BonusRoll(i)
-			if UI.Try(ok, it) then
-				ns.Toast("굴림 결과: " .. ns.Items.ColorName(it))
-				p.result:Set(it, ns.N(ns.MATS[s.mat].name))
-			end
-			Main.Refresh()
-		end, "primary")
-		r.go:SetPoint("RIGHT", r, "RIGHT", -12, 0)
-		r.go.clickWhenOff = true
-		UI.Tip(r.go, function()
-			local body = "인장 1개와 골드로 장비를 하나 얻습니다. 부위는 무작위이고, 영웅보다 레벨이 높은 장비는 영웅이 그 레벨이 될 때까지 가방에 남겨 둡니다."
-			if ns.MatCount(s.mat) <= 0 then
-				body = body .. "\n" .. U.col("ff9a7a", "이 인장이 없습니다. 상자에서 얻을 수 있습니다.")
-			elseif ns.Items.BagFree() <= 0 then
-				body = body .. "\n" .. U.col("ff9a7a", "가방이 가득 찼습니다. 장비를 분해하거나 정리하면 굴릴 수 있습니다.")
-			elseif not ns.CanAfford(s.gold) then
-				body = body .. "\n" .. U.col("ff9a7a", string.format("골드가 부족합니다. %s G가 필요합니다.", U.fmt(s.gold)))
-			end
-			return UI.SimpleTip("굴리기", body)
-		end, "TOP")
-		r.odds:SetText(qualityOdds(s.q))
-		p.rows[i] = r
+-- [굴리기]'s tooltip: what a roll does, and why it is off
+local function sealTip(s)
+	local body = "인장 1개와 골드로 장비를 하나 얻습니다. 부위는 무작위이고, 영웅보다 레벨이 높은 장비는 영웅이 그 레벨이 될 때까지 가방에 남겨 둡니다."
+	if ns.MatCount(s.mat) <= 0 then
+		body = body .. "\n" .. U.col("ff9a7a", "이 인장이 없습니다. 상자에서 얻을 수 있습니다.")
+	elseif ns.Items.BagFree() <= 0 then
+		body = body .. "\n" .. U.col("ff9a7a", "가방이 가득 찼습니다. 장비를 분해하거나 정리하면 굴릴 수 있습니다.")
+	elseif not ns.CanAfford(s.gold) then
+		body = body .. "\n" .. U.col("ff9a7a", string.format("골드가 부족합니다. %s G가 필요합니다.", U.fmt(s.gold)))
 	end
-	local y = -28 - #ns.SEAL * SEAL_ROW_STEP - 6
-	p.result = addResult(f, 0, y)
+	return UI.SimpleTip("굴리기", body)
+end
+-- a roll button's label and whether it is off
+local function sealButton(b, s)
+	local full = ns.Items.BagFree() <= 0
+	b:SetLabel(full and "가방이 가득 참" or ("굴리기  " .. U.fmt(s.gold) .. " G"))
+	b:SetOff(full or ns.MatCount(s.mat) <= 0 or not ns.CanAfford(s.gold))
+end
+local function gradeRGB(q)
+	local g = ns.QUALITY[q]
+	return U.rgb(g.hex or (g.grad and g.grad[1]) or "ffffff")
+end
+-- the grades a seal rolls, in order, with their shares (0..1)
+local function sealOdds(s)
+	local total, out = 0, {}
+	for q = 1, ns.MAX_QUALITY do total = total + (s.q[q] or 0) end
+	for q = 1, ns.MAX_QUALITY do
+		if (s.q[q] or 0) > 0 then out[#out + 1] = { q = q, share = s.q[q] / total } end
+	end
+	return out
+end
+local function pctText(share)
+	local v = share * 100
+	return (v >= 10 or v == math.floor(v)) and string.format("%d%%", math.floor(v + 0.5)) or string.format("%.1f%%", v)
+end
+
+-- a card per seal, side by side: its grades as bars, [굴리기] at the bottom
+local CARD_GAP = 8
+local function buildSealCards(f, roll)
+	local p = { cards = {} }
+	local cw = math.floor((W - 3 * CARD_GAP) / 4)
+	local ch = 272
+	for i, s in ipairs(ns.SEAL) do
+		local c = UI.Panel(f, cw, ch, "card")
+		c:SetPoint("TOPLEFT", f, "TOPLEFT", (i - 1) * (cw + CARD_GAP), -28)
+		c.icon = UI.IconButton(c, 44)
+		c.icon:SetPoint("TOP", c, "TOP", 0, -12)
+		c.icon.data = s.mat
+		UI.Tip(c.icon, function(self) return ns.Items.MatTooltip(self.data) end)
+		c.name = UI.Text(c, 12)
+		c.name:SetPoint("TOP", c, "TOP", 0, -64)
+		c.name:SetWidth(cw - 12)
+		c.name:SetJustifyH("CENTER")
+		c.name:SetWordWrap(false)
+		c.count = UI.Text(c, 11)
+		c.count:SetPoint("TOP", c, "TOP", 0, -82)
+		c.count:SetWidth(cw - 12)
+		c.count:SetJustifyH("CENTER")
+		UI.Color(c.count, UI.C.sub)
+		c.line = UI.Line(c, cw - 20, 0.45, 0.50, 0.66, 0.35)
+		c.line:SetPoint("TOP", c, "TOP", 0, -102)
+		c.lines = {}
+		for k, o in ipairs(sealOdds(s)) do
+			local y = -110 - (k - 1) * 24
+			local l = {}
+			l.name = UI.Text(c, 10, ns.QText(o.q, ns.N(ns.QUALITY[o.q].name)))
+			l.name:SetPoint("TOPLEFT", c, "TOPLEFT", 10, y)
+			l.pct = UI.Text(c, 10, pctText(o.share))
+			l.pct:SetPoint("TOPRIGHT", c, "TOPRIGHT", -10, y)
+			l.pct:SetJustifyH("RIGHT")
+			l.track = c:CreateTexture(nil, "ARTWORK")
+			l.track:SetPoint("TOPLEFT", c, "TOPLEFT", 10, y - 15)
+			l.track:SetSize(cw - 20, 3)
+			UI.Fill(l.track, 0.2, 0.23, 0.32, 1)
+			l.bar = c:CreateTexture(nil, "OVERLAY")
+			l.bar:SetPoint("TOPLEFT", l.track, "TOPLEFT", 0, 0)
+			l.bar:SetSize(math.max(1, (cw - 20) * o.share), 3)
+			local r, g, b = gradeRGB(o.q)
+			UI.Fill(l.bar, r, g, b, 1)
+			c.lines[k] = l
+		end
+		c.go = UI.Button(c, cw - 16, 30, "", function() roll(i) end, "primary")
+		c.go:SetPoint("BOTTOM", c, "BOTTOM", 0, 10)
+		c.go.clickWhenOff = true
+		UI.Tip(c.go, function() return sealTip(s) end, "TOP")
+		p.cards[i] = c
+	end
+	p.result = addResult(f, 0, -28 - ch - 12)
 	p.refresh = function()
-		p.head:Set("인장", string.format("나오는 장비 Lv %d", ns.Forge.SealLevel()))
-		local full = ns.Items.BagFree() <= 0
 		for i, s in ipairs(ns.SEAL) do
-			local r = p.rows[i]
+			local c = p.cards[i]
 			local m = ns.MATS[s.mat]
 			local count = ns.MatCount(s.mat)
-			r.icon:SetIconName(m.icon)
-			r.icon:SetQuality(m.q)
-			r.icon:SetDim(count <= 0)
-			r.name:SetText(ns.QText(m.q, ns.N(m.name)) .. "  " .. U.col(count > 0 and "ffffff" or "8a90a2", U.fmt(count) .. "개"))
-			r.go:SetLabel(full and "가방이 가득 참" or ("굴리기  " .. U.fmt(s.gold) .. " G"))
-			r.go:SetOff(full or count <= 0 or not ns.CanAfford(s.gold))
+			c.icon:SetIconName(m.icon)
+			c.icon:SetQuality(m.q)
+			c.icon:SetDim(count <= 0)
+			c.name:SetText(ns.QText(m.q, ns.N(m.name)))
+			c.count:SetText(U.col(count > 0 and "ffffff" or "8a90a2", U.fmt(count) .. "개"))
+			sealButton(c.go, s)
 		end
+	end
+	return p
+end
+
+-- 행운의 인장: the level a roll gives over the cards, the last roll under them
+local function buildSeal(page, f)
+	local p = {}
+	p.head = UI.Section(f, W, "인장")
+	p.head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+	local function roll(i)
+		local s = ns.SEAL[i]
+		local ok, it = ns.Forge.BonusRoll(i)
+		if UI.Try(ok, it) then
+			ns.Toast("굴림 결과: " .. ns.Items.ColorName(it))
+			p.result:Set(it, ns.N(ns.MATS[s.mat].name))
+		end
+		Main.Refresh()
+	end
+	local v = buildSealCards(f, roll)
+	p.cards, p.result = v.cards, v.result
+	p.refresh = function()
+		p.head:Set("인장", string.format("나오는 장비 Lv %d", ns.Forge.SealLevel()))
+		v.refresh()
 		p.result:Refresh()
 	end
 	return p

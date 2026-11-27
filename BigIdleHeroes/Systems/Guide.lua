@@ -45,7 +45,8 @@ end
 
 -- Does this hero have something to do (points to spend or a better item)?
 -- Whether unlocking a forge function now leads anywhere: its button lives
--- where it is used, so 추출 needs a filled socket and 굴리기 a lucky seal.
+-- where it is used, so 추출 needs a filled socket. (행운의 인장 is a forge
+-- function of its own: like the others, it is worth it from its level on.)
 function Guide.UnlockUseful(op)
 	if op == "remove" then
 		local function filled(it)
@@ -58,9 +59,6 @@ function Guide.UnlockUseful(op)
 		for _, id in ipairs(partyHeroes()) do
 			for _, it in pairs(ns.db.heroes[id].gear) do if filled(it) then return true end end
 		end
-		return false
-	elseif op == "seal" then
-		for _, s in ipairs(ns.SEAL) do if ns.MatCount(s.mat) > 0 then return true end end
 		return false
 	end
 	return true

@@ -8,8 +8,8 @@
 --   창고: the same grid over the storage (db.bank): "창고 3 / 20" [정리];
 --         click = back to the bag.
 --   재료: one tab per kind of material; a row per material with fusing
---         (9 → 1) and breaking down for gold; a seal's row unlocks rolling
---         (the rolls are the forge's 행운의 인장).
+--         (9 → 1) and breaking down for gold (seals are rolled on the
+--         forge's 행운의 인장).
 local _, ns = ...
 
 local floor, max, min = math.floor, math.max, math.min
@@ -527,13 +527,6 @@ function MatsView.Build(page, f)
 		end, "blue")
 		r.one:SetPoint("RIGHT", r.all, "LEFT", -6, 0)
 		r.one.clickWhenOff = true
-		-- seals: unlocking the rolls (rolled on the forge's 행운의 인장)
-		r.roll = UI.Button(r, 2 * MAT_BTN + 6, 26, "", function() Unlock.Ask("seal") end, "primary")
-		r.roll:SetPoint("RIGHT", r.smelt, "LEFT", -6, 0)
-		r.roll.clickWhenOff = true
-		UI.Tip(r.roll, function()
-			return UI.SimpleTip("굴리기 해금", "인장 1개와 골드로 장비를 하나 얻는 대장간 '행운의 인장'을 엽니다.\n" .. U.col("ff9a7a", Unlock.Tip("seal")))
-		end, "TOP")
 		r.isRow = true -- the same buttons on every row
 		page.matRows[i] = r
 	end
@@ -588,17 +581,11 @@ function MatsView.Refresh(page)
 			end
 			r.smelt:SetBadge(not smelt and ns.Guide.CanUnlock("smelt"))
 			local seal = sealIndex(id)
-			r.roll:SetShown(seal ~= nil and not ns.Forge.Unlocked("seal"))
 			r.one:SetShown(seal == nil and not top)
 			r.all:SetShown(seal == nil and not top)
 			if seal then
 				local s = ns.SEAL[seal]
 				r.sub:SetText("굴리면 장비 1개 · 비용 " .. U.fmt(s.gold) .. " G")
-				r.roll:SetBadge(ns.Guide.CanUnlock("seal"))
-				local label, off, style = Unlock.Label("seal", "굴리기")
-				r.roll:SetStyle(style)
-				r.roll:SetLabel(label)
-				r.roll:SetOff(off)
 			elseif top then
 				r.sub:SetText("가장 높은 단계 (융합 없음)")
 			else

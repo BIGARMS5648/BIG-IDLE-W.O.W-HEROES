@@ -654,8 +654,8 @@ do
 		confirmYes("break all down")
 		if ns.MatCount("bar1") ~= 0 then fail("confirming should break every bar down") end
 	end
-	-- the lucky seals: their rows on the materials only unlock rolling; the
-	-- rolls are the forge's own 행운의 인장, right under 주문각인
+	-- the lucky seals: the materials only break them down; rolling is the
+	-- forge's own 행운의 인장, right under 주문각인, unlocked there
 	Main.ShowTab("forge", { sub = "mats", tab = "mat_seal" })
 	-- only the seals in the bag have a row
 	for _, d in ipairs(ns.SEAL) do ns.AddMat(d.mat, -ns.MatCount(d.mat)) end
@@ -667,30 +667,43 @@ do
 	ns.db.forge.ops.seal = nil
 	Main.Refresh()
 	local s = rowOf("seal1")
-	if not (s and s.roll:IsVisible()) then
-		fail("a locked seal row should offer to unlock rolling")
-	else
-		if not (label(s.roll) or ""):find("해금", 1, true) then fail("a locked roll should offer to unlock it, got " .. tostring(label(s.roll))) end
-		if dotOn(s.roll) ~= ns.Guide.CanUnlock("seal") then fail("[굴리기 해금] should have the red dot exactly when it can unlock now") end
-		local before = #ns.db.bag
-		press("unlock the roll", s.roll)
-		confirmYes("unlock the roll")
-		if not ns.Forge.Unlocked("seal") then fail("the row's button should unlock 인장 굴리기") end
-		if #ns.db.bag ~= before then fail("unlocking must not roll a seal") end
-		Main.Refresh()
-		if s.roll:IsVisible() then fail("once unlocked, the materials' seal rows have no roll button") end
+	if not s then
+		fail("the seals' tab should list a seal in the bag")
+	elseif s.roll then
+		fail("the materials' seal rows have no unlock or roll button")
 	end
-	-- the forge list: 행운의 인장 right under 주문각인
+	-- the forge list: 행운의 인장 right under 주문각인; locked, a red dot
+	-- from the forge level it opens at (with the gold), seals or not
 	Main.ShowTab("forge", { sub = "seal" })
 	local fp = Main.Page("forge")
 	if fp.func ~= "seal" then fail("a link to 인장 굴리기 should open the forge's 행운의 인장: " .. tostring(fp.func)) end
 	local order = {}
 	for i, b in ipairs(fp.tabs.buttons) do order[b.key] = i end
 	if not (order.seal and order.insc and order.seal == order.insc + 1) then fail("행운의 인장 should sit right under 주문각인") end
-	-- a row per seal; [굴리기] gives one piece for one seal and its gold
+	local chip = fp.tabs:Get("seal")
+	local op = ns.Forge.OpDef("seal")
+	local level, sealsHad = ns.db.forge.level, ns.MatCount("seal1")
+	ns.AddMat("seal1", -sealsHad)
+	ns.AddGold(op.cost)
+	ns.db.forge.level = op.level
+	Main.Refresh()
+	if not dotOn(chip) then fail("at forge level " .. op.level .. " 행운의 인장 should have a red dot, even with no seal") end
+	ns.db.forge.level = op.level - 1
+	Main.Refresh()
+	if dotOn(chip) then fail("below forge level " .. op.level .. " 행운의 인장 has no red dot") end
+	ns.db.forge.level = level
+	ns.AddMat("seal1", sealsHad)
+	Main.Refresh()
+	if not fp.bodies.locked:IsVisible() then fail("a locked 행운의 인장 should show how to unlock it") end
+	press("unlock 행운의 인장", fp.lockView.go)
+	confirmYes("unlock 행운의 인장")
+	if not ns.Forge.Unlocked("seal") then fail("[해금하기] should unlock 행운의 인장") end
+	Main.Refresh()
+	if dotOn(chip) then fail("an unlocked 행운의 인장 has no red dot") end
+	-- a card per seal; [굴리기] gives one piece for one seal and its gold
 	local view = fp.forge.seal
-	local row = view.rows[1]
-	if not row:IsVisible() then fail("the 행운의 인장 page should show the seals") end
+	local row = view.cards[1]
+	if #view.cards ~= #ns.SEAL or not row:IsVisible() then fail("the 행운의 인장 page should show a card per seal") end
 	ns.AddMat("seal1", 2)
 	ns.AddGold(ns.SEAL[1].gold * 2)
 	Main.Refresh()
@@ -703,11 +716,6 @@ do
 	ns.AddMat("seal1", -ns.MatCount("seal1"))
 	Main.Refresh()
 	if not row.go.off then fail("[굴리기] should be off without that seal") end
-	-- locked: the page offers to unlock it
-	ns.db.forge.ops.seal = nil
-	Main.Refresh()
-	if not fp.bodies.locked:IsVisible() then fail("a locked 행운의 인장 should show how to unlock it") end
-	ns.db.forge.ops.seal = true
 	Main.ShowTab("forge", { sub = "mats", tab = "mat_seal" })
 	click("craft materials tab", labelIs("제작 재료"))
 	if fp.matTab ~= "mat_craft" or fp.func ~= "mats" then fail("picking another tab should show those materials: " .. tostring(fp.matTab) .. " " .. tostring(fp.func)) end
