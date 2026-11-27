@@ -420,10 +420,10 @@ end
 do
 	local R = ns.Runes
 	-- (401: the fight branch's first rune; 403 after it gives the same, so
-	-- it needs 401 at its top level; 11001 after 20 gives something else
-	-- and needs it at its first level)
+	-- it needs 401 at its top level; 402 after it gives something else and
+	-- needs it at its first level)
 	check(R.Available(ns.RUNE_FIRST) and not R.Available(401), "only the first rune is open at the start")
-	check(R.prev[403] == 401 and not R.byId[403].req and R.prev[11001] == 20 and R.Need(11001) == 1, "the runes this test walks")
+	check(R.prev[403] == 401 and not R.byId[403].req and R.prev[402] == 401 and R.Need(402) == 1, "the runes this test walks")
 	local ok, why = R.Buy(403)
 	check(not ok and why:find(ns.N(R.byId[401].name), 1, true) and why:find("3레벨", 1, true), "buying a closed rune names the rune and level it needs: " .. tostring(why))
 	local step, total = R.NextStepTo(403)
@@ -431,10 +431,10 @@ do
 		"the way to a rune: the runes before it to the levels they need, then the rune")
 	local g0 = db.gold
 	check(learnRune(1, 1) and R.Available(401) and not R.Available(403), "the first rune opens the ones after it")
+	check(learnRune(401, 1) and R.Available(402) and not R.Available(403), "a rune with a level named opens at that level")
 	check(learnRune(401, 2) and not R.Available(403), "a rune with no level named needs its rune before at the top")
 	check(learnRune(401, 3) and R.Available(403), "... and opens at it")
 	check(g0 - db.gold == R.Spent() and R.Spent() == total - R.Cost(403, 1), "gold spent is what the runes cost")
-	check(not R.Available(11001) and learnRune(20, 1) and R.Available(11001), "a rune with a level named opens at that level")
 	check(R.Text(1, R.Amount(1, 1)):find("+5%", 1, true), "a rune reads its amount")
 end
 check(learnRune(21) and ns.PartyLimit() == 4, "a 지휘 rune adds a party seat")
@@ -2064,12 +2064,12 @@ do
 	-- the clockwork runes keep their prices: 500, 10,000 and 50,000 gold
 	check(ns.Runes.Cost(13002, 1) == 500 and ns.Runes.Cost(15001, 1) == 10000 and ns.Runes.Cost(1902001, 1) == 50000,
 		"the clockwork runes cost 500, 10,000 and 50,000 gold")
-	-- the tree by kind: each rune's way to the first rune stays in its kind,
-	-- but for the unlock runes (off the experience branch); the gold,
-	-- experience, fight and chest branches leave the first rune on the
-	-- diagonals, the bag branch straight up, the forge branch to the left
+	-- the tree by kind: each rune's way to the first rune stays in its kind;
+	-- the gold, experience, fight and chest branches leave the first rune on
+	-- the diagonals, the bag branch straight up, the forge branch to the
+	-- left and the unlock branch to the right
 	do
-		local JOIN = { unlock = "exp" }
+		local JOIN = {}
 		local bad
 		for id, node in pairs(ns.Runes.byId) do
 			if id ~= ns.RUNE_FIRST then
@@ -2088,10 +2088,11 @@ do
 		local from = {}
 		for _, id in ipairs(ns.Runes.kids[ns.RUNE_FIRST]) do
 			local n = ns.Runes.byId[id]
-			from[n.group.key] = (n.x ~= 0 and n.y ~= 0) and "diagonal" or (n.y > 0 and "up" or (n.x < 0 and "left" or "other"))
+			from[n.group.key] = (n.x ~= 0 and n.y ~= 0) and "diagonal" or (n.y > 0 and "up" or (n.x < 0 and "left" or (n.x > 0 and "right" or "other")))
 		end
 		check(from.gold == "diagonal" and from.exp == "diagonal" and from.fight == "diagonal" and from.chest == "diagonal"
-			and from.bag == "up" and from.forge == "left", "the four kinds leave the first rune on the diagonals, the bag straight up, the forge to the left")
+			and from.bag == "up" and from.forge == "left" and from.unlock == "right",
+			"the four kinds leave the first rune on the diagonals, the bag straight up, the forge to the left, the unlocks to the right")
 		-- the forge's experience rune is its first: cheap to reach
 		local first
 		for _, id in ipairs(ns.Runes.kids[ns.RUNE_FIRST]) do

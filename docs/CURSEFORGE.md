@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.1
+BIG IDLE HEROES v1.1.2
 ```
 
 ---
@@ -82,7 +82,7 @@ Build a party of five heroes, send them along a route through the original game'
 - **The Forge**, a screen of its own: every function in a list on the left (fuse, craft, gems, enchant, inscription, enhance, salvage, lucky seals, materials), the work in the middle, and on the right the hero and item you work on plus a log of the latest results. Bags fill up, so auto-salvage helps keep them clear.
 - **Gems, enchanting and inscription** work like Task Bar Hero's cube: 45 gems, 33 enchanting reagents and 10 inscription scrolls, each giving its own stats by gear type (weapon, armor or accessory) at tiers 1 to 10. Better grades give higher tiers; nine of one material fuse into a random one of the next grade.
 - **Enhancement** (+1 to +20) once Mythic+ opens: every step raises an item's base stats; any try can fail (only the gold is lost): 65% a step up to +10, then lower and lower, down to 10% for the last step. Inheritance moves an enhanced item's steps onto a new item of the same slot, as 70% of the gold they are worth, with its gems, enchants and inscriptions; the old item is used up. The tooltip shows the step before the name (+10 Iron Helm); item icons show the item level.
-- **Rune tree**: 197 account-wide runes bought with gold, spreading from the center of a map you zoom with the mouse wheel and drag around, one branch per kind: gold, experience, combat and chest runes leave the center on the diagonals, bag runes go straight up, forge runes to the left. They open party seats, skill slots, offline rewards, automatic chest opening, bigger bags and more.
+- **Rune tree**: 197 account-wide runes bought with gold, spreading from the center of a map you zoom with the mouse wheel and drag around, one branch per kind: gold, experience, combat and chest runes leave the center on the diagonals, bag runes go straight up, forge runes to the left and unlock runes to the right. They open party seats, skill slots, offline rewards, automatic chest opening, bigger bags and more.
 - **Companions** that join the party.
 - **Offline rewards** for the time you were away: what your party earns hunting the highest stage it has cleared.
 - A **"Recommended" hint** always points at the next useful thing to do, and red dots show where something is waiting.
@@ -137,73 +137,10 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.1)
+## Changelog for this release (v1.1.2)
 
 ```
-- Balance: a smooth climb of about 250 hours from the first stage to the end
-  of Mythic+ (Normal 32 h, Heroic 43 h, Mythic 55 h, Mythic+ 120 h): every
-  stage a little longer than the one before, each raid boss about 1.5 times
-  its neighbours, heroes about two levels above the stages they push.
-- Stages harder than their numbers (ranged monsters, status effects, boss
-  skills) are made as easy as their neighbours, in the tower too.
-- Kill gold and experience follow the stage's level, not the monster's own
-  health, so neighbouring stages pay alike.
-- Mythic and Mythic+ stages have half as many monsters (a run of about
-  twenty minutes); their boss chests come half as often per boss, as many
-  per hour as before.
-- Holy paladins and holy priests heal more.
-- In the endless tower every hero reaches level 100 in about ten hours.
-- The endless tower's chests give the grade of their floor's range: Epic
-  below floor 20, then Legendary, Immortal (40), Transcendent (50), Divine
-  (80) and Celestial (90), now and then one grade lower. Fuse what a floor
-  gives into the next grade to climb on; past floor 80 the monsters grow
-  half as much a floor.
-- Automatic fusion: set a grade under the bag and turn it on, and every
-  nine pieces of that grade or higher are fused as chests are opened.
-  The bag shows 50 slots a page.
-- The Rune of Beginnings gives kill gold and experience +5% (instead of +1
-  attack) and belongs to none of the rune kinds.
-- A batch fusion button under the bag, beside the fusion grade: it fuses
-  every nine pieces of that grade or higher at once, the lower grades
-  first, after asking. The button shows how many fusions are ready.
-- The forge's fusion screen calls its "as many as possible" button
-  "batch fusion".
-- Shadow, holy and arcane damage on gems, enchants and inscriptions: nine
-  new gems (Void Crystal, Twilight Amethyst and Dark Obsidian for shadow;
-  Pearl of Light, Sunstone and Naaru Crystal for holy; Mana Agate, Mana Jade
-  and Mana Ruby for arcane) at the fire, frost and nature gems' grades, and
-  the enchanting reagents and scrolls that give fire, frost or nature damage
-  give these three too.
-- The rune tree by kind: on the same cells and lines, the gold, experience,
-  combat and chest runes each fill a branch that leaves the Rune of
-  Beginnings on a diagonal, and the bag runes the one going straight up;
-  the unlock runes branch off the experience runes. The forge runes leave
-  the center to the left, the forge experience rune first (about 4,000
-  gold away instead of 23 million). The cheapest runes of each kind stand
-  nearest the center.
-  Runes you have learned stay learned.
-- The act boss chest's clockwork rune costs 50,000 gold.
-- The recommendation suggests the Rune of Awakening (a third skill slot for
-  every hero) once a party hero reaches level 10, where the third skill
-  opens: beside the next hero and the boss chest's clockwork rune, the
-  cheapest first, and saved up for on its own once those are done.
-- Stage screen: the path's lines meet every stage's ring, and the bend down
-  to the second row sits beside the fifth stage, the whole path in the
-  middle of its panel; the bend's upright now shows in game too.
-- Hunters shoot their bow or gun for their skills as well, not a spell cast.
-- The moonkin's spells and bolts leave its hands, not its head.
-- Hero screen: the header shows the hero's face, its 3D model close and
-  turned a little to the right; the stats page ("Stats") shows the hero
-  standing as its 3D model, which turns round as you drag it, in the middle
-  of its equipment laid out as on the equipment screen (hover a slot to see
-  the item), in place of the specialization card and description.
-- Difficulty colours: Heroic purple, Mythic yellow and the endless tower
-  red, the same on the stage screen's cards and tooltips and on the battle
-  window's badge.
-- The battle window shows your gold in yellow, as the menu does.
-- The bottom menu's seven buttons are all one size, evenly spaced.
-- An empty bag or bank shows no message.
-- The menu and battle windows' shadows stay under them, so the windows no
-  longer turn dark at times.
-- Tauren stand a little taller; the Horde's moonkin is a little smaller.
+- Rune tree: the unlock runes (Rest, the two Command runes and Awakening)
+  leave the Rune of Beginnings to its right, in a row of four; the chest
+  storage rune that stood there moves above its rune.
 ```

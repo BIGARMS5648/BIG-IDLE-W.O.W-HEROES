@@ -524,7 +524,7 @@ S.runes_far_full = function()
 	ns.Runes.Invalidate()
 	show("runes", { rune = ns.RUNE_FIRST })
 	local p = ns.Main.Page("runes")
-	for _ = 1, 30 do p.zoomAt(-1) end
+	for _ = 1, (S.runesZoomOut or 30) do p.zoomAt(-1) end
 	S.restore = function()
 		for id in pairs(db.runes) do db.runes[id] = nil end
 		for id, lv in pairs(saved) do db.runes[id] = lv end
@@ -532,6 +532,8 @@ S.runes_far_full = function()
 		p.cam.z = 1 p.centerOn(ns.RUNE_FIRST)
 	end
 end
+-- the same at the map's usual zoom, round the first rune
+S.runes_near_full = function() S.runesZoomOut = 0 S.runes_far_full() S.runesZoomOut = nil end
 
 -- 스테이지
 -- the 전투 kind checked under the map: its runes stand out
