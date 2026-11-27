@@ -779,8 +779,12 @@ do
 		local low = ns.SocketMat("gem", 1)
 		if not sp.next.__shown then fail("with every gem at hand the gem tab should page its materials") end
 		if shown(low) then fail("a common gem should not be on the first page when better ones are at hand") end
-		press("next materials", sp.next)
-		if not shown(low) then fail("the next page should show the common gems") end
+		-- (seven lines of ten grades: the common ones a few pages on)
+		for _ = 1, 10 do
+			if shown(low) then break end
+			press("next materials", sp.next)
+		end
+		if not shown(low) then fail("the later pages should show the common gems") end
 		press("previous materials", sp.prev)
 	end
 	-- the "부여됨" line belongs to the piece it was set in: another piece
@@ -1655,7 +1659,7 @@ do
 			if ns.Bar.fxStats.missiles > flown then sawMissile = true end
 			for _, hs in ipairs(ns.Bar.hits) do
 				-- (a skill's hit, not a caster's smaller basic bolt: hs.size)
-				if not hit and hs.active and not hs.size and hs.fig:IsShown() and hs.fig:IsLoaded() and hitFiles[hs.fig.actor.__display] then
+				if not hit and hs.active and not hs.size and not hs.hand and hs.fig:IsShown() and hs.fig:IsLoaded() and hitFiles[hs.fig.actor.__display] then
 					local t = hs.tfig
 					hit = { scale = hs.fig.actor.__scale or 0, height = hs.fig.height, want = (t.fixedScale or (t.norm or 0.5) * (t.corrScale or 1)), tall = t.height,
 						parent = hs.fig:GetParent() }
@@ -2798,7 +2802,11 @@ do
 		local a = anims[n]
 		if a == 4 then walk = walk + 1 elseif a then other = other + 1 end
 	end
-	if walk + other > 10 and other > walk / 4 then fail(string.format("the walk should not be broken off between steps (%d walking, %d not)", walk, other)) end
+	if walk + other > 10 and other > walk / 4 then
+		local seq = {}
+		for n = (first or 2), (lastWalk or 1) do seq[#seq + 1] = tostring(anims[n]) end
+		fail(string.format("the walk should not be broken off between steps (%d walking, %d not: %s)", walk, other, table.concat(seq, " ")))
+	end
 end
 
 try("compartment", BigIdleHeroes_OnAddonCompartmentClick)

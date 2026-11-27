@@ -156,7 +156,8 @@ do
 		if not known(key, account) then bad[#bad + 1] = where .. ": " .. tostring(key) end
 	end
 	for cat, pool in pairs(ns.AFFIX_POOL) do for _, e in ipairs(pool) do need("옵션 " .. cat, e[1]) end end
-	for id, sm in pairs(ns.TBH.SOCKET_MATS) do
+	for id, m in pairs(ns.MATS) do
+		local sm = m.sock or {}
 		for _, cat in ipairs({ "weapon", "armor", "accessory", "any" }) do
 			for _, o in ipairs(sm[cat] or {}) do
 				local mod = ns.TBH.STAT_MODS[o[1]]

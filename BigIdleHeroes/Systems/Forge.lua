@@ -305,17 +305,14 @@ function Forge.PickForFusion(quality, cat)
 	return out
 end
 
--- Materials: 9 of one become 1 of the next tier of the same kind (for a
--- socket material: one of that kind's materials of the next grade).
+-- Materials: 9 of one become 1 of the next tier of the same kind (a
+-- socket material: of the same line, a grade up).
 function Forge.NextMat(id)
 	local m = ns.MATS[id]
 	if not m or m.tier >= ns.MAT_MAX_TIER[m.kind] then return nil end
-	local by = ns.SOCKET_MATS_BY[m.kind]
-	if by then
-		for t = m.tier + 1, ns.MAT_MAX_TIER[m.kind] do
-			if by[t] then return by[t] end
-		end
-		return nil
+	if m.line then
+		local up = ns.SocketMatUp(id)
+		return up and { up } or nil
 	end
 	return { m.kind .. (m.tier + 1) }
 end
@@ -355,15 +352,16 @@ function Forge.MatFusionsReady(kinds)
 	local n = 0
 	for _, kind in ipairs(MAT_KINDS) do
 		if not kinds or kinds[kind] then
-			local carry = 0
+			local carry = {}
 			for tier = 1, ns.MAT_MAX_TIER[kind] - 1 do
-				local k = 0
+				local made = {}
 				for i, id in ipairs(matsAt(kind, tier)) do
-					-- (what the tier below makes lands on one of these)
-					k = k + math.floor((ns.MatCount(id) + (i == 1 and carry or 0)) / Forge.FUSE_COUNT)
+					-- (what the tier below made of this line lands on this one)
+					local k = math.floor((ns.MatCount(id) + (carry[i] or 0)) / Forge.FUSE_COUNT)
+					made[i] = k
+					n = n + k
 				end
-				n = n + k
-				carry = k
+				carry = made
 			end
 		end
 	end

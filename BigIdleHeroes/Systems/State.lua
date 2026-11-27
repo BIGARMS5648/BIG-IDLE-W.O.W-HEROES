@@ -1,7 +1,7 @@
 -- Saved data: defaults, migration, repair of missing fields and the gold purse.
 local _, ns = ...
 
-local DB_VERSION = 7
+local DB_VERSION = 8
 
 -- the runes before version 7: id = { top level, gold of level 1, growth per level }
 local OLD_RUNE = {
@@ -316,6 +316,45 @@ function ns.InitDB()
 	for _, h in pairs(db.heroes) do
 		if type(h) == "table" and type(h.gear) == "table" then
 			for _, it in pairs(h.gear) do retype(it) end
+		end
+	end
+	-- version 8: socket materials in lines (Data/Items.lua SOCKET_LINES): an
+	-- old one becomes the nearest line of its grade (an old scroll's count is
+	-- shared over the lines); what is set in gear keeps its stat, only the
+	-- material it names (its icon) is renamed
+	if from < 8 then
+		local REN = ns.SOCKET_MAT_RENAMED
+		if type(db.mats) == "table" then
+			for old, to in pairs(REN) do
+				local n = tonumber(db.mats[old]) or 0
+				db.mats[old] = nil
+				if n > 0 then
+					local list = type(to) == "table" and to or { to }
+					for i = 1, n do
+						local id = list[(i - 1) % #list + 1]
+						db.mats[id] = (db.mats[id] or 0) + 1
+					end
+				end
+			end
+		end
+		local function renameSet(it)
+			if type(it) ~= "table" then return end
+			for _, f in pairs(ns.SOCKET_FIELD) do
+				if type(it[f]) == "table" then
+					for _, e in ipairs(it[f]) do
+						local to = type(e) == "table" and REN[e[4]]
+						if to then e[4] = type(to) == "table" and to[1] or to end
+					end
+				end
+			end
+		end
+		for _, list in ipairs({ db.bag, db.bank }) do
+			if type(list) == "table" then for _, it in ipairs(list) do renameSet(it) end end
+		end
+		for _, h in pairs(db.heroes) do
+			if type(h) == "table" and type(h.gear) == "table" then
+				for _, it in pairs(h.gear) do renameSet(it) end
+			end
 		end
 	end
 	-- every item checked: values put back in range, broken stats dropped;

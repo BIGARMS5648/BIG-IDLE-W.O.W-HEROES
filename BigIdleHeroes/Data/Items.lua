@@ -190,8 +190,8 @@ ns.AFFIX_POOL = {
 }
 
 -- Sockets (TBH's cube): 보석 세공 = 장식, 마법부여 = 세공, 주문각인 = 각인.
--- Each material gives what its TBH counterpart gives (Data/TBH.lua
--- SOCKET_MATS): per gear group, one of its stats at one of its tiers.
+-- Each material gives its line's stat for the gear group, at one of its
+-- tiers (ns.SOCKET_LINES below).
 ns.SOCKET = {
 	gem  = { name = "보석 세공", mat = "gem", short = "보석" },
 	ench = { name = "마법부여", mat = "dust", short = "마법부여" },
@@ -298,109 +298,17 @@ mat("cloth2", "cloth", 2, "양모 옷감", "INV_Fabric_Wool_01")
 mat("cloth3", "cloth", 3, "비단 옷감", "INV_Fabric_Silk_01")
 mat("cloth4", "cloth", 4, "마법 옷감", "INV_Fabric_Mageweave_01")
 mat("cloth5", "cloth", 5, "룬무늬 옷감", "INV_Fabric_PurpleFire_01")
--- Socket materials: TBH's, one for one (Data/TBH.lua SOCKET_MATS), under
--- the names of the game's gems, enchanting reagents and rune scrolls.
-local SOCKET_MAT = {
-	-- 보석 (장식)
-	[110001] = { "호안석", "INV_Misc_Gem_Topaz_02" },
-	[110002] = { "하급 월장석", "INV_Misc_Gem_Pearl_03" },
-	[110003] = { "공작석", "INV_Misc_Gem_Emerald_03" },
-	[110004] = { "이끼 마노", "INV_Misc_Gem_Emerald_02" },
-	[110005] = { "그림자석", "INV_Misc_Gem_Amethyst_01" },
-	[111001] = { "흑요석 조각", "INV_Misc_Gem_Variety_01" },
-	[111002] = { "작고 빛나는 진주", "INV_Misc_Gem_Pearl_01" },
-	[111003] = { "비취", "INV_Misc_Gem_Emerald_01" },
-	[111004] = { "황수정", "INV_Misc_Gem_Opal_02" },
-	[112001] = { "별루비", "INV_Misc_Gem_Ruby_02" },
-	[112002] = { "푸른 사파이어", "INV_Misc_Gem_Sapphire_02" },
-	[112003] = { "큰 오팔", "INV_Misc_Gem_Opal_01" },
-	[112004] = { "거대한 에메랄드", "INV_Misc_Gem_Variety_02" },
-	[112005] = { "그림자 드레나이트", "INV_Misc_Gem_Amethyst_02" },
-	[113001] = { "신비한 수정", "INV_Misc_Gem_Crystal_02" },
-	[113002] = { "검은 진주", "INV_Misc_Gem_Pearl_02" },
-	[113003] = { "남옥", "INV_Misc_Gem_Crystal_01" },
-	[113004] = { "피의 석류석", "INV_Misc_Gem_Bloodstone_01" },
-	[114001] = { "아제로스 다이아몬드", "INV_Misc_Gem_Diamond_01" },
-	[114002] = { "새벽의 돌", "INV_Misc_Gem_Topaz_01" },
-	[114003] = { "엘룬의 별", "INV_Misc_Gem_Sapphire_01" },
-	[114004] = { "무지갯빛 진주", "INV_Misc_Gem_Pearl_03" },
-	[115001] = { "밤눈", "INV_Misc_Gem_Amethyst_03" },
-	[115002] = { "고귀한 토파즈", "INV_Misc_Gem_Topaz_03" },
-	[115003] = { "살아있는 루비", "INV_Misc_Gem_Ruby_01" },
-	[115004] = { "하늘빛 사파이어", "INV_Misc_Gem_Sapphire_03" },
-	[116001] = { "사자의 눈", "INV_Misc_Gem_Opal_03" },
-	[116002] = { "검은 다이아몬드", "INV_Misc_Gem_Diamond_02" },
-	[116003] = { "바다물보라 에메랄드", "INV_Misc_Gem_Emerald_02" },
-	[116004] = { "어둠노래 자수정", "INV_Misc_Gem_Amethyst_02" },
-	[117001] = { "황금 진주", "INV_Misc_Gem_Pearl_01" },
-	[117002] = { "용의 눈", "INV_Misc_Gem_Bloodstone_02" },
-	[118001] = { "악몽의 눈물", "INV_Misc_Gem_Crystal_03" },
-	[118002] = { "산의 피", "INV_Misc_Gem_Bloodstone_03" },
-	[119001] = { "대지폭풍 다이아몬드", "INV_Misc_Gem_Diamond_01" },
-	[119002] = { "하늘불꽃 다이아몬드", "INV_Misc_Gem_Diamond_02" },
-	-- (not TBH's: the shadow, holy and arcane gems added below)
-	[110006] = { "공허 수정", "INV_Misc_Gem_Amethyst_03" },
-	[110007] = { "빛의 진주", "INV_Misc_Gem_Stone_01" },
-	[110008] = { "마나 마노", "INV_Misc_Gem_Crystal_03" },
-	[112006] = { "황혼의 자수정", "INV_Misc_Gem_Amethyst_01" },
-	[112007] = { "태양석", "INV_Misc_Gem_01" },
-	[112008] = { "마나 비취", "INV_Misc_Gem_Emerald_01" },
-	[115005] = { "어둠의 흑요석", "INV_Misc_Gem_03" },
-	[115006] = { "나루의 결정", "INV_Misc_Gem_02" },
-	[115007] = { "마나 루비", "INV_Misc_Gem_Ruby_03" },
-	-- 마법부여 재료 (세공)
-	[120001] = { "이상한 가루", "INV_Enchant_DustStrange" },
-	[120002] = { "하급 마법 정수", "INV_Enchant_EssenceMagicSmall" },
-	[120003] = { "작은 빛나는 결정", "INV_Enchant_ShardGlimmeringSmall" },
-	[121001] = { "영혼 가루", "INV_Enchant_DustSoul" },
-	[121002] = { "상급 마법 정수", "INV_Enchant_EssenceMagicLarge" },
-	[121003] = { "하급 별의 정수", "INV_Enchant_EssenceAstralSmall" },
-	[121004] = { "큰 빛나는 결정", "INV_Enchant_ShardGlimmeringLarge" },
-	[122001] = { "환상 가루", "INV_Enchant_DustVision" },
-	[122002] = { "상급 별의 정수", "INV_Enchant_EssenceAstralLarge" },
-	[122003] = { "하급 신비의 정수", "INV_Enchant_EssenceMysticalSmall" },
-	[122004] = { "작은 광채 결정", "INV_Enchant_ShardGlowingSmall" },
-	[123001] = { "꿈 가루", "INV_Enchant_DustDream" },
-	[123002] = { "상급 신비의 정수", "INV_Enchant_EssenceMysticalLarge" },
-	[123003] = { "하급 황천의 정수", "INV_Enchant_EssenceNetherSmall" },
-	[123004] = { "큰 광채 결정", "INV_Enchant_ShardGlowingLarge" },
-	[124001] = { "환영 가루", "INV_Enchant_DustIllusion" },
-	[124002] = { "상급 황천의 정수", "INV_Enchant_EssenceNetherLarge" },
-	[124003] = { "하급 영원의 정수", "INV_Enchant_EssenceEternalSmall" },
-	[124004] = { "작은 찬란한 결정", "INV_Enchant_ShardRadientSmall" },
-	[125001] = { "상급 영원의 정수", "INV_Enchant_EssenceEternalLarge" },
-	[125002] = { "큰 찬란한 결정", "INV_Enchant_ShardRadientLarge" },
-	[125003] = { "작은 눈부신 결정", "INV_Enchant_ShardBrilliantSmall" },
-	[125004] = { "큰 눈부신 결정", "INV_Enchant_ShardBrilliantLarge" },
-	[126001] = { "연결의 결정", "INV_Enchant_ShardNexusLarge" },
-	[126002] = { "신비한 가루", "INV_Enchant_DustIllusion" },
-	[126003] = { "하급 세계의 정수", "INV_Enchant_EssenceEternalSmall" },
-	[126004] = { "상급 세계의 정수", "INV_Enchant_EssenceEternalLarge" },
-	[127001] = { "공허 결정", "INV_Enchant_ShardNexusLarge" },
-	[127002] = { "큰 프리즘 조각", "INV_Enchant_ShardBrilliantLarge" },
-	[128001] = { "무한의 가루", "INV_Enchant_DustDream" },
-	[128002] = { "우주의 정수", "INV_Enchant_EssenceMysticalLarge" },
-	[129001] = { "심연의 결정", "INV_Enchant_ShardNexusLarge" },
-	[129002] = { "천상의 조각", "INV_Enchant_ShardBrilliantLarge" },
-	-- 주문서 (주문각인)
-	[130001] = { "희미한 주문서", "INV_Scroll_01" },
-	[131001] = { "선명한 주문서", "INV_Scroll_02" },
-	[132001] = { "정교한 주문서", "INV_Scroll_03" },
-	[133001] = { "고대 주문서", "INV_Scroll_04" },
-	[134001] = { "용의 주문서", "INV_Scroll_05" },
-	[135001] = { "티탄 주문서", "INV_Scroll_06" },
-	[136001] = { "별빛 주문서", "INV_Scroll_05" },
-	[137001] = { "신성한 주문서", "INV_Scroll_04" },
-	[138001] = { "천상의 주문서", "INV_Scroll_06" },
-	[139001] = { "태초의 주문서", "INV_Scroll_03" },
-}
--- Not as TBH: shadow, holy and arcane damage (TBH's materials know only
--- physical, fire, cold and lightning). Their stat mods are fire's; every
--- enchanting reagent and scroll that gives fire, frost or nature damage
--- gives these three too, at the same tiers; and nine gems of their own sit
--- at the grades of the fire, frost and nature gems (1, 3 and 6), each with
--- its school's damage on weapons.
+-- Socket materials (not TBH's): lines of ten grades. A line gives the same
+-- stats at every grade, one for each gear group and never one twice; its
+-- grade sets their tier (weapon: one above the grade; armour and
+-- accessory: the grade; a scroll: the grade to two above, at random). Nine
+-- of a line fuse into one of the same line a grade up (Forge.NextMat).
+-- 보석 = the schools (damage, its defence, a stat of its own), 마법부여 =
+-- the basics, 주문서 = the rarer ones. id = kind .. (base + line * 100 +
+-- grade), e.g. gem300103 = 정교한 루비.
 do
+	-- the shadow, holy and arcane damage stat mods (TBH has only physical,
+	-- fire, cold and lightning): fire's numbers
 	local T = ns.TBH
 	local NEW = { 902801, 902901, 903001 }
 	for i, stat in ipairs({ "ShadowDamagePercent", "HolyDamagePercent", "ArcaneDamagePercent" }) do
@@ -408,63 +316,186 @@ do
 		for t, r in ipairs(T.STAT_MODS[102501]) do m[t] = { r[1], r[2] } end
 		T.STAT_MODS[NEW[i]] = m
 	end
-	local ELEMENT = { FireDamagePercent = true, ColdDamagePercent = true, LightningDamagePercent = true }
-	for _, sm in pairs(T.SOCKET_MATS) do
-		if sm.kind ~= "gem" then
-			for _, cat in ipairs({ "weapon", "armor", "accessory", "any" }) do
-				local l = sm[cat]
-				local first
-				for _, o in ipairs(l or {}) do
-					if not first and ELEMENT[T.STAT_MODS[o[1]].stat] then first = o end
+end
+-- the stat mod (Data/TBH.lua STAT_MODS) each of our stats is read from
+local SOCKET_MOD = {
+	dmg_fire = 102501, dmg_frost = 102601, dmg_nature = 102701, dmg_phys = 102401,
+	dmg_shadow = 902801, dmg_holy = 902901, dmg_arcane = 903001,
+	res_fire = 101201, res_frost = 101301, res_nature = 101401, res_shadow = 101501, allres = 105201,
+	atk = 100101, atkPct = 100102, aspd = 100201, cast = 104901, crit = 100302, critdmg = 100401,
+	dmg_all = 100901, multi = 102001, cdr = 100701, move = 100801,
+	hp = 100501, hpPct = 100502, armor = 100601, armorPct = 100602, dodge = 101601, block = 101701,
+	dr = 103401, absorb = 104001, regen = 102301, hph = 103301, hpk = 105301, leech = 102101, heal = 105901,
+}
+-- the grades' words, as in every material's name (희미한 루비, 고대 가루)
+ns.SOCKET_GRADE_WORD = { "희미한", "선명한", "정교한", "고대", "용의", "티탄", "별빛", "신성한", "천상의", "태초의" }
+-- each line: its name, the noun after the grade's word, icons (spread over
+-- the grades), and its stat for weapons, armour and accessories
+ns.SOCKET_LINES = {
+	gem = { base = 300000, lines = {
+		{ name = "화염", noun = "루비", icons = { "INV_Misc_Gem_Ruby_02", "INV_Misc_Gem_Ruby_01", "INV_Misc_Gem_Ruby_03" },
+			weapon = "dmg_fire", armor = "res_fire", accessory = "atk" },
+		{ name = "냉기", noun = "사파이어", icons = { "INV_Misc_Gem_Sapphire_02", "INV_Misc_Gem_Sapphire_01", "INV_Misc_Gem_Sapphire_03" },
+			weapon = "dmg_frost", armor = "res_frost", accessory = "crit" },
+		{ name = "자연", noun = "에메랄드", icons = { "INV_Misc_Gem_Emerald_03", "INV_Misc_Gem_Emerald_01", "INV_Misc_Gem_Emerald_02" },
+			weapon = "dmg_nature", armor = "res_nature", accessory = "cast" },
+		{ name = "물리", noun = "토파즈", icons = { "INV_Misc_Gem_Topaz_02", "INV_Misc_Gem_Topaz_01", "INV_Misc_Gem_Topaz_03" },
+			weapon = "dmg_phys", armor = "hp", accessory = "cdr" },
+		{ name = "암흑", noun = "자수정", icons = { "INV_Misc_Gem_Amethyst_01", "INV_Misc_Gem_Amethyst_02", "INV_Misc_Gem_Amethyst_03" },
+			weapon = "dmg_shadow", armor = "res_shadow", accessory = "leech" },
+		{ name = "신성", noun = "진주", icons = { "INV_Misc_Gem_Pearl_03", "INV_Misc_Gem_Pearl_01", "INV_Misc_Gem_Pearl_02" },
+			weapon = "dmg_holy", armor = "regen", accessory = "heal" },
+		{ name = "비전", noun = "다이아몬드", icons = { "INV_Misc_Gem_Diamond_01", "INV_Misc_Gem_Crystal_02", "INV_Misc_Gem_Diamond_02" },
+			weapon = "dmg_arcane", armor = "allres", accessory = "critdmg" },
+	} },
+	dust = { base = 310000, lines = {
+		{ name = "힘", noun = "가루", icons = { "INV_Enchant_DustStrange", "INV_Enchant_DustSoul", "INV_Enchant_DustVision", "INV_Enchant_DustDream", "INV_Enchant_DustIllusion" },
+			weapon = "atkPct", armor = "armor", accessory = "hp" },
+		{ name = "신속", noun = "조각", icons = { "INV_Enchant_ShardGlimmeringSmall", "INV_Enchant_ShardGlowingSmall", "INV_Enchant_ShardRadientSmall", "INV_Enchant_ShardBrilliantSmall" },
+			weapon = "aspd", armor = "dodge", accessory = "move" },
+		{ name = "정밀", noun = "결정", icons = { "INV_Enchant_ShardGlimmeringLarge", "INV_Enchant_ShardGlowingLarge", "INV_Enchant_ShardRadientLarge", "INV_Enchant_ShardBrilliantLarge", "INV_Enchant_ShardNexusLarge" },
+			weapon = "crit", armor = "block", accessory = "critdmg" },
+		{ name = "활력", noun = "정수", icons = { "INV_Enchant_EssenceMagicSmall", "INV_Enchant_EssenceMagicLarge", "INV_Enchant_EssenceAstralSmall", "INV_Enchant_EssenceAstralLarge", "INV_Enchant_EssenceMysticalSmall", "INV_Enchant_EssenceMysticalLarge", "INV_Enchant_EssenceNetherSmall", "INV_Enchant_EssenceNetherLarge", "INV_Enchant_EssenceEternalSmall", "INV_Enchant_EssenceEternalLarge" },
+			weapon = "hph", armor = "absorb", accessory = "regen" },
+	} },
+	scroll = { base = 320000, lines = {
+		{ name = "파괴", noun = "파괴 주문서", icons = { "INV_Scroll_04" }, weapon = "dmg_all", armor = "dr", accessory = "hpk" },
+		{ name = "연속", noun = "연속 주문서", icons = { "INV_Scroll_05" }, weapon = "multi", armor = "armorPct", accessory = "aspd" },
+		{ name = "생명", noun = "생명 주문서", icons = { "INV_Scroll_01" }, weapon = "leech", armor = "hpPct", accessory = "heal" },
+		{ name = "시간", noun = "시간 주문서", icons = { "INV_Scroll_03" }, weapon = "cdr", armor = "allres", accessory = "move" },
+	} },
+}
+ns.SOCKET_MATS_BY = { gem = {}, dust = {}, scroll = {} } -- [kind][grade] = { id, ... } in line order
+do
+	local GROUPS = { "weapon", "armor", "accessory" }
+	for _, kind in ipairs({ "gem", "dust", "scroll" }) do
+		local def = ns.SOCKET_LINES[kind]
+		for grade = 1, 10 do
+			ns.SOCKET_MATS_BY[kind][grade] = {}
+			for li, line in ipairs(def.lines) do
+				local id = kind .. (def.base + li * 100 + grade)
+				local icon = line.icons[math.ceil(grade * #line.icons / 10)]
+				mat(id, kind, grade, ns.SOCKET_GRADE_WORD[grade] .. " " .. line.noun, icon)
+				local m = ns.MATS[id]
+				m.q, m.line = grade, li
+				-- { stat mod, lowest tier, highest tier } for each gear group
+				m.sock = {}
+				for _, g in ipairs(GROUPS) do
+					local lo, hi = grade, grade
+					if kind == "scroll" then hi = math.min(10, grade + 2)
+					elseif g == "weapon" then lo = math.min(10, grade + 1) hi = lo end
+					m.sock[g] = { { SOCKET_MOD[line[g]], lo, hi } }
 				end
-				if first then
-					for _, mod in ipairs(NEW) do l[#l + 1] = { mod, first[2], first[3] } end
-				end
+				table.insert(ns.SOCKET_MATS_BY[kind][grade], id)
 			end
 		end
 	end
-	-- { grade, weapon tier, armour and accessory tier }, then each school's
-	-- damage, armour and accessory stats (암흑: 암흑 저항, 생명력 흡수;
-	-- 신성: 초당 생명력 회복, 치유량; 비전: 모든 원소 저항, 치명타 피해)
-	local GRADES = { { 110006, 1, 2, 1 }, { 112006, 3, 3, 3 }, { 115005, 6, 7, 6 } }
-	local SCHOOLS = { { 902801, 101501, 102101 }, { 902901, 102301, 105901 }, { 903001, 105201, 100401 } }
-	for _, g in ipairs(GRADES) do
-		for i, sc in ipairs(SCHOOLS) do
-			T.SOCKET_MATS[g[1] + i - 1] = { kind = "gem", grade = g[2],
-				weapon = { { sc[1], g[3], g[3] } }, armor = { { sc[2], g[4], g[4] } }, accessory = { { sc[3], g[4], g[4] } } }
-		end
-	end
 end
+-- the material of a line a grade up (nil at the top)
+function ns.SocketMatUp(id)
+	local m = ns.MATS[id]
+	if not m or not m.line or m.tier >= 10 then return nil end
+	return ns.SOCKET_MATS_BY[m.kind][m.tier + 1][m.line]
+end
+-- (saves from before the lines: each old material as the nearest line of
+-- its grade; an old scroll's count is shared over the four lines)
+ns.SOCKET_MAT_RENAMED = {
+	gem110001 = "gem300101", -- 호안석
+	gem110002 = "gem300201", -- 하급 월장석
+	gem110003 = "gem300301", -- 공작석
+	gem110004 = "gem300101", -- 이끼 마노
+	gem110005 = "gem300401", -- 그림자석
+	gem110006 = "gem300501", -- 공허 수정
+	gem110007 = "gem300601", -- 빛의 진주
+	gem110008 = "gem300701", -- 마나 마노
+	gem111001 = "gem300102", -- 흑요석 조각
+	gem111002 = "gem300502", -- 작고 빛나는 진주
+	gem111003 = "gem300102", -- 비취
+	gem111004 = "gem300102", -- 황수정
+	gem112001 = "gem300103", -- 별루비
+	gem112002 = "gem300203", -- 푸른 사파이어
+	gem112003 = "gem300303", -- 큰 오팔
+	gem112004 = "gem300503", -- 거대한 에메랄드
+	gem112005 = "gem300403", -- 그림자 드레나이트
+	gem112006 = "gem300503", -- 황혼의 자수정
+	gem112007 = "gem300603", -- 태양석
+	gem112008 = "gem300703", -- 마나 비취
+	gem113001 = "gem300604", -- 신비한 수정
+	gem113002 = "gem300204", -- 검은 진주
+	gem113003 = "gem300104", -- 남옥
+	gem113004 = "gem300104", -- 피의 석류석
+	gem114001 = "gem300705", -- 아제로스 다이아몬드
+	gem114002 = "gem300105", -- 새벽의 돌
+	gem114003 = "gem300105", -- 엘룬의 별
+	gem114004 = "gem300305", -- 무지갯빛 진주
+	gem115001 = "gem300706", -- 밤눈
+	gem115002 = "gem300306", -- 고귀한 토파즈
+	gem115003 = "gem300106", -- 살아있는 루비
+	gem115004 = "gem300206", -- 하늘빛 사파이어
+	gem115005 = "gem300506", -- 어둠의 흑요석
+	gem115006 = "gem300606", -- 나루의 결정
+	gem115007 = "gem300706", -- 마나 루비
+	gem116001 = "gem300107", -- 사자의 눈
+	gem116002 = "gem300707", -- 검은 다이아몬드
+	gem116003 = "gem300507", -- 바다물보라 에메랄드
+	gem116004 = "gem300407", -- 어둠노래 자수정
+	gem117001 = "gem300208", -- 황금 진주
+	gem117002 = "gem300708", -- 용의 눈
+	gem118001 = "gem300109", -- 악몽의 눈물
+	gem118002 = "gem300509", -- 산의 피
+	gem119001 = "gem300110", -- 대지폭풍 다이아몬드
+	gem119002 = "gem300710", -- 하늘불꽃 다이아몬드
+	dust120001 = "dust310101", -- 이상한 가루
+	dust120002 = "dust310101", -- 하급 마법 정수
+	dust120003 = "dust310201", -- 작은 빛나는 결정
+	dust121001 = "dust310302", -- 영혼 가루
+	dust121002 = "dust310102", -- 상급 마법 정수
+	dust121003 = "dust310102", -- 하급 별의 정수
+	dust121004 = "dust310202", -- 큰 빛나는 결정
+	dust122001 = "dust310303", -- 환상 가루
+	dust122002 = "dust310103", -- 상급 별의 정수
+	dust122003 = "dust310403", -- 하급 신비의 정수
+	dust122004 = "dust310303", -- 작은 광채 결정
+	dust123001 = "dust310304", -- 꿈 가루
+	dust123002 = "dust310104", -- 상급 신비의 정수
+	dust123003 = "dust310404", -- 하급 황천의 정수
+	dust123004 = "dust310304", -- 큰 광채 결정
+	dust124001 = "dust310205", -- 환영 가루
+	dust124002 = "dust310405", -- 상급 황천의 정수
+	dust124003 = "dust310205", -- 하급 영원의 정수
+	dust124004 = "dust310205", -- 작은 찬란한 결정
+	dust125001 = "dust310206", -- 상급 영원의 정수
+	dust125002 = "dust310306", -- 큰 찬란한 결정
+	dust125003 = "dust310306", -- 작은 눈부신 결정
+	dust125004 = "dust310306", -- 큰 눈부신 결정
+	dust126001 = "dust310307", -- 연결의 결정
+	dust126002 = "dust310207", -- 신비한 가루
+	dust126003 = "dust310107", -- 하급 세계의 정수
+	dust126004 = "dust310307", -- 상급 세계의 정수
+	dust127001 = "dust310208", -- 공허 결정
+	dust127002 = "dust310208", -- 큰 프리즘 조각
+	dust128001 = "dust310209", -- 무한의 가루
+	dust128002 = "dust310209", -- 우주의 정수
+	dust129001 = "dust310310", -- 심연의 결정
+	dust129002 = "dust310110", -- 천상의 조각
+	scroll130001 = { "scroll320101", "scroll320201", "scroll320301", "scroll320401" },
+	scroll131001 = { "scroll320102", "scroll320202", "scroll320302", "scroll320402" },
+	scroll132001 = { "scroll320103", "scroll320203", "scroll320303", "scroll320403" },
+	scroll133001 = { "scroll320104", "scroll320204", "scroll320304", "scroll320404" },
+	scroll134001 = { "scroll320105", "scroll320205", "scroll320305", "scroll320405" },
+	scroll135001 = { "scroll320106", "scroll320206", "scroll320306", "scroll320406" },
+	scroll136001 = { "scroll320107", "scroll320207", "scroll320307", "scroll320407" },
+	scroll137001 = { "scroll320108", "scroll320208", "scroll320308", "scroll320408" },
+	scroll138001 = { "scroll320109", "scroll320209", "scroll320309", "scroll320409" },
+	scroll139001 = { "scroll320110", "scroll320210", "scroll320310", "scroll320410" },
+}
 
--- id = kind .. TBH id (gem110001); tier = the TBH grade, which is also its colour
-ns.SOCKET_MATS_BY = { gem = {}, dust = {}, scroll = {} } -- [kind][grade] = { id, ... }
-do
-	local keys = {}
-	for k in pairs(ns.TBH.SOCKET_MATS) do keys[#keys + 1] = k end
-	table.sort(keys, function(a, b)
-		local ma, mb = ns.TBH.SOCKET_MATS[a], ns.TBH.SOCKET_MATS[b]
-		if ma.kind ~= mb.kind then return ma.kind < mb.kind end
-		if ma.grade ~= mb.grade then return ma.grade < mb.grade end
-		return a < b
-	end)
-	for _, k in ipairs(keys) do
-		local sm = ns.TBH.SOCKET_MATS[k]
-		local nm = SOCKET_MAT[k] or { "?", "INV_Misc_QuestionMark" }
-		local id = sm.kind .. k
-		mat(id, sm.kind, sm.grade, nm[1], nm[2])
-		ns.MATS[id].q = sm.grade
-		ns.MATS[id].tbh = k
-		local by = ns.SOCKET_MATS_BY[sm.kind]
-		by[sm.grade] = by[sm.grade] or {}
-		table.insert(by[sm.grade], id)
-	end
-end
 mat("seal1", "seal", 1, "낡은 행운의 인장", "INV_Misc_Coin_05")
 mat("seal2", "seal", 2, "용사의 인장", "INV_Misc_Coin_03")
 mat("seal3", "seal", 3, "운명의 인장", "INV_Misc_Coin_02")
 mat("seal4", "seal", 4, "티탄의 인장", "INV_Misc_Coin_01")
 
--- the n-th socket material of a kind and grade (gem 3 -> "gem112001")
+-- the n-th socket material of a kind and grade (gem 3 -> "gem300103")
 function ns.SocketMat(kind, grade, n)
 	local list = ns.SOCKET_MATS_BY[kind][grade]
 	return list and list[n or 1]

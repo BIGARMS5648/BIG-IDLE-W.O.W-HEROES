@@ -336,7 +336,7 @@ end
 -- options, { stat mod, lowest tier, highest tier }, one picked evenly.
 function Items.SocketOptions(matId, it)
 	local m = ns.MATS[matId]
-	local sm = m and m.tbh and ns.TBH.SOCKET_MATS[m.tbh]
+	local sm = m and m.sock
 	if not sm then return nil end
 	return sm[Items.Cat(it)] or sm.any
 end
@@ -784,7 +784,7 @@ function Items.MatTooltip(id)
 	local lines = {}
 	local r, g, b = U.rgb(ns.QUALITY[m.q].hex)
 	lines[#lines + 1] = { ns.QText(m.q, ns.N(m.name)), nil, r, g, b }
-	if m.tbh then
+	if m.sock then
 		lines[#lines + 1] = { ns.N(ns.QUALITY[m.q].name) .. " 등급 " .. ns.N(ns.MAT_KIND_NAME[m.kind]), nil, 0.7, 0.7, 0.7 }
 	else
 		lines[#lines + 1] = { ns.N(ns.MAT_KIND_NAME[m.kind]) .. " " .. string.format("%d단계", m.tier), nil, 0.7, 0.7, 0.7 }
@@ -802,8 +802,8 @@ function Items.MatTooltip(id)
 		use = "장비 > 재료 > 행운의 인장 재료에서 [굴리기]로 무작위 장비를 얻습니다."
 	end
 	lines[#lines + 1] = { use, nil, 1, 0.82, 0, true }
-	-- what it gives, by gear group (TBH: one stat of the group, evenly)
-	local sm = m.tbh and ns.TBH.SOCKET_MATS[m.tbh]
+	-- what it gives, by gear group
+	local sm = m.sock
 	if sm then
 		local GROUP = { { "weapon", "무기" }, { "armor", "방어구" }, { "accessory", "장신구" }, { "any", "모든 장비" } }
 		for _, g in ipairs(GROUP) do

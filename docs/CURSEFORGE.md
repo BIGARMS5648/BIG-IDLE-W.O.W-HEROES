@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.3
+BIG IDLE HEROES v1.2.0
 ```
 
 ---
@@ -80,7 +80,7 @@ Build a party of five heroes, send them along a route through the original game'
 - **Gear in 10 grades**, from Common to Arcana (the top grade's names and item frames run through cyan, periwinkle and orchid), in fixed item levels (1, 5, 10, 15, 20, 30, 40, 50, 65, 80, 100). A hero wears an item from its own level, so gear above your heroes waits in the bag until they catch up.
 - **Three kinds of chests**: monster chests, boss chests and act boss chests. Each stage has its own chests, drop chances and contents, shown on the stage screen.
 - **The Forge**, a screen of its own: every function in a list on the left (fuse, craft, gems, enchant, inscription, enhance, salvage, lucky seals, materials), the work in the middle, and on the right the hero and item you work on plus a log of the latest results. Bags fill up, so auto-salvage helps keep them clear.
-- **Gems, enchanting and inscription** work like Task Bar Hero's cube: 45 gems, 33 enchanting reagents and 10 inscription scrolls, each giving its own stats by gear type (weapon, armor or accessory) at tiers 1 to 10. Better grades give higher tiers; nine of one material fuse into a random one of the next grade.
+- **Gems, enchanting and inscription** set stats in gear sockets, each material in a line of ten grades: 7 gem lines, one per school (its damage on weapons, its defense on armor, a stat of its own on accessories), 4 enchanting lines of basic stats and 4 scroll lines of rarer ones. A line gives the same three stats at every grade, only stronger; nine of a line fuse into one of the same line a grade up.
 - **Enhancement** (+1 to +20) once Mythic+ opens: every step raises an item's base stats; any try can fail (only the gold is lost): 65% a step up to +10, then lower and lower, down to 10% for the last step. Inheritance moves an enhanced item's steps onto a new item of the same slot, as 70% of the gold they are worth, with its gems, enchants and inscriptions; the old item is used up. The tooltip shows the step before the name (+10 Iron Helm); item icons show the item level.
 - **Rune tree**: 197 account-wide runes bought with gold, spreading from the center of a map you zoom with the mouse wheel and drag around, one branch per kind: gold, experience, combat and chest runes leave the center on the diagonals, bag runes go straight up, forge runes to the left and unlock runes to the right. They open party seats, skill slots, offline rewards, automatic chest opening, bigger bags and more.
 - **Companions** that join the party.
@@ -137,10 +137,23 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.3)
+## Changelog for this release (v1.2.0)
 
 ```
-- Fusion (by hand, in a batch or automatically) also uses gear a hero
-  could wear at a higher level; breaking gear down still keeps it.
-- Heroes and monsters no longer flinch when struck; the hit effects stay.
+- Gems, enchanting reagents and scrolls are remade in lines of ten grades.
+  Each material gives one stat for weapons, one for armor and one for
+  accessories, never the same one twice, and the same three at every grade
+  of its line (higher grades, bigger numbers).
+- 7 gem lines, one per school: ruby (fire), sapphire (frost), emerald
+  (nature), topaz (physical), amethyst (shadow), pearl (holy) and diamond
+  (arcane): the school's damage on weapons, its defense on armor and a stat
+  of its own on accessories.
+- 4 enchanting lines of basic stats (dust, shard, crystal and essence) and
+  4 scroll lines of rarer ones (destruction, flurry, life and time).
+- Nine of a line fuse into one of the same line a grade up, no longer a
+  random material.
+- Names show the grade: Faint, Vivid, Fine, Ancient, Dragon, Titan,
+  Starlight, Divine, Celestial and Primal.
+- Materials in your bags become the nearest line of their grade; what is
+  already set in your gear keeps its stats.
 ```

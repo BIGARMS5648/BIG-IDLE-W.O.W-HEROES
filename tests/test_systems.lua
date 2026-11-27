@@ -297,44 +297,68 @@ end
 for cat, pool in pairs(ns.AFFIX_POOL) do
 	for _, e in ipairs(pool) do check(ns.AFFIX[e[1]], cat .. " pool: unknown affix " .. e[1]) end
 end
--- every TBH stat a socket material can give has one of ours, and every
--- material has a name, an icon and something for each gear group
+-- socket materials in lines of ten grades: every material has a name, an
+-- icon and one stat for each gear group, the three all different; a line
+-- gives the same stats at every grade, at the grade's tiers; nine fuse into
+-- the same line a grade up
 do
 	local counts = { gem = 0, dust = 0, scroll = 0 }
-	for id, sm in pairs(ns.TBH.SOCKET_MATS) do
-		counts[sm.kind] = counts[sm.kind] + 1
-		local m = ns.MATS[sm.kind .. id]
-		check(m and m.name ~= "?" and m.icon and m.tier == sm.grade, "socket material " .. id .. " is defined")
-		for _, cat in ipairs({ "weapon", "armor", "accessory" }) do
-			local opts = sm[cat] or sm.any
-			check(opts and #opts > 0, id .. ": nothing for " .. cat)
-			for _, o in ipairs(opts or {}) do
-				local mod = ns.TBH.STAT_MODS[o[1]]
-				local d = mod and ns.SOCKET_STAT[mod.stat .. ":" .. mod.mod]
-				check(d and ns.AFFIX[d[1]], id .. ": TBH stat without ours: " .. tostring(mod and (mod.stat .. ":" .. mod.mod)))
-				check(o[2] >= 1 and o[3] <= 10 and o[2] <= o[3], id .. ": tiers")
+	local bad
+	local function fail1(why) bad = bad or why end
+	for kind, def in pairs(ns.SOCKET_LINES) do
+		for li, line in ipairs(def.lines) do
+			for grade = 1, 10 do
+				local id = ns.SOCKET_MATS_BY[kind][grade][li]
+				local m = id and ns.MATS[id]
+				if not (m and m.name and m.icon and m.tier == grade and m.line == li and m.sock) then
+					fail1(kind .. " line " .. li .. " grade " .. grade .. " is not defined")
+				else
+					counts[kind] = counts[kind] + 1
+					if not m.name:find(ns.SOCKET_GRADE_WORD[grade], 1, true) then fail1(id .. ": its name lacks its grade's word") end
+					local seen = {}
+					for _, cat in ipairs({ "weapon", "armor", "accessory" }) do
+						local opts = m.sock[cat]
+						if not opts or #opts ~= 1 then fail1(id .. ": not one stat for " .. cat) else
+							local o = opts[1]
+							local mod = ns.TBH.STAT_MODS[o[1]]
+							local d = mod and ns.SOCKET_STAT[mod.stat .. ":" .. mod.mod]
+							local key = d and d[1]
+							if not (key and ns.AFFIX[key]) then fail1(id .. ": unknown stat for " .. cat) end
+							if key ~= line[cat] then fail1(id .. ": " .. cat .. " is not its line's " .. tostring(line[cat])) end
+							if seen[key] then fail1(id .. ": " .. tostring(key) .. " twice") end
+							seen[key or "?"] = true
+							local lo, hi = grade, grade
+							if kind == "scroll" then hi = math.min(10, grade + 2)
+							elseif cat == "weapon" then lo = math.min(10, grade + 1) hi = lo end
+							if o[2] ~= lo or o[3] ~= hi then fail1(id .. ": " .. cat .. " tiers " .. o[2] .. "-" .. o[3]) end
+						end
+					end
+					local up = ns.Forge.NextMat(id)
+					if grade < 10 and not (up and #up == 1 and ns.MATS[up[1]].line == li and ns.MATS[up[1]].tier == grade + 1) then
+						fail1(id .. ": does not fuse into its line's next grade")
+					elseif grade == 10 and up then fail1(id .. ": fuses past the top grade") end
+				end
 			end
 		end
 	end
-	check(counts.gem == 45 and counts.dust == 33 and counts.scroll == 10, "TBH's 36 decoration (and our 9 shadow, holy and arcane gems), 33 engraving and 10 inscription materials")
-	-- every school's damage from some gem on a weapon, and from enchanting and inscription
+	check(bad == nil, "socket materials in lines: " .. tostring(bad))
+	check(counts.gem == 70 and counts.dust == 40 and counts.scroll == 40, "7 gem, 4 enchanting and 4 scroll lines of ten grades")
+	-- every school's damage from some gem line on a weapon
 	local schools = {}
-	for k, sm in pairs(ns.TBH.SOCKET_MATS) do
-		for _, cat in ipairs({ "weapon", "any" }) do
-			for _, o in ipairs(sm[cat] or {}) do
-				local mod = ns.TBH.STAT_MODS[o[1]]
-				local d = ns.SOCKET_STAT[mod.stat .. ":" .. mod.mod]
-				if d[1]:find("^dmg_") then schools[sm.kind .. " " .. d[1]] = true end
-			end
-		end
-	end
+	for _, line in ipairs(ns.SOCKET_LINES.gem.lines) do schools[line.weapon] = true end
 	local missing = {}
-	for _, kind in ipairs({ "gem", "dust", "scroll" }) do
-		for _, sch in ipairs({ "fire", "frost", "nature", "shadow", "holy", "arcane", "phys" }) do
-			if not schools[kind .. " dmg_" .. sch] then missing[#missing + 1] = kind .. " " .. sch end
+	for _, sch in ipairs({ "fire", "frost", "nature", "shadow", "holy", "arcane", "phys" }) do
+		if not schools["dmg_" .. sch] then missing[#missing + 1] = sch end
+	end
+	check(#missing == 0, "a gem line for every school's damage: missing " .. table.concat(missing, ", "))
+	-- old saves' materials all have a new one
+	local lost
+	for old, to in pairs(ns.SOCKET_MAT_RENAMED) do
+		for _, id in ipairs(type(to) == "table" and to or { to }) do
+			if not ns.MATS[id] then lost = old end
 		end
 	end
-	check(#missing == 0, "gems, enchanting and inscription give every school's damage: missing " .. table.concat(missing, ", "))
+	check(lost == nil, "every old socket material has a new one: " .. tostring(lost))
 end
 -- TBH's rune tree: every rune on its own cell, joined to the first rune,
 -- each level with a value and a price, every stat read and coloured
@@ -2143,6 +2167,22 @@ ns.InitDB()
 check(ns.db.gold == 1000 + 50 + 100 + 160 + 300 and next(ns.db.runes) == nil, "old runes are taken back, their gold returned: " .. ns.db.gold)
 check(ns.loadNote == nil, "the refund comes without a chat message: " .. tostring(ns.loadNote))
 ns.loadNote = nil
+-- version 8: socket materials in lines; an old one becomes the nearest line
+-- of its grade, an old scroll's count shared over the lines, and what is set
+-- in gear names the new material
+do
+	local set = { s = "chest", l = 20, q = 6, g = { { "dmg_fire", 30, 3, "gem112001", 102501 } } }
+	BigWowIdleDB = { v = 7, gold = 5, heroes = {}, party = { false, false, false, false, false },
+		mats = { gem112001 = 3, scroll131001 = 8 }, bag = { set } }
+	ns.InitDB()
+	local m = ns.db.mats
+	local s2 = 0
+	for _, id in ipairs(ns.SOCKET_MATS_BY.scroll[2]) do s2 = s2 + (m[id] or 0) end
+	check(m.gem112001 == nil and m.gem300103 == 3, "an old gem becomes its line's gem of its grade (별루비 → 정교한 루비)")
+	check(m.scroll131001 == nil and s2 == 8 and (m[ns.SOCKET_MATS_BY.scroll[2][1]] or 0) == 2, "an old scroll is shared over the four lines")
+	local e = ns.db.bag[1].g[1]
+	check(e[4] == "gem300103" and e[1] == "dmg_fire" and e[2] == 30, "a set gem keeps its stat and names the new material")
+end
 BigWowIdleDB = { v = 7, gold = 5, heroes = {}, party = { false, false, false, false, false }, runes = { [1] = 9, [10] = 2, [999999] = 1 } }
 ns.InitDB()
 check(ns.db.gold == 5 and ns.db.runes[1] == 1 and ns.db.runes[10] == 2 and ns.db.runes[999999] == nil and ns.loadNote == nil,
@@ -2159,7 +2199,7 @@ BigWowIdleDB = {
 }
 ns.InitDB()
 db = ns.db
-check(db.v == 7 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
+check(db.v == 8 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
 do
 	local m, w = hero("MAGE_FIRE"), hero("WARRIOR_PROT")
 	check(m and w, "old heroes become heroes of the matching specialization")
@@ -2245,7 +2285,7 @@ end
 BigWowIdleDB = { gold = 3, heroes = { WARRIOR = { level = 20, xp = 0, tree = {}, skills = {},
 	gear = { head = { s = "head", l = 18, q = 2 } } } }, party = { "WARRIOR", false, false, false, false } }
 ns.InitDB()
-check(ns.Heroes.Count() == 1 and ns.db.v == 7, "a save without a version number, heroes keyed by class, is read as the first version")
+check(ns.Heroes.Count() == 1 and ns.db.v == 8, "a save without a version number, heroes keyed by class, is read as the first version")
 -- damaged values do not stop the load
 BigWowIdleDB = { v = 6, faction = "PIRATES", heroes = { h1 = { spec = "MAGE_FIRE", level = 30, name = "외자" } }, party = { false, "h1", false, false, false } }
 check(pcall(ns.InitDB) and ns.db.faction == nil and type(ns.db.heroes.h1.name) == "string", "an unknown faction with a one-word name loads")

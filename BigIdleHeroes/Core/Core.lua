@@ -1,7 +1,7 @@
 -- BIG IDLE HEROES - core namespace, language, event bus and utilities.
 local _, ns = ...
 ns = ns or {}
-ns.VERSION = "1.1.3"
+ns.VERSION = "1.2.0"
 
 local floor, random = math.floor, math.random
 local format = string.format
