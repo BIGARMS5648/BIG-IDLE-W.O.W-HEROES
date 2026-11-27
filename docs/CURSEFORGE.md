@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.2
+BIG IDLE HEROES v1.1.3
 ```
 
 ---
@@ -137,10 +137,9 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.2)
+## Changelog for this release (v1.1.3)
 
 ```
-- Rune tree: the unlock runes (Rest, the two Command runes and Awakening)
-  leave the Rune of Beginnings to its right, in a row of four; the chest
-  storage rune that stood there moves above its rune.
+- Fusion (by hand, in a batch or automatically) also uses gear a hero
+  could wear at a higher level; breaking gear down still keeps it.
 ```

@@ -182,7 +182,7 @@ end
 -- nine of a grade from that one up are fused, the lower grades first (so a
 -- result can join the next grade's nine), weapons and armour apart from
 -- accessories. What fusion keeps out (protected, enhanced, socketed, better
--- for a hero) stays. Returns how many fusions were made.
+-- for a hero now) stays. Returns how many fusions were made.
 Forge.AUTO_FUSE_MAX = 200 -- fusions at most each time
 local FUSE_CATS = { "gear", "accessory" }
 -- Every nine of a grade from q0 up, the lower grades first (일괄 융합 and
@@ -286,7 +286,8 @@ function Forge.FuseBlock(it)
 	if ns.Items.HasSockets(it) then return "보석·마법부여·주문각인이 붙은 장비는 쓰지 않습니다." end
 	local heroes = ns.Items.KeptHeroes()
 	if ns.Items.PartyUpgrade(it, heroes) then return "영웅에게 더 좋은 장비라 쓰지 않습니다." end
-	if ns.Items.FutureUpgrade(it, heroes) then return "영웅이 레벨을 올리면 낄 더 좋은 장비라 쓰지 않습니다." end
+	-- (gear a hero will wear at a higher level is fused like any other; only
+	-- breaking down keeps it, Items.KeepReason)
 	return nil
 end
 

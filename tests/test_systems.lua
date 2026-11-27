@@ -1824,6 +1824,8 @@ do
 	local worse10 = I.New("head", 10, 1)
 	I.AddToBag(worse10)
 	check(not I.FutureUpgrade(worse10) or I.Compare(low.id, worse10, true) > I.Compare(low.id, h10, true), "a weaker piece of the same step is not kept")
+	-- kept from breaking down, but fused like any other piece
+	check(I.KeepReason(h10) and not F.FuseBlock(h10) and not F.FuseBlock(h100), "gear for later is kept from breaking down, not from fusion")
 
 	-- breaking down and fusion check every piece themselves
 	db.party = { false, false, false, false, false }
