@@ -317,7 +317,11 @@ local PD_CX = PD_W / 2 -- the model's middle
 local LEFT_SLOTS = { "head", "neck", "chest", "wrist" }
 local RIGHT_SLOTS = { "hands", "feet", "ring", "trinket" }
 local WEAPON_SLOTS = { "mh", "oh" }
-local MODEL_H, MODEL_FEET = 250, 62 -- the model's height, its feet up from the bottom
+-- the whole of it (slots, model, weapons) lifted from the bottom so the room
+-- over it (under the tabs) and under it (to the panel's edge) is alike
+local PD_LIFT = 30
+local MODEL_H, MODEL_FEET = 250, 62 + PD_LIFT -- the model's height, its feet up from the bottom
+local WEAPON_Y = -(BODY_H - SLOT - PD_LIFT) -- the weapons' row
 -- the side columns' first row: the four rows' middle level with the model's
 -- middle (the weapons stay at the bottom)
 local SIDE_Y = -floor((BODY_H - MODEL_FEET - MODEL_H / 2) - (3 * SLOT_STEP + SLOT) / 2 + 0.5)
@@ -345,7 +349,7 @@ local function buildStats(page, f)
 		end)
 		-- dragged with the mouse, the model turns round (between the slots)
 		local pad = CreateFrame("Button", nil, f)
-		pad:SetSize(PD_W - 2 * SLOT - 8, BODY_H - SLOT - 8)
+		pad:SetSize(PD_W - 2 * SLOT - 8, -WEAPON_Y - 8)
 		pad:SetPoint("TOPLEFT", f, "TOPLEFT", SLOT + 4, 0)
 		pad:SetFrameLevel(page.stand:GetFrameLevel() + 5)
 		pad:RegisterForClicks("LeftButtonUp")
@@ -385,7 +389,7 @@ local function buildStats(page, f)
 	end
 	for i, key in ipairs(LEFT_SLOTS) do slot(key, 0, SIDE_Y - (i - 1) * SLOT_STEP) end
 	for i, key in ipairs(RIGHT_SLOTS) do slot(key, PD_W - SLOT, SIDE_Y - (i - 1) * SLOT_STEP) end
-	for i, key in ipairs(WEAPON_SLOTS) do slot(key, PD_CX - SLOT - 6 + (i - 1) * (SLOT + 12), -(BODY_H - SLOT)) end
+	for i, key in ipairs(WEAPON_SLOTS) do slot(key, PD_CX - SLOT - 6 + (i - 1) * (SLOT + 12), WEAPON_Y) end
 	-- the stats in four groups, two columns
 	page.groups = {}
 	local cols = STAT_COLS
