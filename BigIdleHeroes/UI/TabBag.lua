@@ -1,7 +1,7 @@
 -- The bag, the storage and the materials: tabs of the equipment screen
 -- (UI/TabEquip.lua).
 --   가방: "가방 43 / 70" [보기 ▾] [정리], the grid (pages of 50),
---         and at the bottom: 융합 등급 [▾] [자동 융합] over
+--         and at the bottom: 융합 등급 [▾] [일괄 융합] [자동 융합] over
 --         분해 등급 [▾] [일괄 분해] [자동 분해].
 --         On an item: click = 장착 (the hero on the left), right-click =
 --         분해, Alt+click = 보호, Shift+click = 창고.
@@ -293,12 +293,39 @@ function BagView.Build(page, f)
 	end, "")
 	page.fusePick:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 72, 44)
 	page.fusePick.openUp = true
+	page.fusePick.tipTitle = "융합 등급"
+	page.fusePick.tipText = "일괄 융합과 자동 융합이 이 등급 이상의 장비만 융합합니다."
+	-- every nine from that grade up, now
+	page.fuseGo = UI.Button(f, 150, 32, "", function()
+		local q = autoFuseQ()
+		local n = ns.Forge.FusionsFrom(q)
+		if n == 0 then
+			UI.Try(false, "융합 등급 이상에서 같은 등급·같은 종류 장비 9개가 모이지 않았습니다.")
+			return
+		end
+		UI.Confirm({ title = "일괄 융합", ok = "융합", style = "primary",
+			text = string.format("정말 %s 이상의 장비를 9개씩 일괄 융합하시겠습니까?\n재료로 쓴 장비는 사라집니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 쓰지 않습니다.",
+				ns.QText(q, ns.N(ns.QUALITY[q].name))),
+			onOk = function()
+				local done = ns.Forge.FuseFrom(q)
+				if done > 0 then
+					ns.Toast(string.format("%d번 융합했습니다.", done))
+					ns.Fire("BAG")
+				end
+			end })
+	end, "primary")
+	page.fuseGo:SetPoint("LEFT", page.fusePick, "RIGHT", 8, 0)
+	page.fuseGo.clickWhenOff = true
+	UI.Tip(page.fuseGo, function()
+		local q = autoFuseQ()
+		return UI.SimpleTip("일괄 융합", string.format("%s 이상의 장비를 같은 등급·같은 종류로 9개씩 지금 융합합니다. 낮은 등급부터 융합하고, 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 쓰지 않습니다.", ns.QText(q, ns.N(ns.QUALITY[q].name))))
+	end, "TOP")
 	page.autoFuse = UI.Check(f, "자동 융합", autoFuseOn, function(v)
 		ns.db.opt.autoFuse = v and autoFuseQ() or 0
 		ns.Toast(v and "자동 융합을 켰습니다." or "자동 융합을 껐습니다.")
 		if v and ns.Forge.AutoFuse() > 0 then ns.Fire("BAG") end
 	end)
-	page.autoFuse:SetPoint("LEFT", page.fusePick, "RIGHT", 16, 0)
+	page.autoFuse:SetPoint("LEFT", page.fuseGo, "RIGHT", 16, 0)
 	UI.Tip(page.autoFuse, function()
 		local q = autoFuseQ()
 		return UI.SimpleTip("자동 융합", string.format("켜 두면 상자를 열 때마다 %s 이상의 장비가 같은 등급·같은 종류로 9개 모이면 저절로 융합합니다. 보호한 장비, 강화한 장비, 보석·마법부여·주문각인이 붙은 장비, 영웅에게 지금 또는 레벨을 올린 뒤 더 좋은 장비는 쓰지 않습니다.", ns.QText(q, ns.N(ns.QUALITY[q].name))))
@@ -388,8 +415,11 @@ function BagView.Refresh(page)
 	page.autoSmelt:Refresh()
 	page.keepBench:Refresh()
 	page.fusePick:Refresh()
+	local fusions = ns.Forge.FusionsFrom(U.clamp(db.ui.autoFuseQ or 5, 1, ns.MAX_QUALITY - 1))
+	page.fuseGo:SetLabel(string.format("일괄 융합 %d번", fusions))
+	page.fuseGo:SetOff(fusions == 0)
 	page.autoFuse:Refresh()
-	for _, w in ipairs({ page.smeltLabel, page.smeltPick, page.smeltGo, page.autoSmelt, page.keepBench, page.fuseLabel, page.fusePick, page.autoFuse }) do w:SetShown(not bank) end
+	for _, w in ipairs({ page.smeltLabel, page.smeltPick, page.smeltGo, page.autoSmelt, page.keepBench, page.fuseLabel, page.fusePick, page.fuseGo, page.autoFuse }) do w:SetShown(not bank) end
 end
 
 -- opts.slot: show that slot's items; opts.view: a view of the bag

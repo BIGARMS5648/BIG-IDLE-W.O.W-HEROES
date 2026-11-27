@@ -952,6 +952,16 @@ do
 		if x.q == 5 and ns.Items.FuseCat(x) == "gear" and not x.lock then heads5 = heads5 + 1 end
 	end
 	check(n >= 2 and q4 == 9 and locked and heads5 < 9, "auto fusion fuses from its grade up and keeps the protected piece (" .. n .. " fusions)")
+	-- 일괄 융합: the bag's count, then the same fusions by hand
+	db.opt.autoFuse = 0
+	db.bag = {}
+	for _ = 1, 18 do ns.Items.AddToBag(ns.Items.New("head", 12, 5)) end
+	for _ = 1, 9 do ns.Items.AddToBag(ns.Items.New("head", 12, 4)) end
+	check(F.FusionsFrom(5) == 2 and F.FusionsFrom(4) == 3 and F.FusionsFrom(6) == 0, "the bag counts the fusions from a grade up")
+	local made = F.FuseFrom(5)
+	local left4 = 0
+	for _, x in ipairs(db.bag) do if x.q == 4 then left4 = left4 + 1 end end
+	check(made >= 2 and left4 == 9, "일괄 융합 fuses from its grade up and leaves the grades below (" .. made .. ")")
 	db.opt.autoFuse = 0
 	db.bag = {}
 end

@@ -658,7 +658,7 @@ do
 	if #ns.db.bag ~= before - 8 then fail("1회 융합 should turn 9 items into 1") end
 	press("fuse all", fp.all)
 	confirmYes("fuse all")
-	if #ns.db.bag ~= 3 then fail("가능한 만큼 융합 should leave 3 items, got " .. #ns.db.bag) end
+	if #ns.db.bag ~= 3 then fail("일괄 융합 should leave 3 items, got " .. #ns.db.bag) end
 	-- the grade is picked from one list (like the bag's 분해 등급)
 	press("grade list", fp.pick)
 	click("grade 3", function(b) return b.value == 3 and b.label end)

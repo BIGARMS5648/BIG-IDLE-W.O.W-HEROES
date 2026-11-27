@@ -184,12 +184,13 @@ end
 -- accessories. What fusion keeps out (protected, enhanced, socketed, better
 -- for a hero) stays. Returns how many fusions were made.
 Forge.AUTO_FUSE_MAX = 200 -- fusions at most each time
-function Forge.AutoFuse()
-	local q0 = ns.db.opt.autoFuse or 0
-	if q0 <= 0 then return 0 end
+local FUSE_CATS = { "gear", "accessory" }
+-- Every nine of a grade from q0 up, the lower grades first (일괄 융합 and
+-- 자동 융합). Returns how many fusions were made.
+function Forge.FuseFrom(q0)
 	local n = 0
 	for q = q0, ns.MAX_QUALITY - 1 do
-		for _, cat in ipairs({ "gear", "accessory" }) do
+		for _, cat in ipairs(FUSE_CATS) do
 			while n < Forge.AUTO_FUSE_MAX do
 				local list = Forge.PickForFusion(q, cat)
 				if not list or not Forge.Fuse(list) then break end
@@ -197,6 +198,26 @@ function Forge.AutoFuse()
 			end
 		end
 	end
+	return n
+end
+-- How many fusions the bag holds now from grade q0 up (nine usable pieces
+-- of a grade and kind each; what they give is not counted).
+function Forge.FusionsFrom(q0)
+	local count = {}
+	for _, it in ipairs(ns.db.bag) do
+		if it.q >= q0 and it.q < ns.MAX_QUALITY and not Forge.FuseBlock(it) then
+			local k = it.q .. ns.Items.FuseCat(it)
+			count[k] = (count[k] or 0) + 1
+		end
+	end
+	local n = 0
+	for _, c in pairs(count) do n = n + floor(c / Forge.FUSE_COUNT) end
+	return n
+end
+function Forge.AutoFuse()
+	local q0 = ns.db.opt.autoFuse or 0
+	if q0 <= 0 then return 0 end
+	local n = Forge.FuseFrom(q0)
 	if n > 0 then ns.Log(string.format("자동 융합: %d번", n)) end
 	return n
 end

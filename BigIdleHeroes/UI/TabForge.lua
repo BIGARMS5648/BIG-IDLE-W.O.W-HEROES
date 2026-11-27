@@ -1,6 +1,6 @@
 -- The Titan Forge (대장간) as tabs of the equipment screen (UI/TabEquip.lua):
 --   융합 (합성): grade chips, the bag's items of that grade (the next nine
---         to be used framed in gold), 1회 / 가능한 만큼, the last result;
+--         to be used framed in gold), 1회 / 일괄 융합, the last result;
 --   제작: part chips, the tiers, what a tier needs, 제작하기;
 --   보석 · 마법부여 · 각인: items with sockets; the chosen item's sockets
 --         drawn with what is set in them ([추출] on each); the material to
@@ -178,14 +178,14 @@ local function buildFuse(page, f)
 	p.one = UI.Button(f, 170, 36, "1회 융합", function() fuse(false) end, "primary")
 	p.one:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -332)
 	p.one.clickWhenOff = true
-	p.all = UI.Button(f, 170, 36, "가능한 만큼 융합", function()
+	p.all = UI.Button(f, 170, 36, "일괄 융합", function()
 		local q = ns.QUALITY[p.q]
 		if not ns.Forge.PickForFusion(p.q, p.cat) then
 			UI.Try(false, string.format("쓸 수 있는 같은 등급 장비 %d개가 필요합니다.", ns.Forge.FUSE_COUNT))
 			return
 		end
-		UI.Confirm({ title = "가능한 만큼 융합", ok = "융합", style = "primary",
-			text = string.format("%s 장비로 가능한 만큼(최대 20번) 융합하시겠습니까?\n재료로 쓴 장비는 사라집니다.", ns.N(q.name)),
+		UI.Confirm({ title = "일괄 융합", ok = "융합", style = "primary",
+			text = string.format("정말 %s 장비를 최대 20번까지 일괄 융합하시겠습니까?\n재료로 쓴 장비는 사라집니다.", ns.N(q.name)),
 			onOk = function() fuse(true) end })
 	end, "dark")
 	p.all:SetPoint("LEFT", p.one, "RIGHT", 8, 0)

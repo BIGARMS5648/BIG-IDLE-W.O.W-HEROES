@@ -222,6 +222,12 @@ local function forge(func, opts)
 end
 S.equip = function() ns.Main.SelectHero(db.party[2]) equip("bag") end
 S.equip_fuse = function() ns.db.opt.autoFuse, ns.db.ui.autoFuseQ = 5, 5 ns.Main.SelectHero(db.party[2]) equip("bag") end
+S.equip_fuse_ready = function()
+	db.bag = {}
+	for _ = 1, 20 do local it = ns.Items.New("head", 20, 5) it.lock = nil ns.Items.AddToBag(it) end
+	ns.db.ui.autoFuseQ = 5
+	ns.Main.SelectHero(db.party[2]) equip("bag")
+end
 -- the item marks: level top left, the better-gear arrow top right, the
 -- enhancement step bottom right (a protected one's lock bottom left)
 S.equip_marks = function()
