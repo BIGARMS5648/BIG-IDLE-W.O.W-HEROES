@@ -1282,7 +1282,8 @@ function Bar.Ground() return frame and frame.ground, frame and frame.sky, frame 
 -- player's faction, then the cat's own size).
 function Bar.CatScale()
 	local race = ns.ClassRace("DRUID")
-	return (Figure.RACE_SCALE[race or ""] or 1) * (Figure.FORM_SCALE.cat or 1)
+	local base = Figure.FORM_RACE_SCALE[race or ""] or Figure.RACE_SCALE[race or ""] or 1
+	return base * (Figure.FORM_SCALE.cat or 1)
 end
 Bar.SUMMON_SIZE, Bar.LOW_OWN = SUMMON_SIZE, LOW_OWN
 

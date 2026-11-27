@@ -205,4 +205,5 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 - An empty bag or bank shows no message.
 - The menu and battle windows' shadows stay under them, so the windows no
   longer turn dark at times.
+- Tauren stand a little taller; the Horde's moonkin is a little smaller.
 ```

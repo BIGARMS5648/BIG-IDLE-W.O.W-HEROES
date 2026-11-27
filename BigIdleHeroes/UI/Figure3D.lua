@@ -183,20 +183,25 @@ function Figure.HeroBody(heroId, inCombat)
 end
 
 -- How tall each body stands next to an ordinary hero.
-Figure.RACE_SCALE = { GNOME = 0.78, DWARF = 0.9, TAUREN = 1.12, NIGHTELF = 1.04, TROLL = 1.06 }
+Figure.RACE_SCALE = { GNOME = 0.78, DWARF = 0.9, TAUREN = 1.18, NIGHTELF = 1.04, TROLL = 1.06 }
+-- A tauren druid's bear and cat are drawn from this size, not the tauren's
+-- own (the tauren stand taller than their forms grew).
+Figure.FORM_RACE_SCALE = { TAUREN = 1.12 }
 -- In battle a form has its own size: the cat a little taller than the
--- others (as tall as it stood before every fighter was drawn 15% smaller),
--- the moonkin of both factions a good deal taller than the tauren.
-Figure.FORM_SCALE = { cat = 0.92 / 0.85, moonkin = 1.25 }
-Figure.FORM_SIZE_OF = { moonkin = "TAUREN" }
+-- others (as tall as it stood before every fighter was drawn 15% smaller).
+Figure.FORM_SCALE = { cat = 0.92 / 0.85 }
+-- The moonkin's size by the player's faction (times an ordinary hero): a
+-- good deal taller than the tauren, the night elves' the taller.
+Figure.FORM_TALL = { moonkin = { ALLIANCE = 1.4, HORDE = 1.3 } }
 function Figure.HeroScale(heroId, inCombat)
-	local s = Figure.RACE_SCALE[ns.Heroes.Race(heroId)] or 1
+	local race = ns.Heroes.Race(heroId)
+	local s = Figure.RACE_SCALE[race] or 1
 	local h = inCombat and ns.db and ns.db.heroes[heroId]
 	local form = h and FORM[h.spec]
 	if form and formFor(h.spec) then
-		local race = Figure.FORM_SIZE_OF[form]
-		if race then s = Figure.RACE_SCALE[race] or 1 end
-		s = s * (Figure.FORM_SCALE[form] or 1)
+		local tall = Figure.FORM_TALL[form]
+		if tall then return tall[ns.Faction() or "ALLIANCE"] or tall.ALLIANCE end
+		s = (Figure.FORM_RACE_SCALE[race] or s) * (Figure.FORM_SCALE[form] or 1)
 	end
 	return s
 end

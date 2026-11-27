@@ -2434,9 +2434,13 @@ do
 			-- the cat a little smaller than the others in battle
 			local raceScale = Fig.RACE_SCALE[ns.Heroes.Race(h.id)] or 1
 			local inForm = Fig.HeroScale(h.id, true)
-			if sid == "DRUID_FERAL" and math.abs(inForm - raceScale * 0.92 / 0.85) > 1e-9 then fail("the cat should stand as tall as before the fighters were made smaller: " .. inForm) end
-			if sid == "DRUID_BALANCE" and math.abs(inForm - Fig.RACE_SCALE.TAUREN * 1.25) > 1e-9 then fail("the moonkin of both factions should be a good deal taller than the tauren: " .. inForm) end
-			if (sid == "DRUID_GUARDIAN" or sid == "DRUID_RESTO") and math.abs(inForm - raceScale) > 1e-9 then fail(sid .. " should keep its size") end
+			-- (a tauren druid's forms keep the size they had before the tauren grew)
+			local formBase = Fig.FORM_RACE_SCALE[ns.Heroes.Race(h.id)] or raceScale
+			if sid == "DRUID_FERAL" and math.abs(inForm - formBase * 0.92 / 0.85) > 1e-9 then fail("the cat should stand as tall as before the fighters were made smaller: " .. inForm) end
+			-- the moonkin a good deal taller than the tauren; the Horde's 1.3, the Alliance's 1.4
+			if sid == "DRUID_BALANCE" and (math.abs(inForm - (fac == "HORDE" and 1.3 or 1.4)) > 1e-9 or inForm < Fig.RACE_SCALE.TAUREN * 1.1 - 1e-9) then fail("the moonkin (" .. fac .. ") should stand " .. (fac == "HORDE" and 1.3 or 1.4) .. " tall, above the tauren: " .. inForm) end
+			if sid == "DRUID_GUARDIAN" and math.abs(inForm - formBase) > 1e-9 then fail(sid .. " should keep its size") end
+			if sid == "DRUID_RESTO" and math.abs(inForm - raceScale) > 1e-9 then fail(sid .. " should keep its size") end
 			-- the cat's health bar under its body, forward of its middle (its tail is long)
 			local shift = Fig.HeroBarShift(h.id, true)
 			if sid == "DRUID_FERAL" and not (shift > 0.05 and shift < 0.3) then fail("the cat's health bar should sit under its body, a little forward of its middle: " .. shift) end
