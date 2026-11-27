@@ -1354,10 +1354,8 @@ local function updateRate()
 	Combat.FoldRate(5)
 end
 
--- after a failed push: the clears, or the seconds of farming, before the
--- next try (whichever is reached first)
+-- after a failed push: the clears before the next try
 Combat.RETRY_RUNS = 8
-Combat.RETRY_TIME = 20 * 60
 
 local function nextAfterVictory()
 	local db = ns.db
@@ -1373,12 +1371,9 @@ local function nextAfterVictory()
 			ns.Fire("OPTIONS")
 			return
 		end
-		-- farming after a failed push: eight clears or about twenty minutes
-		-- of it, whichever comes first, then try again
+		-- farming after a failed push: count clears, then try again
 		db.retry = db.retry - 1
-		db.retryT = (db.retryT or 0) + st.time + st.timer
-		if db.retry > 0 and db.retryT < Combat.RETRY_TIME then return end
-		db.retry = 0
+		if db.retry > 0 then return end
 	end
 	if st.tower then
 		db.tower.floor = st.tower + 1
@@ -1448,12 +1443,12 @@ local function defeat()
 	updateRate()
 	if st.tower then
 		-- the tower: one floor down, that floor again (then, with the retry
-		-- option, up again after eight clears or about twenty minutes)
+		-- option, up again after eight clears)
 		local label = ns.Tower.Label(st.tower)
 		if st.tower > 1 then
 			db.tower.floor = st.tower - 1
 			if db.opt.retry and db.opt.auto then
-				db.retry, db.retryT = Combat.RETRY_RUNS, 0
+				db.retry = Combat.RETRY_RUNS
 				ns.Toast(string.format("%s 실패. %d층에서 힘을 기릅니다.", label, st.tower - 1))
 			else
 				db.opt.auto = false
@@ -1474,7 +1469,7 @@ local function defeat()
 			db.stage.idx = ns.STAGE_COUNT
 		end
 		if db.opt.retry and db.opt.auto then
-			db.retry, db.retryT = Combat.RETRY_RUNS, 0
+			db.retry = Combat.RETRY_RUNS
 			ns.Toast(string.format("%s 공략 실패. 힘을 기른 뒤 다시 도전합니다.", label))
 		else
 			db.opt.auto = false

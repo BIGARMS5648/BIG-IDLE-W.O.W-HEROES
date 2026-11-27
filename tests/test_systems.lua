@@ -1388,17 +1388,12 @@ do
 	C.StartStage()
 	untilClear()
 	check(db.retry == 0 and db.stage.idx == 6, "the last counted clear goes back up a stage")
-	-- about twenty minutes of farming go back up too, clears left or not
+	-- however long the farming takes, the next try comes after eight clears
 	db.stage = { diff = 1, idx = 5 }
-	db.opt.auto, db.opt.retry, db.retry, db.retryT = true, true, 7, C.RETRY_TIME - 1
+	db.opt.auto, db.opt.retry, db.retry = true, true, 7
 	C.StartStage()
 	untilClear()
-	check(db.retry == 0 and db.stage.idx == 6, "twenty minutes of farming go back up a stage before the eighth clear")
-	db.stage = { diff = 1, idx = 5 }
-	db.opt.auto, db.opt.retry, db.retry, db.retryT = true, true, 7, 0
-	C.StartStage()
-	untilClear()
-	check(db.retry == 6 and db.stage.idx == 5, "a short farm keeps counting clears")
+	check(db.retry == 6 and db.stage.idx == 5, "a clear short of the count keeps farming")
 	db.retry = 0
 	-- auto off: no countdown starts after a retreat
 	db.opt.auto, db.opt.retreat, db.opt.retry = false, true, true

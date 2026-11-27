@@ -274,7 +274,7 @@ local function build(page)
 			function() return ns.db.opt.auto end, function(v) ns.db.opt.auto = v ns.db.retry = 0 ns.Fire("OPTIONS") end),
 		UI.Check(page, "전멸하면 한 스테이지 물러나기",
 			function() return ns.db.opt.retreat end, function(v) ns.db.opt.retreat = v end),
-		UI.Check(page, "물러난 뒤 8번 깨거나 20분 사냥하면 다시 도전",
+		UI.Check(page, "물러난 뒤 8번 깨면 다시 도전",
 			function() return ns.db.opt.retry end, function(v)
 				ns.db.opt.retry = v
 				if not v and (ns.db.retry or 0) > 0 then
@@ -355,7 +355,7 @@ local function build(page)
 	tv.checks = {
 		UI.Check(tv, "자동 진행 - 깨면 다음 층으로",
 			function() return ns.db.opt.auto end, function(v) ns.db.opt.auto = v ns.db.retry = 0 ns.Fire("OPTIONS") end),
-		UI.Check(tv, "전멸해 한 층 내려간 뒤 8번 깨거나 20분 지나면 다시 도전",
+		UI.Check(tv, "전멸해 한 층 내려간 뒤 8번 깨면 다시 도전",
 			function() return ns.db.opt.retry end, function(v)
 				ns.db.opt.retry = v
 				if not v and (ns.db.retry or 0) > 0 then
