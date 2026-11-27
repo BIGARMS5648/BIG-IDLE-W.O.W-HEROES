@@ -945,17 +945,19 @@ do
 	local R = ns.Runes
 	local function node(id) return rp.byId[id] end
 	learnRune(1)
-	ns.db.runes[10] = nil
+	-- (11: the bag branch's first rune, 3 levels; 22 after it gives the same)
+	ns.db.runes[11] = nil
+	ns.db.runes[22] = nil
 	R.Invalidate()
 	Main.Refresh()
-	click("rune 10", function(b) return b.node and b.node.id == 10 end)
-	if rp.sel ~= 10 then fail("clicking a rune should select it") end
+	click("rune 11", function(b) return b.node and b.node.id == 11 end)
+	if rp.sel ~= 11 then fail("clicking a rune should select it") end
 	press("learn", rp.side.buy)
-	if R.Level(10) ~= 1 then fail("learning a rune did not work") end
-	if R.Available(11) then fail("a rune needs the one before it at the level it names (here its top level)") end
+	if R.Level(11) ~= 1 then fail("learning a rune did not work") end
+	if R.Available(22) then fail("a rune needs the one before it at the level it names (here its top level)") end
 	press("learn", rp.side.buy)
 	press("learn", rp.side.buy)
-	if not (R.Available(11) and R.Available(101) and R.Available(201)) then fail("a rune at its top level should open the runes after it") end
+	if not R.Available(22) then fail("a rune at its top level should open the runes after it") end
 	-- a kind checked under the map: the other runes fade, but their dark
 	-- backing stays solid so the lines behind them stay hidden
 	do
@@ -978,8 +980,8 @@ do
 	end
 	-- the border is the rune's kind; grey while closed; a green check at the top level
 	do
-		local b = node(10)
-		local rgb = R.byId[10].group.rgb
+		local b = node(11)
+		local rgb = R.byId[11].group.rgb
 		local v = b.border.__vertex or {}
 		if math.abs((v[1] or 0) - rgb[1]) > 0.01 or math.abs((v[2] or 0) - rgb[2]) > 0.01 then fail("an open rune's border should be its kind's colour") end
 		if not b.check:IsShown() then fail("a rune at its top level should show the green check") end
@@ -1077,6 +1079,14 @@ do
 	Main.ShowTab("runes")
 	if rp.focusFx:IsShown() then fail("opening the runes from the menu should not mark anything") end
 	-- the locked skill slot on the hero screen leads to its rune, marked
+	-- (각성의 룬 was learned on the way to the last party seat: not yet here)
+	local awake
+	for id, n in pairs(R.byId) do
+		if n.stat == "skillSlot" then awake = id end
+	end
+	local wasAwake = ns.db.runes[awake]
+	ns.db.runes[awake] = nil
+	R.Invalidate()
 	Main.ShowTab("runes", { rune = R.FirstFor("skillSlot") })
 	if not rp.focusFx:IsShown() then fail("the skill-slot rune should be marked") end
 	if rp.side.goPrev:IsVisible() then
@@ -1084,6 +1094,8 @@ do
 		if rp.focus ~= rp.sel then fail("the mark should follow '먼저 배울 룬 보기'") end
 	end
 	hoverAll()
+	ns.db.runes[awake] = wasAwake
+	R.Invalidate()
 end
 
 -- stages: world, act, stage, travel

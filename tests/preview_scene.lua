@@ -15,7 +15,11 @@ local db = ns.db
 db.faction = "ALLIANCE"
 ns.AddGold(123456789)
 ns.Heroes.Create("PALADIN_PROT")
-for _, id in ipairs({ 1, 10, 10, 10, 11, 11, 11, 101, 101, 20, 20, 20, 21, 11001, 11002, 201, 202, 301, 401 }) do ns.Runes.Buy(id) end
+-- one step on the way to each (a rune named twice: two steps)
+for _, id in ipairs({ 1, 10, 10, 10, 11, 11, 11, 1021, 101, 101, 20, 20, 20, 11001, 21, 11002, 25, 202, 302, 401 }) do
+	local step = ns.Runes.NextStepTo(id)
+	if step then ns.Runes.Buy(step) end
+end
 for _, sid in ipairs({ "MAGE_FIRE", "ROGUE_SUB", "HUNTER_MM", "PRIEST_DISC", "DRUID_RESTO", "SHAMAN_ENH", "WARRIOR_PROT", "PALADIN_HOLY" }) do ns.Heroes.Create(sid) end
 for id in pairs(db.heroes) do ns.Heroes.AddXP(id, 2.5e6) end
 -- the longest name the generator can make, to test every place a name is shown
@@ -297,6 +301,20 @@ S.equip_slot = function() ns.Main.SelectHero(db.party[2]) equip("bag", { slot = 
 S.equip_bank = function()
 	while #db.bank < 6 and #db.bag > 0 do ns.Items.ToBank(#db.bag) end
 	equip("bank")
+end
+-- an empty bag, an empty bank
+S.equip_empty = function()
+	local saved = db.bag
+	db.bag = {}
+	ns.Main.SelectHero(db.party[2])
+	equip("bag")
+	S.restore = function() db.bag = saved end
+end
+S.equip_bank_empty = function()
+	local saved = db.bank
+	db.bank = {}
+	equip("bank")
+	S.restore = function() db.bank = saved end
 end
 S.equip_smelt_list = function() local p = equip("bag") p.smeltPick:Click() end
 S.equip_view_list = function() local p = equip("bag") p.viewPick:Click() end

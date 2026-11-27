@@ -380,10 +380,7 @@ function BagView.Refresh(page)
 		end
 	end
 	local empty
-	if #list == 0 then
-		empty = bank and "창고가 비어 있습니다. 가방에서 Shift+클릭으로 보관합니다."
-			or (filtered and "이 종류의 장비가 없습니다." or "가방이 비어 있습니다. 상자를 열어 장비를 얻으세요.")
-	end
+	if #list == 0 and filtered and not bank then empty = "이 종류의 장비가 없습니다." end
 	page.empty:SetText(empty or "")
 	page.empty:SetShown(empty ~= nil)
 	-- under the last row of slots on this page

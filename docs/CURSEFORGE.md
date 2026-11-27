@@ -82,7 +82,7 @@ Build a party of five heroes, send them along a route through the original game'
 - **The Forge**, a screen of its own: every function in a list on the left (fuse, craft, gems, enchant, inscription, enhance, salvage, lucky seals, materials), the work in the middle, and on the right the hero and item you work on plus a log of the latest results. Bags fill up, so auto-salvage helps keep them clear.
 - **Gems, enchanting and inscription** work like Task Bar Hero's cube: 45 gems, 33 enchanting reagents and 10 inscription scrolls, each giving its own stats by gear type (weapon, armor or accessory) at tiers 1 to 10. Better grades give higher tiers; nine of one material fuse into a random one of the next grade.
 - **Enhancement** (+1 to +20) once Mythic+ opens: every step raises an item's base stats; any try can fail (only the gold is lost): 65% a step up to +10, then lower and lower, down to 10% for the last step. Inheritance moves an enhanced item's steps onto a new item of the same slot, as 70% of the gold they are worth, with its gems, enchants and inscriptions; the old item is used up. The tooltip shows the step before the name (+10 Iron Helm); item icons show the item level.
-- **Rune tree**: 197 account-wide runes bought with gold, spreading from the center of a map you zoom with the mouse wheel and drag around. They open party seats, skill slots, offline rewards, automatic chest opening, bigger bags and more.
+- **Rune tree**: 197 account-wide runes bought with gold, spreading from the center of a map you zoom with the mouse wheel and drag around, one branch per kind: gold, experience, combat and chest runes leave the center on the diagonals, bag runes go straight up. They open party seats, skill slots, offline rewards, automatic chest opening, bigger bags and more.
 - **Companions** that join the party.
 - **Offline rewards** for the time you were away: what your party earns hunting the highest stage it has cleared.
 - A **"Recommended" hint** always points at the next useful thing to do, and red dots show where something is waiting.
@@ -174,8 +174,13 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   and Mana Ruby for arcane) at the fire, frost and nature gems' grades, and
   the enchanting reagents and scrolls that give fire, frost or nature damage
   give these three too.
-- The act boss chest's clockwork rune sits after the 6th expansion rune and
-  costs 50,000 gold; its oil rune moves along beside it.
+- The rune tree by kind: on the same cells and lines, the gold, experience,
+  combat and chest runes each fill a branch that leaves the Rune of
+  Beginnings on a diagonal, and the bag runes the one going straight up;
+  the unlock runes branch off the experience runes and the forge runes off
+  the bag row. The cheapest runes of each kind stand nearest the center.
+  Runes you have learned stay learned.
+- The act boss chest's clockwork rune costs 50,000 gold.
 - The recommendation suggests the Rune of Awakening (a third skill slot for
   every hero) once a party hero reaches level 10, where the third skill
   opens: beside the next hero and the boss chest's clockwork rune, the
@@ -194,4 +199,6 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
   red, the same on the stage screen's cards and tooltips and on the battle
   window's badge.
 - The battle window shows your gold in yellow, as the menu does.
+- The bottom menu's seven buttons are all one size, evenly spaced.
+- An empty bag or bank shows no message.
 ```

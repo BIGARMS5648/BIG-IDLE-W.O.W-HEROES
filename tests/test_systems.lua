@@ -355,7 +355,10 @@ do
 		local prev = R.prev[id]
 		if prev then
 			check(R.Need(id) >= 1 and R.Need(id) <= R.byId[prev].max, "rune " .. id .. ": needs a level its rune before has")
-			check(math.abs(node.x - R.byId[prev].x) <= 1 or node.x == R.byId[prev].x, "rune " .. id .. ": next to the rune before it")
+			-- next to it (a diagonal too), or a straight line
+			local dx, dy = node.x - R.byId[prev].x, node.y - R.byId[prev].y
+			local near = (math.abs(dx) <= 1 and math.abs(dy) <= 1) or dx == 0 or dy == 0
+			check(near, "rune " .. id .. ": next to the rune before it")
 		else
 			check(id == ns.RUNE_FIRST, "only the first rune has none before it: " .. id)
 		end
@@ -416,22 +419,40 @@ end
 -- the rune tree: each rune opens once the rune before it has the level it needs
 do
 	local R = ns.Runes
-	check(R.Available(ns.RUNE_FIRST) and not R.Available(10), "only the first rune is open at the start")
-	local ok, why = R.Buy(21)
-	check(not ok and why:find(ns.N(R.byId[20].name), 1, true) and why:find("3레벨", 1, true), "buying a closed rune names the rune and level it needs: " .. tostring(why))
-	local step, total = R.NextStepTo(21)
-	check(step == ns.RUNE_FIRST and total == R.Cost(1, 1) + R.Cost(20, 1) + R.Cost(20, 2) + R.Cost(20, 3) + R.Cost(21, 1),
+	-- (401: the fight branch's first rune; 403 after it gives the same, so
+	-- it needs 401 at its top level; 11001 after 20 gives something else
+	-- and needs it at its first level)
+	check(R.Available(ns.RUNE_FIRST) and not R.Available(401), "only the first rune is open at the start")
+	check(R.prev[403] == 401 and not R.byId[403].req and R.prev[11001] == 20 and R.Need(11001) == 1, "the runes this test walks")
+	local ok, why = R.Buy(403)
+	check(not ok and why:find(ns.N(R.byId[401].name), 1, true) and why:find("3레벨", 1, true), "buying a closed rune names the rune and level it needs: " .. tostring(why))
+	local step, total = R.NextStepTo(403)
+	check(step == ns.RUNE_FIRST and total == R.Cost(1, 1) + R.Cost(401, 1) + R.Cost(401, 2) + R.Cost(401, 3) + R.Cost(403, 1),
 		"the way to a rune: the runes before it to the levels they need, then the rune")
 	local g0 = db.gold
-	check(learnRune(1, 1) and R.Available(20) and not R.Available(21), "the first rune opens the ones after it")
-	check(learnRune(20, 2) and not R.Available(21), "a rune with no level named needs its rune before at the top")
-	check(learnRune(20, 3) and R.Available(21), "... and opens at it")
-	check(g0 - db.gold == R.Spent() and R.Spent() == total - R.Cost(21, 1), "gold spent is what the runes cost")
+	check(learnRune(1, 1) and R.Available(401) and not R.Available(403), "the first rune opens the ones after it")
+	check(learnRune(401, 2) and not R.Available(403), "a rune with no level named needs its rune before at the top")
+	check(learnRune(401, 3) and R.Available(403), "... and opens at it")
+	check(g0 - db.gold == R.Spent() and R.Spent() == total - R.Cost(403, 1), "gold spent is what the runes cost")
+	check(not R.Available(11001) and learnRune(20, 1) and R.Available(11001), "a rune with a level named opens at that level")
 	check(R.Text(1, R.Amount(1, 1)):find("+5%", 1, true), "a rune reads its amount")
 end
 check(learnRune(21) and ns.PartyLimit() == 4, "a 지휘 rune adds a party seat")
-check(learnRune(24) and ns.PartyLimit() == 5, "the second 지휘 rune fills the party")
 check(ns.SkillSlots() == 2, "two skill slots from the start")
+-- (각성의 룬 stands on the way to the second 지휘 rune; the skill tests
+-- below start from two slots, so it is put back after)
+check(learnRune(24) and ns.PartyLimit() == 5, "the second 지휘 rune fills the party")
+do
+	local awake
+	for id, node in pairs(ns.Runes.byId) do
+		if node.stat == "skillSlot" then awake = id end
+	end
+	local c = 24
+	repeat c = ns.Runes.prev[c] until c == awake or not c
+	check(c == awake and ns.SkillSlots() == 3, "각성의 룬 comes on the way to the last seat")
+	db.runes[awake] = nil
+	ns.Runes.Invalidate()
+end
 check(ns.Heroes.Deploy(hero("PRIEST_HOLY")) and ns.Heroes.PartySlot(hero("PRIEST_HOLY")) == 5, "healer goes to slot 5")
 for _, sid in ipairs({ "WARRIOR_PROT", "DRUID_GUARDIAN", "MAGE_FIRE", "ROGUE_OUTLAW", "WARLOCK_AFF", "SHAMAN_RESTO", "DRUID_FERAL" }) do
 	check(ns.Heroes.Create(sid), "create " .. sid)
@@ -1313,6 +1334,8 @@ db.rate = { gold = 999, xp = 999, level = 5 }
 db.prog = { 3, 0, 0, 0 }
 db.hunt = { ["1-3"] = { g = 10, x = 5 }, ["1-2"] = { g = 500, x = 500 } }
 db.lastSeen = 1000
+db.runes[11001] = nil -- (learned on the way to the 지휘 runes)
+ns.Runes.Invalidate()
 check(ns.Offline.Claim(1000 + 3600) == nil, "no offline rewards before the 안식 rune")
 check(learnRune(11001) and ns.OfflineOn(), "the 안식 rune turns offline rewards on")
 db.lastSeen = 1000
@@ -2038,13 +2061,38 @@ do
 		g.runes = keepRunes
 		ns.Runes.Invalidate()
 	end
-	-- the two clockwork runes: 500 and 10,000 gold, near the start
-	check(ns.Runes.Cost(13002, 1) == 500 and ns.Runes.Cost(15001, 1) == 10000, "the clockwork runes cost 500 and 10,000 gold")
-	check(ns.Runes.prev[13002] == 12 and ns.Runes.prev[15001] == 14 and ns.Runes.Need(13002) == 1 and ns.Runes.Need(15001) == 1,
-		"the clockwork runes follow the 2nd and 4th 확장의 룬 at their first level")
-	-- the act boss chest's: 50,000 gold after the 6th 확장의 룬, its oil rune beside it
-	check(ns.Runes.Cost(1902001, 1) == 50000 and ns.Runes.prev[1902001] == 15 and ns.Runes.Need(1902001) == 1
-		and ns.Runes.prev[19020011] == 1902001, "the act boss chest's clockwork rune: 50,000 gold after the 6th 확장의 룬 at its first level")
+	-- the clockwork runes keep their prices: 500, 10,000 and 50,000 gold
+	check(ns.Runes.Cost(13002, 1) == 500 and ns.Runes.Cost(15001, 1) == 10000 and ns.Runes.Cost(1902001, 1) == 50000,
+		"the clockwork runes cost 500, 10,000 and 50,000 gold")
+	-- the tree by kind: each rune's way to the first rune stays in its kind,
+	-- but for the unlock runes (off the experience branch) and the forge
+	-- runes (off the bag row); the gold, experience, fight and chest branches
+	-- leave the first rune on the diagonals, the bag branch straight up
+	do
+		local JOIN = { unlock = "exp", forge = "bag" }
+		local bad
+		for id, node in pairs(ns.Runes.byId) do
+			if id ~= ns.RUNE_FIRST then
+				local kinds, c = {}, id
+				while c ~= ns.RUNE_FIRST do
+					local k = ns.Runes.byId[c].group.key
+					if kinds[#kinds] ~= k then kinds[#kinds + 1] = k end
+					c = ns.Runes.prev[c]
+				end
+				local k = node.group.key
+				local ok = #kinds == 1 or (#kinds == 2 and kinds[1] == k and kinds[2] == JOIN[k])
+				if not ok then bad = bad or id end
+			end
+		end
+		check(bad == nil, "every rune's way to the first rune stays in its kind: " .. tostring(bad))
+		local from = {}
+		for _, id in ipairs(ns.Runes.kids[ns.RUNE_FIRST]) do
+			local n = ns.Runes.byId[id]
+			from[n.group.key] = (n.x ~= 0 and n.y ~= 0) and "diagonal" or "straight"
+		end
+		check(from.gold == "diagonal" and from.exp == "diagonal" and from.fight == "diagonal" and from.chest == "diagonal"
+			and from.bag == "straight", "the four kinds leave the first rune on the diagonals, the bag straight up")
+	end
 	do
 		local at, clash = {}, nil
 		for id, n in pairs(ns.Runes.byId) do
