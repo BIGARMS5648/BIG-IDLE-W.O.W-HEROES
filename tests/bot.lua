@@ -222,7 +222,8 @@ local function craft()
 end
 
 -- Fill every empty gem, enchant and rune socket on the party's gear with
--- the best material at hand, first making better materials out of nine.
+-- the best material at hand (the highest tier, the one the hero's gear
+-- score likes most), first making better materials out of nine.
 local function sockets()
 	local F = ns.Forge
 	for _, kind in ipairs(ns.SOCKET_KINDS) do
@@ -240,10 +241,21 @@ local function sockets()
 				for _, kind in ipairs(ns.SOCKET_KINDS) do
 					local mk = ns.SOCKET[kind].mat
 					while F.Unlocked(kind) and ns.Items.FreeSockets(it, kind) > 0 do
-						local best
+						-- of the highest tier at hand, the material that raises
+						-- this hero's gear score the most (tried on a copy)
+						local best, bestP
 						for t = ns.MAT_MAX_TIER[mk], 1, -1 do
-							for _, id in ipairs(F.MatsAt(mk, t)) do
-								if not best and ns.MatCount(id) > 0 then best = id end
+							for _, mid in ipairs(F.MatsAt(mk, t)) do
+								if ns.MatCount(mid) > 0 then
+									local copy = ns.U.copy(it)
+									if F.Socket(copy, kind, mid, id) then
+										ns.AddMat(mid, 1)
+										local gear = {}
+										for k, v in pairs(ns.db.heroes[id].gear) do gear[k] = (v == it) and copy or v end
+										local p = ns.Stats.Power(id, gear)
+										if not bestP or p > bestP then best, bestP = mid, p end
+									end
+								end
 							end
 							if best then break end
 						end
