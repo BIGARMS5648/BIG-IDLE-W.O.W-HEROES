@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.4
+BIG IDLE HEROES v1.2.0
 ```
 
 ---
@@ -55,7 +55,8 @@ Build a party of five heroes, send them along a route through the original game'
 - Pick **Alliance or Horde** at the start. Each class takes its classic race for your faction. Heroes share the gender of the character you are logged in with.
 - **All 9 original classes and 28 specializations**: Arms, Fury and Protection Warrior; Holy, Protection and Retribution Paladin; Guardian, Feral, Balance and Restoration Druid; and so on.
 - Every hero gets a random "first name + family name" that fits its race and gender.
-- **Talents** (stat points, one per level) and **skills** are separate. Skills unlock in the order the original game teaches them, and you equip up to three of them (more with runes).
+- **Talents** (stat points, one per level) and **skills** are separate. Skills unlock in the order the original game teaches them, and you equip up to three of them (more with runes). Every spec opens with a skill that fights (or heals).
+- **Twelve stats**, easy to read: Attack, Health, Armor and Attack & cast speed; Critical chance, Critical damage, Boss damage and Cooldown reduction; Damage taken reduction, Elemental resistance, Dodge and Healing received. Healers heal out of their Attack.
 
 ### The world: 120 stages
 - A route through **the original game's zones, dungeons and raids in recommended-level order**: Elwynn Forest, Dun Morogh, the Deadmines, Scarlet Monastery, Uldaman, Blackrock Depths, Scholomance, Stratholme, Zul'Gurub, Ahn'Qiraj, and on to Molten Core, Onyxia's Lair, Blackwing Lair, the Temple of Ahn'Qiraj and **Naxxramas**.
@@ -80,7 +81,8 @@ Build a party of five heroes, send them along a route through the original game'
 - **Gear in 10 grades**, from Common to Arcana (the top grade's names and item frames run through cyan, periwinkle and orchid), in fixed item levels (1, 5, 10, 15, 20, 30, 40, 50, 65, 80, 100). A hero wears an item from its own level, so gear above your heroes waits in the bag until they catch up.
 - **Three kinds of chests**: monster chests, boss chests and act boss chests. Each stage has its own chests, drop chances and contents, shown on the stage screen.
 - **The Forge**, a screen of its own: every function in a list on the left (salvage, fuse, craft, gems, enchant, inscription, lucky seals, materials, enhance), the work in the middle, and on the right the hero and item you work on plus a log of the latest results. Bags fill up, so auto-salvage helps keep them clear.
-- **Gems, enchanting and inscription** set stats in gear sockets, each material in a line of ten grades: 7 gem lines, one per school (its damage on weapons, its defense on armor, a stat of its own on accessories), 4 enchanting lines of basic stats and 4 scroll lines of rarer ones. A line gives the same three stats at every grade, only stronger; nine of a line fuse into one of the same line a grade up.
+- **Gems, enchanting and inscription** set stats in gear sockets, each material in a line of ten grades: 5 gem lines, 4 enchanting lines and 4 scroll lines, each giving one stat on weapons, one on armor and one on accessories. A line gives the same three stats at every grade, only stronger; nine of a line fuse into one of the same line a grade up. One socket of any stat is worth about the same.
+- Random stats on gear take one of five evenly spaced whole values.
 - **Enhancement** (+1 to +20) once Mythic+ opens: every step raises an item's base stats; any try can fail (only the gold is lost): 65% a step up to +10, then lower and lower, down to 10% for the last step. Inheritance moves an enhanced item's steps onto a new item of the same slot, as 70% of the gold they are worth, with its gems, enchants and inscriptions; the old item is used up. The tooltip shows the step before the name (+10 Iron Helm); item icons show the item level.
 - **Rune tree**: 197 account-wide runes bought with gold, spreading from the center of a map you zoom with the mouse wheel and drag around, one branch per kind: gold, experience, combat and chest runes leave the center on the diagonals, bag runes go straight up, forge runes to the left and unlock runes to the right. They open party seats, skill slots, offline rewards, automatic chest opening, bigger bags and more.
 - **Companions** that join the party.
@@ -137,50 +139,61 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.4)
+## Changelog for this release (v1.2.0)
 
 ```
+Twelve stats
+- Every hero now has twelve stats in three groups:
+  Basic: Attack, Health, Armor, Attack & cast speed
+  Offense: Critical chance, Critical damage, Boss damage, Cooldown reduction
+  Defense: Damage taken reduction, Elemental resistance, Dodge,
+  Healing received
+- Gone: movement speed, block, absorb, lifesteal, regeneration, health on
+  hit and on kill, thorns, multistrike, school damage, healing done,
+  +all skill levels and the experience and gold gear stats. Talents, skill
+  buffs, spec stats and weapon types give one of the twelve instead.
+- Attack & cast speed runs skill cooldowns down as much faster as attacks.
+- Boss damage: more damage to stage, act and tower bosses.
+- One Elemental resistance for every element (up to 75%).
+- Healing received: heals and shields on the hero grow by it.
+- Heroes all walk at one pace. The movement speed runes are now Runes of
+  Execution: boss damage for every hero.
+
+Healers
+- Healers heal (and shield) out of their Attack, and their heals can be
+  critical. Skill texts show the heal as a share of the hero's Attack.
+- The five healing specs were balanced against each other again.
+
+Gear
+- Random stats: weapons roll offense, armor rolls defense, accessories a
+  mix. Every random stat takes one of five evenly spaced whole values,
+  shown with its range.
+- Gear score: Cooldown reduction counts as much as your equipped skills
+  have cooldowns, and updates when you swap skills. Salvage protection also
+  keeps gear that would be better with every skill slot on a cooldown
+  skill.
+
 Gems, enchanting reagents and scrolls
-- Remade in lines of ten grades. Each material gives one stat for weapons,
-  one for armor and one for accessories, never the same one twice, and the
-  same three at every grade of its line (higher grades, bigger numbers).
-- 7 gem lines, one per school: ruby (fire), sapphire (frost), emerald
-  (nature), topaz (physical), amethyst (shadow), pearl (holy) and diamond
-  (arcane): the school's damage on weapons, its defense on armor and a stat
-  of its own on accessories.
-- 4 enchanting lines of basic stats (dust, shard, crystal and essence) and
-  4 scroll lines of rarer ones (destruction, flurry, life and time).
-- Nine of a line fuse into one of the same line a grade up, no longer a
-  random material.
-- Names show the grade: Faint, Vivid, Fine, Ancient, Dragon, Titan,
-  Starlight, Divine, Celestial and Primal.
-- Materials in your bags become the nearest line of their grade; what is
-  already set in your gear keeps its stats.
+- 5 gem lines (ruby, sapphire, emerald, topaz, amethyst), 4 enchanting
+  lines and 4 scroll lines; every stat comes from three or four lines.
+- Values set grade by grade so one socket of any stat raises a hero about
+  as much as any other. Scrolls roll one of five values too.
 
-Forge, bags and settings
-- Lucky Seals is a Forge page of its own, right under Inscription: a card
-  per seal with the grades it can roll as bars, a Roll button, the gear
-  level it gives and the last piece rolled. It unlocks like the other
-  Forge functions (from Forge level 20); the materials tab no longer has a
-  seal unlock.
-- Bags: the salvage row sits above the fusion row.
-- Settings: the Change faction and reset buttons sit at the right end of
-  the row under their text; the chests-opened statistic is gone.
-- Fusion tooltips no longer say gear a hero will wear later is kept out of
-  fusion (it is used).
+Skills
+- Every spec opens with a skill that fights or heals: Arms Charge,
+  Protection Paladin Seal of Righteousness, Assassination Garrote, Holy
+  Priest Lesser Heal, Feral Claw. Arcane gets Mana Shield (Arcane Missiles
+  first) and Guardian gets Bash in place of Thorns.
 
-Endless Tower and runes
-- The floor picker sits on the same three columns as the stage screen's
-  act buttons, and the affix list keeps the stage path's margins.
-- Rune tree: the lines between runes stop at each rune's border instead of
-  showing through it, also when a kind is highlighted.
-- The three experience runes that hung off the tree on a long line now
-  branch to the left on the slant.
+Screens
+- Hero screen, Stats: Basic, Offense and Defense, plus estimated damage per
+  second and how much physical damage your armor stops at the current
+  stage. The Cooldown reduction tooltip counts your cooldown skills.
+- Equipment screen: all twelve stats in the hero summary; scroll them with
+  the mouse wheel.
 
-Heroes
-- Roles are named Defense, Offense and Healing duty (방어 전담, 공격 전담,
-  치유 전담) everywhere in the game.
-- Hero screen, Stats: the full-body model stands a little smaller (90%),
-  and the top of its head is no longer cut off (the model's frame now
-  reaches a little above the head; it used to stop just below it).
+Saves
+- Your gear, gems and materials move to the new stats: an old random stat
+  becomes the nearest new one where it sat in its range; gems take their
+  line's new stat; points in a replaced first skill go to the new skill.
 ```
