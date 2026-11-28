@@ -290,16 +290,7 @@ end
 ------------------------------------------------------------------------
 local function killReward(m)
 	local db = ns.db
-	local goldPct = ns.Bonus("gold")
-	-- the runes' gold on top: every kill, then by kind (a monster, a stage's
-	-- boss, an act's boss); the gold bonus counts it too
-	local addG = ns.Bonus("goldKill")
-	if m.boss then
-		addG = addG + (st.raid and ns.Bonus("goldAct") or ns.Bonus("goldBoss"))
-	elseif not m.summoned then
-		addG = addG + ns.Bonus("goldMob")
-	end
-	local gold = (m.gold + addG) * (1 + goldPct / 100)
+	local gold = m.gold * (1 + ns.Bonus("gold") / 100)
 	gold = max(1, floor(gold + 0.5))
 	local exp = m.exp
 	ns.AddGold(gold)
@@ -579,7 +570,7 @@ local function newMob(def, isBoss, index, summoned)
 		mob = true, def = def, name = def.name, icon = def.icon, type = def.type, boss = isBoss, summoned = summoned,
 		hp = hp, maxhp = hp, atk = atk, aspd = def.aspd, range = def.range,
 		school = def.school, move = def.move, res = def.res, status = def.status,
-		gold = ns.MobGold(1 + payHP / 14, l), exp = ns.MobExp(1 + payHP / 10, l),
+		gold = ns.MobGold(1 + payHP / 14, l) * ns.GoldGrow(l), exp = ns.MobExp(1 + payHP / 10, l),
 		x = LANE + (index - 1) * 45 + random(0, 20), off = ((index - 1) % 4) * 12,
 		atkT = 0.3 + random() * 0.6, st = {}, enr = 1, drT = 0, dr = 0, flash = 0, anim = 0,
 	}

@@ -574,6 +574,16 @@ ns.EXP_GROW = {
 	{ 87, 1.857 }, { 90, 1.606 }, { 93, 0.984 }, { 100, 0.985 },
 }
 function ns.ExpGrow(l) return knots(ns.EXP_GROW, l) end
+-- A monster's gold, by stage level, the same way: every gold rune gives a
+-- percent, and this takes back what the runes a player has learned by each
+-- stage add, so gold comes in as fast as when some gave flat gold.
+ns.GOLD_GROW = {
+	{ 1, 1 }, { 6, 0.905 }, { 11, 0.894 }, { 14, 0.839 }, { 17, 0.789 }, { 21, 0.766 }, { 25, 0.72 },
+	{ 30, 0.677 }, { 34, 0.672 }, { 38, 0.633 }, { 42, 0.618 }, { 46, 0.607 }, { 50, 0.599 }, { 54, 0.605 },
+	{ 58, 0.598 }, { 62, 0.593 }, { 66, 0.59 }, { 70, 0.581 }, { 75, 0.566 }, { 79, 0.552 }, { 83, 0.55 },
+	{ 87, 0.547 }, { 90, 0.546 }, { 93, 0.545 }, { 100, 0.545 },
+}
+function ns.GoldGrow(l) return knots(ns.GOLD_GROW, l) end
 -- The gear level a party has at stage level l: boxes give gear in TBH's
 -- steps (1, 5, 10, ... 100), and the first stages of a step are fought with
 -- the step before's gear, so it climbs from that step to this one.
