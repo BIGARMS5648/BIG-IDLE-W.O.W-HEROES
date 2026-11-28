@@ -156,8 +156,7 @@ Twelve stats
 - Boss damage: more damage to stage, act and tower bosses.
 - One Elemental resistance for every element (up to 75%).
 - Healing received: heals and shields on the hero grow by it.
-- Heroes all walk at one pace. The movement speed runes are now Runes of
-  Execution: boss damage for every hero.
+- Heroes all walk at one pace.
 
 Healers
 - Healers heal (and shield) out of their Attack, and their heals can be
@@ -184,6 +183,16 @@ Skills
   Protection Paladin Seal of Righteousness, Assassination Garrote, Holy
   Priest Lesser Heal, Feral Claw. Arcane gets Mana Shield (Arcane Missiles
   first) and Guardian gets Bash in place of Thorns.
+
+Combat runes
+- The twenty combat runes now give the twelve stats, all as percentages
+  for every hero: Attack, Health, Armor, Attack & cast speed, Critical
+  chance, Critical damage, Boss damage, Cooldown reduction, Damage taken
+  reduction, Elemental resistance, Dodge and Healing received.
+- Every level is worth about the same for its gold price whatever stat it
+  gives, and the whole branch is about as strong as before. Cells, links,
+  levels and prices stay the same; the wave reduction rune is a stat rune
+  now. Runes you learned keep their levels.
 
 Screens
 - Hero screen, Stats: Basic, Offense and Defense, plus estimated damage per

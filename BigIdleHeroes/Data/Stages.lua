@@ -436,9 +436,7 @@ ns.MAX_WAVE_MOBS = 7
 ns.KILL_SHARE = { 1, 1, 0.5, 0.5 }
 function ns.StageKills(diff, idx)
 	local t = ns.TBH.STAGES[diff][idx]
-	-- (a rune takes a wave off every stage)
-	local fewer = ns.db and ns.Bonus and math.min(t.waves - 1, ns.Bonus("waves")) or 0
-	return math.floor((t.waves - fewer) * t.per * (ns.KILL_SHARE[diff] or 1))
+	return math.floor(t.waves * t.per * (ns.KILL_SHARE[diff] or 1))
 end
 -- how much of TBH's boss chest chance a stage's boss keeps (an act boss
 -- always drops its chest)

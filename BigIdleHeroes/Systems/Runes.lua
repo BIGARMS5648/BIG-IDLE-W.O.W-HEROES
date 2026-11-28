@@ -19,12 +19,18 @@ ns.RUNE_GOLD = 0.4
 -- ns.RUNE_GOLD); text: how a total reads (%s the amount); time: the amount
 -- is a wait in seconds; flag: learned or not (sum: its line in the totals).
 ns.RUNE_STAT = {
-	AllHeroAttackDamage = { key = "atk", text = "모든 영웅 공격력 +%s", icon = "Ability_Warrior_OffensiveStance" },
 	AllHeroAttackDamagePercent = { key = "atkPct", k = 0.1, text = "모든 영웅 공격력 +%s%%", icon = "Ability_Warrior_BattleShout" },
 	AllHeroAttackSpeed = { key = "aspd", k = 0.1, text = "모든 영웅 공격 및 시전 속도 +%s%%", icon = "Spell_Nature_Bloodlust" },
-	-- (TBH's moving speed: 우두머리 피해 here)
-	AllHeroMoveSpeed = { key = "boss", k = 0.1, text = "모든 영웅 우두머리 피해 +%s%%", icon = "INV_Misc_Head_Dragon_01" },
-	AllHeroArmor = { key = "armor", text = "모든 영웅 방어력 +%s", icon = "INV_Shield_06" },
+	-- the fight branch's other stats (not TBH's: its runes give the twelve)
+	AllHeroMaxHpPercent = { key = "hpPct", k = 0.1, text = "모든 영웅 생명력 +%s%%", icon = "Spell_Holy_WordFortitude" },
+	AllHeroCritChance = { key = "crit", k = 0.1, text = "모든 영웅 치명타 확률 +%s%%", icon = "Ability_CriticalStrike" },
+	AllHeroCritDamage = { key = "critdmg", k = 0.1, text = "모든 영웅 치명타 피해 +%s%%", icon = "INV_Sword_48" },
+	AllHeroBossDamage = { key = "boss", k = 0.1, text = "모든 영웅 우두머리 피해 +%s%%", icon = "INV_Misc_Head_Dragon_01" },
+	AllHeroCooldownReduction = { key = "cdr", k = 0.1, text = "모든 영웅 재사용 대기시간 감소 +%s%%", icon = "Spell_Nature_TimeStop" },
+	AllHeroDamageReduction = { key = "dr", k = 0.1, text = "모든 영웅 받는 피해 감소 +%s%%", icon = "Ability_Warrior_ShieldWall" },
+	AllHeroElementalResistance = { key = "res", k = 0.1, text = "모든 영웅 원소 저항 +%s%%", icon = "Spell_Frost_WizardMark" },
+	AllHeroDodge = { key = "dodge", k = 0.1, text = "모든 영웅 회피 +%s%%", icon = "Ability_Rogue_Feint" },
+	AllHeroHealingReceived = { key = "healTaken", k = 0.1, text = "모든 영웅 받는 치유량 증가 +%s%%", icon = "Spell_Holy_FlashHeal" },
 	AllHeroArmorPercent = { key = "armorPct", k = 0.1, text = "모든 영웅 방어력 +%s%%", icon = "Ability_Warrior_DefensiveStance" },
 	IncreaseGoldAmount = { key = "gold", k = 0.1, text = "몬스터 처치 골드 +%s%%", icon = "INV_Misc_Coin_02" },
 	IncreaseExpAmount = { key = "exp", k = 0.1, text = "경험치 획득 +%s%%", icon = "INV_Misc_Book_07" },
@@ -58,7 +64,6 @@ ns.RUNE_STAT = {
 	OfflineRewardExpPercent = { key = "offExp", k = 0.1, text = "오프라인 보상 경험치 +%s%%", icon = "INV_Misc_Book_10" },
 	CubeExpPercent = { key = "forgeExp", k = 0.1, text = "대장간 경험치 +%s%%", icon = "Trade_BlackSmithing" },
 	CubeAlchemyGoldPercent = { key = "smeltGold", k = 0.1, text = "분해 골드 +%s%%", icon = "Trade_Alchemy" },
-	WaveCountReduction = { key = "waves", text = "스테이지마다 웨이브 -%s", icon = "Spell_Nature_TimeStop" },
 	-- the first rune: its amount goes to each of these stats' bonuses
 	StartGoldExp = { key = "start", k = 0.1, adds = { "IncreaseGoldAmount", "IncreaseExpAmount" }, text = "몬스터 처치 골드·경험치 획득 +%s%%", icon = "INV_Misc_Rune_01" },
 }
@@ -75,7 +80,8 @@ ns.RUNE_GROUPS = {
 	{ key = "forge", name = "대장간", rgb = { 0.95, 0.56, 0.2 } },
 }
 ns.RUNE_GROUP_OF = {
-	atk = "fight", atkPct = "fight", aspd = "fight", boss = "fight", armor = "fight", armorPct = "fight", waves = "fight",
+	atkPct = "fight", hpPct = "fight", armorPct = "fight", aspd = "fight", crit = "fight", critdmg = "fight", boss = "fight",
+	cdr = "fight", dr = "fight", res = "fight", dodge = "fight", healTaken = "fight",
 	gold = "gold", goldKill = "gold", goldMob = "gold", goldBoss = "gold", goldAct = "gold", offGold = "gold",
 	exp = "exp", expKill = "exp", expMob = "exp", expBoss = "exp", expAct = "exp", offExp = "exp",
 	chestChance = "chest", bossRate = "chest", cap1 = "chest", cap2 = "chest", cap3 = "chest",

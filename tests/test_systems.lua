@@ -447,22 +447,24 @@ end
 -- the rune tree: each rune opens once the rune before it has the level it needs
 do
 	local R = ns.Runes
-	-- (401: the fight branch's first rune; 403 after it gives the same, so
-	-- it needs 401 at its top level; 402 after it gives something else and
+	-- (11: the bag branch's first rune; 22 after it gives the same, so it
+	-- needs 11 at its top level; 402 after 401 gives something else and
 	-- needs it at its first level)
-	check(R.Available(ns.RUNE_FIRST) and not R.Available(401), "only the first rune is open at the start")
-	check(R.prev[403] == 401 and not R.byId[403].req and R.prev[402] == 401 and R.Need(402) == 1, "the runes this test walks")
-	local ok, why = R.Buy(403)
-	check(not ok and why:find(ns.N(R.byId[401].name), 1, true) and why:find("3레벨", 1, true), "buying a closed rune names the rune and level it needs: " .. tostring(why))
-	local step, total = R.NextStepTo(403)
-	check(step == ns.RUNE_FIRST and total == R.Cost(1, 1) + R.Cost(401, 1) + R.Cost(401, 2) + R.Cost(401, 3) + R.Cost(403, 1),
+	check(R.Available(ns.RUNE_FIRST) and not R.Available(11) and not R.Available(401), "only the first rune is open at the start")
+	check(R.prev[22] == 11 and not R.byId[22].req and R.byId[22].stat == R.byId[11].stat
+		and R.prev[402] == 401 and R.Need(402) == 1 and R.byId[402].stat ~= R.byId[401].stat, "the runes this test walks")
+	local ok, why = R.Buy(22)
+	check(not ok and why:find(ns.N(R.byId[11].name), 1, true) and why:find("3레벨", 1, true), "buying a closed rune names the rune and level it needs: " .. tostring(why))
+	local step, total = R.NextStepTo(22)
+	check(step == ns.RUNE_FIRST and total == R.Cost(1, 1) + R.Cost(11, 1) + R.Cost(11, 2) + R.Cost(11, 3) + R.Cost(22, 1),
 		"the way to a rune: the runes before it to the levels they need, then the rune")
 	local g0 = db.gold
-	check(learnRune(1, 1) and R.Available(401) and not R.Available(403), "the first rune opens the ones after it")
-	check(learnRune(401, 1) and R.Available(402) and not R.Available(403), "a rune with a level named opens at that level")
-	check(learnRune(401, 2) and not R.Available(403), "a rune with no level named needs its rune before at the top")
-	check(learnRune(401, 3) and R.Available(403), "... and opens at it")
-	check(g0 - db.gold == R.Spent() and R.Spent() == total - R.Cost(403, 1), "gold spent is what the runes cost")
+	check(learnRune(1, 1) and R.Available(11) and R.Available(401) and not R.Available(22), "the first rune opens the ones after it")
+	check(learnRune(401, 1) and R.Available(402), "a rune with a level named opens at that level")
+	check(learnRune(11, 2) and not R.Available(22), "a rune with no level named needs its rune before at the top")
+	check(learnRune(11, 3) and R.Available(22), "... and opens at it")
+	check(g0 - db.gold == R.Spent() and R.Spent() == R.Cost(1, 1) + R.Cost(401, 1) + R.Cost(11, 1) + R.Cost(11, 2) + R.Cost(11, 3),
+		"gold spent is what the runes cost")
 	check(R.Text(1, R.Amount(1, 1)):find("+5%", 1, true), "a rune reads its amount")
 end
 check(learnRune(21) and ns.PartyLimit() == 4, "a 지휘 rune adds a party seat")
@@ -2367,9 +2369,9 @@ do
 	check(it.l < 100 and lo and it.a[1][2] >= lo and it.a[1][2] <= hi, "migrated stats sit inside the range shown: " .. tostring(it.a[1][2]) .. " in " .. tostring(lo) .. "~" .. tostring(hi))
 end
 -- the first rune, at the middle of the map: 시작의 룬 with the hearthstone
--- (the other 전쟁의 룬 keeps its name)
+-- (the fight branch's 전쟁의 룬 keeps its name)
 check(ns.Runes.byId[1].name == "시작의 룬" and ns.Runes.byId[1].icon == "INV_Misc_Rune_01", "the first rune is 시작의 룬 with the hearthstone")
-check(ns.Runes.byId[4031].name == "전쟁의 룬", "the other 전쟁의 룬 keeps its name")
+check(ns.Runes.byId[405].name == "전쟁의 룬", "the fight branch's 전쟁의 룬 keeps its name")
 -- it gives kill gold and experience +5% and is of none of the kinds
 do
 	local keep = ns.db.runes

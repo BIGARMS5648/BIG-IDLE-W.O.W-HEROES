@@ -522,6 +522,14 @@ end
 -- 룬
 S.runes = function() show("runes", { rune = 11 }) end
 S.runes_locked = function() show("runes", { rune = 12821 }) end
+-- the fight branch, every rune of it learned to its top but the last two
+S.runes_fight = function()
+	for _, id in ipairs({ 401, 402, 403, 405, 406, 404, 407, 408, 4061, 4031, 409, 4081, 412, 410, 411, 413, 414, 4101 }) do
+		db.runes[id] = ns.Runes.byId[id].max
+	end
+	ns.Runes.Invalidate()
+	show("runes", { rune = 409 })
+end
 S.runes_start = function() db.runes = { [1] = 1 } ns.Runes.Invalidate() show("runes", { rune = 1 }) end
 -- zoomed all the way out: the whole tree in the box
 S.runes_far = function()
