@@ -189,26 +189,34 @@ ns.SOCKET_FIELD = { gem = "g", ench = "e", insc = "i" }
 -- sized for
 ns.SOCKET_TIER_LEVEL = { 1, 5, 10, 15, 20, 30, 40, 50, 65, 80 }
 
--- What one socket gives: { at tier 1, times this every tier up } - a
--- percent, or for 공격력 / 생명력 / 방어력 a number times the stat's curve at
--- the tier's level. The numbers make one socket of any stat raise the gear
--- score as much as the others on average over the three roles, and as much
--- as a socket did on average before the twelve stats, tier by tier (a
--- calculation on heroes geared for each tier's level, tests/bench.lua's
--- way). A socket rolls one of five steps around it, SOCKET_SPREAD either way.
+-- What one socket gives at each tier (1-10): a percent, or for 공격력 /
+-- 생명력 / 방어력 a number times the stat's curve at the tier's level. The
+-- numbers make one socket of any stat raise the gear score as much as the
+-- others on average over the three roles, and as much as a socket did on
+-- average before the twelve stats, tier by tier (worked out on heroes
+-- geared for each tier's level, tests/bench.lua's way, then evened out
+-- between neighbouring tiers). A socket rolls one of five steps around it,
+-- SOCKET_SPREAD either way.
 ns.SOCKET_VALUE = {
-	atk = { 0.43, 1.22 }, hp = { 8.6, 1.177 }, armor = { 9.4, 1.176 },
-	aspd = { 2.16, 1.26 }, crit = { 3.0, 1.163 }, critdmg = { 20.3, 1.077 },
-	boss = { 6.0, 1.218 }, cdr = { 3.85, 1.153 },
-	dr = { 2.47, 1.186 }, res = { 3.4, 1.153 }, dodge = { 2.46, 1.164 }, healTaken = { 7.5, 1.239 },
+	atk = { 0.495, 0.54, 0.588, 0.691, 0.881, 1.088, 1.33, 1.689, 2.142, 2.506 },
+	hp = { 9.149, 9.826, 11.407, 13.749, 16.312, 18.556, 22.224, 27.11, 32.211, 39.066 },
+	armor = { 9.528, 10.824, 12.937, 17.45, 24.249, 28.011, 31.727, 40.907, 55.225, 74.366 },
+	aspd = { 2.28, 2.79, 3.54, 4.43, 5.51, 6.42, 7.68, 10.16, 13.45, 16.95 },
+	crit = { 2.86, 3.41, 4.3, 5.25, 5.9, 6.59, 7.64, 8.17, 8.89, 10.61 },
+	critdmg = { 13.53, 15.22, 18.21, 24.75, 33.27, 34.49, 35.18, 35.89, 36.61, 41.84 },
+	boss = { 5.87, 7.4, 9.23, 11.09, 13.14, 15.38, 19.11, 24.2, 29.48, 34.38 },
+	cdr = { 4.05, 5.19, 6.73, 7.91, 8.66, 9.52, 10.8, 11.87, 12.96, 14.23 },
+	dr = { 2.23, 2.83, 3.68, 4.48, 5.22, 6.01, 6.95, 7.73, 8.42, 9.29 },
+	res = { 2.99, 3.66, 4.59, 5.66, 6.82, 7.62, 8.28, 9.48, 10.96, 12.04 },
+	dodge = { 2.23, 2.83, 3.64, 4.43, 5.13, 5.77, 6.67, 7.65, 8.74, 9.83 },
+	healTaken = { 7.46, 9.7, 12.45, 14.83, 17.53, 20.99, 26.27, 33.27, 40.72, 47.25 },
 }
 ns.SOCKET_SPREAD = 0.25
 
 -- The middle and the spread of a socket stat at a tier.
 function ns.SocketMid(stat, tier)
-	local v = ns.SOCKET_VALUE[stat]
 	local a = ns.AFFIX[stat]
-	local mid = v[1] * v[2] ^ (tier - 1)
+	local mid = ns.SOCKET_VALUE[stat][tier]
 	if a.s then mid = mid * ns.Scale[a.s](ns.SOCKET_TIER_LEVEL[tier]) end
 	return mid, mid * ns.SOCKET_SPREAD * 2
 end
