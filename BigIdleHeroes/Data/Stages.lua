@@ -566,7 +566,10 @@ end
 -- as much as keeps the heroes about two levels above the stage they push,
 -- level 98 at the last boss. Every experience rune gives a percent; this is
 -- lowered by what the runes a player has learned by each stage add, so the
--- heroes level as fast as when some of them gave flat experience.
+-- heroes level as fast as when some of them gave flat experience. From the
+-- third act of Normal on it is raised again so that, with the twelve stats,
+-- heroes reach about the levels they did before them (play runs of four
+-- parties, matched through Mythic).
 ns.EXP_GROW = {
 	{ 1, 0.45 }, { 6, 0.409 }, { 11, 0.412 }, { 14, 0.588 }, { 17, 0.828 }, { 21, 0.88 }, { 25, 1.069 },
 	{ 30, 1.06 }, { 34, 0.862 }, { 38, 0.578 }, { 42, 0.51 }, { 46, 0.704 }, { 50, 1.136 }, { 54, 1.687 },

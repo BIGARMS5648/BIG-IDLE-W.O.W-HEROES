@@ -202,6 +202,11 @@ Experience and gold runes
   learning the runes as you go, heroes level and gold comes in about as
   fast as before.
 
+Balance
+- Monsters give more experience from the third act of Normal on, so heroes
+  reach the levels they did before the stat overhaul (most of all in Mythic
+  and Mythic+). The first two acts of Normal are unchanged.
+
 Screens
 - Hero screen, Stats: Basic, Offense and Defense, plus estimated damage per
   second and how much physical damage your armor stops at the current
