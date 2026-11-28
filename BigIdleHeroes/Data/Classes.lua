@@ -4,9 +4,9 @@
 local _, ns = ...
 
 ns.ROLE = {
-	TANK   = { name = "탱커",   hex = "4c8dff", art = "role_tank" },
-	DPS    = { name = "딜러", hex = "ff5a47", art = "role_dps" },
-	HEALER = { name = "힐러", hex = "45d16a", art = "role_heal" },
+	TANK   = { name = "방어 전담",   hex = "4c8dff", art = "role_tank" },
+	DPS    = { name = "공격 전담", hex = "ff5a47", art = "role_dps" },
+	HEALER = { name = "치유 전담", hex = "45d16a", art = "role_heal" },
 }
 
 -- Party slot index -> role it accepts.
@@ -168,7 +168,7 @@ spec("PALADIN_HOLY", "PALADIN", "신성", {
 })
 spec("PALADIN_PROT", "PALADIN", "보호", {
 	role = "TANK", school = "phys", range = MELEE, icon = "Spell_Holy_BlessingOfProtection",
-	desc = "신성한 힘으로 적 무리를 붙잡고 스스로를 치유하는 탱커.",
+	desc = "신성한 힘으로 적 무리를 붙잡고 스스로를 치유하는 방어 전담.",
 	base = { atk = 8, aspd = 0.85, crit = 3, critdmg = 150, hp = 235, armor = 38, block = 4 },
 	mh = { "sword", "mace", "axe" }, oh = { "shield" },
 	arch = "TANK", a = "dmg_holy", g = "block",
@@ -176,7 +176,7 @@ spec("PALADIN_PROT", "PALADIN", "보호", {
 })
 spec("PALADIN_RET", "PALADIN", "징벌", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Spell_Holy_SealOfMight",
-	desc = "신성한 일격으로 적을 심판하는 근접 딜러.",
+	desc = "신성한 일격으로 적을 심판하는 근접 공격 전담.",
 	base = { atk = 12, aspd = 0.80, crit = 5, critdmg = 160, hp = 175, armor = 30 },
 	mh = { "sword", "mace", "axe" }, oh = { "whetstone", "relic" },
 	arch = "MELEE", a = "dmg_holy", b = "dmg_phys",
@@ -342,7 +342,7 @@ spec("WARLOCK_DESTRO", "WARLOCK", "파괴", {
 -- Druid -----------------------------------------------------------------
 spec("DRUID_BALANCE", "DRUID", "조화", {
 	role = "DPS", school = "nature", range = CAST, ranged = true, icon = "Spell_Nature_StarFall",
-	desc = "달과 별의 힘으로 싸우는 원거리 마법 딜러.",
+	desc = "달과 별의 힘으로 싸우는 원거리 마법 공격 전담.",
 	base = { atk = 10, aspd = 0.70, crit = 5, critdmg = 160, hp = 140, armor = 14, move = -5 },
 	mh = { "staff", "mace", "dagger" }, oh = { "relic", "orb" },
 	arch = "CASTER", a = "dmg_nature", b = "dmg_arcane",
@@ -350,7 +350,7 @@ spec("DRUID_BALANCE", "DRUID", "조화", {
 })
 spec("DRUID_FERAL", "DRUID", "야성", {
 	role = "DPS", school = "phys", range = MELEE, icon = "Ability_Druid_FerociousBite",
-	desc = "표범으로 변신해 찢고 물어뜯는 근접 딜러.",
+	desc = "표범으로 변신해 찢고 물어뜯는 근접 공격 전담.",
 	base = { atk = 10, aspd = 1.20, crit = 8, critdmg = 170, hp = 160, armor = 22, move = 10, dodge = 5 },
 	mh = { "staff", "mace", "dagger" }, oh = { "relic", "whetstone" },
 	arch = "MELEE", a = "dmg_phys", b = "dmg_phys",
@@ -358,7 +358,7 @@ spec("DRUID_FERAL", "DRUID", "야성", {
 })
 spec("DRUID_GUARDIAN", "DRUID", "수호", {
 	role = "TANK", school = "phys", range = MELEE, icon = "Ability_Druid_Maul",
-	desc = "곰으로 변신해 두꺼운 가죽과 재생력으로 버티는 탱커.",
+	desc = "곰으로 변신해 두꺼운 가죽과 재생력으로 버티는 방어 전담.",
 	base = { atk = 9, aspd = 0.80, crit = 4, critdmg = 150, hp = 270, armor = 30, dodge = 5 },
 	mh = { "mace", "staff" }, oh = { "relic" },
 	arch = "TANK", a = "dmg_phys", g = "dodge",

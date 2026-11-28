@@ -582,7 +582,7 @@ function ns.SkillDesc(id, lvl)
 			s = string.format("%s: 최대 생명력의 %s%% 회복.", who, num(v))
 		end
 	elseif kind == "shield" then
-		local who = ({ self = "자신", all = "파티 전원", tank = "탱커" })[sk.target] or "가장 다친 아군"
+		local who = ({ self = "자신", all = "파티 전원", tank = "방어 전담" })[sk.target] or "가장 다친 아군"
 		s = string.format("%s에게 최대 생명력의 %s%%를 흡수하는 보호막을 %s초 동안 씌웁니다.", who, num(v), num(sk.dur))
 	elseif kind == "buff" then
 		local who = ({ party = "파티 전원", lowest = "가장 다친 아군" })[sk.target] or "자신"

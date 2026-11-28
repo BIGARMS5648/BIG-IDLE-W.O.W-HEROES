@@ -846,7 +846,7 @@ do -- every melee hero hits from where it stands: within its own reach
 			end
 			lastN = #log
 		end })
-	check(seen > 50 and far == 0, "근접 영웅은 자기 자리에서 사거리 안의 적만 침 (탱커 뒤 근접 3명)",
+	check(seen > 50 and far == 0, "근접 영웅은 자기 자리에서 사거리 안의 적만 침 (방어 전담 뒤 근접 3명)",
 		seen .. "번 중 사거리 밖 " .. far .. "번, 가장 먼 거리 " .. f(worst, 0))
 	L.endLab()
 end

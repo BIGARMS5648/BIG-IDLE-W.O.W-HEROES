@@ -434,7 +434,7 @@ function create.refresh()
 		create.hint:SetText(string.format("파티에 %s 자리가 비어 있습니다. %s 표시가 있는 직업에 %s 전문화가 있습니다.",
 			ns.ROLE[create.role].name, U.col("40d060", "추천"), ns.ROLE[create.role].name))
 	else
-		create.hint:SetText("직업과 전문화를 고르고, 이름을 정하세요. 전문화가 역할(탱커·딜러·힐러)을 정합니다.")
+		create.hint:SetText("직업과 전문화를 고르고, 이름을 정하세요. 전문화가 역할(방어 전담·공격 전담·치유 전담)을 정합니다.")
 	end
 	for _, b in ipairs(create.classes) do
 		local on = b.cid == create.class
@@ -774,7 +774,7 @@ local function build(page)
 	local p = UI.Panel(page, K.W, K.H, "inset")
 	p:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
 	page.panel = p
-	page.help = UI.Text(p, 11, "왼쪽이 맨 뒤(힐러), 오른쪽이 맨 앞(탱커)입니다. 적은 맨 앞 영웅부터 공격합니다.\n빈 칸을 고른 뒤 아래의 대기 영웅을 누르면 그 칸에 들어갑니다.")
+	page.help = UI.Text(p, 11, "왼쪽이 맨 뒤(치유 전담), 오른쪽이 맨 앞(방어 전담)입니다. 적은 맨 앞 영웅부터 공격합니다.\n빈 칸을 고른 뒤 아래의 대기 영웅을 누르면 그 칸에 들어갑니다.")
 	page.help:SetPoint("TOPLEFT", p, "TOPLEFT", 14, -12)
 	page.help:SetWidth(640)
 	page.help:SetJustifyV("TOP")
@@ -822,7 +822,7 @@ local function refresh(page)
 			c.fig:Show()
 			c.name:SetText(U.col("ffb84a", H.ShortName(id)))
 			c.spec:SetText(string.format("Lv %d %s", h.level, ns.SpecLabel(h.spec)))
-			c.duty:SetText(ns.N(ns.ROLE[sp.role].name) .. " 전담")
+			c.duty:SetText(ns.N(ns.ROLE[sp.role].name))
 			local ps = H.PowerScore(id)
 			power = power + ps
 			n[role] = n[role] + 1
@@ -850,7 +850,7 @@ local function refresh(page)
 			c.power:SetText("")
 		end
 	end
-	page.summary:SetText(string.format("파티 전투력 %s   ·   탱커 %d / 딜러 %d / 힐러 %d   ·   %d / %d명",
+	page.summary:SetText(string.format("파티 전투력 %s   ·   방어 전담 %d / 공격 전담 %d / 치유 전담 %d   ·   %d / %d명",
 		U.col("ffd24a", U.fmt(power)), n.TANK, n.DPS, n.HEALER, count, limit))
 	page.auto:SetOff(not canAutoForm())
 	-- who waits

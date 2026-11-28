@@ -1485,7 +1485,7 @@ do
 		do
 			local realCurrent, gold = ns.Guide.Current, ns.db.gold
 			ns.Guide.Current = function()
-				return { text = "탱커 영웅 모집하기 (300 G)", tab = "hero", create = "TANK", wait = true }
+				return { text = "방어 전담 영웅 모집하기 (300 G)", tab = "hero", create = "TANK", wait = true }
 			end
 			ns.db.gold = 0
 			local said

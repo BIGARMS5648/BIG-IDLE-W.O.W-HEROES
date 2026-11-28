@@ -30,7 +30,7 @@ World of Warcraft: Forever (TOC `## Interface: 16001`).
 ## Release title (for this file)
 
 ```
-BIG IDLE HEROES v1.1.5
+BIG IDLE HEROES v1.1.4
 ```
 
 ---
@@ -137,9 +137,49 @@ The add-on was renamed, and its folder is now `BigIdleHeroes`. To keep your prog
 
 ---
 
-## Changelog for this release (v1.1.5)
+## Changelog for this release (v1.1.4)
 
 ```
+Gems, enchanting reagents and scrolls
+- Remade in lines of ten grades. Each material gives one stat for weapons,
+  one for armor and one for accessories, never the same one twice, and the
+  same three at every grade of its line (higher grades, bigger numbers).
+- 7 gem lines, one per school: ruby (fire), sapphire (frost), emerald
+  (nature), topaz (physical), amethyst (shadow), pearl (holy) and diamond
+  (arcane): the school's damage on weapons, its defense on armor and a stat
+  of its own on accessories.
+- 4 enchanting lines of basic stats (dust, shard, crystal and essence) and
+  4 scroll lines of rarer ones (destruction, flurry, life and time).
+- Nine of a line fuse into one of the same line a grade up, no longer a
+  random material.
+- Names show the grade: Faint, Vivid, Fine, Ancient, Dragon, Titan,
+  Starlight, Divine, Celestial and Primal.
+- Materials in your bags become the nearest line of their grade; what is
+  already set in your gear keeps its stats.
+
+Forge, bags and settings
+- Lucky Seals is a Forge page of its own, right under Inscription: a card
+  per seal with the grades it can roll as bars, a Roll button, the gear
+  level it gives and the last piece rolled. It unlocks like the other
+  Forge functions (from Forge level 20); the materials tab no longer has a
+  seal unlock.
+- Bags: the salvage row sits above the fusion row.
+- Settings: the Change faction and reset buttons sit at the right end of
+  the row under their text; the chests-opened statistic is gone.
+- Fusion tooltips no longer say gear a hero will wear later is kept out of
+  fusion (it is used).
+
+Endless Tower and runes
+- The floor picker sits on the same three columns as the stage screen's
+  act buttons, and the affix list keeps the stage path's margins.
+- Rune tree: the lines between runes stop at each rune's border instead of
+  showing through it, also when a kind is highlighted.
+- The three experience runes that hung off the tree on a long line now
+  branch to the left on the slant.
+
+Heroes
+- Roles are named Defense, Offense and Healing duty (방어 전담, 공격 전담,
+  치유 전담) everywhere in the game.
 - Hero screen, Stats: the full-body model stands a little smaller (90%),
   and the top of its head is no longer cut off (the model's frame now
   reaches a little above the head; it used to stop just below it).
