@@ -194,6 +194,14 @@ Combat runes
   levels and prices stay the same; the wave reduction rune is a stat rune
   now. Runes you learned keep their levels.
 
+Experience and gold runes
+- The runes that gave a flat amount of experience or gold per kill, per
+  boss or per act boss now give +5% experience or +5% monster gold per
+  level, so they keep their worth at every stage.
+- Monsters give a little less experience and gold to make up for it:
+  learning the runes as you go, heroes level and gold comes in about as
+  fast as before.
+
 Screens
 - Hero screen, Stats: Basic, Offense and Defense, plus estimated damage per
   second and how much physical damage your armor stops at the current
