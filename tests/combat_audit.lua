@@ -46,43 +46,21 @@ do -- critical hits
 	L.endLab()
 end
 
-do -- multistrike: an extra hit at half strength
-	local u, log = lab({ heroes = { { spec = "MAGE_FIRE", stats = { atk = 1000, aspd = 5, multi = 40 } } }, hp = 1e12, seconds = 150 })
-	local full, half = L.basics(log, u[1], 1), L.basics(log, u[1], 0.5)
-	local p = #half / #full
-	check(abs(p - 0.40) <= pctTol(0.4, #full), "연속 타격 40% → 추가 타격 비율", f(p * 100, 1) .. "%")
-	check(near(mean((function() local t = {} for _, e in ipairs(half) do t[#t + 1] = e.a end return t end)()), 500, 0.02),
-		"추가 타격 피해 = 공격력의 50%")
-	L.endLab()
-end
-
-do -- damage of the hero's school and 모든 피해
-	local u, log = lab({ heroes = { { spec = "MAGE_FIRE", stats = { atk = 1000, aspd = 3, dmg_fire = 50, dmg_all = 10, dmg_frost = 90 } } }, hp = 1e12, seconds = 60 })
+do -- 우두머리 피해: more on a boss, nothing extra on the others
+	local u, log = lab({ heroes = { { spec = "MAGE_FIRE", stats = { atk = 1000, aspd = 3, boss = 40 } } }, hp = 1e12, n = 2, seconds = 30 })
 	local r = {}
 	for _, e in ipairs(L.basics(log, u[1])) do r[#r + 1] = e.a / 1000 end
-	check(near(mean(r), 1.6, 0.01), "화염 피해 +50% · 모든 피해 +10% (냉기 +90%는 무관) → 화염 공격", f(mean(r), 3) .. "배")
+	check(near(mean(r), 1, 0.01), "우두머리 피해 40% → 보통 몬스터에게는 그대로", f(mean(r), 3) .. "배")
 	L.endLab()
-end
-
-do -- health on hit and life steal
-	local u, log = lab({ heroes = { { spec = "MAGE_FIRE", stats = { atk = 1000, aspd = 2, hph = 37, leech = 10 } } }, hp = 1e12, seconds = 40,
-		each = function(step, us) if us[1] then us[1].hp = us[1].maxhp * 0.5 end end })
-	local hits = L.basics(log, u[1])
-	local onHit, steal = 0, {}
-	for _, e in ipairs(log.heal) do
-		if e.src == nil and e.tgt == u[1] then
-			if math.abs(e.a - 37) < 1e-9 then onHit = onHit + 1 else steal[#steal + 1] = e.a end
-		end
-	end
-	check(onHit == #hits, "적중 시 생명력 37 → 기본 공격마다 37 회복", onHit .. " / " .. #hits .. "회")
-	local outs = 0
-	for _, e in ipairs(log.mob) do if e.src == u[1] and not e.dot then outs = outs + e.out end end
-	check(near(mean(steal) * #steal, outs * 0.10, 0.01), "생명력 흡수 10% → 준 피해의 10% 회복", f(mean(steal) * #steal, 0) .. " / " .. f(outs * 0.1, 0))
+	u, log = lab({ heroes = { { spec = "MAGE_FIRE", stats = { atk = 1000, aspd = 3, boss = 40 } } }, hp = 1e12, boss = { aspd = 0.001 }, seconds = 30 })
+	r = {}
+	for _, e in ipairs(L.basics(log, u[1])) do r[#r + 1] = e.out / 1000 end
+	check(#r > 10 and near(mean(r), 1.4, 0.01), "우두머리 피해 40% → 우두머리에게 × 1.4", f(mean(r), 3) .. "배")
 	L.endLab()
 end
 
 do -- the stat sheet's "초당 피해(추정)" against a real fight (basic attacks only)
-	local stats = { atk = 1000, aspd = 3, crit = 25, critdmg = 200, multi = 30, dmg_fire = 20 }
+	local stats = { atk = 1000, aspd = 3, crit = 25, critdmg = 200 }
 	local u, log = lab({ heroes = { { spec = "MAGE_FIRE", stats = stats } }, hp = 1e12, seconds = 200 })
 	local total, t0, t1 = 0, nil, nil
 	for _, e in ipairs(log.mob) do
@@ -90,7 +68,7 @@ do -- the stat sheet's "초당 피해(추정)" against a real fight (basic attac
 	end
 	local measured = total / (t1 - t0 + 1 / 3)
 	local shown = ns.Stats.DPS(u[1].s)
-	check(near(measured, shown, 0.04), "영웅 탭 '초당 피해(추정)' = 실제 기본 공격 초당 피해", f(shown, 0) .. " / 실제 " .. f(measured, 0))
+	check(near(measured, shown, 0.04), "영웅 탭 '예상 초당 피해' = 실제 기본 공격 초당 피해", f(shown, 0) .. " / 실제 " .. f(measured, 0))
 	L.endLab()
 end
 
@@ -119,19 +97,11 @@ do
 	L.endLab()
 end
 do
-	local u, log = defense({ block = 40 })
-	local hs = hits(log, u[1])
-	local b = 0
-	for _, e in ipairs(hs) do if near(e.out, e.a * 0.5, 1e-6) then b = b + 1 end end
-	check(abs(b / #hs - 0.40) <= pctTol(0.4, #hs), "막기 40% → 절반만 받은 공격 비율", f(b / #hs * 100, 1) .. "%")
-	L.endLab()
-end
-do
 	local u, log = defense({ armor = 500 })
 	local want = 1 - ns.Stats.ArmorDR(500, L.st.level)
 	local r = {}
 	for _, e in ipairs(hits(log, u[1])) do r[#r + 1] = e.out / e.a end
-	check(near(mean(r), want, 1e-6), "방어도 500 → 물리 피해 × (1 - 방어도/(방어도+K))", f(mean(r), 4) .. " / " .. f(want, 4))
+	check(near(mean(r), want, 1e-6), "방어력 500 → 물리 피해 × (1 - 방어력/(방어력+K))", f(mean(r), 4) .. " / " .. f(want, 4))
 	local shown
 	for _, g in ipairs(ns.Stats.Groups(u[1].id)) do
 		for _, r in ipairs(g[2]) do if r[1] == "물리 피해 감소" then shown = tonumber((r[2]:gsub("%%", ""))) end end
@@ -140,21 +110,23 @@ do
 		"탭 " .. tostring(shown) .. "% / 전투 " .. f((1 - want) * 100, 1) .. "% (영웅 Lv " .. ns.db.heroes[u[1].id].level .. ", 지역 Lv " .. L.st.level .. ")")
 	L.endLab()
 end
-do
-	local u, log = defense({ res_fire = 30, allres = 10 }, { aspd = 2, school = "fire" })
+do -- 원소 저항: every element alike, physical not at all, at most 75%
+	for _, school in ipairs({ "fire", "frost", "nature", "shadow", "holy", "arcane" }) do
+		local u, log = defense({ res = 40 }, { aspd = 2, school = school })
+		local r = {}
+		for _, e in ipairs(hits(log, u[1])) do r[#r + 1] = e.out / e.a end
+		check(near(mean(r), 0.6, 1e-6), "원소 저항 40% → " .. ns.SCHOOL[school].name .. " 피해 × 0.6", f(mean(r), 4))
+		L.endLab()
+	end
+	local u, log = defense({ res = 100 }, { aspd = 2, school = "fire" })
 	local r = {}
 	for _, e in ipairs(hits(log, u[1])) do r[#r + 1] = e.out / e.a end
-	check(near(mean(r), 0.6, 1e-6), "화염 저항 30% + 모든 원소 저항 10% → 화염 피해 × 0.6", f(mean(r), 4))
+	check(near(mean(r), 0.25, 1e-6), "원소 저항 100% → 최대 75%까지만 (× 0.25)", f(mean(r), 4))
 	L.endLab()
-	u, log = defense({ res_fire = 70, allres = 30 }, { aspd = 2, school = "fire" })
+	u, log = defense({ res = 60 }, { aspd = 2, school = "phys" })
 	r = {}
 	for _, e in ipairs(hits(log, u[1])) do r[#r + 1] = e.out / e.a end
-	check(near(mean(r), 0.25, 1e-6), "저항 합 100% → 최대 75%까지만 (× 0.25)", f(mean(r), 4))
-	L.endLab()
-	u, log = defense({ res_fire = 60 }, { aspd = 2, school = "frost" })
-	r = {}
-	for _, e in ipairs(hits(log, u[1])) do r[#r + 1] = e.out / e.a end
-	check(near(mean(r), 1, 1e-6), "화염 저항은 냉기 피해를 줄이지 않음", f(mean(r), 4))
+	check(near(mean(r), 1, 1e-6), "원소 저항은 물리 피해를 줄이지 않음", f(mean(r), 4))
 	L.endLab()
 end
 do
@@ -164,52 +136,32 @@ do
 	check(near(mean(r), 0.8, 1e-6), "받는 피해 감소 20% → × 0.8", f(mean(r), 4))
 	L.endLab()
 end
-do
-	local u, log = defense({ absorb = 30 })
-	local okAll = true
-	for _, e in ipairs(hits(log, u[1])) do if not near(e.out, max(1, e.a - 30), 1e-6) then okAll = false end end
-	check(okAll, "피해 흡수 30 → 맞을 때마다 30 덜 받음 (최소 1)")
-	L.endLab()
-end
-do -- thorns: what a melee attacker gets back
-	local u, log = defense({ atk = 200, thorns = 50, dodge = 50 })
-	local attacks, dodged, thorns = 0, 0, {}
-	for _, e in ipairs(hits(log, u[1])) do
-		attacks = attacks + 1
-		if e.out == 0 then dodged = dodged + 1 end
+do -- 받는 치유량 증가: heals and shields on the hero grow by it; a
+	-- healer's heals come from its 공격력 and land critically like hits
+	local function healed(stats, crit)
+		local u, log = lab({ heroes = {
+			{ spec = "WARRIOR_PROT", stats = stats },
+			{ spec = "PRIEST_HOLY", skills = { "heal" }, slv = 1, stats = { atk = 1000, crit = crit or 0, critdmg = 200, hp = 1e6 } } },
+			hp = 1e12, atk = 0, seconds = 30, each = function(_, us) if us[1] then us[1].hp = us[1].maxhp * 0.5 end end })
+		local out = {}
+		for _, e in ipairs(log.heal) do if e.cast == "heal" and e.tgt == u[1] then out[#out + 1] = e end end
+		local level = ns.db.heroes[u[2].id].level
+		local base = 1000 * ns.SkillValue("heal", 1) / 100 * ns.HealAtk(level)
+		L.endLab()
+		return out, base
 	end
-	for _, e in ipairs(log.mob) do if e.src == u[1] and e.school == "nature" and e.mult == nil and not e.dot then thorns[#thorns + 1] = e.a end end
-	check(near(mean(thorns), 100, 1e-6), "가시 반사 50% → 공격력 200의 50% = 100 자연 피해", f(mean(thorns), 1))
-	check(#thorns == attacks - dodged, "가시 반사는 실제로 맞은 공격에만 (회피한 공격 제외)",
-		"반사 " .. #thorns .. "회 / 공격 " .. attacks .. "회 (회피 " .. dodged .. "회)")
-	L.endLab()
-	u, log = defense({ atk = 200, thorns = 50 }, { aspd = 2, range = 400 })
-	thorns = 0
-	for _, e in ipairs(log.mob) do if e.src == u[1] and e.school == "nature" and e.mult == nil then thorns = thorns + 1 end end
-	check(thorns == 0, "원거리 공격자에게는 가시 반사 없음", thorns .. "회")
-	L.endLab()
-end
-do -- regeneration
-	defense({ regen = 50, regenPct = 1, hp = 1e6 }, { aspd = 0.001 }, 20,
-		function(step, us) if step == 50 then us[1].hp = us[1].maxhp * 0.5 L.mark = us[1].hp end if step == 150 then L.mark2 = us[1].hp end end)
-	local gained = (L.mark2 - L.mark) / 10
-	check(near(gained, 50 + 1e6 * 0.01, 0.02), "초당 생명력 회복 50 + 최대의 1% → 초당 10,050", f(gained, 0) .. "/초")
-	L.endLab()
-end
-do -- on a kill
-	local u, log = lab({ heroes = { { spec = "MAGE_FIRE", stats = { atk = 1e6, aspd = 2, hpk = 100, hpkPct = 2, hp = 1e6 } } },
-		hp = 50, n = 4, seconds = 60, each = function(step, us) if us[1] then us[1].hp = us[1].maxhp * 0.5 end end })
-	local onKill = {}
-	for _, e in ipairs(log.heal) do if e.src == nil and e.tgt == u[1] then onKill[#onKill + 1] = e.a end end
-	local kills = 0
-	for _, k in ipairs(log.kill) do if k.killer == u[1] then kills = kills + 1 end end
-	check(kills > 10 and #onKill == kills and near(mean(onKill), 100 + 1e6 * 0.02, 1e-6),
-		"처치 시 생명력 100 + 최대의 2% → 처치마다 20,100 회복", #onKill .. "회 / 처치 " .. kills .. "회, 평균 " .. f(mean(onKill), 0))
-	L.endLab()
+	local plain, base = healed({ hp = 1e7 })
+	local more = healed({ hp = 1e7, healTaken = 50 })
+	check(#plain > 0 and near(plain[1].a, base, 1e-6), "치유 = 치유 전담 공격력 × 기술 수치 × 레벨 계수", f(plain[1] and plain[1].a or 0, 1) .. " / " .. f(base, 1))
+	check(#more > 0 and near(more[1].out, base * 1.5, 1e-6), "받는 치유량 증가 50% → 치유 × 1.5", f(more[1] and more[1].out or 0, 1) .. " / " .. f(base * 1.5, 1))
+	local crits = healed({ hp = 1e7 }, 40)
+	local c = 0
+	for _, e in ipairs(crits) do if near(e.a, base * 2, 1e-6) then c = c + 1 elseif not near(e.a, base, 1e-6) then c = -1e9 end end
+	check(#crits > 5 and c > 0, "치유도 치명타 (치명타 피해 200% → × 2)", c .. " / " .. #crits .. "회")
 end
 
 ------------------------------------------------------------------------
-section("기술 발동 · 재사용 대기시간 · 시전 속도")
+section("기술 발동 · 재사용 대기시간 · 공격 및 시전 속도")
 ------------------------------------------------------------------------
 local function castTimes(log, sid)
 	local t = {}
@@ -222,15 +174,20 @@ local function gaps(t)
 	return g
 end
 for _, case in ipairs({ { 0, 0 }, { 50, 0 }, { 0, 30 }, { 50, 30 } }) do
-	local cast, cdr = case[1], case[2]
-	local _, log = lab({ heroes = { { spec = "WARRIOR_FURY", skills = { "whirlwind" }, stats = { atk = 100, aspd = 1, cast = cast, cdr = cdr } } },
+	local speed, cdr = case[1], case[2]
+	local _, log = lab({ heroes = { { spec = "WARRIOR_FURY", skills = { "whirlwind" }, stats = { atk = 100, aspd = 1, speed = 1 + speed / 100, cdr = cdr } } },
 		hp = 1e12, n = 3, seconds = 120 })
-	local want = ns.SkillCooldown("whirlwind", 1) * (1 - cdr / 100) / (1 + cast / 100)
+	local want = ns.SkillCooldown("whirlwind", 1) * (1 - cdr / 100) / (1 + speed / 100)
 	local g = gaps(castTimes(log, "whirlwind"))
 	check(#g > 5 and abs(mean(g) - want) <= 0.1 + 1e-6,
-		string.format("소용돌이(재사용 %d초) 시전 속도 +%d%% · 재사용 감소 %d%% → 간격", ns.SkillCooldown("whirlwind", 1), cast, cdr),
+		string.format("소용돌이(재사용 %d초) 공격 및 시전 속도 +%d%% · 재사용 감소 %d%% → 간격", ns.SkillCooldown("whirlwind", 1), speed, cdr),
 		f(mean(g), 2) .. "초 / 기대 " .. f(want, 2) .. "초")
 	L.endLab()
+end
+do -- the sheet: 공격 및 시전 속도 runs a hero's cooldowns as much faster as its attacks
+	local id = ns.Heroes.NewRecord("WARRIOR_FURY").id
+	local s = L.real.Compute(id, { { "aspd", 50 } })
+	check(near(s.speed, 1.5, 1e-9) and near(s.aspd, ns.SPECS.WARRIOR_FURY.base.aspd * 1.5, 1e-9), "공격 및 시전 속도 +50% → 기본 공격과 재사용 대기시간 모두 1.5배 빠르게", f(s.speed, 3))
 end
 do -- count skills: every n-th basic attack
 	local u, log = lab({ heroes = { { spec = "WARRIOR_ARMS", skills = { "mortal_strike" }, stats = { atk = 100, aspd = 2 } } }, hp = 1e12, seconds = 60 })
@@ -239,10 +196,10 @@ do -- count skills: every n-th basic attack
 	check(abs(n - floor(b / 3)) <= 1, "죽음의 일격: 기본 공격 3회마다 발동", n .. "회 / 기본 공격 " .. b .. "회")
 	L.endLab()
 end
-do -- skill levels: from points, plus 모든 기술 레벨
-	local u, log = lab({ heroes = { { spec = "WARRIOR_ARMS", skills = { "mortal_strike" }, slv = 3, stats = { atk = 1000, aspd = 2, skills = 2 } } }, hp = 1e12, seconds = 30 })
+do -- skill levels: from points
+	local u, log = lab({ heroes = { { spec = "WARRIOR_ARMS", skills = { "mortal_strike" }, slv = 5, stats = { atk = 1000, aspd = 2 } } }, hp = 1e12, seconds = 30 })
 	local lvl = u[1].slv.mortal_strike
-	check(lvl == 5, "기술 점수 3 + 모든 기술 레벨 +2 → 기술 레벨 5", "Lv " .. tostring(lvl))
+	check(lvl == 5, "기술 점수 5 → 기술 레벨 5", "Lv " .. tostring(lvl))
 	local r = {}
 	for _, e in ipairs(log.mob) do if e.cast == "mortal_strike" then r[#r + 1] = e.a / 1000 end end
 	check(near(mean(r), ns.SkillValue("mortal_strike", 5) / 100, 0.02), "기술 피해가 레벨 5의 수치로", f(mean(r) * 100, 1) .. "% / " .. f(ns.SkillValue("mortal_strike", 5), 1) .. "%")
@@ -305,7 +262,7 @@ for _, sid in ipairs(skillIds) do
 				if #L2.cast > lastCasts then
 					lastCasts = #L2.cast
 					for _, h in ipairs(us) do
-						if h.shield and h.shield > 0 then shields[#shields + 1] = h.shield / h.maxhp end
+						if h.shield and h.shield > 0 then shields[#shields + 1] = { h.shield, h.maxhp } end
 						for _, b in ipairs(h.buffs) do buffsSeen[#buffsSeen + 1] = { mods = b.mods, t = b.t } end
 						if sk.kind == "revive" and not h.dead and h.reviveT == 0 and h ~= me then revived[#revived + 1] = h.hp / h.maxhp end
 					end
@@ -317,14 +274,20 @@ for _, sid in ipairs(skillIds) do
 		local v = ns.SkillValue(sid, lvl)
 		local casts = {}
 		for _, e in ipairs(log.cast) do if e.sid == sid and e.u == me then casts[#casts + 1] = e end end
-		local desc = ns.SkillDesc(sid, lvl)
+		local desc = ns.SkillDesc(sid, lvl, me.id)
 		local kind = sk.kind
 		if kind ~= "aura" and kind ~= "pet" and #casts == 0 then
 			sfail(sid, "60초 동안 한 번도 쓰이지 않음")
 		end
+		-- a healer's heal is a share of its 공격력 (pinned at 1000, its tuning
+		-- at 1), shown as that share for its level and spec
+		local level = ns.db.heroes[me.id].level
+		local atkHeal = sk.byAtk and 1000 * ns.HealAtk(level) * me.s.healMult / 100
+		local function per(e, amount) return (amount or e.a) / (atkHeal or e.tgt.maxhp / 100) end
+		local shown = (sk.byAtk and (kind == "heal" or kind == "shield" or sk.heal)) and v * ns.HealAtk(level) * ns.SpecTune(spec, "heal") or v
 		-- the text shows the number the fight uses
-		if (sk.v and kind ~= "aura" and kind ~= "buff") and not desc:find(numText(v), 1, true) then
-			sfail(sid, "설명문에 수치 " .. numText(v) .. "% 가 없음: " .. desc)
+		if (sk.v and kind ~= "aura" and kind ~= "buff") and not desc:find(numText(shown), 1, true) then
+			sfail(sid, "설명문에 수치 " .. numText(shown) .. "% 가 없음: " .. desc)
 		end
 		if kind == "dmg" and #casts > 0 then
 			local byT = {}
@@ -371,7 +334,7 @@ for _, sid in ipairs(skillIds) do
 			if sk.healAll then
 				local hs = healsOf(function(e) return e.src == me end)
 				local pct = sk.healAll[1] + sk.healAll[2] * (lvl - 1)
-				if #hs == 0 or not near(hs[1].a / hs[1].tgt.maxhp * 100, pct, 1e-6) then sfail(sid, "파티 회복이 설명과 다름") end
+				if #hs == 0 or not near(per(hs[1]), pct, 1e-6) then sfail(sid, "파티 회복이 설명과 다름") end
 			end
 			if sk.drain then
 				local hs = healsOf(function(e) return e.tgt == me end)
@@ -395,7 +358,7 @@ for _, sid in ipairs(skillIds) do
 		elseif kind == "field" and #casts > 0 then
 			if sk.heal then
 				local hs = {}
-				for _, e in ipairs(log.heal) do if e.src == me and e.cast == nil then hs[#hs + 1] = e.a / e.tgt.maxhp * 100 end end
+				for _, e in ipairs(log.heal) do if e.src == me and e.cast == nil then hs[#hs + 1] = per(e) end end
 				if #hs == 0 or not near(mean(hs), v, 1e-6) then sfail(sid, "장판 회복 " .. f(mean(hs), 2) .. "% (설명 " .. numText(v) .. "%)") end
 			else
 				local r = {}
@@ -410,14 +373,14 @@ for _, sid in ipairs(skillIds) do
 			for _, e in ipairs(log.heal) do if e.cast == sid and e.src == me then hs[#hs + 1] = e end end
 			if sk.hot then
 				local ticks = {}
-				for _, e in ipairs(log.heal) do if e.src == me and e.cast == nil then ticks[#ticks + 1] = e.a / e.tgt.maxhp * 1000 end end
+				for _, e in ipairs(log.heal) do if e.src == me and e.cast == nil then ticks[#ticks + 1] = per(e) * 10 end end
 				if #ticks == 0 or not near(mean(ticks), v, 1e-6) then sfail(sid, "지속 회복 " .. f(mean(ticks), 2) .. "%/초 (설명 " .. numText(v) .. "%)") end
-			elseif #hs == 0 or not near(hs[1].a / hs[1].tgt.maxhp * 100, v, 1e-6) then
+			elseif #hs == 0 or not near(per(hs[1]), v, 1e-6) then
 				sfail(sid, "회복량이 설명과 다름")
 			end
 		elseif kind == "shield" and #casts > 0 then
 			local best = 0
-			for _, x in ipairs(shields) do best = max(best, x) end
+			for _, x in ipairs(shields) do best = max(best, x[1] / (atkHeal or x[2] / 100) / 100) end
 			if not near(best, v / 100, 1e-3) then sfail(sid, "보호막 " .. f(best * 100, 2) .. "% (설명 " .. numText(v) .. "%)") end
 		elseif kind == "buff" and #casts > 0 then
 			local b = buffsSeen[1]
@@ -600,22 +563,22 @@ section("처치 보상")
 ------------------------------------------------------------------------
 do
 	local u, log = lab({ heroes = {
-		{ spec = "MAGE_FIRE", stats = { atk = 1e6, aspd = 2, gold = 20, exp = 30 } },
-		{ spec = "WARRIOR_PROT", stats = { atk = 1, gold = 10, exp = 0 } } }, hp = 50, n = 4, seconds = 40 })
-	local goldPct = ns.Bonus("gold") + 20 + 10
+		{ spec = "MAGE_FIRE", stats = { atk = 1e6, aspd = 2 } },
+		{ spec = "WARRIOR_PROT", stats = { atk = 1 } } }, hp = 50, n = 4, seconds = 40 })
+	local goldPct = ns.Bonus("gold")
 	local okGold, nk = true, 0
 	for _, k in ipairs(log.kill) do
 		nk = nk + 1
 		local want = max(1, floor(k.m.gold * (1 + goldPct / 100) + 0.5))
 		if k.gold ~= want then okGold = false end
 	end
-	check(nk > 10 and okGold, "처치 골드 = 몬스터 골드 × (1 + 룬 + 파티 전원의 골드 획득%)", nk .. "마리, 골드 획득 +" .. goldPct .. "%")
+	check(nk > 10 and okGold, "처치 골드 = 몬스터 골드 × (1 + 룬·동료의 골드 획득%)", nk .. "마리, 골드 획득 +" .. goldPct .. "%")
 	local mage = u[1]
 	local per = {}
 	for _, x in ipairs(log.xp) do if x.id == mage.id then per[#per + 1] = x.a end end
 	local m = log.kill[1].m
-	local want = m.exp * (1 + (ns.Bonus("exp") + 30) / 100) * ns.Heroes.XPFactor(ns.db.heroes[mage.id].level, L.st.level)
-	check(#per == nk and near(per[1], want, 1e-9), "처치 경험치 = 몬스터 경험치 × (1 + 룬 + 자신의 경험치 획득%) × 레벨 차 보정", f(per[1] or 0, 2) .. " / " .. f(want, 2))
+	local want = m.exp * (1 + ns.Bonus("exp") / 100) * ns.Heroes.XPFactor(ns.db.heroes[mage.id].level, L.st.level)
+	check(#per == nk and near(per[1], want, 1e-9), "처치 경험치 = 몬스터 경험치 × (1 + 룬·동료의 경험치 획득%) × 레벨 차 보정", f(per[1] or 0, 2) .. " / " .. f(want, 2))
 	L.endLab()
 end
 
@@ -751,7 +714,7 @@ end
 
 do -- an ailment's damage over time goes through the target's resistance once
 	-- (from the blow as it came, each tick through the resistance)
-	local u, log = lab({ heroes = { { spec = "WARRIOR_PROT", stats = { hp = 1e12, res_fire = 50 } } }, hp = 1e12, atk = 1000,
+	local u, log = lab({ heroes = { { spec = "WARRIOR_PROT", stats = { hp = 1e12, res = 50 } } }, hp = 1e12, atk = 1000,
 		mob = { school = "fire", status = { "ignite", 1 }, aspd = 1 }, seconds = 3 })
 	local first, hitIn
 	for _, e in ipairs(log.status) do if e.kind == "ignite" and e.tgt == u[1] then first = e break end end
@@ -761,7 +724,7 @@ do -- an ailment's damage over time goes through the target's resistance once
 	local want = hitIn and hitIn.a * ns.STATUS.ignite.power / 100 * 0.1 * 0.5
 	local tickOut = ticks[1] and ticks[1].out
 	check(first and hitIn and near(first.hit, hitIn.a, 1e-9) and tickOut and near(tickOut, want, 1e-6),
-		"발화(지속 피해)는 화염 저항을 한 번만 받음 (화염 저항 50%)",
+		"발화(지속 피해)는 원소 저항을 한 번만 받음 (원소 저항 50%)",
 		first and tickOut and (f(tickOut, 3) .. " (저항 한 번이면 " .. f(want, 3) .. ", 두 번이면 " .. f(want * 0.5, 3) .. ")") or "발화가 걸리지 않음")
 	L.endLab()
 end

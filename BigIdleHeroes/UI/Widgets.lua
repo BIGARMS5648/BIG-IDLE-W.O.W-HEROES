@@ -1260,27 +1260,18 @@ end
 UI.STAT_ICON = {
 	atk = "Ability_Warrior_OffensiveStance", atkPct = "Ability_Warrior_OffensiveStance",
 	hp = "Spell_Nature_Rejuvenation", hpPct = "Spell_Nature_Rejuvenation",
-	armor = "INV_Shield_06", armorPct = "INV_Shield_06", block = "Ability_Defend",
-	regenPct = "Spell_Nature_ResistNature", regen = "Spell_Nature_ResistNature",
-	dr = "Ability_Warrior_DefensiveStance", cdr = "Spell_Nature_TimeStop", allres = "Spell_Frost_WizardMark",
-	hpkPct = "Spell_Shadow_LifeDrain", aspd = "Ability_Rogue_Sprint", dodge = "Ability_Rogue_Feint",
-	leech = "Spell_Shadow_LifeDrain02", crit = "Ability_CriticalStrike", critdmg = "Ability_BackStab",
-	multi = "Ability_Warrior_Cleave", cast = "Spell_Holy_MindVision", heal = "Spell_Holy_FlashHeal",
-	dmg_phys = "Ability_MeleeDamage", dmg_fire = "Spell_Fire_FireBolt02", dmg_frost = "Spell_Frost_FrostBolt02",
-	dmg_nature = "Spell_Nature_Lightning", dmg_shadow = "Spell_Shadow_ShadowWordPain", dmg_holy = "Spell_Holy_HolySmite",
-	dmg_arcane = "Spell_Holy_MagicalSentry", dmg_all = "Spell_Nature_WispSplode",
+	armor = "INV_Shield_06", armorPct = "INV_Shield_06", aspd = "Ability_Rogue_Sprint",
+	crit = "Ability_CriticalStrike", critdmg = "Ability_BackStab", boss = "INV_Misc_Head_Dragon_01",
+	cdr = "Spell_Nature_TimeStop", dr = "Ability_Warrior_DefensiveStance", res = "Spell_Frost_WizardMark",
+	dodge = "Ability_Rogue_Feint", healTaken = "Spell_Holy_FlashHeal",
 }
 
 -- Imported stat icons (tools/asset_spec.py "stat_*"); a stat without its own
 -- picture shares the one of its family.
 UI.STAT_ART = {
 	atk = "stat_atk", atkPct = "stat_atk", aspd = "stat_aspd", crit = "stat_crit", critdmg = "stat_critdmg",
-	multi = "stat_dps", hp = "stat_hp", hpPct = "stat_hp", armor = "stat_armor", armorPct = "stat_armor",
-	dodge = "stat_dodge", block = "stat_block", cdr = "stat_cdr", heal = "stat_heal", regen = "stat_regen",
-	regenPct = "stat_regen", dr = "stat_dr", allres = "stat_allres", leech = "stat_leech", hpkPct = "stat_leech",
-	cast = "stat_cast", dmg_phys = "stat_phys", dmg_fire = "stat_fire", dmg_frost = "stat_frost",
-	dmg_nature = "stat_nature", dmg_shadow = "stat_shadow", dmg_holy = "stat_holy", dmg_arcane = "stat_arcane",
-	dmg_all = "stat_alldmg",
+	hp = "stat_hp", hpPct = "stat_hp", armor = "stat_armor", armorPct = "stat_armor",
+	dodge = "stat_dodge", cdr = "stat_cdr", dr = "stat_dr", res = "stat_allres", healTaken = "stat_heal",
 }
 
 -- Section title: gold text with a short underline.

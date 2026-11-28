@@ -41,6 +41,7 @@ for _, e in ipairs(ns.SPELL_FX) do ns.SPELL_FX_BY[e.key] = e end
 -- (SpellVisual, SpellVisualKit, SpellVisualEffectName; file ids from the
 -- community listfile); traps, totems and poisons show their effect spell.
 ns.SKILL_FX = {
+	charge                 = { spell = 11578, cast = 324, hit = 166986 }, -- 돌진 · strike_impact_chest.m2
 	mortal_strike          = { spell = 21553, cast = 324, hit = 166986 }, -- 죽음의 일격 · strike_impact_chest.m2
 	cleave                 = { spell = 20569, self = 165796, selfLow = true, hit = 165798 }, -- 회전베기 · cleave_impact_chest.m2
 	rend                   = { spell = 11574, cast = 324, hit = 165737 }, -- 분쇄 · bloodyexplosion.m2
@@ -64,6 +65,7 @@ ns.SKILL_FX = {
 	blessing_of_might      = { spell = 25291, cast = 189, hit = 166774, low = true }, -- 힘의 축복 · sealofmight_impact_base.m2
 	lay_on_hands           = { spell = 10310, cast = 119, hit = 166452 }, -- 신의 축복 · layonhands_low_chest.m2
 	divine_protection      = { spell = 5573, cast = 417, hit = 165961, low = true }, -- 신의 가호 · divineshield_low_base.m2
+	seal_of_righteousness  = { spell = 20293, hit = 166326 }, -- 정의의 문장 · holy_impactdd_low_chest.m2
 	holy_shield            = { spell = 20928, self = 166324, selfLow = true, hit = 166324, low = true }, -- 신성한 방패 · holy_impactdd_high_base.m2
 	exorcism               = { spell = 10314, cast = 119, hit = 166049 }, -- 퇴마술 · exorcism_impact_chest.m2
 	consecration           = { spell = 20924, self = 166338, selfLow = true, hit = 166326 }, -- 신성화 · holy_impactdd_low_chest.m2
@@ -94,7 +96,7 @@ ns.SKILL_FX = {
 	deadly_poison          = { spell = 25349, cast = 37, hit = 166643 }, -- 맹독 · poison_impact_chest.m2
 	instant_poison         = { spell = 11340, cast = 37, hit = 166643 }, -- 순간 효과 독 · poison_impact_chest.m2
 	rupture                = { spell = 11275, cast = 394, hit = 165737 }, -- 파열 · bloodyexplosion.m2
-	expose_armor           = { spell = 11198, cast = 394, hit = 166055 }, -- 약점 노출 · exposearmor_head.m2
+	garrote                = { spell = 11290, cast = 394, hit = 165737 }, -- 목조르기 · bloodyexplosion.m2
 	cold_blood             = { spell = 14177, cast = 3770, hit = 165646 }, -- 냉혈 · backstab_impact_chest.m2
 	sinister_strike        = { spell = 11294, cast = 399, hit = 166878 }, -- 사악한 일격 · sinisterstrike_impact_chest.m2
 	blade_flurry           = { spell = 13877, cast = 270, hit = 166417, low = true }, -- 폭풍의 칼날 · innerfire_base.m2
@@ -113,6 +115,7 @@ ns.SKILL_FX = {
 	fortitude              = { spell = 10938, cast = 270, hit = 166356, low = true }, -- 신의 권능: 인내 · holyword_fortitude_impact_base.m2
 	power_infusion         = { spell = 10060, cast = 191, hit = 165589 }, -- 마력 주입 · arcanepower_state_chest.m2
 	prayer_of_fortitude    = { spell = 21564, cast = 270, hit = 166356, low = true }, -- 인내의 기원 · holyword_fortitude_impact_base.m2
+	lesser_heal            = { spell = 2053, cast = 270, hit = 166463, low = true }, -- 하급 치유 · lesserheal_base.m2
 	heal                   = { spell = 6064, cast = 270, hit = 166292, low = true }, -- 치유 · heal_low_base.m2
 	renew                  = { spell = 25315, cast = 270, hit = 166697 }, -- 소생 · renew_chest.m2
 	holy_nova              = { spell = 27801, self = 166350, selfLow = true, hit = 166325 }, -- 신성한 폭발 · holy_impactdd_high_chest.m2
@@ -144,7 +147,7 @@ ns.SKILL_FX = {
 	presence_of_mind       = { spell = 12043, self = 166658, selfLow = true, hit = 166658, low = true }, -- 냉정 · presenceofmind_cast_base.m2
 	arcane_missiles        = { spell = 25345, cast = 4509, missile = 165570, hit = 166525 }, -- 신비한 화살 · magic_impact_chest.m2
 	arcane_explosion       = { spell = 10202, self = 165576, selfLow = true, hit = 165578 }, -- 신비한 폭발 · arcaneexplosion_impact_chest.m2
-	arcane_intellect       = { spell = 10157, cast = 267, hit = 165585 }, -- 신비한 지능 · arcaneintellect_impact_base.m2
+	mana_shield            = { spell = 10193, cast = 267, hit = 166540, low = true }, -- 마나 보호막 · (the boss's 마나 보호막 model)
 	arcane_power           = { spell = 12042, cast = 224, hit = 165589 }, -- 신비의 마법 강화 · arcanepower_state_chest.m2
 	blast_wave             = { spell = 13021, self = 166144, selfLow = true, hit = 166147, low = true }, -- 화염 폭풍 · firenova_state.m2
 	fireball               = { spell = 25306, cast = 38, missile = 166129, hit = 166583 }, -- 화염구 · moltenblast_impact_chest.m2
@@ -183,16 +186,16 @@ ns.SKILL_FX = {
 	moonkin_form           = { spell = 24858, hit = 165970, low = true }, -- 달빛야수 변신 · druidmorph_impact_base.m2
 	hurricane              = { spell = 17402, cast = 5669, hit = 165768, low = true }, -- 허리케인 · calllightning_impact.m2
 	insect_swarm           = { spell = 24977, cast = 37, hit = 166602, low = true }, -- 곤충 떼 · nature_cast_hand.m2
+	claw                   = { spell = 9850, self = 166550, selfLow = true, hit = 165737 }, -- 할퀴기 · bloodyexplosion.m2
 	shred                  = { spell = 9830, self = 166550, selfLow = true, hit = 165737 }, -- 칼날 발톱 · bloodyexplosion.m2
 	rake                   = { spell = 9904, self = 166679, selfLow = true, hit = 165737 }, -- 갈퀴 발톱 · bloodyexplosion.m2
 	ferocious_bite         = { spell = 31018, cast = 5891, self = 166068, hit = 165737 }, -- 흉포한 이빨 · feint_impact_chest.m2 (the bite, at the cat's head) · bloodyexplosion.m2
 	leader_of_pack         = { spell = 24932 }, -- 무리의 우두머리
 	tigers_fury            = { spell = 9846, self = 165672, hit = 165673 }, -- 맹공격 · beastragestate.m2
-	enrage                 = { spell = 5229, self = 165672, hit = 165672 }, -- 분노 · beastragecaster.m2
 	maul                   = { spell = 9881, self = 166549, selfLow = true, hit = 165737 }, -- 후려치기 · bloodyexplosion.m2
 	swipe                  = { spell = 9908, self = 167004, selfLow = true, hit = 165737 }, -- 휘둘러치기 · bloodyexplosion.m2
 	demo_roar              = { spell = 9898, self = 165930, selfLow = true, hit = 165931 }, -- 위협의 포효 · demoralizingshout_impact_head.m2
-	thorns                 = { spell = 9910, cast = 181, hit = 167114 }, -- 가시 · thorns_low_chest.m2
+	bash                   = { spell = 8983, self = 166549, selfLow = true, hit = 166986 }, -- 강타 · strike_impact_chest.m2
 	frenzied_regen         = { spell = 22896, hit = 166694, low = true }, -- 광포한 재생력 · rejuvenation_impact_base.m2
 	barkskin               = { spell = 22812, cast = 181, hit = 165655 }, -- 나무 껍질 · barkskin_state_base.m2
 	rejuvenation           = { spell = 25299, cast = 181, hit = 166694, low = true }, -- 회복 · rejuvenation_impact_base.m2

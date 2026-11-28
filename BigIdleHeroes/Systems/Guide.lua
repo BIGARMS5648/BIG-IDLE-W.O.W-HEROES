@@ -397,6 +397,7 @@ end
 for _, ev in ipairs({ "HEROES", "PARTY", "LEVEL", "TREE", "SKILLS", "BAG", "GEAR", "CHESTS", "RUNES", "FORGE", "PROGRESS", "RESET" }) do
 	ns.On(ev, Guide.Invalidate)
 end
-for _, ev in ipairs({ "HEROES", "PARTY", "LEVEL", "BAG", "GEAR", "RESET", "STATS" }) do
+-- (a skill put on or taken off changes what 재사용 대기시간 감소 is worth)
+for _, ev in ipairs({ "HEROES", "PARTY", "LEVEL", "BAG", "GEAR", "RESET", "STATS", "SKILLS" }) do
 	ns.On(ev, function() upCache, upHeroes = nil, nil end)
 end

@@ -231,9 +231,11 @@ local function meter(u, key, amount)
 	if m then m[key] = (m[key] or 0) + amount end
 end
 
+-- (the healer's tuning, then the target's 받는 치유량 증가)
 local function heal(src, tgt, amount, quiet)
 	if tgt.dead or amount <= 0 then return 0 end
-	if src and src.s then amount = amount * (1 + (src.s.heal or 0) / 100) * (src.s.healMult or 1) end
+	if src and src.s then amount = amount * (src.s.healMult or 1) end
+	if tgt.s then amount = amount * (1 + (tgt.s.healTaken or 0) / 100) end
 	local before = tgt.hp
 	tgt.hp = min(tgt.maxhp, tgt.hp + amount)
 	local done = tgt.hp - before
@@ -286,10 +288,9 @@ end
 ------------------------------------------------------------------------
 -- Rewards
 ------------------------------------------------------------------------
-local function killReward(m, killer)
+local function killReward(m)
 	local db = ns.db
 	local goldPct = ns.Bonus("gold")
-	for i = 1, #heroes do goldPct = goldPct + (heroes[i].s.gold or 0) end
 	-- the runes' gold and experience on top: every kill, then by kind (a
 	-- monster, a stage's boss, an act's boss); the gold bonus counts them too
 	local addG, addX = ns.Bonus("goldKill"), ns.Bonus("expKill")
@@ -315,7 +316,7 @@ local function killReward(m, killer)
 	for i = 1, #heroes do
 		local u = heroes[i]
 		local h = db.heroes[u.id]
-		local amount = exp * (1 + (expBonus + (u.s.exp or 0)) / 100) * ns.Heroes.XPFactor(h.level, st.level)
+		local amount = exp * (1 + expBonus / 100) * ns.Heroes.XPFactor(h.level, st.level)
 		if st.tower then amount = amount + ns.Tower.XPRate(h) * towerSec end
 		if ns.Heroes.AddXP(u.id, amount) > 0 then
 			fx(u.x, "레벨 업!", 1, 0.85, 0.1, true, "hero")
@@ -349,12 +350,6 @@ local function killReward(m, killer)
 			if not ns.Loot.AddChest(1, lvl, st.diff, tb.mbox, tf) then ns.Loot.Lost(1) end
 		end
 	end
-
-	if killer and killer.hero and not killer.dead then
-		local s = killer.s
-		local amount = (s.hpk or 0) + killer.maxhp * (s.hpkPct or 0) / 100
-		if amount > 0 then heal(nil, killer, amount) end
-	end
 end
 
 ------------------------------------------------------------------------
@@ -371,6 +366,8 @@ local function damageMob(src, m, amount, school, crit, quiet, dot)
 	if res then amount = amount * (1 - res / 100) end
 	if m.st.shock then amount = amount * (1 + m.st.shock.v / 100) end
 	if m.st.curse then amount = amount * (1 + m.st.curse.v / 100) end
+	-- 우두머리 피해: every blow a hero (or what it summoned) lands on a boss
+	if m.boss and src and src.hero then amount = amount * (1 + (src.s.boss or 0) / 100) end
 	if (m.drT or 0) > 0 then amount = amount * (1 - m.dr / 100) end
 	if not dot then amount = max(1, amount) end
 	-- what landed (not past the monster's health): the meter, life drain and
@@ -400,7 +397,7 @@ local function damageMob(src, m, amount, school, crit, quiet, dot)
 		m.hp = 0
 		m.dead = true
 		m.fade = 0.4
-		killReward(m, src)
+		killReward(m)
 		if st.affix then towerDeath(m) end
 	end
 	return landed, came
@@ -414,10 +411,7 @@ local function damageHero(h, amount, school, src, isDot)
 	if not isDot then
 		if random() * 100 < s.dodge then
 			fx(h.x, "회피", 0.7, 0.7, 0.7, false, "hero")
-			return 0, "dodge" -- missed: nothing landed (no thorns, no ailment)
-		end
-		if random() * 100 < s.block then
-			amount = amount * 0.5
+			return 0, "dodge" -- missed: nothing landed (no ailment)
 		end
 	end
 	local came = amount
@@ -425,16 +419,11 @@ local function damageHero(h, amount, school, src, isDot)
 	if school == "phys" then
 		amount = amount * (1 - ns.Stats.ArmorDR(s.armor, st.level))
 	elseif school ~= "pure" then
-		local res = (s["res_" .. school] or 0) + s.allres
-		if res > 75 then res = 75 end
-		amount = amount * (1 - res / 100)
+		amount = amount * (1 - min(ns.Stats.CAPS.res, s.res) / 100)
 	end
 	if school ~= "pure" then amount = amount * (1 - s.dr / 100) end
 	if h.st.shock then amount = amount * (1 + h.st.shock.v / 100) end
-	if not isDot then
-		amount = amount - s.absorb
-		if amount < 1 then amount = 1 end
-	end
+	if not isDot and amount < 1 then amount = 1 end
 	if h.shield > 0 then
 		local a = min(h.shield, amount)
 		h.shield = h.shield - a
@@ -805,13 +794,9 @@ local function stepMob(m)
 		m.anim = 0.15
 		local weak = m.st.weaken and (1 - m.st.weaken.v / 100) or 1
 		local amount = m.atk * U.rnd(0.9, 1.1) * m.enr * st.rage * weak
-		local dealt, how, came = damageHero(t, amount, m.school, m)
+		local dealt, _, came = damageHero(t, amount, m.school, m)
 		if dealt > 0 and m.status and random() < m.status[2] then
 			applyStatus(t, m.status[1], came)
-		end
-		-- thorns answer a melee blow that landed (a dodged one did not)
-		if not m.range and how ~= "dodge" and not t.dead and (t.s.thorns or 0) > 0 then
-			damageMob(t, m, t.s.atk * t.s.thorns / 100, "nature", false)
 		end
 	end
 end
@@ -819,13 +804,22 @@ end
 ------------------------------------------------------------------------
 -- Hero skills
 ------------------------------------------------------------------------
-local function schoolMult(s, school)
-	return 1 + ((s["dmg_" .. school] or 0) + s.dmg_all) / 100
-end
-
 local function rollCrit(s, bonus)
 	return random() * 100 < s.crit + (bonus or 0)
 end
+
+-- What a heal skill of `pct` mends: a healer's comes from its 공격력 and can
+-- land critically like a hit; anyone else's (a self heal) and a skill
+-- that mends a share of health (ofHealth) go by the target's health.
+local function skillHeal(u, t, pct, sk)
+	if u.role == "HEALER" and not (sk and sk.ofHealth) then
+		local amount = u.s.atk * pct / 100 * ns.HealAtk(u.s.level)
+		if rollCrit(u.s) then amount = amount * u.s.critdmg / 100 end
+		return amount
+	end
+	return t.maxhp * pct / 100
+end
+Combat.SkillHeal = skillHeal
 
 -- up to n living monsters, closest to `first` first
 local function pickTargets(first, n)
@@ -843,14 +837,10 @@ end
 
 local function heroHit(u, m, mult, school, critBonus, quiet)
 	local s = u.s
-	local amount = s.atk * mult * U.rnd(0.95, 1.05) * schoolMult(s, school)
+	local amount = s.atk * mult * U.rnd(0.95, 1.05)
 	local crit = rollCrit(s, critBonus)
 	if crit then amount = amount * s.critdmg / 100 end
-	local dealt, came = damageMob(u, m, amount, school, crit, quiet)
-	if dealt > 0 and s.leech > 0 and not u.dead then
-		heal(nil, u, dealt * s.leech / 100)
-	end
-	return dealt, came
+	return damageMob(u, m, amount, school, crit, quiet)
 end
 
 local function needsMet(u, sk)
@@ -892,12 +882,12 @@ local function cast(u, sid, target)
 		if sk.healAll then
 			local pct = sk.healAll[1] + sk.healAll[2] * (lvl - 1)
 			for i = 1, #heroes do
-				heal(u, heroes[i], heroes[i].maxhp * pct / 100)
+				heal(u, heroes[i], skillHeal(u, heroes[i], pct, sk))
 			end
 		end
 		if sk.atone then
 			local t = lowestAlly(1)
-			if t then heal(u, t, t.maxhp * (sk.atone[1] + sk.atone[2] * (lvl - 1)) / 100) end
+			if t then heal(u, t, skillHeal(u, t, sk.atone[1] + sk.atone[2] * (lvl - 1), sk)) end
 		end
 		if sk.selfHeal and not u.dead then
 			heal(u, u, u.maxhp * (sk.selfHeal[1] + sk.selfHeal[2] * (lvl - 1)) / 100)
@@ -905,7 +895,7 @@ local function cast(u, sid, target)
 	elseif kind == "dot" then
 		if not target then return false end
 		local list = pickTargets(target, sk.targets or 1)
-		local dps = u.s.atk * v / 100 * schoolMult(u.s, sk.school)
+		local dps = u.s.atk * v / 100
 		for _, m in ipairs(list) do
 			to[#to + 1] = m
 			applyStatus(m, sk.status, nil, dps, sk.dur, sk.school, u)
@@ -930,10 +920,10 @@ local function cast(u, sid, target)
 			if t.dead then return end
 			to[#to + 1] = t
 			if sk.hot then
-				t.hots[sid] = { t = sk.hot, per = t.maxhp * v / 100, src = u }
-				if sk.instant then heal(u, t, t.maxhp * (sk.instant[1] + sk.instant[2] * (lvl - 1)) / 100) end
+				t.hots[sid] = { t = sk.hot, per = skillHeal(u, t, v, sk), src = u }
+				if sk.instant then heal(u, t, skillHeal(u, t, sk.instant[1] + sk.instant[2] * (lvl - 1), sk)) end
 			else
-				heal(u, t, t.maxhp * v / 100)
+				heal(u, t, skillHeal(u, t, v, sk))
 			end
 		end
 		if sk.target == "self" then
@@ -956,7 +946,7 @@ local function cast(u, sid, target)
 			if not t.dead then
 				to[#to + 1] = t
 				-- the stronger shield stays, with its own time and caster
-				local amount = t.maxhp * v / 100 * (1 + (u.s.heal or 0) / 100) * (u.s.healMult or 1)
+				local amount = skillHeal(u, t, v, sk) * (u.s.healMult or 1) * (1 + (t.s.healTaken or 0) / 100)
 				if amount >= t.shield then
 					t.shield = amount
 					t.shieldT = sk.dur
@@ -1020,8 +1010,8 @@ end
 ------------------------------------------------------------------------
 -- Heroes
 ------------------------------------------------------------------------
-local function heroSpeed(u)
-	return 240 * (1 + (u.s.move or 0) / 100)
+local function heroSpeed()
+	return 240
 end
 -- falling back into formation goes this much faster than walking up
 local BACK_PACE = 1.5
@@ -1038,11 +1028,7 @@ local function stepHero(u)
 	end
 	local s = u.s
 
-	-- regeneration, heal over time, shields
-	local regen = s.regen + u.maxhp * s.regenPct / 100
-	if regen > 0 and u.hp < u.maxhp then
-		u.hp = min(u.maxhp, u.hp + regen * STEP)
-	end
+	-- heal over time, shields
 	for key, hot in pairs(u.hots) do
 		hot.t = hot.t - STEP
 		heal(hot.src, u, hot.per * STEP, true)
@@ -1096,7 +1082,7 @@ local function stepHero(u)
 			end
 			-- (a chill slows a hero's steps as it does a monster's)
 			local chill = u.st.chill and (1 - u.st.chill.v / 100) or 1
-			local step = heroSpeed(u) * chill * STEP
+			local step = heroSpeed() * chill * STEP
 			if u.x < limit then
 				u.x = min(limit, u.x + step)
 			elseif follow and u.x > limit + 1 then
@@ -1114,7 +1100,7 @@ local function stepHero(u)
 			if pet.sk.heal then
 				local t = lowestAlly(0.999)
 				if t then
-					heal(u, t, t.maxhp * pet.mult)
+					heal(u, t, skillHeal(u, t, pet.mult * 100, pet.sk))
 					pet.anim = 0.3
 				end
 			elseif target and not target.dead then
@@ -1128,7 +1114,7 @@ local function stepHero(u)
 	-- cooldown skills (support skills work without an enemy in range)
 	-- every cooldown runs down each step; then the first ready one is used
 	-- (one cast a step)
-	local castSpeed = 1 + s.cast / 100
+	local castSpeed = s.speed -- 공격 및 시전 속도
 	for _, sid in ipairs(u.skills) do
 		if ns.SKILLS[sid].act == "cd" then u.cd[sid] = u.cd[sid] - STEP * castSpeed end
 	end
@@ -1161,10 +1147,6 @@ local function stepHero(u)
 		end
 		heroHit(u, target, 1, u.school)
 		vfx({ k = "hit", x = target.x, school = u.school, mob = true })
-		if s.hph > 0 then heal(nil, u, s.hph) end
-		if s.multi > 0 and random() * 100 < s.multi and not target.dead then
-			heroHit(u, target, 0.5, u.school)
-		end
 		for _, sid in ipairs(u.skills) do
 			local sk = ns.SKILLS[sid]
 			if sk.act == "count" then
@@ -1190,7 +1172,7 @@ local function stepFields()
 		if f.tickT <= EPS and not u.dead and f.sk.heal then
 			f.tickT = f.sk.tick
 			for k = 1, #heroes do
-				heal(u, heroes[k], heroes[k].maxhp * f.mult, true)
+				heal(u, heroes[k], skillHeal(u, heroes[k], f.mult * 100, f.sk), true)
 			end
 		elseif f.tickT <= EPS and not u.dead then
 			f.tickT = f.sk.tick
@@ -1315,15 +1297,7 @@ function Combat.StartStage()
 end
 
 local function travelTime()
-	local total, n = 0, 0
-	for i = 1, #heroes do
-		if not heroes[i].dead then
-			total = total + (heroes[i].s.move or 0)
-			n = n + 1
-		end
-	end
-	local avg = n > 0 and total / n or 0
-	return max(0.4, 1.2 / (1 + avg / 100))
+	return 1.2
 end
 
 -- Income per real second (the offline reward and the map use it): the gold

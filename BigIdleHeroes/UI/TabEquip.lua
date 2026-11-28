@@ -34,6 +34,16 @@ local WEAPON_HEAD_Y, WEAPON_TEXT_Y, WEAPON_SLOT_Y, HINT_Y = -330, -346, -380, -4
 
 local TABS = { { "bag", "가방" }, { "bank", "창고" } }
 
+-- The six stat rows from the list, starting at the wheel's place.
+local function fillStats(page)
+	local list = page.statList or {}
+	page.statOff = math.max(0, math.min(math.max(0, #list - #page.stats), page.statOff or 0))
+	for i, r in ipairs(page.stats) do
+		local e = list[i + page.statOff]
+		if e then r:Set(e[1], e[2]) else r:Set("", "") end
+	end
+end
+
 local function heroOf() return Main.SelectedHero() end
 
 local function equipAllParty()
@@ -119,10 +129,10 @@ local function buildLeft(page)
 	page.spec:SetWidth(CW)
 	page.spec:SetWordWrap(false)
 	UI.Color(page.spec, UI.C.sub)
-	local function rows(n, y)
+	local function rows(n, y, split)
 		local out = {}
 		for i = 1, n do
-			local r = UI.StatRow(lp, CW)
+			local r = UI.StatRow(lp, CW, nil, nil, split)
 			r:SetHeight(19)
 			r.l:SetFont(ns.FONT, 11, "")
 			r.v:SetFont(ns.FONT, 11, "")
@@ -134,7 +144,23 @@ local function buildLeft(page)
 	page.top = rows(3, TOP_Y)
 	page.statHead = UI.Section(lp, CW, "능력치")
 	page.statHead:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, STAT_HEAD_Y)
-	page.stats = rows(6, STAT_Y)
+	page.stats = rows(6, STAT_Y, 0.62) -- 재사용 대기시간 감소 fits
+	-- all twelve stats in six rows: the mouse wheel moves through them (no bar)
+	page.statOff = 0
+	local wheel = CreateFrame("Frame", nil, lp)
+	wheel:SetPoint("TOPLEFT", page.stats[1], "TOPLEFT", 0, 0)
+	wheel:SetPoint("BOTTOMRIGHT", page.stats[#page.stats], "BOTTOMRIGHT", 0, 0)
+	wheel:EnableMouseWheel(true)
+	wheel:SetScript("OnMouseWheel", function(_, delta)
+		local list = page.statList
+		if not list then return end
+		local off = math.max(0, math.min(#list - #page.stats, page.statOff - delta))
+		if off ~= page.statOff then
+			page.statOff = off
+			fillStats(page)
+		end
+	end)
+	page.statWheel = wheel
 	page.weaponHead = UI.Text(lp, 11, "착용 가능 무기")
 	page.weaponHead:SetPoint("TOPLEFT", lp, "TOPLEFT", CX, WEAPON_HEAD_Y)
 	UI.Color(page.weaponHead, UI.C.gold)
@@ -251,12 +277,24 @@ local function refreshLeft(page)
 	page.top[1]:Set("전투력", U.col("ffd24a", U.fmt(H.PowerScore(id))))
 	page.top[2]:Set("역할", U.col(rh.hex, ns.N(rh.name)))
 	page.top[3]:Set("장착", string.format("%d / %d칸", worn, #ns.SLOTS))
-	page.stats[1]:Set("공격력", U.col("ffd24a", U.fmt(s.atk)))
-	page.stats[2]:Set("생명력", U.col("60e070", U.fmt(s.hp)))
-	page.stats[3]:Set("방어도", U.fmt(s.armor))
-	page.stats[4]:Set("치명타", U.num(s.crit, 1) .. "% / " .. U.num(s.critdmg, 0) .. "%")
-	page.stats[5]:Set("공격 속도", U.num(s.aspd, 2) .. "/초")
-	page.stats[6]:Set("회피 · 막기", U.num(s.dodge, 1) .. "% · " .. U.num(s.block, 1) .. "%")
+	local function pct(x, d) return U.num(x or 0, d or 1) .. "%" end
+	page.statList = {
+		{ "공격력", U.col("ffd24a", U.fmt(s.atk)) },
+		{ "생명력", U.col("60e070", U.fmt(s.hp)) },
+		{ "방어력", U.fmt(s.armor) },
+		{ "공격 및 시전 속도", U.num(s.aspd, 2) .. "/초" },
+		{ "치명타 확률", pct(s.crit) },
+		{ "치명타 피해", pct(s.critdmg, 0) },
+		{ "우두머리 피해", pct(s.boss) },
+		{ "재사용 대기시간 감소", pct(s.cdr) },
+		{ "받는 피해 감소", pct(s.dr) },
+		{ "원소 저항", pct(s.res) },
+		{ "회피", pct(s.dodge) },
+		{ "받는 치유량 증가", pct(s.healTaken) },
+	}
+	if page.statHero ~= id then page.statOff = 0 end
+	page.statHero = id
+	fillStats(page)
 	local names = {}
 	for _, t in ipairs(sp.mh or {}) do names[#names + 1] = ns.N(ns.WTYPE[t].name) end
 	for _, t in ipairs(sp.oh or {}) do names[#names + 1] = ns.N(ns.WTYPE[t].name) end
@@ -337,5 +375,5 @@ end
 Main.RegisterTab({
 	key = "equip", title = "장비", sub = "장비, 가방, 창고",
 	icon = "INV_Chest_Chain_05", art = "icon_bag", build = build, refresh = refresh, open = open, redirect = redirect, tick = tick,
-	events = { "HEROES", "PARTY", "LEVEL", "GEAR", "BAG", "MATS", "CHESTS", "STATS", "RUNES", "FORGE", "RESET" },
+	events = { "HEROES", "PARTY", "LEVEL", "GEAR", "BAG", "MATS", "CHESTS", "STATS", "RUNES", "FORGE", "RESET", "SKILLS" },
 })

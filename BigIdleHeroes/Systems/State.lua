@@ -1,7 +1,7 @@
 -- Saved data: defaults, migration, repair of missing fields and the gold purse.
 local _, ns = ...
 
-local DB_VERSION = 8
+local DB_VERSION = 9
 
 -- the runes before version 7: id = { top level, gold of level 1, growth per level }
 local OLD_RUNE = {
@@ -67,6 +67,109 @@ local function renameSkills(h)
 	for id, lv in pairs(h.sk or {}) do sk[OLD_SKILL[id] or id] = lv end
 	h.sk = sk
 	for i, id in ipairs(h.skills or {}) do h.skills[i] = OLD_SKILL[id] or id end
+end
+
+-- the first skills that were a buff (version 9): each specialization's
+-- old one -> the skill in its place (its points go along)
+local SKILL_SWAP = {
+	WARRIOR_ARMS = { battle_shout = "charge" },
+	PALADIN_PROT = { devotion_aura = "seal_of_righteousness" },
+	ROGUE_ASSA = { expose_armor = "garrote" },
+	PRIEST_HOLY = { fortitude = "lesser_heal" },
+	MAGE_ARCANE = { arcane_intellect = "mana_shield" },
+	DRUID_FERAL = { enrage = "claw" },
+	DRUID_GUARDIAN = { thorns = "bash" },
+}
+local function swapSkills(h)
+	local map = SKILL_SWAP[h.spec]
+	if not map then return end
+	local sk = {}
+	for id, lv in pairs(h.sk or {}) do sk[map[id] or id] = lv end
+	h.sk = sk
+	for i, id in ipairs(h.skills or {}) do h.skills[i] = map[id] or id end
+end
+
+-- The random stats before the twelve (version 9), for where an old roll sat
+-- in its range: { low, high, curve } at level 1, and the stat it became.
+local OLD_ROLL = {
+	weapon = {
+		atk = { 1.2, 2.4, "A" }, atkPct = { 6, 12 }, aspd = { 4, 9 }, crit = { 2, 5 }, critdmg = { 8, 20 },
+		hph = { 0.6, 1.2, "H" }, cdr = { 2, 6 }, cast = { 4, 10 }, leech = { 0.5, 1.5 }, multi = { 3, 8 },
+		dmg_phys = { 6, 14 }, dmg_fire = { 6, 14 }, dmg_frost = { 6, 14 }, dmg_nature = { 6, 14 },
+		dmg_shadow = { 6, 14 }, dmg_holy = { 6, 14 }, dmg_arcane = { 6, 14 },
+	},
+	armor = {
+		hp = { 10, 20, "H" }, hpPct = { 5, 10 }, armor = { 3, 6, "R" }, armorPct = { 6, 12 }, regen = { 0.4, 0.9, "H" },
+		dodge = { 1.5, 4 }, block = { 2, 5 }, dr = { 1, 3 }, absorb = { 0.5, 1.0, "H" }, allres = { 2, 6 },
+		hpk = { 2, 4, "H" }, res_fire = { 5, 12 }, res_frost = { 5, 12 }, res_nature = { 5, 12 }, res_shadow = { 5, 12 },
+	},
+	accessory = {
+		atk = { 0.8, 1.6, "A" }, atkPct = { 4, 9 }, crit = { 2, 5 }, critdmg = { 8, 20 }, aspd = { 3, 7 },
+		cdr = { 2, 6 }, leech = { 0.5, 1.5 }, exp = { 3, 7 }, gold = { 3, 7 }, heal = { 6, 14 }, move = { 3, 8 },
+		hpPct = { 4, 9 },
+	},
+}
+local OLD_TO = {
+	weapon = { atk = "atk", atkPct = "atk", aspd = "aspd", crit = "crit", critdmg = "critdmg", cdr = "cdr",
+		cast = "aspd", multi = "aspd", dmg_phys = "boss", dmg_fire = "boss", dmg_frost = "boss", dmg_nature = "boss",
+		dmg_shadow = "boss", dmg_holy = "boss", dmg_arcane = "boss" },
+	armor = { hp = "hp", hpPct = "hp", armor = "armor", armorPct = "armor", regen = "healTaken", hpk = "healTaken",
+		dodge = "dodge", block = "dr", dr = "dr", absorb = "dr", allres = "res", res_fire = "res", res_frost = "res",
+		res_nature = "res", res_shadow = "res" },
+	accessory = { atk = "atk", atkPct = "atk", crit = "crit", critdmg = "critdmg", aspd = "aspd", cdr = "cdr",
+		heal = "healTaken", leech = "healTaken", hpPct = "hp", move = "aspd" },
+}
+
+-- An item of a save before version 9 in the twelve stats.
+local function toTwelve(it)
+	if type(it) ~= "table" or not ns.SLOT[it.s] or not ns.QUALITY[tonumber(it.q) or 0] or type(it.l) ~= "number" then return end
+	local cat = ns.SLOT[it.s].cat
+	if type(it.a) == "table" then
+		local used, out, rest = {}, {}, {}
+		local pool = ns.AFFIX_POOL[cat]
+		local function place(key, pos)
+			used[key] = true
+			local lo, step = ns.Items.AffixSteps(cat, key, it.l, it.q)
+			out[#out + 1] = { key, lo + math.floor(pos * 4 + 0.5) * step }
+		end
+		-- the stats that have a new one first, then the rest take what is left
+		for _, a in ipairs(it.a) do
+			if type(a) == "table" and type(a[2]) == "number" then
+				local old = OLD_ROLL[cat][a[1]]
+				local pos = 0.5
+				if old then
+					local m = old[3] and ns.Scale[old[3]](it.l) * ns.QUALITY[it.q].mult or (1 + it.l / 200) * (0.86 + 0.07 * it.q)
+					pos = ns.U.clamp((a[2] / m - old[1]) / math.max(1e-9, old[2] - old[1]), 0, 1)
+				end
+				local key = OLD_TO[cat][a[1]]
+				if key and not used[key] then place(key, pos) else rest[#rest + 1] = pos end
+			end
+		end
+		for _, pos in ipairs(rest) do
+			local choices = {}
+			for _, e in ipairs(pool) do
+				if not used[e[1]] then choices[#choices + 1] = e end
+			end
+			if #choices > 0 then place(ns.U.weighted(choices, 4)[1], pos) end
+		end
+		it.a = out
+	end
+	for _, f in pairs(ns.SOCKET_FIELD) do
+		if type(it[f]) == "table" then
+			local out = {}
+			for _, e in ipairs(it[f]) do
+				local id = type(e) == "table" and type(e[4]) == "string" and ns.SocketMatMoved(e[4])
+				local m = id and ns.MATS[id]
+				local o = m and m.sock and m.sock[cat]
+				if o then
+					local tier = ns.U.clamp(math.floor(tonumber(e[3]) or o[2]), o[2], o[3])
+					local lo, step = ns.SocketSteps(o[1], tier)
+					out[#out + 1] = { o[1], lo + 2 * step, tier, id }
+				end
+			end
+			it[f] = out
+		end
+	end
 end
 
 -- weapon types that were dropped, and what their items became
@@ -357,6 +460,46 @@ function ns.InitDB()
 			end
 		end
 	end
+	-- version 9: the twelve stats (Data/Items.lua): every old random stat
+	-- becomes the nearest new one where it sat in its range (or, with none or
+	-- one the piece has already, another of the slot's stats), on one of
+	-- its five values; what is set in a socket takes its material's stat at
+	-- its tier, the middle value; the gem lines past the fifth are the lines
+	-- they moved to
+	if from < 9 then
+		for _, list in ipairs({ db.bag, db.bank }) do
+			if type(list) == "table" then for _, it in ipairs(list) do toTwelve(it) end end
+		end
+		for _, h in pairs(db.heroes) do
+			if type(h) == "table" and type(h.gear) == "table" then
+				for _, it in pairs(h.gear) do toTwelve(it) end
+			end
+		end
+		if type(db.mats) == "table" then
+			for line in pairs(ns.SOCKET_GEM_MOVED) do
+				for grade = 1, 10 do
+					local old = string.format("gem300%d%02d", line, grade)
+					local n = tonumber(db.mats[old]) or 0
+					db.mats[old] = nil
+					if n > 0 then
+						local to = ns.SocketMatMoved(old)
+						db.mats[to] = (db.mats[to] or 0) + n
+					end
+				end
+			end
+		end
+	else
+		-- (a current save: every random stat on one of its five values)
+		local function fit(it) ns.Items.FitAffixes(it) end
+		for _, list in ipairs({ db.bag, db.bank }) do
+			if type(list) == "table" then for _, it in ipairs(list) do fit(it) end end
+		end
+		for _, h in pairs(db.heroes) do
+			if type(h) == "table" and type(h.gear) == "table" then
+				for _, it in pairs(h.gear) do fit(it) end
+			end
+		end
+	end
 	-- every item checked: values put back in range, broken stats dropped;
 	-- one that cannot be read (no known slot) is set aside, not deleted
 	local repaired, setAside = 0, 0
@@ -453,6 +596,7 @@ function ns.InitDB()
 			if h.sk ~= nil and type(h.sk) ~= "table" then h.sk = nil end
 			if from < 3 then migrateV2Hero(h) end
 			if from < 4 then renameSkills(h) end
+			if from < 9 then swapSkills(h) end
 			h.sk = h.sk or {}
 			clampHero(h)
 			h.sex = nil -- heroes take the player's gender now

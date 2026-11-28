@@ -317,13 +317,10 @@ do
 					if not m.name:find(ns.SOCKET_GRADE_WORD[grade], 1, true) then fail1(id .. ": its name lacks its grade's word") end
 					local seen = {}
 					for _, cat in ipairs({ "weapon", "armor", "accessory" }) do
-						local opts = m.sock[cat]
-						if not opts or #opts ~= 1 then fail1(id .. ": not one stat for " .. cat) else
-							local o = opts[1]
-							local mod = ns.TBH.STAT_MODS[o[1]]
-							local d = mod and ns.SOCKET_STAT[mod.stat .. ":" .. mod.mod]
-							local key = d and d[1]
-							if not (key and ns.AFFIX[key]) then fail1(id .. ": unknown stat for " .. cat) end
+						local o = m.sock[cat]
+						if not o then fail1(id .. ": no stat for " .. cat) else
+							local key = o[1]
+							if not (key and ns.AFFIX[key] and ns.SOCKET_VALUE[key]) then fail1(id .. ": unknown stat for " .. cat) end
 							if key ~= line[cat] then fail1(id .. ": " .. cat .. " is not its line's " .. tostring(line[cat])) end
 							if seen[key] then fail1(id .. ": " .. tostring(key) .. " twice") end
 							seen[key or "?"] = true
@@ -342,15 +339,22 @@ do
 		end
 	end
 	check(bad == nil, "socket materials in lines: " .. tostring(bad))
-	check(counts.gem == 70 and counts.dust == 40 and counts.scroll == 40, "7 gem, 4 enchanting and 4 scroll lines of ten grades")
-	-- every school's damage from some gem line on a weapon
-	local schools = {}
-	for _, line in ipairs(ns.SOCKET_LINES.gem.lines) do schools[line.weapon] = true end
-	local missing = {}
-	for _, sch in ipairs({ "fire", "frost", "nature", "shadow", "holy", "arcane", "phys" }) do
-		if not schools["dmg_" .. sch] then missing[#missing + 1] = sch end
+	check(counts.gem == 50 and counts.dust == 40 and counts.scroll == 40, "5 gem, 4 enchanting and 4 scroll lines of ten grades")
+	-- every one of the twelve stats comes from three or four of the lines
+	local times = {}
+	for _, kind in ipairs({ "gem", "dust", "scroll" }) do
+		for _, line in ipairs(ns.SOCKET_LINES[kind].lines) do
+			for _, cat in ipairs({ "weapon", "armor", "accessory" }) do
+				local t = ns.AFFIX[line[cat]].t
+				times[t] = (times[t] or 0) + 1
+			end
+		end
 	end
-	check(#missing == 0, "a gem line for every school's damage: missing " .. table.concat(missing, ", "))
+	local uneven = {}
+	for _, t in ipairs({ "atk", "hp", "armor", "aspd", "crit", "critdmg", "boss", "cdr", "dr", "res", "dodge", "healTaken" }) do
+		if not times[t] or times[t] < 3 or times[t] > 4 then uneven[#uneven + 1] = t .. "=" .. tostring(times[t]) end
+	end
+	check(#uneven == 0, "every stat from three or four socket lines: " .. table.concat(uneven, ", "))
 	-- old saves' materials all have a new one
 	local lost
 	for old, to in pairs(ns.SOCKET_MAT_RENAMED) do
@@ -732,23 +736,28 @@ do
 	check(found, "the item tooltip shows the ranges of its random stats")
 end
 
--- the hero screen shows every element's resistance and the share healed on a kill
+-- the hero screen shows 원소 저항 (one number for every element), with a
+-- tooltip; 재사용 대기시간 감소 names the cooldown skills worn
 do
 	local id = hero("MAGE_FIRE")
 	local h = db.heroes[id]
 	local saved = h.gear.chest
 	local it = ns.Items.New("chest", h.level, 2)
-	it.a = { { "res_fire", 12 }, { "allres", 3 } }
+	it.a = { { "res", 12 } }
 	h.gear.chest = it
 	ns.Stats.Invalidate(id)
-	local row
+	local row, cdr
 	for _, g in ipairs(ns.Stats.Groups(id)) do
-		for _, r in ipairs(g[2]) do if r[1] == "원소 저항" then row = r end end
+		for _, r in ipairs(g[2]) do
+			if r[1] == "원소 저항" then row = r end
+			if r[1] == "재사용 대기시간 감소" then cdr = r end
+		end
 	end
-	check(row and row[2]:find("~", 1, true) and row[4], "원소 저항 shows the spread and a per-element tooltip")
-	local fire
-	for _, l in ipairs(row and row[4] or {}) do if l[1] == "화염 저항" then fire = l[2] end end
-	check(fire and fire:find("^15"), "fire resistance = its own + 모든 원소 저항, got " .. tostring(fire))
+	check(row and row[2] == "+12%" and row[4], "원소 저항 shows one number and a tooltip, got " .. tostring(row and row[2]))
+	local worn
+	for _, l in ipairs(cdr and cdr[4] or {}) do if l[1]:find("지금 낀 쿨타임 기술") then worn = l[1] end end
+	local cd, slots = ns.Stats.CooldownSkills(id)
+	check(worn == string.format("지금 낀 쿨타임 기술 %d/%d개", cd, slots), "재사용 대기시간 감소 names the cooldown skills worn: " .. tostring(worn))
 	h.gear.chest = saved
 	ns.Stats.Invalidate(id)
 end
@@ -804,7 +813,7 @@ do
 		and math.abs(ns.Bonus("exp") - e - (ns.Runes.Amount(xr, xl + 1) - ns.Runes.Amount(xr, xl))) < 1e-9,
 		"gold / experience runes raise the account bonus")
 	local s = ns.Stats.Compute(R)
-	check(s.gold == 0 and s.exp == 0, "account gold / exp bonuses are not folded into hero stats")
+	check(s.gold == nil and s.exp == nil, "account gold / exp bonuses are not folded into hero stats")
 end
 
 ------------------------------------------------------------------------
@@ -1075,12 +1084,15 @@ do
 						local lo, hi = I.SocketRange(it, kind, e)
 						if lo then
 							ranged = ranged + 1
-							if e[2] < lo or e[2] > hi or lo >= hi then outside = outside + 1 end
+							-- one of the five evenly spaced whole values
+							local step = (hi - lo) / 4
+							local k = (e[2] - lo) / step
+							if e[2] < lo or e[2] > hi or lo >= hi or step < 1 or step ~= math.floor(step)
+								or lo ~= math.floor(lo) or math.abs(k - math.floor(k + 0.5)) > 1e-9 then
+								outside = outside + 1
+							end
 						else
 							fixed = fixed + 1
-							-- (one more strike, or a TBH tier with a single number)
-							local r = ns.TBH.STAT_MODS[e[5]][e[3]]
-							if e[1] ~= "multi" and e[1] ~= "aspd" and r[1] ~= r[2] then outside = outside + 1 end
 						end
 						-- what was set is one of the material's options for this gear group
 						local ok = false
@@ -1094,7 +1106,7 @@ do
 		end
 	end
 	check(outside == 0, "every socket value lies in its shown range (" .. outside .. " outside)")
-	check(ranged > 0 and fixed > 0, "rolled stats show a range, the fixed ones (one more strike) do not")
+	check(ranged > 0 and fixed == 0, "every socket stat is one of five whole values")
 	local it = I.New("mh", 30, ns.MAX_QUALITY)
 	local e = I.AddSocket(it, "gem", ns.SocketMat("gem", 3))
 	local text = I.SocketText(it, "gem", e)
@@ -1774,17 +1786,13 @@ do
 		it.a = a
 		return it
 	end
-	-- every combat stat counts
-	for _, a in ipairs({ { "leech", 30 }, { "regen", 500 }, { "allres", 50 }, { "hph", 100 }, { "absorb", 100 }, { "thorns", 50 }, { "hpk", 300 } }) do
+	-- every one of the twelve stats counts
+	for _, a in ipairs({ { "atk", 30 }, { "hp", 300 }, { "armor", 100 }, { "aspd", 20 }, { "crit", 10 }, { "critdmg", 40 },
+		{ "boss", 20 }, { "cdr", 20 }, { "dr", 10 }, { "res", 20 }, { "dodge", 10 }, { "healTaken", 20 } }) do
 		local r = I.Compare(mage, with({ a }))
 		check(r and r > 1, "the gear score counts " .. a[1] .. ": " .. tostring(r))
 	end
-	check(I.Compare(mage, with({ { "leech", 30 }, { "regen", 500 }, { "allres", 50 }, { "hph", 100 }, { "absorb", 100 } })) > I.UPGRADE,
-		"lifesteal, regeneration, resistances and absorb together make an upgrade")
-	-- +1 to all skills
-	check(I.Compare(mage, with({ { "skills", 1 } })) > I.UPGRADE, "+1 to all skills makes an upgrade")
-	-- the score is the same wherever the party fights: each element's
-	-- resistance counts the same, on a fire boss's stage too
+	-- the score is the same wherever the party fights
 	do
 		local fireStage
 		for d = 1, #ns.DIFFS do
@@ -1793,46 +1801,37 @@ do
 				if not fireStage and stg.boss.school == "fire" then fireStage = { diff = d, idx = i } end
 			end
 		end
-		local frostOnly = with({ { "res_frost", 60 } })
-		local fireOnly = with({ { "res_fire", 60 } })
+		local resist = with({ { "res", 30 } })
 		local armored = with({ { "armor", 400 } })
-		local here = { I.Compare(mage, fireOnly), I.Compare(mage, frostOnly), I.Compare(mage, armored) }
+		local here = { I.Compare(mage, resist), I.Compare(mage, armored) }
 		db.stage = fireStage
-		local there = { I.Compare(mage, fireOnly), I.Compare(mage, frostOnly), I.Compare(mage, armored) }
-		check(math.abs(here[1] - here[2]) < 1e-9, "fire and frost resistance score the same")
-		check(math.abs(here[1] - there[1]) < 1e-9 and math.abs(here[3] - there[3]) < 1e-9,
+		local there = { I.Compare(mage, resist), I.Compare(mage, armored) }
+		check(math.abs(here[1] - there[1]) < 1e-9 and math.abs(here[2] - there[2]) < 1e-9,
 			"an item scores the same on another stage (fire boss " .. fireStage.diff .. "-" .. fireStage.idx .. ")")
 		db.stage = { diff = 1, idx = 5 }
 	end
-	-- element damage counts for the elements of the equipped skills
+	-- 재사용 대기시간 감소 weighs by the cooldown skills worn: nothing with
+	-- none, the most with every slot holding one; the protection from
+	-- breaking down weighs it as if every slot held one
 	do
-		local found
-		for _, sid in ipairs(ns.SPEC_ORDER) do
-			local sp = ns.SPECS[sid]
-			for _, sk in ipairs(sp.skills) do
-				local d = ns.SKILLS[sk]
-				if not found and d.school and d.school ~= sp.school and (d.kind == "dmg" or d.kind == "dot") then found = { sid, sk, d.school } end
-			end
+		local cdIds, other = {}, {}
+		for _, sid in ipairs(ns.SPECS.MAGE_FIRE.skills) do
+			if ns.SKILLS[sid].act == "cd" then cdIds[#cdIds + 1] = sid else other[#other + 1] = sid end
 		end
-		if found then
-			local hid = bySpec[found[1]]
-			local hh = db.heroes[hid]
-			hh.gear = {}
-			hh.sk[found[2]] = math.max(1, hh.sk[found[2]] or 0)
-			hh.skills = { found[2] }
-			ns.Stats.Invalidate(hid)
-			local it = I.New("ring", 40, 3)
-			it.a = { { "dmg_" .. found[3], 20 } }
-			local r = I.Compare(hid, it, true)
-			check(r and r > 1, "damage of an equipped skill's element counts (" .. found[2] .. ", " .. found[3] .. "): " .. tostring(r))
-		end
+		for _, sid in ipairs(ns.SPECS.MAGE_FIRE.skills) do h.sk[sid] = math.max(1, h.sk[sid] or 0) end
+		local cdr = with({ { "cdr", 30 } })
+		h.skills = { other[1] }
+		ns.Stats.Invalidate(mage)
+		local none = I.Compare(mage, cdr, true)
+		local kept = I.Compare(mage, cdr, true, true)
+		h.skills = { cdIds[1] }
+		ns.Stats.Invalidate(mage)
+		local one = I.Compare(mage, cdr, true)
+		check(math.abs(none - 1) < 1e-9 and one > 1 and kept > one - 1e-9,
+			string.format("재사용 대기시간 감소 by the cooldown skills worn: none %.4f, one %.4f, all %.4f", none, one, kept))
+		h.skills = skillsOf("MAGE_FIRE", 1, 2, 3)
+		ns.Stats.Invalidate(mage)
 	end
-	-- multistrike stops at 100%
-	h.gear.chest = with({ { "multi", 180 } })
-	ns.Stats.Invalidate(mage)
-	check(ns.Stats.Get(mage).multi == 100, "multistrike is capped at 100%")
-	h.gear.chest = base
-	ns.Stats.Invalidate(mage)
 
 	-- every step up on the way is kept for a low hero
 	local low = ns.Heroes.NewRecord("WARRIOR_PROT")
@@ -2180,8 +2179,54 @@ do
 	for _, id in ipairs(ns.SOCKET_MATS_BY.scroll[2]) do s2 = s2 + (m[id] or 0) end
 	check(m.gem112001 == nil and m.gem300103 == 3, "an old gem becomes its line's gem of its grade (별루비 → 정교한 루비)")
 	check(m.scroll131001 == nil and s2 == 8 and (m[ns.SOCKET_MATS_BY.scroll[2][1]] or 0) == 2, "an old scroll is shared over the four lines")
+	-- (then the twelve stats: the 루비's stat for armour, its tier's middle value)
 	local e = ns.db.bag[1].g[1]
-	check(e[4] == "gem300103" and e[1] == "dmg_fire" and e[2] == 30, "a set gem keeps its stat and names the new material")
+	local lo, step = ns.SocketSteps("hp", 3)
+	check(e[4] == "gem300103" and e[1] == "hp" and e[2] == lo + 2 * step and e[3] == 3,
+		"a set gem names the new material and takes its line's stat: " .. tostring(e[1]) .. " " .. tostring(e[2]))
+end
+-- version 9: the twelve stats. Old random stats become the nearest new one
+-- where they sat in their range, on one of the five values; one with no new
+-- stat (or one the piece has) becomes another of the slot's; gems of the
+-- lines past the fifth move to theirs; the first skills that were a buff
+-- become the new ones, points and all
+do
+	local oldM = (1 + 40 / 200) * (0.86 + 0.07 * 6) -- an old percent's scale at level 40, grade 6
+	local old = { s = "chest", l = 40, q = 6, a = { { "hpPct", 10 }, { "regen", 1 }, { "res_fire", 8.5 * oldM }, { "allres", 99 } },
+		g = { { "dmg_holy", 30, 4, "gem300604" } } }
+	local ring = { s = "ring", l = 40, q = 6, a = { { "exp", 5 }, { "gold", 5 }, { "atk", 9999 } } }
+	BigWowIdleDB = { v = 8, gold = 5, heroes = {
+			h1 = { spec = "DRUID_GUARDIAN", level = 30, xp = 0, tree = {}, sk = { thorns = 3, maul = 2 }, skills = { "thorns", "maul" }, gear = {} },
+		}, party = { "h1", false, false, false, false },
+		mats = { gem300604 = 2, gem300303 = 1, gem300705 = 4 }, bag = { old, ring } }
+	ns.InitDB()
+	local it = ns.db.bag[1]
+	local keys, ok = {}, true
+	for _, a in ipairs(it.a) do
+		keys[a[1]] = (keys[a[1]] or 0) + 1
+		local lo, hi = ns.Items.AffixRange(it, a[1])
+		if not lo or a[2] < lo or a[2] > hi or (a[2] - lo) % ((hi - lo) / 4) ~= 0 then ok = false end
+	end
+	check(#it.a == 4 and keys.hp == 1 and keys.healTaken == 1 and keys.res == 1, "old armour stats become hp, 받는 치유량 증가, 원소 저항 and one more")
+	check(ok, "every converted stat is one of its five values")
+	local lo, hi = ns.Items.AffixRange(it, "res")
+	for _, a in ipairs(it.a) do
+		if a[1] == "res" then check(a[2] == lo + 2 * ((hi - lo) / 4), "an old stat keeps where it sat in its range (the middle): " .. a[2]) end
+	end
+	local r = ns.db.bag[2]
+	local rk = {}
+	for _, a in ipairs(r.a) do rk[a[1]] = true end
+	local rlo, rhi = ns.Items.AffixRange(r, "atk")
+	check(#r.a == 3 and rk.atk and not rk.exp and not rk.gold, "experience and gold on a ring become other stats")
+	for _, a in ipairs(r.a) do if a[1] == "atk" then check(a[2] == rhi, "a roll above its range takes the top value") end end
+	local e = it.g[1]
+	local glo, gstep = ns.SocketSteps("healTaken", 4)
+	check(e[4] == "gem300304" and e[1] == "healTaken" and e[2] == glo + 2 * gstep, "a set 진주 becomes the 에메랄드's stat for armour")
+	local m = ns.db.mats
+	check(m.gem300604 == nil and m.gem300304 == 2 and m.gem300303 == 1 and m.gem300705 == nil and m.gem300205 == 4,
+		"the gems past the fifth line become 에메랄드 and 사파이어")
+	local h = ns.db.heroes.h1
+	check(h.sk.thorns == nil and h.sk.bash == 3 and h.skills[1] == "bash", "the 가시 points go to 강타")
 end
 BigWowIdleDB = { v = 7, gold = 5, heroes = {}, party = { false, false, false, false, false }, runes = { [1] = 9, [10] = 2, [999999] = 1 } }
 ns.InitDB()
@@ -2199,7 +2244,7 @@ BigWowIdleDB = {
 }
 ns.InitDB()
 db = ns.db
-check(db.v == 8 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
+check(db.v == 9 and db.gold == 77 and ns.Heroes.Count() == 2, "version 1 saves are migrated")
 do
 	local m, w = hero("MAGE_FIRE"), hero("WARRIOR_PROT")
 	check(m and w, "old heroes become heroes of the matching specialization")
@@ -2285,7 +2330,7 @@ end
 BigWowIdleDB = { gold = 3, heroes = { WARRIOR = { level = 20, xp = 0, tree = {}, skills = {},
 	gear = { head = { s = "head", l = 18, q = 2 } } } }, party = { "WARRIOR", false, false, false, false } }
 ns.InitDB()
-check(ns.Heroes.Count() == 1 and ns.db.v == 8, "a save without a version number, heroes keyed by class, is read as the first version")
+check(ns.Heroes.Count() == 1 and ns.db.v == 9, "a save without a version number, heroes keyed by class, is read as the first version")
 -- damaged values do not stop the load
 BigWowIdleDB = { v = 6, faction = "PIRATES", heroes = { h1 = { spec = "MAGE_FIRE", level = 30, name = "외자" } }, party = { false, "h1", false, false, false } }
 check(pcall(ns.InitDB) and ns.db.faction == nil and type(ns.db.heroes.h1.name) == "string", "an unknown faction with a one-word name loads")

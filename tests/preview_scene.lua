@@ -238,6 +238,11 @@ local function forge(func, opts)
 	return p
 end
 S.equip = function() ns.Main.SelectHero(db.party[2]) equip("bag") end
+S.equip_stats_scroll = function()
+	ns.Main.SelectHero(db.party[2])
+	local p = equip("bag")
+	p.statWheel:GetScript("OnMouseWheel")(p.statWheel, -10)
+end
 S.equip_fuse = function() ns.db.opt.autoFuse, ns.db.ui.autoFuseQ = 5, 5 ns.Main.SelectHero(db.party[2]) equip("bag") end
 S.equip_fuse_ready = function()
 	db.bag = {}
@@ -344,9 +349,9 @@ local function stressRing()
 	for _, kind in ipairs(ns.SOCKET_KINDS) do
 		local l = ns.Items.SocketList(stress, kind, true)
 		for _ = 1, ns.Items.SocketCount(stress, kind) do
-			-- 재사용 대기시간 감소 at TBH's top tier
-			local _, hi = ns.SocketStat(100701, 10, ns.TBH.STAT_MODS[100701][10][2])
-			local e = { "cdr", hi, 10, nil, 100701 }
+			-- 재사용 대기시간 감소 at the top tier, its highest value
+			local lo, step = ns.SocketSteps("cdr", 10)
+			local e = { "cdr", lo + 4 * step, 10 }
 			l[#l + 1] = e
 		end
 	end

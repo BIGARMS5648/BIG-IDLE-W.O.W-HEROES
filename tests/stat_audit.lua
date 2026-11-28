@@ -158,12 +158,8 @@ do
 	for cat, pool in pairs(ns.AFFIX_POOL) do for _, e in ipairs(pool) do need("옵션 " .. cat, e[1]) end end
 	for id, m in pairs(ns.MATS) do
 		local sm = m.sock or {}
-		for _, cat in ipairs({ "weapon", "armor", "accessory", "any" }) do
-			for _, o in ipairs(sm[cat] or {}) do
-				local mod = ns.TBH.STAT_MODS[o[1]]
-				local d = ns.SOCKET_STAT[mod.stat .. ":" .. mod.mod]
-				need("홈 재료 " .. id .. " " .. cat, d and d[1])
-			end
+		for _, cat in ipairs({ "weapon", "armor", "accessory" }) do
+			if sm[cat] then need("홈 재료 " .. id .. " " .. cat, sm[cat][1]) end
 		end
 	end
 	for s, def in pairs(ns.SLOT) do for k in pairs(def.base or {}) do need("부위 " .. s, k) end end
@@ -191,16 +187,27 @@ do
 	check(#unused == 0, "룬·동료 보너스는 모두 코드가 읽음", #unused > 0 and list(unused) or nil)
 end
 do
-	-- every stat of the sheet is used by combat (or by skills: 모든 기술 레벨)
+	-- every stat of the sheet is used by combat
 	local skip = { level = true }
 	local unused = {}
 	for k in pairs(READ) do
 		local used = skip[k] or src("s%." .. k .. "%f[^%w_]") or src("stats%." .. k .. "%f[^%w_]")
-			or (k:match("^dmg_") and src('s%["dmg_"')) or (k:match("^res_") and src('s%["res_"'))
 		if not used then unused[#unused + 1] = k end
 	end
 	table.sort(unused)
-	check(#unused == 0, "능력치 표의 모든 칸이 전투(또는 기술 레벨)에 쓰임", #unused > 0 and list(unused) or nil)
+	check(#unused == 0, "능력치 표의 모든 칸이 전투에 쓰임", #unused > 0 and list(unused) or nil)
+	-- the twelve a player sees, and nothing else
+	local twelve = { atk = 1, hp = 1, armor = 1, aspd = 1, crit = 1, critdmg = 1, boss = 1, cdr = 1, dr = 1, res = 1, dodge = 1, healTaken = 1 }
+	local odd = {}
+	for _, a in pairs(ns.AFFIX) do if not twelve[a.t] then odd[#odd + 1] = a.t end end
+	local missing = {}
+	for t in pairs(twelve) do
+		local found = false
+		for _, a in pairs(ns.AFFIX) do if a.t == t then found = true end end
+		if not found then missing[#missing + 1] = t end
+	end
+	check(#odd == 0 and #missing == 0, "능력치는 12개뿐 (공격력·생명력·방어력·공격 및 시전 속도 · 치명타 확률·치명타 피해·우두머리 피해·재사용 대기시간 감소 · 받는 피해 감소·원소 저항·회피·받는 치유량 증가)",
+		(#odd + #missing > 0) and (list(odd) .. " / " .. list(missing)) or nil)
 end
 
 ------------------------------------------------------------------------
@@ -215,7 +222,7 @@ do
 	table.sort(keys)
 	for _, key in ipairs(keys) do
 		local a = ns.AFFIX[key]
-		local v = key == "skills" and 1 or 7
+		local v = 7
 		local s1 = ns.Stats.Compute(H, { { key, v } })
 		local t = a.t
 		local want
@@ -227,19 +234,20 @@ do
 		local tol = (t == "hp") and 1 or 1e-9 * max(1, abs(want))
 		if abs(s1[t] - want) > tol then bad[#bad + 1] = key .. " " .. f(s1[t], 3) .. "/" .. f(want, 3) end
 		for k, x in pairs(s0) do
-			if type(x) == "number" and k ~= t and x ~= s1[k] then others[#others + 1] = key .. "→" .. k end
+			-- (공격 및 시전 속도 moves its pace, speed, with it)
+			if type(x) == "number" and k ~= t and x ~= s1[k] and not (t == "aspd" and k == "speed") then others[#others + 1] = key .. "→" .. k end
 		end
 	end
 	check(#bad == 0, "모든 능력치 종류: 고정값은 더하고, %는 합산·곱셈 단계대로 (" .. #keys .. "종)", #bad > 0 and list(bad) or nil)
 	check(#others == 0, "능력치 하나가 다른 능력치를 건드리지 않음", #others > 0 and list(others) or nil)
 	-- the limits
-	local CAP = { dodge = 60, block = 75, dr = 75, cdr = 60, res_fire = 75, res_frost = 75, res_nature = 75, res_shadow = 75, allres = 75, skills = 5 }
+	local CAP = { dodge = 60, dr = 75, cdr = 60, res = 75 }
 	local over = {}
 	for k, cap in pairs(CAP) do
 		local s = ns.Stats.Compute(H, { { k, 1000 } })
 		if s[k] ~= cap then over[#over + 1] = k .. " " .. tostring(s[k]) .. "/" .. cap end
 	end
-	check(#over == 0, "한도: 회피 60 · 막기 75 · 받는 피해 감소 75 · 재사용 대기 60 · 저항 75 · 기술 레벨 +5", #over > 0 and list(over) or nil)
+	check(#over == 0, "한도: 회피 60 · 받는 피해 감소 75 · 재사용 대기 60 · 원소 저항 75", #over > 0 and list(over) or nil)
 	-- several sources of one stat add up within a layer and multiply across
 	local s = ns.Stats.Compute(H, { { "atk", 100 }, { "atk", 50 }, { "atkPct", 10 }, { "atkPct", 20 }, { "atkMult", 10 }, { "atkMult", 10 } })
 	local want = (s0.atk / tA + 150) * 1.3 * 1.1 * 1.1 * tA
@@ -315,8 +323,7 @@ do
 			for tier = 1, ns.MAT_MAX_TIER[ns.SOCKET[kind].mat] do
 			for _, mat in ipairs(ns.Forge.MatsAt(ns.SOCKET[kind].mat, tier)) do
 				local seen = {}
-				local n = #(ns.Items.SocketOptions(mat, ns.Items.New(slot, 1, 1)) or {})
-				for _ = 1, 12 * n do
+				for _ = 1, 12 do
 					local it = ns.Items.New(slot, 60, ns.MAX_QUALITY)
 					it.a = nil
 					local e = ns.Items.AddSocket(it, kind, mat)
@@ -339,7 +346,7 @@ do
 	db.heroes[H].gear = {}
 	check(#unseen == 0, "보석·마법부여·주문각인: 재료마다 부위별로 붙을 수 있는 능력치가 모두 나옴", #unseen > 0 and list(unseen) or nil)
 	check(#range == 0, "나온 수치가 툴팁의 범위 안 (" .. tested .. "번)", #range > 0 and list(range) or nil)
-	check(#bad == 0, "박은 능력치가 그 숫자 그대로 영웅 능력치에 들어감 (재료 79종 × 부위 3종)", #bad > 0 and list(bad, 4) or nil)
+	check(#bad == 0, "박은 능력치가 그 숫자 그대로 영웅 능력치에 들어감 (재료 130종 × 부위 3종)", #bad > 0 and list(bad, 4) or nil)
 	check(#tips == 0, "툴팁에 박은 능력치가 그 숫자로 적혀 있음", #tips > 0 and list(tips) or nil)
 	-- a worn item with every kind of socket filled, enhanced, with random stats
 	local it = ns.Items.New("neck", 60, ns.MAX_QUALITY)
@@ -495,22 +502,16 @@ do
 	local h = db.heroes[H]
 	clean(H)
 	local sid = ns.Heroes.SkillList(H)[1]
-	h.sk = { [sid] = 3 }
-	h.skills = { sid }
 	local bad = {}
-	for extra = 0, 3 do
-		local it = ns.Items.New("neck", 60, ns.MAX_QUALITY)
-		it.a, it.g, it.e = nil, nil, nil
-		it.i = {}
-		for _ = 1, extra do it.i[#it.i + 1] = { "skills", 1, 6 } end
-		h.gear = { neck = it }
+	for pts = 1, ns.SKILL_MAX do
+		h.sk = { [sid] = pts }
+		h.skills = { sid }
 		ns.Stats.Invalidate(H)
-		local want = min(ns.SKILL_CAP, 3 + extra)
 		local got = ns.Heroes.SkillLevel(H, sid)
-		if got ~= want then bad[#bad + 1] = "+" .. extra .. ": Lv " .. got .. "/" .. want end
+		if got ~= pts then bad[#bad + 1] = pts .. "점: Lv " .. got end
 	end
 	clean(H)
-	check(#bad == 0, "'모든 기술 레벨' 각인 1~3개 → 기술 레벨이 그만큼 (기술 점수 3 기준)", #bad > 0 and list(bad) or nil)
+	check(#bad == 0, "기술 레벨 = 기술 점수 (1~" .. ns.SKILL_MAX .. ")", #bad > 0 and list(bad) or nil)
 end
 
 ------------------------------------------------------------------------
@@ -634,18 +635,16 @@ do
 		ns.Runes.Invalidate()
 		s = live("동료 '" .. ns.N(pet.name) .. "' 얻기 → 다음 순간 전투 능력치에", s)
 	end
-	-- the skill level from an inscription reaches the skill in combat
+	-- a skill point reaches the skill in combat
 	local sid = ns.Heroes.SkillList(H)[1]
 	h.sk, h.skills = { [sid] = 2 }, { sid }
 	ns.Stats.Invalidate(H)
 	ns.Combat.Step()
-	local neck = ns.Items.New("neck", h.level, ns.MAX_QUALITY)
-	neck.a, neck.g, neck.e, neck.i = nil, nil, nil, { { "skills", 1, 6 } }
-	db.bag[#db.bag + 1] = neck
-	check(ns.Items.Equip(H, #db.bag) ~= false and h.gear.neck == neck, "'모든 기술 레벨' 각인 장비를 낌")
+	h.sk[sid] = 3
+	ns.Stats.Invalidate(H)
 	ns.Combat.Step()
 	local u = unit()
-	check(u and u.slv[sid] == 3, "'모든 기술 레벨' 각인 장비를 끼면 전투 중 기술 레벨이 오름", "Lv " .. tostring(u and u.slv[sid]))
+	check(u and u.slv[sid] == 3, "기술 점수를 올리면 전투 중 기술 레벨이 오름", "Lv " .. tostring(u and u.slv[sid]))
 end
 
 ------------------------------------------------------------------------

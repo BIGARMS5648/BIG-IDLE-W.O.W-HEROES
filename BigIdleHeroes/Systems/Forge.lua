@@ -132,7 +132,8 @@ function Forge.PickByQuality(maxQuality)
 	local heroes = ns.Items.KeptHeroes()
 	for _, it in ipairs(ns.db.bag) do
 		if not it.lock and not it.up and it.q <= maxQuality and not ns.Items.HasSockets(it) then
-			if ns.Items.PartyUpgrade(it, heroes) or ns.Items.FutureUpgrade(it, heroes) then
+			if ns.Items.PartyUpgrade(it, heroes) or ns.Items.PartyUpgrade(it, heroes, true)
+				or ns.Items.FutureUpgrade(it, heroes) or ns.Items.FutureUpgrade(it, heroes, true) then
 				kept = kept + 1
 			else
 				out[#out + 1] = it

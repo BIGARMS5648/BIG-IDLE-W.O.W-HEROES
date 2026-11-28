@@ -21,10 +21,11 @@ ns.RUNE_GOLD = 0.4
 ns.RUNE_STAT = {
 	AllHeroAttackDamage = { key = "atk", text = "모든 영웅 공격력 +%s", icon = "Ability_Warrior_OffensiveStance" },
 	AllHeroAttackDamagePercent = { key = "atkPct", k = 0.1, text = "모든 영웅 공격력 +%s%%", icon = "Ability_Warrior_BattleShout" },
-	AllHeroAttackSpeed = { key = "aspd", k = 0.1, text = "모든 영웅 공격 속도 +%s%%", icon = "Spell_Nature_Bloodlust" },
-	AllHeroMoveSpeed = { key = "move", k = 0.1, text = "모든 영웅 이동 속도 +%s%%", icon = "Ability_Rogue_Sprint" },
-	AllHeroArmor = { key = "armor", text = "모든 영웅 방어도 +%s", icon = "INV_Shield_06" },
-	AllHeroArmorPercent = { key = "armorPct", k = 0.1, text = "모든 영웅 방어도 +%s%%", icon = "Ability_Warrior_DefensiveStance" },
+	AllHeroAttackSpeed = { key = "aspd", k = 0.1, text = "모든 영웅 공격 및 시전 속도 +%s%%", icon = "Spell_Nature_Bloodlust" },
+	-- (TBH's moving speed: 우두머리 피해 here)
+	AllHeroMoveSpeed = { key = "boss", k = 0.1, text = "모든 영웅 우두머리 피해 +%s%%", icon = "INV_Misc_Head_Dragon_01" },
+	AllHeroArmor = { key = "armor", text = "모든 영웅 방어력 +%s", icon = "INV_Shield_06" },
+	AllHeroArmorPercent = { key = "armorPct", k = 0.1, text = "모든 영웅 방어력 +%s%%", icon = "Ability_Warrior_DefensiveStance" },
 	IncreaseGoldAmount = { key = "gold", k = 0.1, text = "몬스터 처치 골드 +%s%%", icon = "INV_Misc_Coin_02" },
 	IncreaseExpAmount = { key = "exp", k = 0.1, text = "경험치 획득 +%s%%", icon = "INV_Misc_Book_07" },
 	AdditionalGold = { key = "goldKill", gold = true, text = "몬스터 처치마다 골드 +%s", icon = "INV_Misc_Coin_01" },
@@ -74,7 +75,7 @@ ns.RUNE_GROUPS = {
 	{ key = "forge", name = "대장간", rgb = { 0.95, 0.56, 0.2 } },
 }
 ns.RUNE_GROUP_OF = {
-	atk = "fight", atkPct = "fight", aspd = "fight", move = "fight", armor = "fight", armorPct = "fight", waves = "fight",
+	atk = "fight", atkPct = "fight", aspd = "fight", boss = "fight", armor = "fight", armorPct = "fight", waves = "fight",
 	gold = "gold", goldKill = "gold", goldMob = "gold", goldBoss = "gold", goldAct = "gold", offGold = "gold",
 	exp = "exp", expKill = "exp", expMob = "exp", expBoss = "exp", expAct = "exp", offExp = "exp",
 	chestChance = "chest", bossRate = "chest", cap1 = "chest", cap2 = "chest", cap3 = "chest",

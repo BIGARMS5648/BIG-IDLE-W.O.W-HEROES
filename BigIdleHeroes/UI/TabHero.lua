@@ -35,9 +35,9 @@ local function skillLines(id, sid)
 	local lvl = max(1, H.SkillLevel(id, sid))
 	local lines = { { ns.N(sk.name), string.format("레벨 %d / %d", pts, ns.SKILL_MAX), UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] } }
 	lines[#lines + 1] = { ns.SkillTag(sid) .. " · " .. ns.SkillActText(sid, lvl), nil, 0.6, 0.8, 1 }
-	lines[#lines + 1] = { (pts > 0 and "지금: " or "배우면: ") .. ns.SkillDesc(sid, lvl), nil, 1, 1, 1 }
+	lines[#lines + 1] = { (pts > 0 and "지금: " or "배우면: ") .. ns.SkillDesc(sid, lvl, id), nil, 1, 1, 1 }
 	if pts > 0 and pts < ns.SKILL_MAX then
-		lines[#lines + 1] = { "다음 단계: " .. ns.SkillDesc(sid, H.SkillLevel(id, sid) + 1), nil, 0.4, 1, 0.4 }
+		lines[#lines + 1] = { "다음 단계: " .. ns.SkillDesc(sid, H.SkillLevel(id, sid) + 1, id), nil, 0.4, 1, 0.4 }
 	end
 	local ok, why = H.CanLearnSkill(id, sid)
 	if not ok and why and pts < ns.SKILL_MAX then lines[#lines + 1] = { why, nil, 1, 0.55, 0.45 } end
@@ -457,7 +457,12 @@ local function refreshStats(page, id)
 	local y = { 0, 0 }
 	for gi, g in ipairs(page.groups) do
 		local data = groups[gi]
-		local ci = gi <= 2 and 1 or 2
+		g.head:SetShown(data ~= nil)
+		if not data then
+			for _, row in ipairs(g.rows) do row:Hide() end
+		else
+		local ci = data[3] or 1
+		g.col = STAT_COLS[ci]
 		g.head:ClearAllPoints()
 		g.head:SetPoint("TOPLEFT", g.f, "TOPLEFT", g.col.x, -y[ci])
 		g.head:Set(data[1])
@@ -479,6 +484,7 @@ local function refreshStats(page, id)
 			end
 		end
 		y[ci] = y[ci] + 10
+		end
 	end
 end
 

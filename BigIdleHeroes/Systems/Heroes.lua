@@ -400,12 +400,9 @@ function Heroes.SkillPoints(id, skillId)
 	return ns.db.heroes[id].sk[skillId] or 0
 end
 
--- Effective level including "+All Skill Levels" gear.
-function Heroes.SkillLevel(id, skillId, stats)
-	local pts = Heroes.SkillPoints(id, skillId)
-	if pts <= 0 then return 0 end
-	stats = stats or ns.Stats.Get(id)
-	return min(ns.SKILL_CAP, pts + (stats.skills or 0))
+-- The level a skill fights at: its rank.
+function Heroes.SkillLevel(id, skillId)
+	return min(ns.SKILL_MAX, Heroes.SkillPoints(id, skillId))
 end
 
 -- Can one skill point go into this skill (learn it, or raise it one rank)?

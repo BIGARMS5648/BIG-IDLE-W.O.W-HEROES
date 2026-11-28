@@ -82,11 +82,11 @@ ns.WTYPE = {
 		icons = { "INV_Mace_01", "INV_Mace_03", "INV_Mace_04", "INV_Mace_07", "INV_Mace_13" } },
 	dagger   = { slot = "mh", name = "단검",       base = { atk = 4.3, aspd = 8 },
 		icons = { "INV_Weapon_ShortBlade_01", "INV_Weapon_ShortBlade_03", "INV_Weapon_ShortBlade_05", "INV_Weapon_ShortBlade_07", "INV_Weapon_ShortBlade_12" } },
-	staff    = { slot = "mh", name = "지팡이",      base = { atk = 5.2, cast = 5 },
+	staff    = { slot = "mh", name = "지팡이",      base = { atk = 5.2, aspd = 5 },
 		icons = { "INV_Staff_08", "INV_Staff_10", "INV_Staff_13", "INV_Staff_20", "INV_Staff_30" } },
 	bow      = { slot = "mh", name = "활",            base = { atk = 5.0, crit = 2 },
 		icons = { "INV_Weapon_Bow_01", "INV_Weapon_Bow_02", "INV_Weapon_Bow_05", "INV_Weapon_Bow_07", "INV_Weapon_Bow_08" } },
-	shield   = { slot = "oh", name = "방패",       base = { armor = 14, block = 8 },
+	shield   = { slot = "oh", name = "방패",       base = { armor = 14, dr = 4 },
 		icons = { "INV_Shield_02", "INV_Shield_04", "INV_Shield_05", "INV_Shield_06", "INV_Shield_09" } },
 	orb      = { slot = "oh", name = "마법 보주",     base = { atk = 1.6, crit = 2 },
 		icons = { "INV_Misc_Orb_01", "INV_Misc_Orb_02", "INV_Misc_Orb_03", "INV_Misc_Orb_04", "INV_Misc_Orb_05" } },
@@ -94,7 +94,7 @@ ns.WTYPE = {
 		icons = { "INV_Misc_Quiver_01", "INV_Misc_Quiver_02", "INV_Misc_Quiver_03", "INV_Misc_Quiver_05", "INV_Misc_Quiver_07" } },
 	offblade = { slot = "oh", name = "보조 칼날", base = { atk = 2.2 },
 		icons = { "INV_Weapon_ShortBlade_02", "INV_Weapon_ShortBlade_04", "INV_Weapon_ShortBlade_06", "INV_Weapon_ShortBlade_14", "INV_Weapon_ShortBlade_15" } },
-	relic    = { slot = "oh", name = "성물",        base = { hp = 16, heal = 8 },
+	relic    = { slot = "oh", name = "성물",        base = { hp = 16, atk = 1.2 },
 		icons = { "INV_Misc_Idol_01", "INV_Misc_Idol_02", "INV_Misc_Idol_03", "INV_Misc_Book_09", "INV_Misc_Book_11" } },
 	whetstone = { slot = "oh", name = "숫돌",   base = { atk = 2.0, critdmg = 6 },
 		icons = { "INV_Stone_SharpeningStone_01", "INV_Stone_SharpeningStone_02", "INV_Stone_SharpeningStone_03", "INV_Stone_SharpeningStone_04", "INV_Stone_SharpeningStone_05" } },
@@ -109,8 +109,13 @@ ns.ITEM_TIER = {
 }
 
 ------------------------------------------------------------------------
--- Stats. An affix key maps onto a target stat and one of three layers:
+-- Stats. Twelve a player sees: 공격력, 생명력, 방어력, 공격 및 시전 속도
+-- (기본); 치명타 확률, 치명타 피해, 우두머리 피해, 재사용 대기시간 감소
+-- (공격); 받는 피해 감소, 원소 저항, 회피, 받는 치유량 증가 (방어).
+-- An affix key maps onto one of them (t) and one of three layers:
 --   final = (base + sum flat) * (1 + sum add) * product(1 + mult)
+-- so 공격력 comes as a number (atk), a percent (atkPct) or a battle buff's
+-- percent (atkMult); all read "공격력".
 -- f: display format, s: scaling curve for rolled flat values.
 ------------------------------------------------------------------------
 ns.AFFIX = {
@@ -119,42 +124,18 @@ ns.AFFIX = {
 	atkMult    = { t = "atk",   l = "mult", n = "공격력",                 f = "pct" },
 	hp         = { t = "hp",    l = "flat", n = "생명력",                 f = "num", s = "H" },
 	hpPct      = { t = "hp",    l = "add",  n = "생명력",                 f = "pct" },
-	armor      = { t = "armor", l = "flat", n = "방어도",                  f = "num", s = "R" },
-	armorPct   = { t = "armor", l = "add",  n = "방어도",                  f = "pct" },
-	aspd       = { t = "aspd",  l = "add",  n = "공격 속도",        f = "pct" },
-	aspdMult   = { t = "aspd",  l = "mult", n = "공격 속도",        f = "pct" },
-	crit       = { t = "crit",    l = "flat", n = "치명타 확률",     f = "pct" },
-	critdmg    = { t = "critdmg", l = "flat", n = "치명타 피해",     f = "pct" },
-	regen      = { t = "regen", l = "flat", n = "초당 생명력 회복", f = "num", s = "H" },
-	hph        = { t = "hph",   l = "flat", n = "적중 시 생명력", f = "num", s = "H" },
-	hpk        = { t = "hpk",   l = "flat", n = "처치 시 생명력", f = "num", s = "H" },
-	leech      = { t = "leech", l = "flat", n = "생명력 흡수",        f = "pct" },
-	dodge      = { t = "dodge", l = "flat", n = "회피 확률",        f = "pct" },
-	block      = { t = "block", l = "flat", n = "막기 확률",        f = "pct" },
-	dr         = { t = "dr",    l = "flat", n = "받는 피해 감소", f = "pct" },
-	absorb     = { t = "absorb", l = "flat", n = "피해 흡수",  f = "num", s = "H" },
-	cdr        = { t = "cdr",   l = "flat", n = "재사용 대기시간 감소", f = "pct" },
-	cast       = { t = "cast",  l = "flat", n = "시전 속도",          f = "pct" },
-	move       = { t = "move",  l = "flat", n = "이동 속도",      f = "pct" },
-	heal       = { t = "heal",  l = "flat", n = "치유량 증가",      f = "pct" },
-	multi      = { t = "multi", l = "flat", n = "연속 타격",         f = "pct" },
-	dmg_phys   = { t = "dmg_phys",   l = "flat", n = "물리 피해", f = "pct" },
-	dmg_fire   = { t = "dmg_fire",   l = "flat", n = "화염 피해",    f = "pct" },
-	dmg_frost  = { t = "dmg_frost",  l = "flat", n = "냉기 피해",   f = "pct" },
-	dmg_nature = { t = "dmg_nature", l = "flat", n = "자연 피해",  f = "pct" },
-	dmg_shadow = { t = "dmg_shadow", l = "flat", n = "암흑 피해",  f = "pct" },
-	dmg_holy   = { t = "dmg_holy",   l = "flat", n = "신성 피해",    f = "pct" },
-	dmg_arcane = { t = "dmg_arcane", l = "flat", n = "비전 피해",  f = "pct" },
-	dmg_all    = { t = "dmg_all",    l = "flat", n = "모든 피해",     f = "pct" },
-	res_fire   = { t = "res_fire",   l = "flat", n = "화염 저항",   f = "pct" },
-	res_frost  = { t = "res_frost",  l = "flat", n = "냉기 저항",  f = "pct" },
-	res_nature = { t = "res_nature", l = "flat", n = "자연 저항", f = "pct" },
-	res_shadow = { t = "res_shadow", l = "flat", n = "암흑 저항", f = "pct" },
-	allres     = { t = "allres", l = "flat", n = "모든 원소 저항", f = "pct" },
-	exp        = { t = "exp",   l = "flat", n = "경험치 획득",   f = "pct" },
-	gold       = { t = "gold",  l = "flat", n = "골드 획득",           f = "pct" },
-	skills     = { t = "skills", l = "flat", n = "모든 기술 레벨", f = "int" },
-	thorns     = { t = "thorns", l = "flat", n = "가시 반사",             f = "pct" },
+	armor      = { t = "armor", l = "flat", n = "방어력",                 f = "num", s = "R" },
+	armorPct   = { t = "armor", l = "add",  n = "방어력",                 f = "pct" },
+	aspd       = { t = "aspd",  l = "add",  n = "공격 및 시전 속도",      f = "pct" },
+	aspdMult   = { t = "aspd",  l = "mult", n = "공격 및 시전 속도",      f = "pct" },
+	crit       = { t = "crit",    l = "flat", n = "치명타 확률",          f = "pct" },
+	critdmg    = { t = "critdmg", l = "flat", n = "치명타 피해",          f = "pct" },
+	boss       = { t = "boss",  l = "flat", n = "우두머리 피해",          f = "pct" },
+	cdr        = { t = "cdr",   l = "flat", n = "재사용 대기시간 감소",   f = "pct" },
+	dr         = { t = "dr",    l = "flat", n = "받는 피해 감소",         f = "pct" },
+	res        = { t = "res",   l = "flat", n = "원소 저항",              f = "pct" },
+	dodge      = { t = "dodge", l = "flat", n = "회피",                   f = "pct" },
+	healTaken  = { t = "healTaken", l = "flat", n = "받는 치유량 증가",   f = "pct" },
 }
 
 ns.SCHOOL = {
@@ -168,26 +149,31 @@ ns.SCHOOL = {
 }
 
 -- Roll ranges at item level 1 / quality multiplier 1. { key, lo, hi, weight }
+-- An item's roll is one of five evenly spaced whole numbers around the
+-- middle of the range at its level and grade (Items.AffixSteps).
 ns.AFFIX_POOL = {
 	weapon = {
-		{ "atk", 1.2, 2.4, 10 }, { "atkPct", 6, 12, 10 }, { "aspd", 4, 9, 8 }, { "crit", 2, 5, 8 },
-		{ "critdmg", 8, 20, 8 }, { "hph", 0.6, 1.2, 4 }, { "cdr", 2, 6, 4 }, { "cast", 4, 10, 3 },
-		{ "leech", 0.5, 1.5, 2 }, { "multi", 3, 8, 2 },
-		{ "dmg_phys", 6, 14, 3 }, { "dmg_fire", 6, 14, 2 }, { "dmg_frost", 6, 14, 2 }, { "dmg_nature", 6, 14, 2 },
-		{ "dmg_shadow", 6, 14, 2 }, { "dmg_holy", 6, 14, 2 }, { "dmg_arcane", 6, 14, 1 },
+		{ "atk", 1.2, 2.4, 10 }, { "aspd", 4, 9, 9 }, { "crit", 2, 6, 8 },
+		{ "critdmg", 8, 20, 8 }, { "boss", 6, 14, 7 }, { "cdr", 2, 6, 5 },
 	},
 	armor = {
-		{ "hp", 10, 20, 10 }, { "hpPct", 5, 10, 8 }, { "armor", 3, 6, 10 }, { "armorPct", 6, 12, 6 },
-		{ "regen", 0.4, 0.9, 5 }, { "dodge", 1.5, 4, 4 }, { "block", 2, 5, 3 }, { "dr", 1, 3, 3 },
-		{ "absorb", 0.5, 1.0, 3 }, { "allres", 2, 6, 3 }, { "hpk", 2, 4, 3 },
-		{ "res_fire", 5, 12, 2 }, { "res_frost", 5, 12, 2 }, { "res_nature", 5, 12, 2 }, { "res_shadow", 5, 12, 2 },
+		{ "hp", 10, 20, 10 }, { "armor", 3, 6, 10 }, { "dr", 1, 5, 5 },
+		{ "res", 4, 12, 6 }, { "dodge", 2, 6, 5 }, { "healTaken", 4, 12, 5 },
 	},
 	accessory = {
-		{ "atk", 0.8, 1.6, 8 }, { "atkPct", 4, 9, 6 }, { "crit", 2, 5, 8 }, { "critdmg", 8, 20, 8 },
-		{ "aspd", 3, 7, 6 }, { "cdr", 2, 6, 5 }, { "leech", 0.5, 1.5, 3 }, { "exp", 3, 7, 4 },
-		{ "gold", 3, 7, 4 }, { "heal", 6, 14, 4 }, { "move", 3, 8, 3 }, { "hpPct", 4, 9, 4 },
+		{ "atk", 0.8, 1.6, 8 }, { "hp", 6, 12, 6 }, { "aspd", 3, 7, 6 }, { "crit", 2, 6, 8 },
+		{ "critdmg", 8, 20, 8 }, { "boss", 4, 12, 6 }, { "cdr", 2, 6, 5 }, { "healTaken", 4, 12, 4 },
 	},
 }
+
+-- Five evenly spaced whole numbers around `mid`, `step` apart (at least 1):
+-- the lowest is mid - 2 steps, moved up to 1 when that would be below it.
+function ns.FiveSteps(mid, spread)
+	local step = math.max(1, math.floor(spread / 4 + 0.5))
+	local lo = math.floor(mid + 0.5) - 2 * step
+	if lo < 1 then lo = 1 end
+	return lo, step
+end
 
 -- Sockets (TBH's cube): 보석 세공 = 장식, 마법부여 = 세공, 주문각인 = 각인.
 -- Each material gives its line's stat for the gear group, at one of its
@@ -199,77 +185,38 @@ ns.SOCKET = {
 }
 ns.SOCKET_KINDS = { "gem", "ench", "insc" }
 ns.SOCKET_FIELD = { gem = "g", ench = "e", insc = "i" }
--- the item level a socket tier's flat stats (attack, health, armor ...) are
+-- the item level a socket tier's flat stats (attack, health, armor) are
 -- sized for
 ns.SOCKET_TIER_LEVEL = { 1, 5, 10, 15, 20, 30, 40, 50, 65, 80 }
 
--- TBH's stats as ours. A percent is TBH's number / div (TBH keeps tenths);
--- flat numbers are ours at the tier's level (coefficient times the stat's
--- level scale), rolled as widely as TBH's; fixed is a stat TBH counts in
--- whole steps. Stats without a match here take the nearest one: lightning
--- is nature, chaos is shadow, area / melee / projectile / summon damage is
--- all damage (half for area size), projectiles and extra strikes are
--- 연속 타격, fewer basic attacks per skill is attack speed.
-ns.SOCKET_STAT = {
-	["AttackDamage:FLAT"]                  = { "atk", flat = 1.1 },
-	["AttackDamage:ADDITIVE"]              = { "atkPct", div = 10 },
-	["AttackSpeed:ADDITIVE"]               = { "aspd", div = 10 },
-	["CriticalChance:FLAT"]                = { "crit", div = 10 },
-	["CriticalChance:ADDITIVE"]            = { "crit", div = 200 }, -- TBH: "increased", of a ~5% base
-	["CriticalDamage:FLAT"]                = { "critdmg", div = 10 },
-	["MaxHp:FLAT"]                         = { "hp", flat = 10 },
-	["MaxHp:ADDITIVE"]                     = { "hpPct", div = 10 },
-	["Armor:FLAT"]                         = { "armor", flat = 3 },
-	["Armor:ADDITIVE"]                     = { "armorPct", div = 10 },
-	["CooldownReduction:FLAT"]             = { "cdr", div = 10 },
-	["MovementSpeed:ADDITIVE"]             = { "move", div = 10 },
-	["MovementSpeed:FLAT"]                 = { "move", div = 5 },
-	["AreaOfEffect:ADDITIVE"]              = { "dmg_all", div = 20 },
-	["BaseAttackCountReduction:FLAT"]      = { "aspd", fixed = 10 },
-	["FireResistance:FLAT"]                = { "res_fire" },
-	["ColdResistance:FLAT"]                = { "res_frost" },
-	["LightningResistance:FLAT"]           = { "res_nature" },
-	["ChaosResistance:FLAT"]               = { "res_shadow" },
-	["AllElementalResistance:FLAT"]        = { "allres" },
-	["DodgeChance:FLAT"]                   = { "dodge", div = 10 },
-	["BlockChance:FLAT"]                   = { "block", div = 10 },
-	["Multistrike:FLAT"]                   = { "multi", fixed = 15 },
-	["ProjectileCount:FLAT"]               = { "multi", fixed = 15 },
-	["HpLeech:FLAT"]                       = { "leech", div = 10 },
-	["HpRegenPerSec:FLAT"]                 = { "regen", flat = 0.6 },
-	["PhysicalDamagePercent:FLAT"]         = { "dmg_phys", div = 10 },
-	["FireDamagePercent:FLAT"]             = { "dmg_fire", div = 10 },
-	["ColdDamagePercent:FLAT"]             = { "dmg_frost", div = 10 },
-	["LightningDamagePercent:FLAT"]        = { "dmg_nature", div = 10 },
-	["AddHpPerHit:FLAT"]                   = { "hph", flat = 0.9 },
-	["AddHpPerKill:FLAT"]                  = { "hpk", flat = 3 },
-	["DamageReduction:FLAT"]               = { "dr", div = 10 },
-	["DamageAbsorption:FLAT"]              = { "absorb", flat = 0.75 },
-	["CastSpeed:ADDITIVE"]                 = { "cast", div = 10 },
-	["IncreaseAreaOfEffectDamage:ADDITIVE"] = { "dmg_all", div = 20 },
-	["IncreaseMeleeDamage:ADDITIVE"]       = { "dmg_all", div = 20 },
-	["IncreaseProjectileDamage:ADDITIVE"]  = { "dmg_all", div = 20 },
-	["IncreaseSummonDamage:ADDITIVE"]      = { "dmg_all", div = 20 },
-	["SkillDurationIncrease:ADDITIVE"]     = { "cdr", div = 30 },
-	["SkillHealIncrease:ADDITIVE"]         = { "heal", div = 10 },
-	-- (not TBH's: added below for the shadow, holy and arcane gems)
-	["ShadowDamagePercent:FLAT"]           = { "dmg_shadow", div = 10 },
-	["HolyDamagePercent:FLAT"]             = { "dmg_holy", div = 10 },
-	["ArcaneDamagePercent:FLAT"]           = { "dmg_arcane", div = 10 },
+-- What one socket gives: { at tier 1, times this every tier up } - a
+-- percent, or for 공격력 / 생명력 / 방어력 a number times the stat's curve at
+-- the tier's level. The numbers make one socket of any stat raise the gear
+-- score as much as the others on average over the three roles, and as much
+-- as a socket did on average before the twelve stats, tier by tier (a
+-- calculation on heroes geared for each tier's level, tests/bench.lua's
+-- way). A socket rolls one of five steps around it, SOCKET_SPREAD either way.
+ns.SOCKET_VALUE = {
+	atk = { 0.43, 1.22 }, hp = { 8.6, 1.177 }, armor = { 9.4, 1.176 },
+	aspd = { 2.16, 1.26 }, crit = { 3.0, 1.163 }, critdmg = { 20.3, 1.077 },
+	boss = { 6.0, 1.218 }, cdr = { 3.85, 1.153 },
+	dr = { 2.47, 1.186 }, res = { 3.4, 1.153 }, dodge = { 2.46, 1.164 }, healTaken = { 7.5, 1.239 },
 }
+ns.SOCKET_SPREAD = 0.25
 
--- Our stat and its value for a TBH stat mod rolled at a tier (raw: TBH's
--- number in that tier's range).
-function ns.SocketStat(modKey, tier, raw)
-	local mod = ns.TBH.STAT_MODS[modKey]
-	local d = ns.SOCKET_STAT[mod.stat .. ":" .. mod.mod]
-	if d.fixed then return d[1], d.fixed end
-	if d.flat then
-		local r = mod[tier]
-		local a = ns.AFFIX[d[1]]
-		return d[1], d.flat * ns.Scale[a.s](ns.SOCKET_TIER_LEVEL[tier]) * raw / ((r[1] + r[2]) / 2)
-	end
-	return d[1], raw / (d.div or 1)
+-- The middle and the spread of a socket stat at a tier.
+function ns.SocketMid(stat, tier)
+	local v = ns.SOCKET_VALUE[stat]
+	local a = ns.AFFIX[stat]
+	local mid = v[1] * v[2] ^ (tier - 1)
+	if a.s then mid = mid * ns.Scale[a.s](ns.SOCKET_TIER_LEVEL[tier]) end
+	return mid, mid * ns.SOCKET_SPREAD * 2
+end
+
+-- The five values a socket stat can take at a tier: lowest, step.
+function ns.SocketSteps(stat, tier)
+	local mid, spread = ns.SocketMid(stat, tier)
+	return ns.FiveSteps(mid, spread)
 end
 
 ------------------------------------------------------------------------
@@ -303,66 +250,40 @@ mat("cloth5", "cloth", 5, "룬무늬 옷감", "INV_Fabric_PurpleFire_01")
 -- grade sets their tier (weapon: one above the grade; armour and
 -- accessory: the grade; a scroll: the grade to two above, at random). Nine
 -- of a line fuse into one of the same line a grade up (Forge.NextMat).
--- 보석 = the schools (damage, its defence, a stat of its own), 마법부여 =
--- the basics, 주문서 = the rarer ones. id = kind .. (base + line * 100 +
--- grade), e.g. gem300103 = 정교한 루비.
-do
-	-- the shadow, holy and arcane damage stat mods (TBH has only physical,
-	-- fire, cold and lightning): fire's numbers
-	local T = ns.TBH
-	local NEW = { 902801, 902901, 903001 }
-	for i, stat in ipairs({ "ShadowDamagePercent", "HolyDamagePercent", "ArcaneDamagePercent" }) do
-		local m = { stat = stat, mod = "FLAT" }
-		for t, r in ipairs(T.STAT_MODS[102501]) do m[t] = { r[1], r[2] } end
-		T.STAT_MODS[NEW[i]] = m
-	end
-end
--- the stat mod (Data/TBH.lua STAT_MODS) each of our stats is read from
-local SOCKET_MOD = {
-	dmg_fire = 102501, dmg_frost = 102601, dmg_nature = 102701, dmg_phys = 102401,
-	dmg_shadow = 902801, dmg_holy = 902901, dmg_arcane = 903001,
-	res_fire = 101201, res_frost = 101301, res_nature = 101401, res_shadow = 101501, allres = 105201,
-	atk = 100101, atkPct = 100102, aspd = 100201, cast = 104901, crit = 100302, critdmg = 100401,
-	dmg_all = 100901, multi = 102001, cdr = 100701, move = 100801,
-	hp = 100501, hpPct = 100502, armor = 100601, armorPct = 100602, dodge = 101601, block = 101701,
-	dr = 103401, absorb = 104001, regen = 102301, hph = 103301, hpk = 105301, leech = 102101, heal = 105901,
-}
+-- Every one of the twelve stats comes from three or four of the lines.
+-- id = kind .. (base + line * 100 + grade), e.g. gem300103 = 정교한 루비.
 -- the grades' words, as in every material's name (희미한 루비, 고대 가루)
 ns.SOCKET_GRADE_WORD = { "희미한", "선명한", "정교한", "고대", "용의", "티탄", "별빛", "신성한", "천상의", "태초의" }
 -- each line: its name, the noun after the grade's word, icons (spread over
 -- the grades), and its stat for weapons, armour and accessories
 ns.SOCKET_LINES = {
 	gem = { base = 300000, lines = {
-		{ name = "화염", noun = "루비", icons = { "INV_Misc_Gem_Ruby_02", "INV_Misc_Gem_Ruby_01", "INV_Misc_Gem_Ruby_03" },
-			weapon = "dmg_fire", armor = "res_fire", accessory = "atk" },
-		{ name = "냉기", noun = "사파이어", icons = { "INV_Misc_Gem_Sapphire_02", "INV_Misc_Gem_Sapphire_01", "INV_Misc_Gem_Sapphire_03" },
-			weapon = "dmg_frost", armor = "res_frost", accessory = "crit" },
-		{ name = "자연", noun = "에메랄드", icons = { "INV_Misc_Gem_Emerald_03", "INV_Misc_Gem_Emerald_01", "INV_Misc_Gem_Emerald_02" },
-			weapon = "dmg_nature", armor = "res_nature", accessory = "cast" },
-		{ name = "물리", noun = "토파즈", icons = { "INV_Misc_Gem_Topaz_02", "INV_Misc_Gem_Topaz_01", "INV_Misc_Gem_Topaz_03" },
-			weapon = "dmg_phys", armor = "hp", accessory = "cdr" },
-		{ name = "암흑", noun = "자수정", icons = { "INV_Misc_Gem_Amethyst_01", "INV_Misc_Gem_Amethyst_02", "INV_Misc_Gem_Amethyst_03" },
-			weapon = "dmg_shadow", armor = "res_shadow", accessory = "leech" },
-		{ name = "신성", noun = "진주", icons = { "INV_Misc_Gem_Pearl_03", "INV_Misc_Gem_Pearl_01", "INV_Misc_Gem_Pearl_02" },
-			weapon = "dmg_holy", armor = "regen", accessory = "heal" },
-		{ name = "비전", noun = "다이아몬드", icons = { "INV_Misc_Gem_Diamond_01", "INV_Misc_Gem_Crystal_02", "INV_Misc_Gem_Diamond_02" },
-			weapon = "dmg_arcane", armor = "allres", accessory = "critdmg" },
+		{ name = "루비", noun = "루비", icons = { "INV_Misc_Gem_Ruby_02", "INV_Misc_Gem_Ruby_01", "INV_Misc_Gem_Ruby_03" },
+			weapon = "atk", armor = "hp", accessory = "critdmg" },
+		{ name = "사파이어", noun = "사파이어", icons = { "INV_Misc_Gem_Sapphire_02", "INV_Misc_Gem_Sapphire_01", "INV_Misc_Gem_Sapphire_03" },
+			weapon = "crit", armor = "res", accessory = "cdr" },
+		{ name = "에메랄드", noun = "에메랄드", icons = { "INV_Misc_Gem_Emerald_03", "INV_Misc_Gem_Emerald_01", "INV_Misc_Gem_Emerald_02" },
+			weapon = "aspd", armor = "healTaken", accessory = "atk" },
+		{ name = "토파즈", noun = "토파즈", icons = { "INV_Misc_Gem_Topaz_02", "INV_Misc_Gem_Topaz_01", "INV_Misc_Gem_Topaz_03" },
+			weapon = "boss", armor = "armor", accessory = "hp" },
+		{ name = "자수정", noun = "자수정", icons = { "INV_Misc_Gem_Amethyst_01", "INV_Misc_Gem_Amethyst_02", "INV_Misc_Gem_Amethyst_03" },
+			weapon = "critdmg", armor = "dodge", accessory = "boss" },
 	} },
 	dust = { base = 310000, lines = {
 		{ name = "힘", noun = "가루", icons = { "INV_Enchant_DustStrange", "INV_Enchant_DustSoul", "INV_Enchant_DustVision", "INV_Enchant_DustDream", "INV_Enchant_DustIllusion" },
-			weapon = "atkPct", armor = "armor", accessory = "hp" },
+			weapon = "atk", armor = "armor", accessory = "crit" },
 		{ name = "신속", noun = "조각", icons = { "INV_Enchant_ShardGlimmeringSmall", "INV_Enchant_ShardGlowingSmall", "INV_Enchant_ShardRadientSmall", "INV_Enchant_ShardBrilliantSmall" },
-			weapon = "aspd", armor = "dodge", accessory = "move" },
+			weapon = "aspd", armor = "dodge", accessory = "res" },
 		{ name = "정밀", noun = "결정", icons = { "INV_Enchant_ShardGlimmeringLarge", "INV_Enchant_ShardGlowingLarge", "INV_Enchant_ShardRadientLarge", "INV_Enchant_ShardBrilliantLarge", "INV_Enchant_ShardNexusLarge" },
-			weapon = "crit", armor = "block", accessory = "critdmg" },
+			weapon = "crit", armor = "res", accessory = "aspd" },
 		{ name = "활력", noun = "정수", icons = { "INV_Enchant_EssenceMagicSmall", "INV_Enchant_EssenceMagicLarge", "INV_Enchant_EssenceAstralSmall", "INV_Enchant_EssenceAstralLarge", "INV_Enchant_EssenceMysticalSmall", "INV_Enchant_EssenceMysticalLarge", "INV_Enchant_EssenceNetherSmall", "INV_Enchant_EssenceNetherLarge", "INV_Enchant_EssenceEternalSmall", "INV_Enchant_EssenceEternalLarge" },
-			weapon = "hph", armor = "absorb", accessory = "regen" },
+			weapon = "cdr", armor = "hp", accessory = "healTaken" },
 	} },
 	scroll = { base = 320000, lines = {
-		{ name = "파괴", noun = "파괴 주문서", icons = { "INV_Scroll_04" }, weapon = "dmg_all", armor = "dr", accessory = "hpk" },
-		{ name = "연속", noun = "연속 주문서", icons = { "INV_Scroll_05" }, weapon = "multi", armor = "armorPct", accessory = "aspd" },
-		{ name = "생명", noun = "생명 주문서", icons = { "INV_Scroll_01" }, weapon = "leech", armor = "hpPct", accessory = "heal" },
-		{ name = "시간", noun = "시간 주문서", icons = { "INV_Scroll_03" }, weapon = "cdr", armor = "allres", accessory = "move" },
+		{ name = "파괴", noun = "파괴 주문서", icons = { "INV_Scroll_04" }, weapon = "boss", armor = "dr", accessory = "aspd" },
+		{ name = "연속", noun = "연속 주문서", icons = { "INV_Scroll_05" }, weapon = "critdmg", armor = "dr", accessory = "dodge" },
+		{ name = "생명", noun = "생명 주문서", icons = { "INV_Scroll_01" }, weapon = "atk", armor = "hp", accessory = "armor" },
+		{ name = "시간", noun = "시간 주문서", icons = { "INV_Scroll_03" }, weapon = "cdr", armor = "healTaken", accessory = "dr" },
 	} },
 }
 ns.SOCKET_MATS_BY = { gem = {}, dust = {}, scroll = {} } -- [kind][grade] = { id, ... } in line order
@@ -378,13 +299,13 @@ do
 				mat(id, kind, grade, ns.SOCKET_GRADE_WORD[grade] .. " " .. line.noun, icon)
 				local m = ns.MATS[id]
 				m.q, m.line = grade, li
-				-- { stat mod, lowest tier, highest tier } for each gear group
+				-- { stat, lowest tier, highest tier } for each gear group
 				m.sock = {}
 				for _, g in ipairs(GROUPS) do
 					local lo, hi = grade, grade
 					if kind == "scroll" then hi = math.min(10, grade + 2)
 					elseif g == "weapon" then lo = math.min(10, grade + 1) hi = lo end
-					m.sock[g] = { { SOCKET_MOD[line[g]], lo, hi } }
+					m.sock[g] = { line[g], lo, hi }
 				end
 				table.insert(ns.SOCKET_MATS_BY[kind][grade], id)
 			end
@@ -489,6 +410,26 @@ ns.SOCKET_MAT_RENAMED = {
 	scroll138001 = { "scroll320109", "scroll320209", "scroll320309", "scroll320409" },
 	scroll139001 = { "scroll320110", "scroll320210", "scroll320310", "scroll320410" },
 }
+-- the gem lines past the fifth (신성 진주, 비전 다이아몬드, before the
+-- twelve stats) are 에메랄드 and 사파이어 now
+ns.SOCKET_GEM_MOVED = { [6] = 3, [7] = 2 }
+do
+	local function moved(id)
+		local line, grade = id:match("^gem300(%d)(%d%d)$")
+		local to = line and ns.SOCKET_GEM_MOVED[tonumber(line)]
+		return to and ("gem300" .. to .. grade) or id
+	end
+	for old, new in pairs(ns.SOCKET_MAT_RENAMED) do
+		if type(new) == "string" then ns.SOCKET_MAT_RENAMED[old] = moved(new) end
+	end
+	for line in pairs(ns.SOCKET_GEM_MOVED) do
+		for grade = 1, 10 do
+			local id = string.format("gem300%d%02d", line, grade)
+			ns.SOCKET_MAT_RENAMED[id] = moved(id)
+		end
+	end
+	ns.SocketMatMoved = moved
+end
 
 mat("seal1", "seal", 1, "낡은 행운의 인장", "INV_Misc_Coin_05")
 mat("seal2", "seal", 2, "용사의 인장", "INV_Misc_Coin_03")

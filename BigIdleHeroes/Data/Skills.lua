@@ -1,5 +1,5 @@
--- Active skills. Every value is { base, perLevel }; level 1-5 comes from skill
--- points, 6-10 only from "+All Skill Levels" gear.
+-- Active skills. Every value is { base, perLevel }; levels 1-5 come from
+-- skill points.
 --
 -- act:  "count" = fires every n basic attacks, "cd" = cooldown, "aura" = always on.
 -- kind: dmg | dot | field | pet | heal | shield | buff | debuff | aura | revive
@@ -8,12 +8,7 @@
 -- a player reads can never drift from what the skill actually does.
 local _, ns = ...
 
--- Passive-only stats that the talent trees use.
-ns.AFFIX.regenPct = { t = "regenPct", l = "flat", n = "초당 최대 생명력 회복", f = "pct2" }
-ns.AFFIX.hpkPct   = { t = "hpkPct",   l = "flat", n = "처치 시 최대 생명력 회복", f = "pct2" }
-
 ns.SKILL_MAX = 5
-ns.SKILL_CAP = 10
 
 -- Status ailments.
 --   slow   : attack and move speed reduced by power %
@@ -43,6 +38,7 @@ ns.STATUS = {
 	rupture   = { name = "파열",     kind = "dot", dur = 8, school = "phys" },
 	rake      = { name = "갈퀴 발톱",   kind = "dot", dur = 8, school = "phys" },
 	moonfire  = { name = "달빛 섬광", kind = "dot", dur = 8, school = "arcane" },
+	garrote   = { name = "목조르기", kind = "dot", dur = 6, school = "phys" },
 }
 
 ns.SKILLS = {}
@@ -61,6 +57,8 @@ local function aura(t) t.act = "aura" return t end
 
 ------------------------------------------------------------------------ Warrior
 -- Arms
+S("charge", "돌진", "Ability_Warrior_Charge",
+	count(4, { kind = "dmg", school = "phys", v = { 220, 20 }, targets = 1, status = { "stun", 0.3 } }))
 S("mortal_strike", "죽음의 일격", "Ability_Warrior_SavageBlow",
 	count(3, { kind = "dmg", school = "phys", v = { 240, 22 }, targets = 1 }))
 S("cleave", "회전베기", "Ability_Warrior_Cleave",
@@ -109,10 +107,12 @@ S("judgement", "심판", "Spell_Holy_RighteousFury",
 S("blessing_of_might", "힘의 축복", "Spell_Holy_FistOfJustice",
 	aura({ kind = "aura", mods = { { "atkPct", 6, 1.5 } } }))
 S("lay_on_hands", "신의 축복", "Spell_Holy_LayOnHands",
-	{ act = "cd", cd = 60, cdPer = -5, kind = "heal", target = "lowest", v = { 100, 0 }, when = { ally = 0.3 } })
+	{ act = "cd", cd = 60, cdPer = -5, kind = "heal", target = "lowest", v = { 100, 0 }, ofHealth = true, when = { ally = 0.3 } })
 S("divine_protection", "신의 가호", "Spell_Holy_Restoration",
 	cd(50, { kind = "shield", target = "all", v = { 20, 3 }, dur = 6, when = { ally = 0.5 } }))
 -- Protection
+S("seal_of_righteousness", "정의의 문장", "Ability_ThunderBolt",
+	count(3, { kind = "dmg", school = "holy", v = { 180, 17 }, targets = 1 }))
 S("holy_shield", "신성한 방패", "Spell_Holy_BlessingOfProtection",
 	count(3, { kind = "dmg", school = "holy", v = { 200, 18 }, targets = 1 }))
 S("exorcism", "퇴마술", "Spell_Holy_Excorcism_02",
@@ -170,7 +170,7 @@ S("freezing_trap", "얼음의 덫", "Spell_Frost_ChainsOfIce",
 S("wyvern_sting", "비룡 쐐기", "INV_Spear_02",
 	count(4, { kind = "dot", school = "nature", status = "wyvern", v = { 70, 8 }, dur = 8, targets = 1 }))
 S("aspect_of_the_hawk", "매의 상", "Spell_Nature_RavenForm",
-	cd(30, { kind = "buff", target = "self", dur = 10, mods = { { "multi", 40, 5 }, { "crit", 15, 2 } } }))
+	cd(30, { kind = "buff", target = "self", dur = 10, mods = { { "aspdMult", 20, 2.5 }, { "crit", 15, 2 } } }))
 
 ------------------------------------------------------------------------ Rogue
 -- Assassination
@@ -182,15 +182,15 @@ S("instant_poison", "순간 효과 독", "Ability_Poisons",
 	count(6, { kind = "dmg", school = "nature", v = { 480, 46 }, targets = 1 }))
 S("rupture", "파열", "Ability_Rogue_Rupture",
 	count(5, { kind = "dot", school = "phys", status = "rupture", v = { 60, 8 }, dur = 8, targets = 1 }))
-S("expose_armor", "약점 노출", "Ability_Warrior_Riposte",
-	cd(30, { kind = "debuff", status = "curse", v = { 20, 2 }, dur = 10, targets = 1 }))
+S("garrote", "목조르기", "Ability_Rogue_Garrote",
+	count(4, { kind = "dot", school = "phys", status = "garrote", v = { 60, 7 }, dur = 6, targets = 1 }))
 S("cold_blood", "냉혈", "Spell_Ice_Lament",
 	cd(20, { kind = "dmg", school = "phys", v = { 600, 60 }, targets = 1, critBonus = 100 }))
 -- Outlaw
 S("sinister_strike", "사악한 일격", "Spell_Shadow_RitualOfSacrifice",
 	count(3, { kind = "dmg", school = "phys", v = { 190, 18 }, targets = 1 }))
 S("blade_flurry", "폭풍의 칼날", "Ability_Warrior_PunishingBlow",
-	cd(25, { kind = "buff", target = "self", dur = 10, mods = { { "multi", 60, 8 }, { "aspdMult", 15, 2 } } }))
+	cd(25, { kind = "buff", target = "self", dur = 10, mods = { { "aspdMult", 45, 6 } } }))
 S("eviscerate", "절개", "Ability_Rogue_Eviscerate",
 	count(6, { kind = "dmg", school = "phys", v = { 520, 50 }, targets = 1 }))
 S("evasion", "회피", "Spell_Shadow_ShadowWard",
@@ -209,7 +209,7 @@ S("ambush", "매복", "Ability_Rogue_Ambush",
 S("vanish", "소멸", "Ability_Vanish",
 	cd(35, { kind = "buff", target = "self", dur = 10, mods = { { "critdmg", 50, 6 }, { "aspdMult", 20, 2 } } }))
 S("slice_and_dice", "난도질", "Ability_Rogue_SliceDice",
-	cd(40, { kind = "buff", target = "self", dur = 12, mods = { { "dmg_all", 25, 3 } } }))
+	cd(40, { kind = "buff", target = "self", dur = 12, mods = { { "atkMult", 25, 3 } } }))
 
 ------------------------------------------------------------------------ Priest
 -- Discipline
@@ -226,6 +226,8 @@ S("power_infusion", "마력 주입", "Spell_Holy_PowerInfusion",
 S("prayer_of_fortitude", "인내의 기원", "Spell_Holy_PrayerOfFortitude",
 	cd(45, { kind = "buff", target = "party", dur = 8, mods = { { "dr", 18, 2 } }, when = { ally = 0.6 } }))
 -- Holy
+S("lesser_heal", "하급 치유", "Spell_Holy_LesserHeal",
+	cd(4, { kind = "heal", target = "lowest", v = { 16, 2.2 }, when = { ally = 0.85 } }))
 S("heal", "치유", "Spell_Holy_Heal02",
 	cd(5, { kind = "heal", target = "lowest", v = { 22, 3 }, when = { ally = 0.8 } }))
 S("renew", "소생", "Spell_Holy_Renew",
@@ -244,7 +246,7 @@ S("sw_pain", "어둠의 권능: 고통", "Spell_Shadow_ShadowWordPain",
 S("mind_flay", "정신의 채찍", "Spell_Shadow_SiphonMana",
 	count(2, { kind = "dmg", school = "shadow", v = { 150, 14 }, targets = 1, status = { "chill", 0.5 } }))
 S("vampiric_embrace", "흡혈의 선물", "Spell_Shadow_UnsummonBuilding",
-	aura({ kind = "aura", mods = { { "leech", 1.5, 0.4 } } }))
+	aura({ kind = "aura", mods = { { "healTaken", 6, 1.5 } } }))
 S("devouring_plague", "파멸의 역병", "Spell_Shadow_BlackPlague",
 	cd(10, { kind = "dot", school = "shadow", status = "plague", v = { 90, 10 }, dur = 8, targets = 1 }))
 S("shadowguard", "어둠의 수호", "Spell_Nature_LightningShield",
@@ -283,7 +285,7 @@ S("chain_heal", "연쇄 치유", "Spell_Nature_HealingWaveGreater",
 S("stoneskin_totem", "돌가죽 토템", "Spell_Nature_StoneSkinTotem",
 	cd(14, { kind = "shield", target = "tank", v = { 20, 3 }, dur = 12 }))
 S("healing_stream", "치유의 토템", "INV_Spear_04",
-	aura({ kind = "aura", mods = { { "regenPct", 0.35, 0.09 } } }))
+	aura({ kind = "aura", mods = { { "healTaken", 8, 2 } } }))
 S("lesser_healing_wave", "하급 치유의 물결", "Spell_Nature_HealingWaveLesser",
 	cd(7, { kind = "heal", target = "lowest", v = { 3.5, 0.5 }, hot = 6, instant = { 9, 1.2 }, when = { ally = 0.85 } }))
 S("ancestral_spirit", "고대의 영혼", "Spell_Nature_Regenerate",
@@ -297,8 +299,8 @@ S("arcane_missiles", "신비한 화살", "Spell_Nature_StarFall",
 	count(3, { kind = "dmg", school = "arcane", v = { 70, 8 }, targets = 1, hits = 3 }))
 S("arcane_explosion", "신비한 폭발", "Spell_Nature_WispSplode",
 	cd(7, { kind = "dmg", school = "arcane", v = { 130, 13 }, targets = 99 }))
-S("arcane_intellect", "신비한 지능", "Spell_Holy_MagicalSentry",
-	aura({ kind = "aura", mods = { { "cast", 6, 1.5 } } }))
+S("mana_shield", "마나 보호막", "Spell_Shadow_DetectLesserInvisibility",
+	cd(20, { kind = "shield", target = "self", v = { 25, 3.5 }, dur = 10, when = { self = 0.9 } }))
 S("arcane_power", "신비의 마법 강화", "Spell_Nature_Lightning",
 	cd(35, { kind = "buff", target = "self", dur = 10, mods = { { "atkMult", 30, 3 } } }))
 S("blast_wave", "화염 폭풍", "Spell_Holy_Excorcism_02",
@@ -386,6 +388,8 @@ S("hurricane", "허리케인", "Spell_Nature_Cyclone",
 S("insect_swarm", "곤충 떼", "Spell_Nature_InsectSwarm",
 	cd(25, { kind = "field", school = "nature", v = { 85, 10 }, tick = 0.5, dur = 6, targets = 3 }))
 -- Feral
+S("claw", "할퀴기", "Ability_Druid_Rake",
+	count(3, { kind = "dmg", school = "phys", v = { 190, 18 }, targets = 1 }))
 S("shred", "칼날 발톱", "Spell_Shadow_VampiricAura",
 	count(3, { kind = "dmg", school = "phys", v = { 230, 22 }, targets = 1 }))
 S("rake", "갈퀴 발톱", "Ability_Druid_Disembowel",
@@ -396,8 +400,6 @@ S("leader_of_pack", "무리의 우두머리", "Spell_Nature_UnyeildingStamina",
 	aura({ kind = "aura", mods = { { "crit", 3, 0.7 } } }))
 S("tigers_fury", "맹공격", "Ability_Mount_JungleTiger",
 	cd(30, { kind = "buff", target = "self", dur = 8, mods = { { "atkMult", 25, 3 } } }))
-S("enrage", "분노", "Ability_Druid_Enrage",
-	cd(45, { kind = "buff", target = "self", dur = 10, mods = { { "aspdMult", 40, 6 } } }))
 -- Guardian
 S("maul", "후려치기", "Ability_Druid_Maul",
 	count(3, { kind = "dmg", school = "phys", v = { 200, 18 }, targets = 1 }))
@@ -405,8 +407,8 @@ S("swipe", "휘둘러치기", "INV_Misc_MonsterClaw_03",
 	cd(6, { kind = "dmg", school = "phys", v = { 90, 10 }, targets = 4, status = { "bleed", 0.5 } }))
 S("demo_roar", "위협의 포효", "Ability_Druid_DemoralizingRoar",
 	cd(18, { kind = "debuff", status = "weaken", v = { 20, 2 }, dur = 8, targets = 99 }))
-S("thorns", "가시", "Spell_Nature_Thorns",
-	aura({ kind = "aura", mods = { { "thorns", 60, 15 } } }))
+S("bash", "강타", "Ability_Druid_Bash",
+	cd(10, { kind = "dmg", school = "phys", v = { 150, 15 }, targets = 1, status = { "stun", 0.6 } }))
 S("frenzied_regen", "광포한 재생력", "Ability_BullRush",
 	cd(30, { kind = "heal", target = "self", v = { 4, 0.5 }, hot = 8, when = { self = 0.6 } }))
 S("barkskin", "나무 껍질", "Spell_Nature_StoneClawTotem",
@@ -419,7 +421,7 @@ S("healing_touch", "치유의 손길", "Spell_Nature_HealingTouch",
 S("regrowth", "재생", "Spell_Nature_ResistNature",
 	cd(12, { kind = "heal", target = "all", v = { 2.4, 0.35 }, hot = 6, when = { ally = 0.8 } }))
 S("mark_of_wild", "야생의 징표", "Spell_Nature_Regeneration",
-	aura({ kind = "aura", mods = { { "hpPct", 5, 1.2 }, { "allres", 4, 1 } } }))
+	aura({ kind = "aura", mods = { { "hpPct", 5, 1.2 }, { "res", 4, 1 } } }))
 S("tranquility", "평온", "Spell_Nature_Tranquility",
 	cd(40, { kind = "heal", target = "all", v = { 25, 3.5 }, when = { ally = 0.5 } }))
 S("rebirth", "환생", "Spell_Nature_Reincarnation",
@@ -429,17 +431,17 @@ S("rebirth", "환생", "Spell_Nature_Reincarnation",
 -- talent: the level its talent row opens, 10 + 5 per row). Every spec's six
 -- skills open in this order (Data/Classes.lua, ns.SKILL_UNLOCK).
 ns.SKILL_LEARN = {
-	arcane_intellect = 1, battle_shout = 1, devotion_aura = 1, eviscerate = 1, fireball = 1, fortitude = 1,
+	battle_shout = 1, devotion_aura = 1, eviscerate = 1, lesser_heal = 1, seal_of_righteousness = 1, fireball = 1, fortitude = 1,
 	healing_touch = 1, healing_wave = 1, heroic_strike = 1, holy_light = 1, immolate = 1, lightning_bolt = 1,
 	mark_of_wild = 1, shadow_bolt = 1, sinister_strike = 1, smite = 1, wrath = 1, backstab = 4,
 	blessing_of_might = 4, corruption = 4, earth_shock = 4, frostbolt = 4, judgement = 4, moonfire = 4,
 	rejuvenation = 4, rend = 4, serpent_sting = 4, stoneskin_totem = 4, sw_pain = 4, arcane_shot = 6,
-	divine_protection = 6, fire_blast = 6, pw_shield = 6, seal_of_the_crusader = 6, thorns = 6,
+	divine_protection = 6, fire_blast = 6, pw_shield = 6, seal_of_the_crusader = 6, charge = 4,
 	thunder_clap = 6, arcane_missiles = 8, curse_of_agony = 8, evasion = 8, renew = 8, aspect_of_the_hawk = 10,
 	call_pet = 10, defensive_stance = 10, demo_roar = 10, flame_shock = 10, flametongue_weapon = 10,
 	frost_nova = 10, lay_on_hands = 10, maul = 10, mind_blast = 10, resurrection = 10, screech = 10,
-	searing_totem = 10, slice_and_dice = 10, strength_of_earth = 10, ancestral_spirit = 12, enrage = 12,
-	fire_nova = 12, overpower = 12, regrowth = 12, arcane_explosion = 14, drain_life = 14, expose_armor = 14,
+	searing_totem = 10, slice_and_dice = 10, strength_of_earth = 10, ancestral_spirit = 12, bash = 14, garrote = 14,
+	fire_nova = 12, overpower = 12, regrowth = 12, arcane_explosion = 14, drain_life = 14, claw = 20, mana_shield = 20,
 	revenge = 14, flamestrike = 16, heal = 16, immolation_trap = 16, swipe = 16, ambush = 18, multi_shot = 18,
 	searing_pain = 18, aimed_shot = 20, blizzard = 20, cleave = 20, consecration = 20, devouring_plague = 20,
 	exorcism = 20, flash_heal = 20, flash_of_light = 20, freezing_trap = 20, ghostly_strike = 20,
@@ -499,11 +501,7 @@ end
 local function modsText(id, lvl)
 	local parts = {}
 	for _, m in ipairs(ns.SkillMods(id, lvl)) do
-		if m[1] == "thorns" then
-			parts[#parts + 1] = string.format("근접 공격자에게 공격력의 %s%% 자연 피해 반사", num(m[2]))
-		else
-			parts[#parts + 1] = ns.Stats.ModText(m[1], m[2])
-		end
+		parts[#parts + 1] = ns.Stats.ModText(m[1], m[2])
 	end
 	return table.concat(parts, ", ")
 end
@@ -524,7 +522,18 @@ local function whenText(sk)
 	return ""
 end
 
-function ns.SkillDesc(id, lvl)
+-- How a heal of `pct` reads: a healer's skill mends out of 공격력 (its
+-- number for the hero's level and spec when heroId is given), anything else
+-- a share of the target's health.
+local function healOf(sk, pct, heroId)
+	if not sk.byAtk then return "최대 생명력의 " .. num(pct) .. "%" end
+	local h = heroId and ns.db and ns.db.heroes[heroId]
+	local level = h and h.level or 1
+	local spec = h and h.spec or sk.byAtk
+	return "공격력의 " .. num(pct * ns.HealAtk(level) * ns.SpecTune(spec, "heal")) .. "%"
+end
+
+function ns.SkillDesc(id, lvl, heroId)
 	local sk = ns.SKILLS[id]
 	lvl = math.max(1, lvl or 1)
 	local v = sk.v and at(sk.v, lvl) or 0
@@ -549,19 +558,19 @@ function ns.SkillDesc(id, lvl)
 				.. " 자신의 생명력을 회복합니다 (한 번에 최대 생명력의 30%까지)."
 		end
 		if sk.selfHeal then s = s .. string.format(" 자신의 최대 생명력 %s%% 회복.", num(at(sk.selfHeal, lvl))) end
-		if sk.healAll then s = s .. string.format(" 파티 전원이 최대 생명력의 %s%% 회복.", num(at(sk.healAll, lvl))) end
-		if sk.atone then s = s .. string.format(" 가장 다친 아군이 최대 생명력의 %s%% 회복.", num(at(sk.atone, lvl))) end
+		if sk.healAll then s = s .. string.format(" 파티 전원이 %s 회복.", healOf(sk, at(sk.healAll, lvl), heroId)) end
+		if sk.atone then s = s .. string.format(" 가장 다친 아군이 %s 회복.", healOf(sk, at(sk.atone, lvl), heroId)) end
 	elseif kind == "dot" then
 		s = string.format("%s에게 %s초 동안 매초 %s%% %s 피해를 줍니다.", targetText(sk.targets), num(sk.dur), num(v), school)
 	elseif kind == "field" and sk.heal then
-		s = string.format("%s초 동안 %s초마다 파티 전원이 최대 생명력의 %s%%를 회복합니다.", num(sk.dur), num(sk.tick), num(v))
+		s = string.format("%s초 동안 %s초마다 파티 전원이 %s를 회복합니다.", num(sk.dur), num(sk.tick), healOf(sk, v, heroId))
 	elseif kind == "field" then
 		s = string.format("%s초 동안 %s초마다 %s에게 %s%% %s 피해를 줍니다.", num(sk.dur), num(sk.tick), targetText(sk.targets), num(v), school)
 		if sk.status then
 			s = s .. string.format(" %d%% 확률로 %s.", sk.status[2] * 100, ns.N(ns.STATUS[sk.status[1]].name))
 		end
 	elseif kind == "pet" and sk.heal then
-		s = string.format("늘 곁을 따라다니며 %s초마다 가장 다친 아군의 생명력을 최대 생명력의 %s%%만큼 회복합니다.", num(sk.tick), num(v))
+		s = string.format("늘 곁을 따라다니며 %s초마다 가장 다친 아군의 생명력을 %s만큼 회복합니다.", num(sk.tick), healOf(sk, v, heroId))
 	elseif kind == "pet" then
 		s = string.format("늘 곁에서 싸우는 소환수가 %s초마다 가장 가까운 적에게 %s%% %s 피해를 줍니다.", num(sk.tick), num(v), school)
 	elseif kind == "heal" then
@@ -576,14 +585,14 @@ function ns.SkillDesc(id, lvl)
 			who = "가장 다친 아군"
 		end
 		if sk.hot then
-			s = string.format("%s: %s초 동안 매초 최대 생명력의 %s%% 회복.", who, num(sk.hot), num(v))
-			if sk.instant then s = s .. string.format(" 즉시 %s%% 추가 회복.", num(at(sk.instant, lvl))) end
+			s = string.format("%s: %s초 동안 매초 %s 회복.", who, num(sk.hot), healOf(sk, v, heroId))
+			if sk.instant then s = s .. string.format(" 즉시 %s 추가 회복.", healOf(sk, at(sk.instant, lvl), heroId)) end
 		else
-			s = string.format("%s: 최대 생명력의 %s%% 회복.", who, num(v))
+			s = string.format("%s: %s 회복.", who, healOf(sk, v, heroId))
 		end
 	elseif kind == "shield" then
 		local who = ({ self = "자신", all = "파티 전원", tank = "방어 전담" })[sk.target] or "가장 다친 아군"
-		s = string.format("%s에게 최대 생명력의 %s%%를 흡수하는 보호막을 %s초 동안 씌웁니다.", who, num(v), num(sk.dur))
+		s = string.format("%s에게 %s를 흡수하는 보호막을 %s초 동안 씌웁니다.", who, healOf(sk, v, heroId), num(sk.dur))
 	elseif kind == "buff" then
 		local who = ({ party = "파티 전원", lowest = "가장 다친 아군" })[sk.target] or "자신"
 		s = string.format("%s초 동안 %s: %s", num(sk.dur), who, modsText(id, lvl))

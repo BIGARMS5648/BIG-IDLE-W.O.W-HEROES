@@ -60,8 +60,7 @@ end
 -- the stage shrinks as it catches up. Returns levels gained and experience.
 local function heroXP(id, perSec, seconds, stageLevel)
 	local h = ns.db.heroes[id]
-	local s = ns.Stats.Get(id)
-	local mult = 1 + (ns.Bonus("exp") + (s.exp or 0)) / 100
+	local mult = 1 + ns.Bonus("exp") / 100
 	local levels, used = 0, 0
 	for _ = 1, ns.HERO_MAX_LEVEL do
 		if seconds <= 0 or h.level >= ns.HERO_MAX_LEVEL then break end

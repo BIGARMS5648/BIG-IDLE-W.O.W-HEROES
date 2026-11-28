@@ -401,7 +401,7 @@ local function buildCreate()
 			return {
 				{ ns.N(sk.name), "영웅 Lv " .. self.unlock .. "부터", UI.C.gold[1], UI.C.gold[2], UI.C.gold[3] },
 				{ ns.SkillActText(self.sid, 1), ns.SkillTag(self.sid), 0.7, 0.8, 1 },
-				{ ns.SkillDesc(self.sid, 1), nil, 1, 1, 1, true },
+				{ ns.SkillDesc(self.sid, 1, nil), nil, 1, 1, 1, true },
 			}
 		end)
 		create.skills[i] = s

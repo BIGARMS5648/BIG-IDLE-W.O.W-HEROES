@@ -12,7 +12,7 @@ local U = ns.U
 local Items = {}
 ns.Items = Items
 
-local BASE_ORDER = { "atk", "hp", "armor", "aspd", "crit", "critdmg", "block", "cast", "heal" }
+local BASE_ORDER = { "atk", "hp", "armor", "aspd", "crit", "critdmg", "dr" }
 
 local function roundValue(v)
 	if v >= 20 then return floor(v + 0.5) end
@@ -195,48 +195,67 @@ end
 ------------------------------------------------------------------------
 -- Generation
 ------------------------------------------------------------------------
--- An affix is rolled between its pool entry's two numbers times this.
+-- An affix's range is its pool entry's two numbers times this.
 local function affixMult(key, level, quality)
 	local a = ns.AFFIX[key]
 	if a.s then return ns.Scale[a.s](level) * ns.QUALITY[quality].mult end
 	return (1 + level / 200) * (0.86 + 0.07 * quality)
 end
 
-local function rollAffix(entry, level, quality)
-	local key, lo, hi = entry[1], entry[2], entry[3]
-	return { key, roundValue(U.rnd(lo, hi) * affixMult(key, level, quality)) }
-end
-
--- The range a random stat of this item could have rolled in, for its slot,
--- level and grade (nil for a fixed one, such as +1 to all skills).
-function Items.AffixRange(it, key)
-	local cat = ns.SLOT[it.s] and ns.SLOT[it.s].cat
+local function poolEntry(cat, key)
 	local pool = cat and ns.AFFIX_POOL[cat]
-	if not (pool and ns.AFFIX[key]) then return nil end
+	if not pool then return nil end
 	for _, e in ipairs(pool) do
-		if e[1] == key then
-			if e[2] == e[3] then return nil end
-			local m = affixMult(key, it.l, it.q)
-			return roundValue(e[2] * m), roundValue(e[3] * m)
-		end
+		if e[1] == key then return e end
 	end
 end
 
--- A piece whose level changed (an old save): each random stat keeps where it
--- sat in its range, scaled to the new level, and stays inside the new range.
+-- The five values a random stat of this slot group, level and grade can
+-- take: the lowest and the step between them (nil when it has no range).
+function Items.AffixSteps(cat, key, level, quality)
+	local e = poolEntry(cat, key)
+	if not e or not ns.AFFIX[key] then return nil end
+	local m = affixMult(key, level, quality)
+	return ns.FiveSteps((e[2] + e[3]) / 2 * m, (e[3] - e[2]) * m)
+end
+
+local function rollAffix(cat, key, level, quality)
+	local lo, step = Items.AffixSteps(cat, key, level, quality)
+	return { key, lo + random(0, 4) * step }
+end
+
+-- The lowest and highest value a random stat of this item could have
+-- rolled, for its slot, level and grade (nil for one without a range).
+function Items.AffixRange(it, key)
+	local cat = ns.SLOT[it.s] and ns.SLOT[it.s].cat
+	local lo, step = Items.AffixSteps(cat, key, it.l, it.q)
+	if not lo then return nil end
+	return lo, lo + 4 * step
+end
+
+-- The step (0..4) nearest to a value, for a stat of this item.
+local function nearestStep(v, lo, step)
+	return U.clamp(floor((v - lo) / step + 0.5), 0, 4)
+end
+
+-- Each random stat on one of its five values: the nearest one; a piece
+-- whose level changed (an old save) keeps where it sat in its range, at
+-- the new level.
 function Items.FitAffixes(it, oldLevel)
-	if type(it) ~= "table" or type(it.a) ~= "table" or not ns.QUALITY[it.q] then return end
+	if type(it) ~= "table" or type(it.a) ~= "table" or not ns.QUALITY[it.q] or not ns.SLOT[it.s] then return end
+	local cat = ns.SLOT[it.s].cat
 	for _, a in ipairs(it.a) do
 		local key, v = a[1], a[2]
-		if ns.AFFIX[key] and type(v) == "number" then
-			local lo, hi = Items.AffixRange(it, key)
-			if lo then
-				if oldLevel and oldLevel ~= it.l then
-					local was = affixMult(key, oldLevel, it.q)
-					if was > 0 then v = v * affixMult(key, it.l, it.q) / was end
-				end
-				a[2] = roundValue(U.clamp(v, lo, hi))
+		local lo, step = Items.AffixSteps(cat, key, it.l, it.q)
+		if lo and type(v) == "number" then
+			local k
+			if oldLevel and oldLevel ~= it.l then
+				local olo, ostep = Items.AffixSteps(cat, key, oldLevel, it.q)
+				k = nearestStep(v, olo, ostep)
+			else
+				k = nearestStep(v, lo, step)
 			end
+			a[2] = lo + k * step
 		end
 	end
 end
@@ -289,9 +308,10 @@ function Items.New(slot, level, quality, wtype)
 	local n = ns.QUALITY[quality].affix
 	if n > 0 then
 		it.a = {}
-		local pool = ns.AFFIX_POOL[ns.SLOT[slot].cat]
+		local cat = ns.SLOT[slot].cat
+		local pool = ns.AFFIX_POOL[cat]
 		local used = {}
-		for _ = 1, n do
+		for _ = 1, math.min(n, #pool) do
 			local choices = {}
 			for i = 1, #pool do
 				if not used[pool[i][1]] then
@@ -300,11 +320,7 @@ function Items.New(slot, level, quality, wtype)
 			end
 			local e = U.weighted(choices, 4)
 			used[e[1]] = true
-			it.a[#it.a + 1] = rollAffix(e, level, quality)
-		end
-		-- high-end amulets may carry +1 to all skills instead of their last affix
-		if slot == "neck" and quality >= 6 and random() < 0.2 then
-			it.a[#it.a] = { "skills", 1 }
+			it.a[#it.a + 1] = rollAffix(cat, e[1], level, quality)
 		end
 	end
 	return it
@@ -332,61 +348,55 @@ function Items.RangeText(key, lo, hi)
 	return "+" .. U.num(lo, 1) .. "~" .. U.num(hi, 1) .. pct
 end
 
--- What a socket material can give an item of this gear group: its TBH
--- options, { stat mod, lowest tier, highest tier }, one picked evenly.
+-- What a socket material can give an item of this gear group:
+-- { stat, lowest tier, highest tier }.
 function Items.SocketOptions(matId, it)
 	local m = ns.MATS[matId]
 	local sm = m and m.sock
 	if not sm then return nil end
-	return sm[Items.Cat(it)] or sm.any
+	return sm[Items.Cat(it)]
 end
 
--- Our stat and its lowest / highest value for one option at one tier.
-local function optionRange(modKey, tier)
-	local r = ns.TBH.STAT_MODS[modKey][tier]
-	local key, lo = ns.SocketStat(modKey, tier, r[1])
-	local _, hi = ns.SocketStat(modKey, tier, r[2])
-	return key, lo, hi
-end
-
--- Sets a material in a free socket: one of its options for the item's gear
--- group, a tier in the option's range, a value in the tier's range.
--- Returns the entry { stat, value, tier, material, stat mod }.
+-- Sets a material in a free socket: its stat for the item's gear group, a
+-- tier in its range, one of the tier's five values. Returns the entry
+-- { stat, value, tier, material }.
 function Items.AddSocket(it, kind, matId)
-	local opts = Items.SocketOptions(matId, it)
-	if not opts then return nil end
-	local o = U.pick(opts)
+	local o = Items.SocketOptions(matId, it)
+	if not o then return nil end
 	local tier = random(o[2], o[3])
-	local r = ns.TBH.STAT_MODS[o[1]][tier]
-	local key, v = ns.SocketStat(o[1], tier, random(r[1], r[2]))
-	local entry = { key, roundValue(v), tier, matId, o[1] }
+	local lo, step = ns.SocketSteps(o[1], tier)
+	local entry = { o[1], lo + random(0, 4) * step, tier, matId }
 	local l = Items.SocketList(it, kind, true)
 	l[#l + 1] = entry
 	return entry
 end
 
--- The lowest and highest value a socket stat could have rolled (its
--- material's option at that tier), or nil for a fixed one.
+-- The lowest and highest value a socket stat could have rolled (its tier's
+-- five values), or nil when it has no tier.
 function Items.SocketRange(it, kind, e)
-	if not (e[5] and ns.TBH.STAT_MODS[e[5]] and e[3]) then return nil end
-	local _, lo, hi = optionRange(e[5], e[3])
-	lo, hi = roundValue(lo), roundValue(hi)
-	if lo == hi then return nil end
-	return lo, hi
+	if not (e[3] and ns.SOCKET_VALUE[e[1]]) then return nil end
+	local lo, step = ns.SocketSteps(e[1], e[3])
+	return lo, lo + 4 * step
 end
 
--- Every stat a material can give an item of this gear group, with its
--- whole range over the option's tiers: { { key, lo, hi, chance }, ... }.
+-- What a material gives an item of this gear group, over all its tiers:
+-- { { stat, lowest, highest, chance } }.
 function Items.SocketPool(matId, it)
-	local opts = Items.SocketOptions(matId, it)
-	if not opts then return {} end
-	local out = {}
-	for _, o in ipairs(opts) do
-		local key, lo = optionRange(o[1], o[2])
-		local _, _, hi = optionRange(o[1], o[3])
-		out[#out + 1] = { key, roundValue(lo), roundValue(hi), 100 / #opts }
+	local o = Items.SocketOptions(matId, it)
+	if not o then return {} end
+	local lo, hi = Items.SocketSpan(o[1], o[2], o[3])
+	return { { o[1], lo, hi, 100 } }
+end
+
+-- The lowest and highest value a socket stat takes over a span of tiers.
+function Items.SocketSpan(stat, t1, t2)
+	local lo, hi
+	for t = t1, t2 do
+		local l, step = ns.SocketSteps(stat, t)
+		lo = math.min(lo or l, l)
+		hi = math.max(hi or l + 4 * step, l + 4 * step)
 	end
-	return out
+	return lo, hi
 end
 
 -- The icon of what is set in a socket: its material, else the kind's.
@@ -559,8 +569,9 @@ function Items.KeptHeroes()
 end
 
 -- The hero this bag item would improve the most, if any (the party, or
--- the heroes given).
-function Items.PartyUpgrade(it, heroes)
+-- the heroes given; allCd: 재사용 대기시간 감소 weighed as if every skill
+-- slot held a cooldown skill).
+function Items.PartyUpgrade(it, heroes, allCd)
 	local best, bestR
 	local list = heroes
 	if not list then
@@ -571,7 +582,7 @@ function Items.PartyUpgrade(it, heroes)
 		end
 	end
 	for _, id in ipairs(list) do
-		local r = Items.Compare(id, it)
+		local r = Items.Compare(id, it, nil, allCd)
 		if r and r > Items.UPGRADE and (not bestR or r > bestR) then best, bestR = id, r end
 	end
 	return best, bestR
@@ -582,18 +593,18 @@ end
 -- no other piece in the bag for that hero and slot beats while being
 -- wearable as soon or sooner. So every step up on the way is kept (the
 -- level 10 helm for a level 1 hero even with a level 100 one in the bag).
-function Items.FutureUpgrade(it, heroes)
+function Items.FutureUpgrade(it, heroes, allCd)
 	local bag = ns.db.bag
 	local req = Items.ReqLevel(it)
 	for _, id in ipairs(heroes or Items.KeptHeroes()) do
 		local h = ns.db.heroes[id]
 		if h and h.level < req and Items.CanUse(id, it) then
-			local r = Items.Compare(id, it, true)
+			local r = Items.Compare(id, it, true, allCd)
 			if r and r > Items.UPGRADE then
 				local beaten = false
 				for _, o in ipairs(bag) do
 					if o ~= it and o.s == it.s and Items.ReqLevel(o) <= req and Items.CanUse(id, o) then
-						local ro = Items.Compare(id, o, true)
+						local ro = Items.Compare(id, o, true, allCd)
 						if ro and (ro > r or (ro == r and (Items.ReqLevel(o) < req or tostring(o) < tostring(it)))) then
 							beaten = true
 							break
@@ -616,25 +627,27 @@ function Items.KeepReason(it, manual)
 	if it.up then return "강화한 장비입니다." end
 	if Items.HasSockets(it) then return "보석·마법부여·주문각인이 붙은 장비입니다." end
 	local heroes = Items.KeptHeroes()
-	if Items.PartyUpgrade(it, heroes) then return "영웅에게 지금보다 더 좋은 장비입니다." end
-	if Items.FutureUpgrade(it, heroes) then return "영웅이 레벨을 올리면 낄 더 좋은 장비입니다." end
+	-- (재사용 대기시간 감소 also as if every skill slot held a cooldown
+	-- skill, so a piece is not broken down while such a skill is out)
+	if Items.PartyUpgrade(it, heroes) or Items.PartyUpgrade(it, heroes, true) then return "영웅에게 지금보다 더 좋은 장비입니다." end
+	if Items.FutureUpgrade(it, heroes) or Items.FutureUpgrade(it, heroes, true) then return "영웅이 레벨을 올리면 낄 더 좋은 장비입니다." end
 	return nil
 end
 
 -- Would this bag item be an upgrade for the hero? Returns the power ratio
--- (anyLevel: as if the hero could wear it already).
-function Items.Compare(heroId, it, anyLevel)
+-- (anyLevel: as if the hero could wear it already; allCd: Stats.Power's).
+function Items.Compare(heroId, it, anyLevel, allCd)
 	if anyLevel then
 		if not Items.CanUse(heroId, it) then return nil end
 	elseif not Items.CanEquip(heroId, it) then
 		return nil
 	end
 	local h = ns.db.heroes[heroId]
-	local cur = ns.Stats.Power(heroId)
+	local cur = ns.Stats.Power(heroId, nil, allCd)
 	local gear = {}
 	for k, v in pairs(h.gear) do gear[k] = v end
 	gear[it.s] = it
-	local new = ns.Stats.Power(heroId, gear)
+	local new = ns.Stats.Power(heroId, gear, allCd)
 	return new / max(0.0001, cur)
 end
 
@@ -791,31 +804,25 @@ function Items.MatTooltip(id)
 	end
 	local use
 	if m.kind == "bar" or m.kind == "leather" or m.kind == "cloth" then
-		use = "장비 > 제작 탭에서 장비를 만드는 재료입니다."
+		use = "대장간 > 제작에서 장비를 만드는 재료입니다."
 	elseif m.kind == "gem" then
-		use = "장비 > 보석 탭에서 보석 홈에 능력치를 부여합니다."
+		use = "대장간 > 보석에서 보석 홈에 능력치를 부여합니다."
 	elseif m.kind == "dust" then
-		use = "장비 > 마법부여 탭에서 마법 홈에 능력치를 부여합니다."
+		use = "대장간 > 마법부여에서 마법부여 홈에 능력치를 부여합니다."
 	elseif m.kind == "scroll" then
 		use = "대장간 > 주문각인에서 주문각인 홈에 능력치를 새깁니다."
 	else
-		use = "장비 > 재료 > 행운의 인장 재료에서 [굴리기]로 무작위 장비를 얻습니다."
+		use = "대장간 > 행운의 인장에서 [굴리기]로 무작위 장비를 얻습니다."
 	end
 	lines[#lines + 1] = { use, nil, 1, 0.82, 0, true }
 	-- what it gives, by gear group
 	local sm = m.sock
 	if sm then
-		local GROUP = { { "weapon", "무기" }, { "armor", "방어구" }, { "accessory", "장신구" }, { "any", "모든 장비" } }
-		for _, g in ipairs(GROUP) do
-			local opts = sm[g[1]]
-			if opts then
-				lines[#lines + 1] = { g[2] .. (#opts > 1 and string.format(" (%d가지 중 하나)", #opts) or ""), nil, 0.55, 0.8, 1 }
-				for _, o in ipairs(opts) do
-					local r1, r2 = ns.TBH.STAT_MODS[o[1]][o[2]], ns.TBH.STAT_MODS[o[1]][o[3]]
-					local key, lo = ns.SocketStat(o[1], o[2], r1[1])
-					local _, hi = ns.SocketStat(o[1], o[3], r2[2])
-					lines[#lines + 1] = { "  " .. ns.N(ns.AFFIX[key].n), Items.RangeText(key, roundValue(lo), roundValue(hi)), 0.85, 0.85, 0.85 }
-				end
+		for _, grp in ipairs({ { "weapon", "무기" }, { "armor", "방어구" }, { "accessory", "장신구" } }) do
+			local o = sm[grp[1]]
+			if o then
+				local lo, hi = Items.SocketSpan(o[1], o[2], o[3])
+				lines[#lines + 1] = { grp[2] .. " · " .. ns.N(ns.AFFIX[o[1]].n), Items.RangeText(o[1], lo, hi), 0.85, 0.85, 0.85 }
 			end
 		end
 	end

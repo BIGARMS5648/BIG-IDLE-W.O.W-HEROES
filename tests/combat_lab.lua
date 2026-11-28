@@ -165,12 +165,10 @@ ns.Heroes.AddXP = function(id, amount)
 end
 
 -- every stat a hero has, at neutral values; a test sets what it measures
+-- (speed: 공격 및 시전 속도 against the spec's own pace, how fast cooldowns run)
 local NEUTRAL = {
-	atk = 100, hp = 100000, armor = 0, aspd = 1, crit = 0, critdmg = 150, regen = 0, regenPct = 0,
-	hph = 0, hpk = 0, hpkPct = 0, leech = 0, dodge = 0, block = 0, dr = 0, absorb = 0, cdr = 0,
-	cast = 0, move = 0, heal = 0, multi = 0, thorns = 0, exp = 0, gold = 0, skills = 0, allres = 0,
-	dmg_phys = 0, dmg_fire = 0, dmg_frost = 0, dmg_nature = 0, dmg_shadow = 0, dmg_holy = 0,
-	dmg_arcane = 0, dmg_all = 0, res_fire = 0, res_frost = 0, res_nature = 0, res_shadow = 0, healMult = 1,
+	atk = 100, hp = 100000, armor = 0, aspd = 1, speed = 1, crit = 0, critdmg = 150, boss = 0, cdr = 0,
+	dr = 0, res = 0, dodge = 0, healTaken = 0, healMult = 1,
 }
 
 local function dummy(o)
