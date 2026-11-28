@@ -291,18 +291,17 @@ end
 local function killReward(m)
 	local db = ns.db
 	local goldPct = ns.Bonus("gold")
-	-- the runes' gold and experience on top: every kill, then by kind (a
-	-- monster, a stage's boss, an act's boss); the gold bonus counts them too
-	local addG, addX = ns.Bonus("goldKill"), ns.Bonus("expKill")
+	-- the runes' gold on top: every kill, then by kind (a monster, a stage's
+	-- boss, an act's boss); the gold bonus counts it too
+	local addG = ns.Bonus("goldKill")
 	if m.boss then
-		local k = st.raid and "Act" or "Boss"
-		addG, addX = addG + ns.Bonus("gold" .. k), addX + ns.Bonus("exp" .. k)
+		addG = addG + (st.raid and ns.Bonus("goldAct") or ns.Bonus("goldBoss"))
 	elseif not m.summoned then
-		addG, addX = addG + ns.Bonus("goldMob"), addX + ns.Bonus("expMob")
+		addG = addG + ns.Bonus("goldMob")
 	end
 	local gold = (m.gold + addG) * (1 + goldPct / 100)
 	gold = max(1, floor(gold + 0.5))
-	local exp = m.exp + addX
+	local exp = m.exp
 	ns.AddGold(gold)
 	st.gGold = st.gGold + gold
 	st.gXP = st.gXP + exp

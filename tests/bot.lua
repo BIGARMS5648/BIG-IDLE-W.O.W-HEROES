@@ -22,7 +22,7 @@ end
 -- Runes as a player would buy them: the cheapest open rune, or the next step
 -- towards a rune worth heading for (party seats, skill slots, opening
 -- chests), its whole way weighed against what it brings.
-local GOAL = { party = 0.15, skillSlot = 0.2, openKind = 0.3, openAll = 0.3, auto1 = 0.3, auto2 = 0.3, auto3 = 0.3, waves = 0.4 }
+local GOAL = { party = 0.15, skillSlot = 0.2, openKind = 0.3, openAll = 0.3, auto1 = 0.3, auto2 = 0.3, auto3 = 0.3 }
 local SLOW = { stash = 4, offGold = 4, offExp = 4, offlineOn = 4 }
 local function buyRunes()
 	local R = ns.Runes

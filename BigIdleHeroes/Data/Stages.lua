@@ -564,12 +564,14 @@ local function knots(k, l)
 end
 -- Experience on top of TBH's growth, by stage level (same kind of points):
 -- as much as keeps the heroes about two levels above the stage they push,
--- level 98 at the last boss.
+-- level 98 at the last boss. Every experience rune gives a percent; this is
+-- lowered by what the runes a player has learned by each stage add, so the
+-- heroes level as fast as when some of them gave flat experience.
 ns.EXP_GROW = {
-	{ 1, 0.45 }, { 6, 0.45 }, { 11, 0.52 }, { 14, 0.79 }, { 17, 1.14 }, { 21, 1.21 }, { 25, 1.19 },
-	{ 30, 1.13 }, { 34, 0.91 }, { 38, 0.65 }, { 42, 0.59 }, { 46, 0.77 }, { 50, 1.17 }, { 54, 1.71 },
-	{ 58, 2.07 }, { 62, 2.4 }, { 66, 2.52 }, { 70, 2.3 }, { 75, 2.43 }, { 79, 2.75 }, { 83, 2.93 },
-	{ 87, 3.17 }, { 90, 2.74 }, { 93, 1.68 }, { 100, 1.68 },
+	{ 1, 0.45 }, { 6, 0.409 }, { 11, 0.412 }, { 14, 0.588 }, { 17, 0.828 }, { 21, 0.88 }, { 25, 0.845 },
+	{ 30, 0.771 }, { 34, 0.616 }, { 38, 0.413 }, { 42, 0.364 }, { 46, 0.471 }, { 50, 0.706 }, { 54, 1.012 },
+	{ 58, 1.224 }, { 62, 1.419 }, { 66, 1.489 }, { 70, 1.359 }, { 75, 1.424 }, { 79, 1.611 }, { 83, 1.717 },
+	{ 87, 1.857 }, { 90, 1.606 }, { 93, 0.984 }, { 100, 0.985 },
 }
 function ns.ExpGrow(l) return knots(ns.EXP_GROW, l) end
 -- The gear level a party has at stage level l: boxes give gear in TBH's
